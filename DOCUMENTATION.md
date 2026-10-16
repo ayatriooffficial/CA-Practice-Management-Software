@@ -3,7 +3,7 @@
 **Product Name:** Turia Practice (CA Practice Management Software)  
 **Version:** 1.0.0  
 **Target Audience:** Chartered Accountants, Tax Advisors, Auditing Firms, and Corporate Tax Teams  
-**Primary Accent:** `#7367f0`  
+**Primary Accent:** `#31719B`  
 
 ---
 
@@ -85,11 +85,11 @@ The application is built on top of the **Next.js 16 App Router** with **React 19
 
 ## 3. Design System & Color Tokens
 
-The visual style is characterized by a refined, modern SaaS aesthetic centered around the primary color **`#7367f0`** (Indigo-Purple). All design elements draw from structured CSS custom properties declared in `src/app/globals.css`.
+The visual style is characterized by a refined, modern SaaS aesthetic centered around the primary color **`#31719B`** (Indigo-Purple). All design elements draw from structured CSS custom properties declared in `src/app/globals.css`.
 
 ### Core Color Palette
-* **Primary Brand**: `#7367f0`
-* **Primary Hover**: `#5e50ee`
+* **Primary Brand**: `#31719B`
+* **Primary Hover**: `#3D88BF`
 * **Primary Active/Light**: `#eeedfd` (Light Mode), `rgba(115, 103, 240, 0.16)` (Dark Mode)
 * **Primary Border**: `#d2cdfb` (Light Mode), `rgba(115, 103, 240, 0.35)` (Dark Mode)
 * **Online Status Indicator**: `#22c55e` (Vibrant Emerald Green)
@@ -99,8 +99,8 @@ The visual style is characterized by a refined, modern SaaS aesthetic centered a
 
 | CSS Token | Light Mode Value | Dark Mode Value | Semantic Role |
 | :--- | :--- | :--- | :--- |
-| `--primary` | `#7367f0` | `#7367f0` | Main theme identity, active indicators, buttons |
-| `--primary-hover` | `#5e50ee` | `#8276f2` | Hover state for interactive primary controls |
+| `--primary` | `#31719B` | `#31719B` | Main theme identity, active indicators, buttons |
+| `--primary-hover` | `#3D88BF` | `#8276f2` | Hover state for interactive primary controls |
 | `--primary-light` | `#eeedfd` | `rgba(115,103,240,0.16)` | Background for active tabs and highlights |
 | `--primary-border` | `#d2cdfb` | `rgba(115,103,240,0.35)` | Subtle borders around primary badges |
 | `--bg-app` | `#ffffff` | `#0f172a` | Root window background |
@@ -178,7 +178,7 @@ The centerpiece notice tracking module.
 
 ### 5.3 ProfileDrawer (`src/components/ProfileDrawer.tsx`)
 An interactive slide-out panel that opens when clicking the avatar in the header.
-* **Header Banner**: Dynamic `#7367f0` gradient with initials avatar (`DS`), online indicator dot, and close (`X`) control.
+* **Header Banner**: Dynamic `#31719B` gradient with initials avatar (`DS`), online indicator dot, and close (`X`) control.
 * **Navigation Links**:
   * My Profile, Settings, Turia Demo Videos, Refer & Earn, App Customizer, Enroll Utility, Logout.
   * Styled with clean, soft hover effects (`hover:bg-[var(--primary-light)] hover:text-[var(--primary)]`).
@@ -188,14 +188,14 @@ An interactive slide-out panel that opens when clicking the avatar in the header
   * Responsive click triggers for mobile application discovery.
 
 ### 5.4 Header (`src/components/Header.tsx`)
-* **Brand Logo**: 4-petal clover icon in `#7367f0` alongside user practice identity.
+* **Brand Logo**: 4-petal clover icon in `#31719B` alongside user practice identity.
 * **Horizontal Scroll Nav**: Displays top modules with conditional badges (`ADD ON` in cyan, `NEW` in green).
 * **Search Trigger**: Opens `SearchModal` on click or keyboard shortcut.
 * **Theme Switcher**: Smoothly transitions between Light and Dark modes.
 
 ### 5.5 Sidebar (`src/components/Sidebar.tsx`)
 * Vertical layout containing 12 icon items.
-* Active item receives a 3px left indicator bar in `#7367f0` and soft background tint.
+* Active item receives a 3px left indicator bar in `#31719B` and soft background tint.
 * Micro-interaction: Hovering scales icon by 110% (`group-hover:scale-110`).
 
 ### 5.6 SearchModal (`src/components/SearchModal.tsx`)

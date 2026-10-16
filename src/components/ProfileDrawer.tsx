@@ -69,7 +69,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
           <div
             className="relative h-28 shrink-0 flex items-start justify-between p-4"
             style={{
-              background: "linear-gradient(135deg, #7367f0 0%, #8f85f3 100%)",
+              background: "linear-gradient(135deg, #31719B 0%, #8f85f3 100%)",
             }}
           >
             {/* Close Button at top-left */}
@@ -87,7 +87,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
               <div
                 className="w-18 h-18 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900 relative transition-transform hover:scale-105"
                 style={{
-                  backgroundColor: "#5e50ee",
+                  backgroundColor: "#3D88BF",
                 }}
               >
                 <span>DS</span>

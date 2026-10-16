@@ -8,7 +8,7 @@ A unified, modern Practice Management and Statutory Notice Tracking platform bui
 
 **Turia Practice** delivers a high-performance, single-pane-of-glass workspace for professional accounting practices. It unifies client tracking, statutory communication, tax notice calendars, team coordination, and document workflows into a coherent design system.
 
-* **Primary Brand Accent**: `#7367f0` (Modern Indigo-Purple)
+* **Primary Brand Accent**: `#31719B` (Modern Indigo-Purple)
 * **Framework**: Next.js 16 (App Router) + React 19
 * **Styling**: Tailwind CSS v4 + Vanilla CSS Design Tokens
 * **Theme Support**: Seamless Light & Dark mode via CSS variables & `@custom-variant dark`
@@ -68,7 +68,7 @@ Persistent collapsed navigation bar providing access to all 12 core practice dim
 12. `Registry` (`/registry`)
 
 ### 5. Slide-Out Profile & Account Drawer
-* **Top Identity Banner**: `#7367f0` gradient header with avatar circle and online status dot.
+* **Top Identity Banner**: `#31719B` gradient header with avatar circle and online status dot.
 * **Account Shortcuts**: My Profile, Settings.
 * **Mobile Apps Download Section**:
   * Authentic **Google Play** badge with official vector brand logo.
@@ -84,8 +84,8 @@ The UI follows a standardized CSS variable architecture defined in [`src/app/glo
 
 | Variable | Light Mode | Dark Mode | Usage |
 | :--- | :--- | :--- | :--- |
-| `--primary` | `#7367f0` | `#7367f0` | Main brand color, active indicators, highlights |
-| `--primary-hover` | `#5e50ee` | `#8276f2` | Button and link hover states |
+| `--primary` | `#31719B` | `#31719B` | Main brand color, active indicators, highlights |
+| `--primary-hover` | `#3D88BF` | `#8276f2` | Button and link hover states |
 | `--primary-light` | `#eeedfd` | `rgba(115, 103, 240, 0.16)` | Active nav item background, subtle tags |
 | `--primary-border` | `#d2cdfb` | `rgba(115, 103, 240, 0.35)` | Accent borders and separators |
 | `--bg-app` | `#ffffff` | `#0f172a` | App body background |

@@ -9,9 +9,9 @@
 
 :root {
   /* Brand / Primary Palette */
-  --primary: #7367f0;
+  --primary: #31719B;
   /* Vibrant indigo-purple for active tabs & accents */
-  --primary-hover: #5e50ee;
+  --primary-hover: #3D88BF;
   --primary-focus: rgba(115, 103, 240, 0.25);
   --primary-light: #eeedfd;
   /* Very light tint for active backgrounds */
@@ -68,7 +68,7 @@
   /* Avatar / Credits */
   --avatar-bg: #eeedfd;
   /* Light primary tint avatar */
-  --avatar-text: #7367f0;
+  --avatar-text: #31719B;
   --status-online: #22c55e;
   /* Online dot indicator */
   --credits-border: #fed7aa;
@@ -80,7 +80,7 @@
   --cal-grid-border: #f1f5f9;
   --cal-day-text: #374151;
   --cal-day-other: #9ca3af;
-  --cal-today-bg: #7367f0;
+  --cal-today-bg: #31719B;
   --cal-today-light: #eeedfd;
 
   /* Radius & Shadows */
@@ -108,7 +108,7 @@
 
 /* Dark Mode Variables Support */
 [data-theme="dark"] {
-  --primary: #7367f0;
+  --primary: #31719B;
   --primary-hover: #8276f2;
   --primary-light: rgba(115, 103, 240, 0.16);
   --primary-border: rgba(115, 103, 240, 0.35);
@@ -142,7 +142,7 @@
   --cal-grid-border: #334155;
   --cal-day-text: #e2e8f0;
   --cal-day-other: #64748b;
-  --cal-today-bg: #7367f0;
+  --cal-today-bg: #31719B;
   --cal-today-light: rgba(115, 103, 240, 0.2);
 
   --orange-havy-light: #162032;
@@ -225,15 +225,19 @@ body {
 .bg-premium-blue-dark {
   background-color: var(--premium-blue-dark);
 }
+
 .bg-premium-blue-light {
   background-color: var(--premium-blue-light);
 }
+
 .bg-premium-orange-dark {
   background-color: var(--premium-orange-dark);
 }
+
 .bg-premium-orange-light {
   background-color: var(--premium-orange-light);
 }
+
 .bg-orange-heavy-light {
   background-color: var(--orange-havy-light);
 }
@@ -241,12 +245,15 @@ body {
 .text-premium-blue-dark {
   color: var(--premium-blue-dark);
 }
+
 .text-premium-blue-light {
   color: var(--premium-blue-light);
 }
+
 .text-premium-orange-dark {
   color: var(--premium-orange-dark);
 }
+
 .text-premium-orange-light {
   color: var(--premium-orange-light);
 }
@@ -254,12 +261,15 @@ body {
 .border-premium-blue-dark {
   border-color: var(--premium-blue-dark);
 }
+
 .border-premium-blue-light {
   border-color: var(--premium-blue-light);
 }
+
 .border-premium-orange-dark {
   border-color: var(--premium-orange-dark);
 }
+
 .border-premium-orange-light {
   border-color: var(--premium-orange-light);
 }
@@ -268,6 +278,7 @@ body {
 .crm-table td {
   border-color: #e5e7eb;
 }
+
 [data-theme="dark"] .crm-table th,
 [data-theme="dark"] .crm-table td {
   border-color: #334155;
@@ -297,30 +308,39 @@ body {
 .border-line {
   border-color: var(--line);
 }
+
 .text-ink {
   color: var(--ink);
 }
+
 .text-ink-soft {
   color: var(--ink-soft);
 }
+
 .border-brand {
   border-color: var(--brand);
 }
+
 .text-brand {
   color: var(--brand);
 }
+
 .bg-brand-soft {
   background-color: var(--brand-soft);
 }
+
 .hover\:bg-brand-soft:hover {
   background-color: var(--brand-soft);
 }
+
 .bg-danger {
   background-color: var(--danger);
 }
+
 .focus\:ring-focus:focus {
   --tw-ring-color: var(--focus);
 }
+
 .focus\:ring-danger:focus {
   --tw-ring-color: var(--danger);
 }

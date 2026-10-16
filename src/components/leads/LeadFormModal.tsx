@@ -263,7 +263,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-6 items-start">
                 {/* Photo thumbnail */}
-                <div className="flex flex-col items-center gap-2 pt-2">
+                <div className="flex flex-col items-center gap-2 pt-4">
                   <div
                     onClick={() => document.getElementById(fileInputId)?.click()}
                     className="w-24 h-24 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-[#f5f6f8] dark:bg-[#0f172a] flex items-center justify-center cursor-pointer hover:border-[#31719B] overflow-hidden transition-colors"
