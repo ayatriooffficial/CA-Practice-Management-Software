@@ -97,6 +97,13 @@
   /* Transitions */
   --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Ayatrio CRM Premium Palette */
+  --premium-blue-dark: #31719B;
+  --premium-blue-light: #3D88BF;
+  --premium-orange-dark: #e8655a;
+  --premium-orange-light: #fc7d72;
+  --black: #000000;
+  --orange-havy-light: #F6F4F2;
 }
 
 /* Dark Mode Variables Support */
@@ -137,6 +144,8 @@
   --cal-day-other: #64748b;
   --cal-today-bg: #7367f0;
   --cal-today-light: rgba(115, 103, 240, 0.2);
+
+  --orange-havy-light: #162032;
 }
 
 /* Global Reset & Base Styling */
@@ -210,4 +219,108 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-subtle);
+}
+
+/* Premium Ayatrio Theme Utility Helpers */
+.bg-premium-blue-dark {
+  background-color: var(--premium-blue-dark);
+}
+.bg-premium-blue-light {
+  background-color: var(--premium-blue-light);
+}
+.bg-premium-orange-dark {
+  background-color: var(--premium-orange-dark);
+}
+.bg-premium-orange-light {
+  background-color: var(--premium-orange-light);
+}
+.bg-orange-heavy-light {
+  background-color: var(--orange-havy-light);
+}
+
+.text-premium-blue-dark {
+  color: var(--premium-blue-dark);
+}
+.text-premium-blue-light {
+  color: var(--premium-blue-light);
+}
+.text-premium-orange-dark {
+  color: var(--premium-orange-dark);
+}
+.text-premium-orange-light {
+  color: var(--premium-orange-light);
+}
+
+.border-premium-blue-dark {
+  border-color: var(--premium-blue-dark);
+}
+.border-premium-blue-light {
+  border-color: var(--premium-blue-light);
+}
+.border-premium-orange-dark {
+  border-color: var(--premium-orange-dark);
+}
+.border-premium-orange-light {
+  border-color: var(--premium-orange-light);
+}
+
+.crm-table th,
+.crm-table td {
+  border-color: #e5e7eb;
+}
+[data-theme="dark"] .crm-table th,
+[data-theme="dark"] .crm-table td {
+  border-color: #334155;
+}
+
+/* DiscardConfirmationModal CRM design tokens */
+:root {
+  --line: #dde2e8;
+  --ink: #111827;
+  --ink-soft: #64748b;
+  --brand: #31719B;
+  --brand-soft: rgba(49, 113, 155, 0.08);
+  --danger: #e8655a;
+  --focus: rgba(49, 113, 155, 0.35);
+}
+
+[data-theme="dark"] {
+  --line: #334155;
+  --ink: #f8fafc;
+  --ink-soft: #94a3b8;
+  --brand: #3D88BF;
+  --brand-soft: rgba(61, 136, 191, 0.15);
+  --danger: #fc7d72;
+  --focus: rgba(61, 136, 191, 0.35);
+}
+
+.border-line {
+  border-color: var(--line);
+}
+.text-ink {
+  color: var(--ink);
+}
+.text-ink-soft {
+  color: var(--ink-soft);
+}
+.border-brand {
+  border-color: var(--brand);
+}
+.text-brand {
+  color: var(--brand);
+}
+.bg-brand-soft {
+  background-color: var(--brand-soft);
+}
+.hover\:bg-brand-soft:hover {
+  background-color: var(--brand-soft);
+}
+.bg-danger {
+  background-color: var(--danger);
+}
+.focus\:ring-focus:focus {
+  --tw-ring-color: var(--focus);
+}
+.focus\:ring-danger:focus {
+  --tw-ring-color: var(--danger);
 }

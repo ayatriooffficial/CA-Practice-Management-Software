@@ -1,13 +1,15 @@
-import { EmptyPagePlaceholder } from "@/components/EmptyPagePlaceholder";
+import { Metadata } from "next";
+import { ClientsModule } from "@/components/clients/ClientsModule";
+
+export const metadata: Metadata = {
+  title: "Clients Master Directory | Ayatrio CRM",
+  description: "Client master directory, GSTIN autofill, constitution types, recurring compliance services, and KYC.",
+};
 
 export default function ClientPage() {
   return (
-    <EmptyPagePlaceholder
-      title="Client"
-      category="Sidebar"
-      description="Client master directory, GSTIN/PAN registry, authorized signatories, and KYC."
-      iconName="Users"
-      actionText="Add New Client"
-    />
+    <div className="w-full min-h-[calc(100vh-var(--header-height))] p-2 bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] transition-colors">
+      <ClientsModule />
+    </div>
   );
 }
