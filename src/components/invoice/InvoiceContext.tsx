@@ -1,0 +1,365 @@
+"use client";
+
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import {
+  InvoiceTab,
+  InvoiceStatus,
+  InvoiceRecord,
+  ReceiptRecord,
+  BankAccount,
+} from './types';
+import {
+  MOCK_INVOICES,
+  MOCK_PROFORMAS,
+  MOCK_REIMBURSEMENTS,
+  MOCK_RECEIPTS,
+  MOCK_BANK_ACCOUNTS,
+} from './mockData';
+
+interface InvoiceContextType {
+  activeTab: InvoiceTab;
+  setActiveTab: (tab: InvoiceTab) => void;
+  invoices: InvoiceRecord[];
+  proformas: InvoiceRecord[];
+  reimbursements: InvoiceRecord[];
+  receipts: ReceiptRecord[];
+  bankAccounts: BankAccount[];
+  financialYear: string;
+  setFinancialYear: (fy: string) => void;
+  dateRange: string;
+  setDateRange: (range: string) => void;
+  currencyFilter: string;
+  setCurrencyFilter: (curr: string) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
+  addInvoice: (item: Partial<InvoiceRecord>) => InvoiceRecord;
+  addProforma: (item: Partial<InvoiceRecord>) => InvoiceRecord;
+  addReimbursement: (item: Partial<InvoiceRecord>) => InvoiceRecord;
+  addReceipt: (
+    item: Partial<ReceiptRecord>,
+    allocations?: { id: string; amount: number; type: 'invoice' | 'reimbursement' }[]
+  ) => ReceiptRecord;
+  addBankAccount: (account: Omit<BankAccount, 'id'>) => BankAccount;
+  activeReport: string;
+  setActiveReport: (rep: string) => void;
+  summaryStats: {
+    allCount: number;
+    allAmount: number;
+    receivableAmount: number;
+    receivableCount: number;
+    partiallyPaidAmount: number;
+    partiallyPaidCount: number;
+    paidAmount: number;
+    paidCount: number;
+    advancePaidAmount: number;
+    advancePaidCount: number;
+    totalReceiptsCount: number;
+    totalReceiptsAmount: number;
+    advanceReceiptsAmount: number;
+  };
+}
+
+const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
+
+export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [activeTab, setActiveTab] = useState<InvoiceTab>('invoice');
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>(MOCK_INVOICES);
+  const [proformas, setProformas] = useState<InvoiceRecord[]>(MOCK_PROFORMAS);
+  const [reimbursements, setReimbursements] = useState<InvoiceRecord[]>(MOCK_REIMBURSEMENTS);
+  const [receipts, setReceipts] = useState<ReceiptRecord[]>(MOCK_RECEIPTS);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(MOCK_BANK_ACCOUNTS);
+
+  const [financialYear, setFinancialYear] = useState<string>('FY 2026-2027');
+  const [dateRange, setDateRange] = useState<string>('This Month');
+  const [currencyFilter, setCurrencyFilter] = useState<string>('All Currencies');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [activeReport, setActiveReport] = useState<string>('dashboard');
+
+  const addInvoice = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
+    const nextNumber = `INV-2026-${String(invoices.length + 1).padStart(3, '0')}`;
+    const newRecord: InvoiceRecord = {
+      id: `inv-${Date.now()}`,
+      type: 'invoice',
+      number: nextNumber,
+      date: item.date || new Date().toLocaleDateString('en-GB'),
+      dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
+      billingOrg: item.billingOrg || 'Krishna Associates',
+      billingAddress: item.billingAddress || '',
+      clientId: item.clientId || '',
+      clientBusinessName: item.clientBusinessName || '',
+      clientLegalName: item.clientLegalName || '',
+      clientGroup: item.clientGroup || '',
+      clientGstin: item.clientGstin || '',
+      clientAddress: item.clientAddress || '',
+      clientPan: item.clientPan || '',
+      services: item.services || [],
+      subTotal: item.subTotal || 0,
+      totalPayable: item.totalPayable || 0,
+      tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
+      currency: item.currency || 'INR',
+      status: 'Receivable',
+      bankAccountId: item.bankAccountId || '',
+      notes: item.notes || '',
+      paidAmount: 0,
+      balanceAmount: item.totalPayable || 0,
+      financialYear: financialYear,
+      createdAt: new Date().toISOString(),
+      daysPastDue: 0,
+    };
+    setInvoices((prev) => [newRecord, ...prev]);
+    return newRecord;
+  }, [invoices.length, financialYear]);
+
+  const addProforma = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
+    const nextNumber = `PI-2026-${String(proformas.length + 1).padStart(3, '0')}`;
+    const newRecord: InvoiceRecord = {
+      id: `prof-${Date.now()}`,
+      type: 'proforma',
+      number: nextNumber,
+      date: item.date || new Date().toLocaleDateString('en-GB'),
+      dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
+      billingOrg: item.billingOrg || 'Krishna Associates',
+      billingAddress: item.billingAddress || '',
+      clientId: item.clientId || '',
+      clientBusinessName: item.clientBusinessName || '',
+      clientLegalName: item.clientLegalName || '',
+      clientGroup: item.clientGroup || '',
+      clientGstin: item.clientGstin || '',
+      clientAddress: item.clientAddress || '',
+      clientPan: item.clientPan || '',
+      services: item.services || [],
+      subTotal: item.subTotal || 0,
+      totalPayable: item.totalPayable || 0,
+      tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
+      currency: item.currency || 'INR',
+      status: 'Receivable',
+      bankAccountId: item.bankAccountId || '',
+      notes: item.notes || '',
+      paidAmount: 0,
+      balanceAmount: item.totalPayable || 0,
+      financialYear: financialYear,
+      createdAt: new Date().toISOString(),
+      daysPastDue: 0,
+    };
+    setProformas((prev) => [newRecord, ...prev]);
+    return newRecord;
+  }, [proformas.length, financialYear]);
+
+  const addReimbursement = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
+    const nextNumber = `CH-2026-${String(reimbursements.length + 1).padStart(3, '0')}`;
+    const newRecord: InvoiceRecord = {
+      id: `reimb-${Date.now()}`,
+      type: 'reimbursement',
+      number: nextNumber,
+      date: item.date || new Date().toLocaleDateString('en-GB'),
+      dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
+      billingOrg: item.billingOrg || 'Krishna Associates',
+      billingAddress: item.billingAddress || '',
+      clientId: item.clientId || '',
+      clientBusinessName: item.clientBusinessName || '',
+      clientLegalName: item.clientLegalName || '',
+      clientGroup: item.clientGroup || '',
+      clientGstin: item.clientGstin || '',
+      clientAddress: item.clientAddress || '',
+      clientPan: item.clientPan || '',
+      services: item.services || [],
+      subTotal: item.subTotal || 0,
+      totalPayable: item.totalPayable || 0,
+      tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
+      currency: item.currency || 'INR',
+      status: 'Receivable',
+      bankAccountId: item.bankAccountId || '',
+      notes: item.notes || '',
+      paidAmount: 0,
+      balanceAmount: item.totalPayable || 0,
+      financialYear: financialYear,
+      createdAt: new Date().toISOString(),
+    };
+    setReimbursements((prev) => [newRecord, ...prev]);
+    return newRecord;
+  }, [reimbursements.length, financialYear]);
+
+  const addReceipt = useCallback(
+    (
+      item: Partial<ReceiptRecord>,
+      allocations?: { id: string; amount: number; type: 'invoice' | 'reimbursement' }[]
+    ): ReceiptRecord => {
+      const nextNumber = `REC-2026-${String(receipts.length + 1).padStart(3, '0')}`;
+      const newRecord: ReceiptRecord = {
+        id: `rec-${Date.now()}`,
+        receiptNo: nextNumber,
+        billingOrg: item.billingOrg || 'Krishna Associates',
+        clientId: item.clientId || '',
+        businessName: item.businessName || '',
+        legalName: item.legalName || '',
+        group: item.group || '',
+        amount: item.amount || 0,
+        paymentDate: item.paymentDate || new Date().toLocaleDateString('en-GB'),
+        method: item.method || 'Bank Transfer',
+        bankAccountId: item.bankAccountId || '',
+        bankName: item.bankName || 'HDFC Bank Ltd',
+        referenceNumber: item.referenceNumber || '',
+        notes: item.notes || '',
+        financialYear: financialYear,
+        isAdvance: item.isAdvance || false,
+        invoiceId: item.invoiceId,
+        invoiceNumber: item.invoiceNumber,
+      };
+
+      if (allocations && allocations.length > 0) {
+        allocations.forEach((alloc) => {
+          if (alloc.type === 'invoice') {
+            setInvoices((prev) =>
+              prev.map((inv) => {
+                if (inv.id === alloc.id) {
+                  const updatedPaid = inv.paidAmount + alloc.amount;
+                  const updatedBalance = Math.max(0, inv.totalPayable - updatedPaid);
+                  const updatedStatus: InvoiceStatus =
+                    updatedBalance === 0 ? 'Paid' : updatedPaid > 0 ? 'Partially Paid' : inv.status;
+                  return {
+                    ...inv,
+                    paidAmount: updatedPaid,
+                    balanceAmount: updatedBalance,
+                    status: updatedStatus,
+                  };
+                }
+                return inv;
+              })
+            );
+          } else if (alloc.type === 'reimbursement') {
+            setReimbursements((prev) =>
+              prev.map((r) => {
+                if (r.id === alloc.id) {
+                  const updatedPaid = r.paidAmount + alloc.amount;
+                  const updatedBalance = Math.max(0, r.totalPayable - updatedPaid);
+                  const updatedStatus: InvoiceStatus =
+                    updatedBalance === 0 ? 'Paid' : updatedPaid > 0 ? 'Partially Paid' : r.status;
+                  return {
+                    ...r,
+                    paidAmount: updatedPaid,
+                    balanceAmount: updatedBalance,
+                    status: updatedStatus,
+                  };
+                }
+                return r;
+              })
+            );
+          }
+        });
+      }
+
+      setReceipts((prev) => [newRecord, ...prev]);
+      return newRecord;
+    },
+    [receipts.length, financialYear]
+  );
+
+  const addBankAccount = useCallback((account: Omit<BankAccount, 'id'>): BankAccount => {
+    const newAcc: BankAccount = {
+      ...account,
+      id: `bank-${Date.now()}`,
+    };
+    if (newAcc.isPrimary) {
+      setBankAccounts((prev) => prev.map((a) => ({ ...a, isPrimary: false })).concat(newAcc));
+    } else {
+      setBankAccounts((prev) => [...prev, newAcc]);
+    }
+    return newAcc;
+  }, []);
+
+  // Compute live summary statistics dynamically based on current list state
+  const summaryStats = useMemo(() => {
+    let currentList: InvoiceRecord[] = [];
+    if (activeTab === 'invoice') currentList = invoices;
+    else if (activeTab === 'proforma') currentList = proformas;
+    else if (activeTab === 'reimbursement') currentList = reimbursements;
+
+    const allCount = currentList.length;
+    const allAmount = currentList.reduce((acc, curr) => acc + curr.totalPayable, 0);
+
+    const receivableItems = currentList.filter(
+      (i) => i.status === 'Receivable' || i.status === 'Pending' || i.status === 'Overdue'
+    );
+    const receivableAmount = receivableItems.reduce((acc, curr) => acc + curr.balanceAmount, 0);
+    const receivableCount = receivableItems.length;
+
+    const partialItems = currentList.filter((i) => i.status === 'Partially Paid');
+    const partiallyPaidAmount = partialItems.reduce((acc, curr) => acc + curr.balanceAmount, 0);
+    const partiallyPaidCount = partialItems.length;
+
+    const paidItems = currentList.filter((i) => i.status === 'Paid');
+    const paidAmount = paidItems.reduce((acc, curr) => acc + curr.totalPayable, 0);
+    const paidCount = paidItems.length;
+
+    const advanceItems = currentList.filter((i) => i.status === 'Advance Paid');
+    const advancePaidAmount = advanceItems.reduce((acc, curr) => acc + curr.paidAmount, 0);
+    const advancePaidCount = advanceItems.length;
+
+    const totalReceiptsCount = receipts.length;
+    const totalReceiptsAmount = receipts.reduce((acc, curr) => acc + curr.amount, 0);
+    const advanceReceiptsAmount = receipts
+      .filter((r) => r.isAdvance)
+      .reduce((acc, curr) => acc + curr.amount, 0);
+
+    return {
+      allCount,
+      allAmount,
+      receivableAmount,
+      receivableCount,
+      partiallyPaidAmount,
+      partiallyPaidCount,
+      paidAmount,
+      paidCount,
+      advancePaidAmount,
+      advancePaidCount,
+      totalReceiptsCount,
+      totalReceiptsAmount,
+      advanceReceiptsAmount,
+    };
+  }, [activeTab, invoices, proformas, reimbursements, receipts]);
+
+  return (
+    <InvoiceContext.Provider
+      value={{
+        activeTab,
+        setActiveTab,
+        invoices,
+        proformas,
+        reimbursements,
+        receipts,
+        bankAccounts,
+        financialYear,
+        setFinancialYear,
+        dateRange,
+        setDateRange,
+        currencyFilter,
+        setCurrencyFilter,
+        searchQuery,
+        setSearchQuery,
+        statusFilter,
+        setStatusFilter,
+        addInvoice,
+        addProforma,
+        addReimbursement,
+        addReceipt,
+        addBankAccount,
+        activeReport,
+        setActiveReport,
+        summaryStats,
+      }}
+    >
+      {children}
+    </InvoiceContext.Provider>
+  );
+};
+
+export const useInvoice = () => {
+  const context = useContext(InvoiceContext);
+  if (!context) {
+    throw new Error('useInvoice must be used within an InvoiceProvider');
+  }
+  return context;
+};
