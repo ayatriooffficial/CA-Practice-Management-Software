@@ -22,11 +22,14 @@ import {
   CLIENT_TYPES,
   CLIENT_GROUPS,
   PROMOTERS,
+  INITIAL_LEADS,
   STATUTORY_TYPES,
   SERVICE_CATEGORIES,
   MOCK_GSTIN_REGISTRY,
 } from "@/data/crmData";
 import { Select } from "@/components/ui/Select";
+import { useLeads } from "@/hooks/useLeadsQuery";
+import { PromoterSearchDropdown, PromoterItem } from "./PromoterSearchDropdown";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface ClientFormProps {
@@ -87,18 +90,92 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [pincode, setPincode] = useState(initialClient?.pincode || "");
   const [photo, setPhoto] = useState<string | null>(initialClient?.photo || null);
 
-  // Customer Files Grid State (Always starts with 1 blank row)
-  const [promoterRows, setPromoterRows] = useState<PromoterRow[]>([
-    { key: 1, name: "", pan: "", share: "", designation: "", mcaId: "", mcaPassword: "" },
-  ]);
+  // Customer Files Grid State (Load from initialClient if editing, otherwise starts with 1 blank row)
+  const [promoterRows, setPromoterRows] = useState<PromoterRow[]>(() => {
+    if (initialClient?.customerFiles?.promoter && initialClient.customerFiles.promoter.length > 0) {
+      return initialClient.customerFiles.promoter.map((p: any, idx: number) => ({
+        key: p.key || idx + 1,
+        name: p.name || "",
+        pan: p.pan || "",
+        share: p.share || "",
+        designation: p.designation || "",
+        mcaId: p.mcaId || "",
+        mcaPassword: p.mcaPassword || "",
+      }));
+    }
+    return [{ key: 1, name: "", pan: "", share: "", designation: "", mcaId: "", mcaPassword: "" }];
+  });
 
-  const [statutoryRows, setStatutoryRows] = useState<StatutoryRow[]>([
-    { key: 1, type: "", idNo: "", userId: "", password: "", attachment: null },
-  ]);
+  const [statutoryRows, setStatutoryRows] = useState<StatutoryRow[]>(() => {
+    if (initialClient?.customerFiles?.statutory && initialClient.customerFiles.statutory.length > 0) {
+      return initialClient.customerFiles.statutory.map((s: any, idx: number) => ({
+        key: s.key || idx + 1,
+        type: s.type || "",
+        idNo: s.idNo || "",
+        userId: s.userId || "",
+        password: s.password || "",
+        attachment: s.attachment || null,
+      }));
+    }
+    return [{ key: 1, type: "", idNo: "", userId: "", password: "", attachment: null }];
+  });
 
-  const [recurringRows, setRecurringRows] = useState<RecurringRow[]>([
-    { key: 1, category: "", service: "", tariff: "0.00" },
-  ]);
+  const [recurringRows, setRecurringRows] = useState<RecurringRow[]>(() => {
+    if (initialClient?.customerFiles?.recurring && initialClient.customerFiles.recurring.length > 0) {
+      return initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
+        key: r.key || idx + 1,
+        category: r.category || "",
+        service: r.service || "",
+        tariff: r.tariff || "0.00",
+      }));
+    }
+    return [{ key: 1, category: "", service: "", tariff: "0.00" }];
+  });
+
+  // Fetch Leads dynamically to populate the Promoters list
+  const { data: leadsData } = useLeads({ limit: 100 });
+
+  const promotersList: PromoterItem[] = useMemo(() => {
+    const list =
+      leadsData?.leads && leadsData.leads.length > 0 ? leadsData.leads : INITIAL_LEADS;
+
+    const items: PromoterItem[] = [];
+    const seenNames = new Set<string>();
+
+    // 1. Add all leads from backend/mock
+    list.forEach((l) => {
+      const name = (l.fullName || `${l.firstName || ""} ${l.lastName || ""}`.trim()).toUpperCase();
+      if (name && !seenNames.has(name)) {
+        seenNames.add(name);
+        items.push({
+          id: l.id,
+          name: name,
+          pan: l.pan || "",
+          mcaId: l.mcaId || "",
+          mcaPassword: l.mcaPassword || "",
+          din: l.din || "",
+          mobile: l.mobile || "",
+        });
+      }
+    });
+
+    // 2. Also ensure default mock promoters are included if not present
+    PROMOTERS.forEach((p) => {
+      const uname = p.name.toUpperCase();
+      if (!seenNames.has(uname)) {
+        seenNames.add(uname);
+        items.push({
+          id: uname,
+          name: p.name,
+          pan: p.pan || "",
+          mcaId: p.mcaId || "",
+          mcaPassword: p.mcaPassword || "",
+        });
+      }
+    });
+
+    return items;
+  }, [leadsData?.leads]);
 
   // Modals
   const [showGstinModal, setShowGstinModal] = useState(false);
@@ -121,19 +198,72 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
   };
 
-  // Promoter Grid Updates
+  // Promoter Grid Updates (Searchable Dropdown handler)
+  const handleSelectPromoter = (key: number, promoter: PromoterItem) => {
+    setPromoterRows((prev) => {
+      let updated = prev.map((row) => {
+        if (row.key === key) {
+          return {
+            ...row,
+            name: promoter.name,
+            pan: promoter.pan || row.pan,
+            mcaId: promoter.mcaId || row.mcaId,
+            mcaPassword: promoter.mcaPassword || row.mcaPassword,
+            designation: row.designation || (promoter.din ? "Director" : row.designation),
+          };
+        }
+        return row;
+      });
+
+      // If last row has data, append next blank row automatically
+      const last = updated[updated.length - 1];
+      if (last.name || last.pan || last.share || last.designation) {
+        updated.push({
+          key: Math.max(...updated.map((r) => r.key)) + 1,
+          name: "",
+          pan: "",
+          share: "",
+          designation: "",
+          mcaId: "",
+          mcaPassword: "",
+        });
+      }
+      return updated;
+    });
+  };
+
+  const handleClearPromoter = (key: number) => {
+    setPromoterRows((prev) =>
+      prev.map((row) => {
+        if (row.key === key) {
+          return {
+            ...row,
+            name: "",
+            pan: "",
+            mcaId: "",
+            mcaPassword: "",
+          };
+        }
+        return row;
+      })
+    );
+  };
+
+  // Manual input field updates for promoter row
   const updatePromoterRow = (key: number, field: keyof PromoterRow, val: string) => {
     setPromoterRows((prev) => {
       let updated = prev.map((row) => {
         if (row.key === key) {
           const next = { ...row, [field]: val };
-          // If name is selected from list, auto-fill PAN & MCA details!
+          // If name is selected or typed, auto-fill PAN & MCA details!
           if (field === "name") {
-            const match = PROMOTERS.find((p) => p.name === val);
+            const match =
+              promotersList.find((p) => p.name.toLowerCase() === val.toLowerCase()) ||
+              PROMOTERS.find((p) => p.name.toLowerCase() === val.toLowerCase());
             if (match) {
               next.pan = match.pan;
-              next.mcaId = match.mcaId;
-              next.mcaPassword = match.mcaPassword;
+              next.mcaId = match.mcaId || "";
+              next.mcaPassword = match.mcaPassword || "";
             }
           }
           return next;
@@ -461,6 +591,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   </button>
                   <input
                     id={fileInputId}
+                    name="clientPhoto"
+                    aria-label="Upload photo"
                     type="file"
                     accept="image/*"
                     onChange={handlePhotoUpload}
@@ -471,11 +603,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Client Name * */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-client-name" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Client Name <span className="text-[#e8655a]">*</span>
                 </label>
                 <div>
                   <input
+                    id="cf-client-name"
+                    name="clientName"
+                    aria-label="Client Name"
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
@@ -493,11 +628,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Type * */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-type" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Type <span className="text-[#e8655a]">*</span>
                 </label>
                 <div>
                   <Select
+                    id="cf-type"
+                    aria-label="Client Type"
                     value={type}
                     onChange={(val) => {
                       setType(val);
@@ -522,10 +659,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* PAN */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-pan" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   PAN
                 </label>
                 <input
+                  id="cf-pan"
+                  name="pan"
+                  aria-label="PAN"
                   type="text"
                   maxLength={10}
                   value={pan}
@@ -537,10 +677,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Mobile No. */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-mobile" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Mobile No.
                 </label>
                 <input
+                  id="cf-mobile"
+                  name="mobile"
+                  aria-label="Mobile No."
                   type="tel"
                   maxLength={10}
                   value={mobile}
@@ -552,10 +695,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Email */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-email" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Email
                 </label>
                 <input
+                  id="cf-email"
+                  name="email"
+                  aria-label="Email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -566,10 +712,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* City */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-city" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   City
                 </label>
                 <input
+                  id="cf-city"
+                  name="city"
+                  aria-label="City"
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
@@ -590,6 +739,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   <button
                     type="button"
                     role="switch"
+                    aria-label="Is Active toggle"
                     aria-checked={isActive}
                     onClick={() => setIsActive(!isActive)}
                     className={`inline-flex h-6 w-12 shrink-0 items-center rounded-full border transition-colors duration-150 cursor-pointer ${isActive
@@ -609,11 +759,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Date of Birth */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-dob" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Date of Birth
                 </label>
                 <div className="relative">
                   <input
+                    id="cf-dob"
+                    name="dob"
+                    aria-label="Date of Birth"
                     type="date"
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
@@ -624,10 +777,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Select Group */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-group" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Select Group
                 </label>
                 <Select
+                  id="cf-group"
+                  aria-label="Select Group"
                   value={group}
                   onChange={(val) => setGroup(val)}
                   options={CLIENT_GROUPS.map((g) => ({ value: g, label: g }))}
@@ -639,10 +794,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Referred By */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-referred-by" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Referred By
                 </label>
                 <input
+                  id="cf-referred-by"
+                  name="referredBy"
+                  aria-label="Referred By"
                   type="text"
                   value={referredBy}
                   onChange={(e) => setReferredBy(e.target.value)}
@@ -653,10 +811,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Secondary Mobile No. */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-sec-mobile" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Secondary Mobile No.
                 </label>
                 <input
+                  id="cf-sec-mobile"
+                  name="secondaryMobile"
+                  aria-label="Secondary Mobile No."
                   type="tel"
                   maxLength={10}
                   value={secondaryMobile}
@@ -670,10 +831,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Address */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-start gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 pt-2">
+                <label htmlFor="cf-address" className="text-sm font-medium text-gray-700 dark:text-gray-300 pt-2 cursor-pointer">
                   Address
                 </label>
                 <textarea
+                  id="cf-address"
+                  name="address"
+                  aria-label="Address"
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
@@ -684,10 +848,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
               {/* Pincode */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-center gap-4 py-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="cf-pincode" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Pincode
                 </label>
                 <input
+                  id="cf-pincode"
+                  name="pincode"
+                  aria-label="Pincode"
                   type="text"
                   maxLength={6}
                   value={pincode}
@@ -719,7 +886,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     style={{ backgroundColor: "var(--orange-havy-light)" }}
                   >
                     <th className="w-10 px-2.5 py-2.5 text-center font-medium">#</th>
-                    <th className="px-3 py-2.5 font-medium w-56">Promoter Name</th>
+                    <th className="px-3 py-2.5 font-medium w-64 min-w-[240px]">Promoter Name</th>
                     <th className="px-3 py-2.5 font-medium w-36">PAN</th>
                     <th className="px-3 py-2.5 font-medium w-44">% of Share / Nos of Share</th>
                     <th className="px-3 py-2.5 font-medium w-40">Designation</th>
@@ -734,22 +901,23 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       <td className="px-2.5 py-2 text-center text-gray-400 font-medium">
                         {idx + 1}
                       </td>
-                      <td className="px-2 py-2">
-                        <select
+                      <td className="px-2 py-2 w-64 min-w-[240px]">
+                        <PromoterSearchDropdown
+                          id={`promoter-name-${row.key}`}
+                          name={`promoterName-${row.key}`}
+                          aria-label={`Promoter ${idx + 1} Name`}
                           value={row.name}
-                          onChange={(e) => updatePromoterRow(row.key, "name", e.target.value)}
-                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B]"
-                        >
-                          <option value="">Select</option>
-                          {PROMOTERS.map((p) => (
-                            <option key={p.name} value={p.name}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
+                          promoters={promotersList}
+                          onSelect={(promoter) => handleSelectPromoter(row.key, promoter)}
+                          onClear={() => handleClearPromoter(row.key)}
+                          placeholder="Select"
+                        />
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`promoter-pan-${row.key}`}
+                          name={`promoterPan-${row.key}`}
+                          aria-label={`Promoter ${idx + 1} PAN`}
                           type="text"
                           maxLength={10}
                           value={row.pan}
@@ -760,6 +928,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`promoter-share-${row.key}`}
+                          name={`promoterShare-${row.key}`}
+                          aria-label={`Promoter ${idx + 1} Share Percentage`}
                           type="text"
                           value={row.share}
                           onChange={(e) => updatePromoterRow(row.key, "share", e.target.value)}
@@ -769,6 +940,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`promoter-desig-${row.key}`}
+                          name={`promoterDesig-${row.key}`}
+                          aria-label={`Promoter ${idx + 1} Designation`}
                           type="text"
                           value={row.designation}
                           onChange={(e) => updatePromoterRow(row.key, "designation", e.target.value)}
@@ -778,6 +952,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`promoter-mca-id-${row.key}`}
+                          name={`promoterMcaId-${row.key}`}
+                          aria-label={`Promoter ${idx + 1} MCA ID`}
                           type="text"
                           value={row.mcaId}
                           onChange={(e) => updatePromoterRow(row.key, "mcaId", e.target.value)}
@@ -788,6 +965,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       <td className="px-2 py-2">
                         <div className="relative">
                           <input
+                            id={`promoter-mca-pw-${row.key}`}
+                            name={`promoterMcaPw-${row.key}`}
+                            aria-label={`Promoter ${idx + 1} MCA Password`}
                             type="password"
                             value={row.mcaPassword || ""}
                             onChange={(e) => updatePromoterRow(row.key, "mcaPassword", e.target.value)}
@@ -798,6 +978,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             type="button"
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
                             title="Password masked"
+                            aria-label="Password masked"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -810,6 +991,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             onClick={() => removePromoterRow(row.key)}
                             className="p-1 text-gray-400 hover:text-[#e8655a] rounded"
                             title="Remove line"
+                            aria-label={`Remove promoter row ${idx + 1}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -851,9 +1033,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <select
+                          id={`statutory-type-${row.key}`}
+                          name={`statutoryType-${row.key}`}
+                          aria-label={`Statutory ${idx + 1} Type`}
                           value={row.type}
                           onChange={(e) => updateStatutoryRow(row.key, "type", e.target.value)}
-                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B]"
+                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B] cursor-pointer"
                         >
                           <option value="">Select</option>
                           {STATUTORY_TYPES.map((t) => (
@@ -865,6 +1050,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`statutory-idno-${row.key}`}
+                          name={`statutoryIdNo-${row.key}`}
+                          aria-label={`Statutory ${idx + 1} ID Number`}
                           type="text"
                           value={row.idNo}
                           onChange={(e) => updateStatutoryRow(row.key, "idNo", e.target.value.toUpperCase())}
@@ -874,6 +1062,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`statutory-userid-${row.key}`}
+                          name={`statutoryUserId-${row.key}`}
+                          aria-label={`Statutory ${idx + 1} User ID`}
                           type="text"
                           value={row.userId}
                           onChange={(e) => updateStatutoryRow(row.key, "userId", e.target.value)}
@@ -884,6 +1075,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       <td className="px-2 py-2">
                         <div className="relative">
                           <input
+                            id={`statutory-pw-${row.key}`}
+                            name={`statutoryPassword-${row.key}`}
+                            aria-label={`Statutory ${idx + 1} Password`}
                             type="password"
                             value={row.password || ""}
                             onChange={(e) => updateStatutoryRow(row.key, "password", e.target.value)}
@@ -894,16 +1088,20 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             type="button"
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
                             title="Password masked"
+                            aria-label="Password masked"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
                       <td className="px-2 py-2">
-                        <label className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] hover:text-[#31719B]">
+                        <label htmlFor={`statutory-file-${row.key}`} className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] hover:text-[#31719B]">
                           <Upload className="w-3.5 h-3.5" />
                           <span>Attach</span>
                           <input
+                            id={`statutory-file-${row.key}`}
+                            name={`statutoryFile-${row.key}`}
+                            aria-label={`Statutory ${idx + 1} Attachment`}
                             type="file"
                             onChange={(e) => updateStatutoryRow(row.key, "attachment", e.target.files?.[0]?.name)}
                             className="hidden"
@@ -917,6 +1115,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             onClick={() => removeStatutoryRow(row.key)}
                             className="p-1 text-gray-400 hover:text-[#e8655a] rounded"
                             title="Remove line"
+                            aria-label={`Remove statutory row ${idx + 1}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -956,9 +1155,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <select
+                          id={`recurring-cat-${row.key}`}
+                          name={`recurringCategory-${row.key}`}
+                          aria-label={`Recurring Service ${idx + 1} Category`}
                           value={row.category}
                           onChange={(e) => updateRecurringRow(row.key, "category", e.target.value)}
-                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B]"
+                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B] cursor-pointer"
                         >
                           <option value="">Select</option>
                           {SERVICE_CATEGORIES.map((c) => (
@@ -970,6 +1172,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`recurring-srv-${row.key}`}
+                          name={`recurringService-${row.key}`}
+                          aria-label={`Recurring Service ${idx + 1} Service Name`}
                           type="text"
                           value={row.service}
                           onChange={(e) => updateRecurringRow(row.key, "service", e.target.value)}
@@ -979,6 +1184,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       </td>
                       <td className="px-2 py-2">
                         <input
+                          id={`recurring-tariff-${row.key}`}
+                          name={`recurringTariff-${row.key}`}
+                          aria-label={`Recurring Service ${idx + 1} Tariff`}
                           type="text"
                           value={row.tariff}
                           onChange={(e) => updateRecurringRow(row.key, "tariff", e.target.value)}
@@ -993,6 +1201,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             onClick={() => removeRecurringRow(row.key)}
                             className="p-1 text-gray-400 hover:text-[#e8655a] rounded"
                             title="Remove line"
+                            aria-label={`Remove recurring service row ${idx + 1}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1046,6 +1255,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 type="button"
                 onClick={() => setShowGstinModal(false)}
                 className="p-1 rounded-lg text-gray-500 hover:text-black dark:hover:text-white"
+                aria-label="Close GST dialog"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1053,10 +1263,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="cf-gstin-modal-input" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">
                   GSTIN
                 </label>
                 <input
+                  id="cf-gstin-modal-input"
+                  name="gstinInput"
+                  aria-label="Enter GSTIN Number"
                   type="text"
                   autoFocus
                   maxLength={15}

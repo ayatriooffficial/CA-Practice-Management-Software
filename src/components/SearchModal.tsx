@@ -96,6 +96,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
         >
           <Search className="w-5 h-5 text-gray-400 shrink-0" />
           <input
+            id="global-search-input"
+            name="globalSearchQuery"
+            aria-label="Search pages, tools, or press Escape to close"
             autoFocus
             type="text"
             value={query}

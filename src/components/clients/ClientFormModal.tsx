@@ -321,6 +321,9 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
               <div className="flex items-center gap-2">
                 <input
+                  id="client-gstin-input"
+                  name="gstinInput"
+                  aria-label="Enter 15-character GSTIN number"
                   type="text"
                   value={gstinInput}
                   onChange={(e) => setGstinInput(e.target.value.toUpperCase())}
@@ -388,11 +391,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-name" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Client Legal Name <span className="text-[#e8655a]">*</span>
                   </label>
                   <input
                     id="client-name"
+                    name="clientName"
+                    aria-label="Client Legal Name"
                     type="text"
                     value={formData.name || ""}
                     onChange={(e) => handleChange("name", e.target.value)}
@@ -412,10 +417,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-file-no" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     File No.
                   </label>
                   <input
+                    id="client-file-no"
+                    name="fileNo"
+                    aria-label="File Number"
                     type="text"
                     value={formData.fileNo || ""}
                     onChange={(e) => handleChange("fileNo", e.target.value)}
@@ -425,13 +433,16 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-type" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Constitution Type
                   </label>
                   <select
+                    id="client-type"
+                    name="clientType"
+                    aria-label="Constitution Type"
                     value={formData.type || "individual"}
                     onChange={(e) => handleChange("type", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20 cursor-pointer"
                   >
                     {CLIENT_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -442,13 +453,16 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-group" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Client Group
                   </label>
                   <select
+                    id="client-group"
+                    name="clientGroup"
+                    aria-label="Client Group"
                     value={formData.group || "Accounting"}
                     onChange={(e) => handleChange("group", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20 cursor-pointer"
                   >
                     {CLIENT_GROUPS.map((g) => (
                       <option key={g} value={g}>
@@ -459,11 +473,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-pan" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     PAN No
                   </label>
                   <input
                     id="client-pan"
+                    name="pan"
+                    aria-label="PAN No"
                     type="text"
                     maxLength={10}
                     value={formData.pan || ""}
@@ -484,10 +500,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-dob" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Date of Inc. / DOB
                   </label>
                   <input
+                    id="client-dob"
+                    name="dob"
+                    aria-label="Date of Incorporation or Date of Birth"
                     type="date"
                     value={formData.dob || ""}
                     onChange={(e) => handleChange("dob", e.target.value)}
@@ -496,10 +515,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-referred-by" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Referred By
                   </label>
                   <input
+                    id="client-referred-by"
+                    name="referredBy"
+                    aria-label="Referred By"
                     type="text"
                     value={formData.referredBy || ""}
                     onChange={(e) => handleChange("referredBy", e.target.value)}
@@ -529,11 +551,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-mobile" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Primary Mobile <span className="text-[#e8655a]">*</span>
                   </label>
                   <input
                     id="client-mobile"
+                    name="mobile"
+                    aria-label="Primary Mobile"
                     type="tel"
                     maxLength={10}
                     value={formData.mobile || ""}
@@ -551,10 +575,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-secondary-mobile" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Secondary Mobile
                   </label>
                   <input
+                    id="client-secondary-mobile"
+                    name="secondaryMobile"
+                    aria-label="Secondary Mobile"
                     type="tel"
                     maxLength={10}
                     value={formData.secondaryMobile || ""}
@@ -570,11 +597,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-email" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Official Email ID
                   </label>
                   <input
                     id="client-email"
+                    name="email"
+                    aria-label="Official Email ID"
                     type="email"
                     value={formData.email || ""}
                     onChange={(e) => handleChange("email", e.target.value)}
@@ -589,10 +618,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-address" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Registered Street Address
                   </label>
                   <textarea
+                    id="client-address"
+                    name="address"
+                    aria-label="Registered Street Address"
                     rows={2}
                     value={formData.address || ""}
                     onChange={(e) => handleChange("address", e.target.value)}
@@ -602,10 +634,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-city" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     City
                   </label>
                   <input
+                    id="client-city"
+                    name="city"
+                    aria-label="City"
                     type="text"
                     value={formData.city || ""}
                     onChange={(e) => handleChange("city", e.target.value)}
@@ -615,13 +650,16 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-state" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     State
                   </label>
                   <select
+                    id="client-state"
+                    name="clientState"
+                    aria-label="State"
                     value={formData.state || "Maharashtra"}
                     onChange={(e) => handleChange("state", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20 cursor-pointer"
                   >
                     {STATES.map((s) => (
                       <option key={s.code} value={s.label}>
@@ -632,11 +670,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="client-pincode" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Pin Code
                   </label>
                   <input
                     id="client-pincode"
+                    name="pincode"
+                    aria-label="Pin Code"
                     type="text"
                     maxLength={6}
                     value={formData.pincode || ""}

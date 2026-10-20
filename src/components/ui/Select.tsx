@@ -27,6 +27,8 @@ interface SelectProps {
   disabled?: boolean;
   className?: string;
   error?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
 }
 
 export const Select: React.FC<SelectProps> = memo(function Select({
@@ -41,6 +43,8 @@ export const Select: React.FC<SelectProps> = memo(function Select({
   disabled = false,
   className = "",
   error,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,6 +155,8 @@ export const Select: React.FC<SelectProps> = memo(function Select({
         role="combobox"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        aria-label={ariaLabel || placeholder || "Select option"}
+        aria-labelledby={ariaLabelledBy}
         tabIndex={disabled ? -1 : 0}
         onClick={() => {
           if (!disabled) {
@@ -173,7 +179,7 @@ export const Select: React.FC<SelectProps> = memo(function Select({
       >
         {/* Label / Placeholder */}
         <div className="flex-1 min-w-0 px-3.5 truncate">
-          {selectedOption ? (
+          {selectedOption && selectedOption.label ? (
             <span className="font-normal text-gray-900 dark:text-gray-100">
               {selectedOption.label}
             </span>
@@ -213,6 +219,7 @@ export const Select: React.FC<SelectProps> = memo(function Select({
                 <input
                   ref={searchInputRef}
                   type="text"
+                  aria-label="Filter options"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -251,7 +258,7 @@ export const Select: React.FC<SelectProps> = memo(function Select({
 
                 return (
                   <li
-                    key={opt.value}
+                    key={`${opt.value || 'empty'}-${index}`}
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => handleSelect(opt.value)}
@@ -264,7 +271,7 @@ export const Select: React.FC<SelectProps> = memo(function Select({
                         : "text-gray-700 dark:text-gray-300"
                     }`}
                   >
-                    <span className="truncate">{opt.label}</span>
+                    <span className="truncate">{opt.label || placeholder}</span>
                     {isSelected && (
                       <Check className="w-3.5 h-3.5 text-[#31719B] shrink-0 ml-2" />
                     )}

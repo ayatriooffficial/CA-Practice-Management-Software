@@ -53,8 +53,16 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
         {/* Optional Page Size selector */}
         {showPageSize && onPageSizeChange && (
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mr-2">
-            <span>Rows per page:</span>
+            <label
+              htmlFor="pagination-page-size-select"
+              className="cursor-pointer"
+            >
+              Rows per page:
+            </label>
             <select
+              id="pagination-page-size-select"
+              name="rowsPerPage"
+              aria-label="Rows per page"
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               className="h-8 px-2 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 text-xs outline-none cursor-pointer"

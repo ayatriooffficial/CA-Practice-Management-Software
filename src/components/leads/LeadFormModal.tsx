@@ -286,6 +286,8 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </button>
                   <input
                     id={fileInputId}
+                    name="leadPhoto"
+                    aria-label="Upload lead photo"
                     type="file"
                     accept="image/*"
                     onChange={handlePhotoUpload}
@@ -298,10 +300,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   {/* Row 1: First Name, Middle Name, Last Name */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-first-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         First Name <span className="text-[#e8655a]">*</span>
                       </label>
                       <input
+                        id="lead-first-name"
+                        name="firstName"
+                        aria-label="First Name"
                         type="text"
                         value={formData.firstName || ""}
                         onChange={(e) => handleChange("firstName", e.target.value)}
@@ -314,10 +319,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-middle-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Middle Name
                       </label>
                       <input
+                        id="lead-middle-name"
+                        name="middleName"
+                        aria-label="Middle Name"
                         type="text"
                         value={formData.middleName || ""}
                         onChange={(e) => handleChange("middleName", e.target.value)}
@@ -327,10 +335,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-last-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Last Name
                       </label>
                       <input
+                        id="lead-last-name"
+                        name="lastName"
+                        aria-label="Last Name"
                         type="text"
                         value={formData.lastName || ""}
                         onChange={(e) => handleChange("lastName", e.target.value)}
@@ -343,10 +354,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   {/* Row 2: Derived Full Name + Abbreviation */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-full-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Party Full Name (Computed)
                       </label>
                       <input
+                        id="lead-full-name"
+                        name="fullName"
+                        aria-label="Party Full Name (Computed)"
                         type="text"
                         value={formData.fullName || ""}
                         readOnly
@@ -356,10 +370,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-abbreviation" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Abbreviation
                       </label>
                       <input
+                        id="lead-abbreviation"
+                        name="abbreviation"
+                        aria-label="Abbreviation"
                         type="text"
                         value={formData.abbreviation || ""}
                         onChange={(e) => handleChange("abbreviation", e.target.value)}
@@ -372,10 +389,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   {/* Row 3: Date of Birth + Gender */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-dob" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Date of Birth
                       </label>
                       <input
+                        id="lead-dob"
+                        name="dob"
+                        aria-label="Date of Birth"
                         type="date"
                         value={formData.dob || ""}
                         onChange={(e) => handleChange("dob", e.target.value)}
@@ -384,10 +404,12 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                      <label htmlFor="lead-gender" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Gender
                       </label>
                       <Select
+                        id="lead-gender"
+                        aria-label="Gender"
                         value={formData.gender || "Male"}
                         onChange={(val) => handleChange("gender", val)}
                         options={GENDERS.map((g) => ({ value: g, label: g }))}
@@ -410,10 +432,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="lead-aadhaar-mobile" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Mobile No Linked with Aadhaar
                   </label>
                   <input
+                    id="lead-aadhaar-mobile"
+                    name="aadhaarMobile"
+                    aria-label="Mobile No Linked with Aadhaar"
                     type="tel"
                     maxLength={10}
                     value={formData.aadhaarMobile || ""}
@@ -426,10 +451,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="lead-comm-mobile" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Communication Mobile
                   </label>
                   <input
+                    id="lead-comm-mobile"
+                    name="mobile"
+                    aria-label="Communication Mobile"
                     type="tel"
                     maxLength={10}
                     value={formData.mobile || ""}
@@ -442,10 +470,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="lead-email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Communication Mail ID
                   </label>
                   <input
+                    id="lead-email"
+                    name="email"
+                    aria-label="Communication Mail ID"
                     type="email"
                     value={formData.email || ""}
                     onChange={(e) => handleChange("email", e.target.value)}
@@ -469,10 +500,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 {/* Row 1: PAN, PAN Attachment, Aadhaar */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-pan" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       PAN No
                     </label>
                     <input
+                      id="lead-pan"
+                      name="pan"
+                      aria-label="PAN No"
                       type="text"
                       maxLength={10}
                       value={formData.pan || ""}
@@ -488,15 +522,18 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-pan-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       PAN Attachment
                     </label>
-                    <label className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
+                    <label htmlFor="lead-pan-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
                       <Upload className="w-3.5 h-3.5" />
                       <span className="truncate">
                         {formData.panAttachment || "Attach file"}
                       </span>
                       <input
+                        id="lead-pan-attachment"
+                        name="panAttachment"
+                        aria-label="Upload PAN file attachment"
                         type="file"
                         onChange={(e) => handleFileUpload("panAttachment", e)}
                         className="hidden"
@@ -505,10 +542,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-aadhaar" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Aadhaar No
                     </label>
                     <input
+                      id="lead-aadhaar"
+                      name="aadhaar"
+                      aria-label="Aadhaar No"
                       type="text"
                       maxLength={12}
                       value={formData.aadhaar || ""}
@@ -524,15 +564,18 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 {/* Row 2: Aadhaar Attachment, DIN, DIN Attachment */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-aadhaar-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Aadhaar Attachment
                     </label>
-                    <label className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
+                    <label htmlFor="lead-aadhaar-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
                       <Upload className="w-3.5 h-3.5" />
                       <span className="truncate">
                         {formData.aadhaarAttachment || "Attach file"}
                       </span>
                       <input
+                        id="lead-aadhaar-attachment"
+                        name="aadhaarAttachment"
+                        aria-label="Upload Aadhaar file attachment"
                         type="file"
                         onChange={(e) => handleFileUpload("aadhaarAttachment", e)}
                         className="hidden"
@@ -541,10 +584,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-din" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       DIN / DPIN No
                     </label>
                     <input
+                      id="lead-din"
+                      name="din"
+                      aria-label="DIN or DPIN No"
                       type="text"
                       maxLength={8}
                       value={formData.din || ""}
@@ -557,15 +603,18 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-din-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       DIN Attachment
                     </label>
-                    <label className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
+                    <label htmlFor="lead-din-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
                       <Upload className="w-3.5 h-3.5" />
                       <span className="truncate">
                         {formData.dinAttachment || "Attach file"}
                       </span>
                       <input
+                        id="lead-din-attachment"
+                        name="dinAttachment"
+                        aria-label="Upload DIN file attachment"
                         type="file"
                         onChange={(e) => handleFileUpload("dinAttachment", e)}
                         className="hidden"
@@ -577,10 +626,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 {/* Row 3: MCA V3 ID, MCA V3 PW, Referred By */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-mca-id" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       MCA V3 ID
                     </label>
                     <input
+                      id="lead-mca-id"
+                      name="mcaId"
+                      aria-label="MCA V3 ID"
                       type="text"
                       value={formData.mcaId || ""}
                       onChange={(e) => handleChange("mcaId", e.target.value)}
@@ -590,11 +642,14 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-mca-pw" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       MCA V3 PW
                     </label>
                     <div className="relative">
                       <input
+                        id="lead-mca-pw"
+                        name="mcaPassword"
+                        aria-label="MCA V3 Password"
                         type={showPassword ? "text" : "password"}
                         value={formData.mcaPassword || ""}
                         onChange={(e) => handleChange("mcaPassword", e.target.value)}
@@ -606,6 +661,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white"
                         title={showPassword ? "Hide password" : "Show password"}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -613,10 +669,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-referred-by" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Referred By
                     </label>
                     <input
+                      id="lead-referred-by"
+                      name="referredBy"
+                      aria-label="Referred By"
                       type="text"
                       value={formData.referredBy || ""}
                       onChange={(e) => handleChange("referredBy", e.target.value)}
@@ -640,10 +699,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
               <div className="space-y-1">
                 {/* Full-width Address Textarea */}
                 <div className="py-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                  <label htmlFor="lead-address" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Address
                   </label>
                   <textarea
+                    id="lead-address"
+                    name="address"
+                    aria-label="Address"
                     rows={2}
                     value={formData.address || ""}
                     onChange={(e) => handleChange("address", e.target.value)}
@@ -655,10 +717,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 {/* Row: Country, State Name, Pin Code */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-country" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Country
                     </label>
                     <input
+                      id="lead-country"
+                      name="country"
+                      aria-label="Country"
                       type="text"
                       value={formData.country || "India"}
                       onChange={(e) => handleChange("country", e.target.value)}
@@ -668,10 +733,12 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-state" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       State Name
                     </label>
                     <Select
+                      id="lead-state"
+                      aria-label="State Name"
                       value={formData.state || "Maharashtra"}
                       onChange={(val) => handleChange("state", val)}
                       options={STATES.map((s) => ({ value: s.label, label: s.label }))}
@@ -682,10 +749,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-pincode" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Pin Code
                     </label>
                     <input
+                      id="lead-pincode"
+                      name="pincode"
+                      aria-label="Pin Code"
                       type="text"
                       maxLength={6}
                       value={formData.pincode || ""}
@@ -701,10 +771,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 {/* Row: Nationality, Police Station, Post Office */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-nationality" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Nationality
                     </label>
                     <input
+                      id="lead-nationality"
+                      name="nationality"
+                      aria-label="Nationality"
                       type="text"
                       value={formData.nationality || "Indian"}
                       readOnly
@@ -714,10 +787,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-police-station" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Police Station
                     </label>
                     <input
+                      id="lead-police-station"
+                      name="policeStation"
+                      aria-label="Police Station"
                       type="text"
                       value={formData.policeStation || ""}
                       onChange={(e) => handleChange("policeStation", e.target.value)}
@@ -727,10 +803,13 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2">
+                    <label htmlFor="lead-post-office" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Post Office
                     </label>
                     <input
+                      id="lead-post-office"
+                      name="postOffice"
+                      aria-label="Post Office"
                       type="text"
                       value={formData.postOffice || ""}
                       onChange={(e) => handleChange("postOffice", e.target.value)}

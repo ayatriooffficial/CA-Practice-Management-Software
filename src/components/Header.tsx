@@ -21,9 +21,18 @@ import {
   LucideIcon,
   Menu,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTheme } from "../context/ThemeContext";
-import { SearchModal } from "./SearchModal";
-import { ProfileDrawer } from "./ProfileDrawer";
+
+const SearchModal = dynamic(
+  () => import("./SearchModal").then((m) => m.SearchModal),
+  { ssr: false }
+);
+
+const ProfileDrawer = dynamic(
+  () => import("./ProfileDrawer").then((m) => m.ProfileDrawer),
+  { ssr: false }
+);
 
 interface HeaderProps {
   onOpenMobileMenu?: () => void;
@@ -226,6 +235,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               color: "var(--text-subtle)",
             }}
             title="Search (Ctrl + K)"
+            aria-label="Open search dialog (Ctrl + K)"
           >
             <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             <span className="text-[12px] text-gray-500">Search</span>
@@ -268,6 +278,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 color: "var(--avatar-text)",
               }}
               title="User Account: Dipak Sahani"
+              aria-label="User account profile menu"
               aria-expanded={isProfileOpen}
             >
               <span>DS</span>
@@ -281,14 +292,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         </div>
       </header>
 
-      {/* Global Search Dialog */}
-      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      {/* Global Search Dialog - Lazy loaded */}
+      {isSearchOpen && (
+        <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      )}
 
-      {/* Right Slide-out Profile Drawer */}
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-      />
+      {/* Right Slide-out Profile Drawer - Lazy loaded */}
+      {isProfileOpen && (
+        <ProfileDrawer
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+        />
+      )}
     </>
   );
 };
