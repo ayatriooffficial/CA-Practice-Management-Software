@@ -3,6 +3,7 @@ import { clientRoutes } from './modules/client/client.routes';
 import { leadRoutes } from './modules/lead/lead.routes';
 import { serviceRoutes } from './modules/service/service.routes';
 import { driveRoutes } from './modules/drive/drive.routes';
+import { agentCenterRoutes } from './modules/agentCenter/agent.routes';
 import { ApiResponse } from './shared/utils/apiResponse';
 
 const router = Router();
@@ -26,5 +27,6 @@ router.use('/clients', clientRoutes);
 router.use('/leads', leadRoutes);
 router.use('/services', serviceRoutes);
 router.use('/drive', driveRoutes);
+router.use('/agent-center', agentCenterRoutes);
 
 export const appRouter = router;
