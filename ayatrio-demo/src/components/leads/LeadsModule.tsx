@@ -15,7 +15,14 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Lead } from "@/data/crmData";
-import { LeadTableRow, ALL_LEAD_COLUMNS, LeadColumnDef } from "./LeadTableRow";
+import {
+  LeadTableRow,
+  ALL_LEAD_COLUMNS,
+  LeadColumnDef,
+  INITIAL_LEAD_COLUMN_WIDTHS,
+} from "./LeadTableRow";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Pagination } from "@/components/ui/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -96,6 +103,18 @@ export const LeadsModule: React.FC = () => {
   const [editingLead, setEditingLead] = useState<Lead | null | undefined>(undefined);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Column resizing state with persistent storage
+  const {
+    columnWidths,
+    getColumnWidth,
+    handleResizeStart,
+    resizingKey,
+    resetColumnWidth,
+  } = useResizableColumns({
+    storageKey: "ayatrio-leads-col-widths",
+    initialWidths: INITIAL_LEAD_COLUMN_WIDTHS,
+    minWidth: 80,
+  });
 
   // TanStack Query Hooks
   const queryParams = useMemo(
@@ -335,7 +354,11 @@ export const LeadsModule: React.FC = () => {
       {/* Spreadsheet Table with Memoized Rows */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
         <div className="overflow-x-auto scrollbar-slim">
-          <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs select-none">
+          <table
+            suppressHydrationWarning
+            className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
+            style={{ width: "max-content" }}
+          >
             <thead>
               <tr
                 className="text-gray-700 dark:text-gray-300"
@@ -362,13 +385,18 @@ export const LeadsModule: React.FC = () => {
                 {/* Frozen Party Full Name */}
                 <th
                   scope="col"
-                  className="sticky left-[48px] z-30 w-[220px] min-w-[220px] px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-[#000000] dark:text-white"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
+                  className="relative sticky left-[48px] z-30 px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-[#000000] dark:text-white"
+                  style={{
+                    backgroundColor: "var(--orange-havy-light)",
+                    width: `${getColumnWidth("fullName")}px`,
+                    minWidth: `${getColumnWidth("fullName")}px`,
+                    maxWidth: `${getColumnWidth("fullName")}px`,
+                  }}
                 >
                   <button
                     type="button"
                     onClick={() => toggleSort("fullName")}
-                    className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
                   >
                     <span>Party Full Name</span>
                     {sortKey === "fullName" ? (
@@ -381,21 +409,33 @@ export const LeadsModule: React.FC = () => {
                       <ArrowUpDown className="w-3 h-3 opacity-30" />
                     )}
                   </button>
+                  <ColumnResizer
+                    onMouseDown={(e) => handleResizeStart("fullName", e)}
+                    onDoubleClick={() => resetColumnWidth("fullName")}
+                    isResizing={resizingKey === "fullName"}
+                  />
                 </th>
 
                 {/* Dynamic Columns */}
-                {dynamicColumns.map((col: LeadColumnDef) => (
-                  <th
-                    key={col.key as string}
-                    scope="col"
-                    className={`px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap ${col.width || "w-40"}`}
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
+                {dynamicColumns.map((col: LeadColumnDef) => {
+                  const colWidth = getColumnWidth(col.key as string);
+                  return (
+                    <th
+                      key={col.key as string}
+                      scope="col"
+                      className="relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: `${colWidth}px`,
+                        minWidth: `${colWidth}px`,
+                        maxWidth: `${colWidth}px`,
+                      }}
+                    >
                       {col.sortable ? (
                         <button
                           type="button"
                           onClick={() => toggleSort(col.key as keyof Lead)}
-                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer"
+                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
                         >
                           <span>{col.label}</span>
                           {sortKey === col.key ? (
@@ -411,8 +451,14 @@ export const LeadsModule: React.FC = () => {
                       ) : (
                         <span>{col.label}</span>
                       )}
+                      <ColumnResizer
+                        onMouseDown={(e) => handleResizeStart(col.key as string, e)}
+                        onDoubleClick={() => resetColumnWidth(col.key as string)}
+                        isResizing={resizingKey === col.key}
+                      />
                     </th>
-                  ))}
+                  );
+                })}
 
                 {/* Frozen Actions */}
                 <th
@@ -456,6 +502,7 @@ export const LeadsModule: React.FC = () => {
                     lead={lead}
                     isSelected={selectedIds.has(lead.id)}
                     dynamicColumns={dynamicColumns}
+                    columnWidths={columnWidths}
                     formatDate={formatDate}
                     onToggleSelect={toggleSelectRow}
                     onEdit={setEditingLead}

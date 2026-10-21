@@ -20,7 +20,14 @@ import {
   CLIENT_TYPES,
   CLIENT_GROUPS,
 } from "@/data/crmData";
-import { ClientTableRow, CLIENT_COLUMNS, ClientColumnDef } from "./ClientTableRow";
+import {
+  ClientTableRow,
+  CLIENT_COLUMNS,
+  ClientColumnDef,
+  INITIAL_CLIENT_COLUMN_WIDTHS,
+} from "./ClientTableRow";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Select } from "@/components/ui/Select";
 
 // Dynamically split heavy form and detail drawer from the critical table route
@@ -75,6 +82,19 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Column resizing state with persistent storage
+  const {
+    columnWidths,
+    getColumnWidth,
+    handleResizeStart,
+    resizingKey,
+    resetColumnWidth,
+  } = useResizableColumns({
+    storageKey: "ayatrio-clients-col-widths",
+    initialWidths: INITIAL_CLIENT_COLUMN_WIDTHS,
+    minWidth: 60,
+  });
 
   // Query Parameters
   const queryParams = useMemo(
@@ -403,7 +423,11 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
       {/* Spreadsheet Table */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
         <div className="overflow-x-auto scrollbar-slim">
-          <table className="w-full border-separate border-spacing-0 text-left text-xs select-none">
+          <table
+            suppressHydrationWarning
+            className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
+            style={{ width: "max-content" }}
+          >
             <thead>
               <tr
                 className="text-gray-700 dark:text-gray-300"
@@ -428,35 +452,48 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
                 </th>
 
                 {/* Dynamic Columns */}
-                {visibleColumns.map((col: ClientColumnDef) => (
-                  <th
-                    key={col.id}
-                    scope="col"
-                    className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    {col.sortable ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleSort(col.id)}
-                        className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer"
-                      >
-                        <span>{col.label}</span>
-                        {sortKey === col.id ? (
-                          sortDirection === "asc" ? (
-                            <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
+                {visibleColumns.map((col: ClientColumnDef) => {
+                  const colWidth = getColumnWidth(col.id);
+                  return (
+                    <th
+                      key={col.id}
+                      scope="col"
+                      className="relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: `${colWidth}px`,
+                        minWidth: `${colWidth}px`,
+                        maxWidth: `${colWidth}px`,
+                      }}
+                    >
+                      {col.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(col.id)}
+                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
+                        >
+                          <span>{col.label}</span>
+                          {sortKey === col.id ? (
+                            sortDirection === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
+                            )
                           ) : (
-                            <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="w-3 h-3 opacity-30" />
-                        )}
-                      </button>
-                    ) : (
-                      <span>{col.label}</span>
-                    )}
-                  </th>
-                ))}
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </button>
+                      ) : (
+                        <span>{col.label}</span>
+                      )}
+                      <ColumnResizer
+                        onMouseDown={(e) => handleResizeStart(col.id, e)}
+                        onDoubleClick={() => resetColumnWidth(col.id)}
+                        isResizing={resizingKey === col.id}
+                      />
+                    </th>
+                  );
+                })}
 
                 {/* Actions Column */}
                 <th
@@ -502,6 +539,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
                       client={client}
                       isSelected={selectedIds.has(client.id)}
                       visibleColumns={visibleColumns}
+                      columnWidths={columnWidths}
                       activeMenuId={activeMenuId}
                       onToggleSelect={toggleSelectRow}
                       onView={setViewingClient}

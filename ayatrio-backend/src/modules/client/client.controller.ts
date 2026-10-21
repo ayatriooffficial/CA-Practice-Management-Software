@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ClientService } from './client.service';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
+import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
 
 export class ClientController {
@@ -106,4 +107,68 @@ export class ClientController {
     const updatedClient = await ClientService.removeCustomerFileItem(id, fileType, itemId);
     return ApiResponse.success(res, updatedClient, ResponseMessages.CLIENT_FILE_REMOVED);
   });
+
+  /**
+   * Upload and verify Client Profile Photo to Google Drive
+   * POST /api/v1/clients/:id/photo
+   */
+  static uploadPhoto = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    if (!req.file) {
+      throw AppError.badRequest('Photo file is required in field "file"');
+    }
+    const result = await ClientService.uploadClientPhoto(id, req.file);
+    return ApiResponse.success(res, result, 'Client photo verified and synced with Google Drive');
+  });
+
+  /**
+   * Upload statutory attachment to Google Drive
+   * POST /api/v1/clients/:id/statutory-file
+   */
+  static uploadStatutoryAttachment = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    if (!req.file) {
+      throw AppError.badRequest('Statutory attachment file is required in field "file"');
+    }
+    const key = req.body.key ? Number(req.body.key) : undefined;
+    const { statutoryType, idNo } = req.body;
+    const client = await ClientService.uploadClientStatutoryAttachment(
+      id,
+      req.file,
+      key,
+      statutoryType,
+      idNo
+    );
+    return ApiResponse.success(
+      res,
+      client,
+      'Statutory attachment verified and uploaded to Google Drive'
+    );
+  });
+
+  /**
+   * Upload general/compliance document for a client
+   * POST /api/v1/clients/:id/documents
+   */
+  static uploadDocument = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    if (!req.file) {
+      throw AppError.badRequest('Document file is required in field "file"');
+    }
+    const category = req.body.category || 'GENERAL';
+    const { description, tags } = req.body;
+    const doc = await ClientService.uploadClientDocument(
+      id,
+      req.file,
+      category,
+      description,
+      Array.isArray(tags) ? tags : typeof tags === 'string' ? tags.split(',') : []
+    );
+    return ApiResponse.created(
+      res,
+      doc,
+      'Client document verified and uploaded to Google Drive category folder'
+    );
+  });
 }
+

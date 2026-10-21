@@ -20,7 +20,13 @@ import {
   SERVICE_FREQUENCIES,
   SERVICE_DIFFICULTIES,
 } from "@/data/serviceData";
-import { ServiceTableRow, ALL_SERVICE_COLUMNS } from "./ServiceTableRow";
+import {
+  ServiceTableRow,
+  ALL_SERVICE_COLUMNS,
+  INITIAL_SERVICE_COLUMN_WIDTHS,
+} from "./ServiceTableRow";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -67,6 +73,19 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
   // Editing State
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Column resizing state with persistent storage
+  const {
+    columnWidths,
+    getColumnWidth,
+    handleResizeStart,
+    resizingKey,
+    resetColumnWidth,
+  } = useResizableColumns({
+    storageKey: "ayatrio-services-col-widths",
+    initialWidths: INITIAL_SERVICE_COLUMN_WIDTHS,
+    minWidth: 70,
+  });
 
   // TanStack Query Hooks
   const queryParams = useMemo(
@@ -391,7 +410,11 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
       {/* Spreadsheet / Table (Clean shadow-card, no unnecessary outer border) */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
         <div className="overflow-x-auto scrollbar-slim">
-          <table className="w-full border-separate border-spacing-0 text-left text-xs select-none">
+          <table
+            suppressHydrationWarning
+            className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
+            style={{ width: "max-content" }}
+          >
             <thead>
               <tr
                 className="text-gray-700 dark:text-gray-300"
@@ -415,35 +438,46 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
                 </th>
 
                 {/* All Service Columns in Clean 1:1 Flow (Service Name, Category, Recurring, ...) */}
-                {ALL_SERVICE_COLUMNS.map((col) => (
-                  <th
-                    key={col.key as string}
-                    scope="col"
-                    className={`px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap ${
-                      col.minWidth || "min-w-[130px]"
-                    }`}
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    {col.sortable ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleSort(col.key as keyof Service)}
-                        className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer"
-                      >
+                {ALL_SERVICE_COLUMNS.map((col) => {
+                  const colWidth = getColumnWidth(col.key as string);
+                  return (
+                    <th
+                      key={col.key as string}
+                      scope="col"
+                      className="relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: `${colWidth}px`,
+                        minWidth: `${colWidth}px`,
+                        maxWidth: `${colWidth}px`,
+                      }}
+                    >
+                      {col.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(col.key as keyof Service)}
+                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
+                        >
+                          <span>{col.label}</span>
+                          {sortKey === col.key && (
+                            sortDirection === "asc" ? (
+                              <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
+                            ) : (
+                              <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
+                            )
+                          )}
+                        </button>
+                      ) : (
                         <span>{col.label}</span>
-                        {sortKey === col.key && (
-                          sortDirection === "asc" ? (
-                            <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
-                          ) : (
-                            <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                          )
-                        )}
-                      </button>
-                    ) : (
-                      <span>{col.label}</span>
-                    )}
-                  </th>
-                ))}
+                      )}
+                      <ColumnResizer
+                        onMouseDown={(e) => handleResizeStart(col.key as string, e)}
+                        onDoubleClick={() => resetColumnWidth(col.key as string)}
+                        isResizing={resizingKey === col.key}
+                      />
+                    </th>
+                  );
+                })}
 
                 {/* Actions Header (Sticky Right: 0px) */}
                 <th
@@ -500,6 +534,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
                     key={service.id || (service as any)._id || `srv-${index}`}
                     service={service}
                     isSelected={selectedIds.has(service.id)}
+                    columnWidths={columnWidths}
                     onToggleSelect={toggleSelectRow}
                     onEdit={(s) => {
                       setEditingService(s);

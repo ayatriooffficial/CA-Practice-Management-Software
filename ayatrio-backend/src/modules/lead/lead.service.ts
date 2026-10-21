@@ -6,6 +6,8 @@ import { QueryBuilder, QueryOptions } from '../../shared/utils/queryBuilder';
 import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
 import { PaginationMeta } from '../../shared/utils/apiResponse';
+import { DriveService } from '../drive/drive.service';
+import { DocumentCategory } from '../drive/drive.interface';
 
 export class LeadService {
   /**
@@ -28,6 +30,82 @@ export class LeadService {
         throw AppError.conflict(ResponseMessages.LEAD_PAN_EXISTS);
       }
       throw AppError.conflict(`An active lead already exists with mobile number: ${data.mobile}`);
+    }
+
+    // Process photo if base64 provided
+    if (data.photo && data.photo.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          data.photo,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${data.fullName || 'lead'}_photo`,
+            clientName: data.fullName,
+            description: `Profile photo for lead ${data.fullName}`,
+            tags: ['Lead-Photo', 'KYC'],
+          }
+        );
+        data.photo = url;
+      } catch {
+        // keep fallback
+      }
+    }
+
+    // Process PAN attachment if base64 provided
+    if (data.panAttachment && data.panAttachment.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          data.panAttachment,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${data.fullName || 'lead'}_PAN`,
+            clientName: data.fullName,
+            description: `PAN Card attachment for lead ${data.fullName} (${data.pan || ''})`,
+            tags: ['PAN', 'KYC'],
+          }
+        );
+        data.panAttachment = url;
+      } catch {
+        // fallback
+      }
+    }
+
+    // Process Aadhaar attachment if base64 provided
+    if (data.aadhaarAttachment && data.aadhaarAttachment.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          data.aadhaarAttachment,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${data.fullName || 'lead'}_Aadhaar`,
+            clientName: data.fullName,
+            description: `Aadhaar attachment for lead ${data.fullName}`,
+            tags: ['Aadhaar', 'KYC'],
+          }
+        );
+        data.aadhaarAttachment = url;
+      } catch {
+        // fallback
+      }
+    }
+
+    // Process DIN attachment if base64 provided
+    if (data.dinAttachment && data.dinAttachment.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          data.dinAttachment,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${data.fullName || 'lead'}_DIN`,
+            clientName: data.fullName,
+            description: `DIN attachment for lead ${data.fullName}`,
+            tags: ['DIN', 'KYC'],
+          }
+        );
+        data.dinAttachment = url;
+      } catch {
+        // fallback
+      }
     }
 
     const lead = new Lead(data);
@@ -83,8 +161,173 @@ export class LeadService {
       }
     }
 
+    // Process base64 uploads in update
+    if (updateData.photo && updateData.photo.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          updateData.photo,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${lead.fullName || 'lead'}_photo`,
+            leadId: id,
+            clientName: lead.fullName,
+            description: `Updated profile photo for lead ${lead.fullName}`,
+            tags: ['Lead-Photo', 'KYC'],
+          }
+        );
+        updateData.photo = url;
+      } catch {
+        // keep fallback
+      }
+    }
+
+    if (updateData.panAttachment && updateData.panAttachment.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          updateData.panAttachment,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${lead.fullName || 'lead'}_PAN`,
+            leadId: id,
+            clientName: lead.fullName,
+            description: `PAN Card attachment for lead ${lead.fullName}`,
+            tags: ['PAN', 'KYC'],
+          }
+        );
+        updateData.panAttachment = url;
+      } catch {
+        // fallback
+      }
+    }
+
+    if (updateData.aadhaarAttachment && updateData.aadhaarAttachment.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          updateData.aadhaarAttachment,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${lead.fullName || 'lead'}_Aadhaar`,
+            leadId: id,
+            clientName: lead.fullName,
+            description: `Aadhaar attachment for lead ${lead.fullName}`,
+            tags: ['Aadhaar', 'KYC'],
+          }
+        );
+        updateData.aadhaarAttachment = url;
+      } catch {
+        // fallback
+      }
+    }
+
+    if (updateData.dinAttachment && updateData.dinAttachment.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          updateData.dinAttachment,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${lead.fullName || 'lead'}_DIN`,
+            leadId: id,
+            clientName: lead.fullName,
+            description: `DIN attachment for lead ${lead.fullName}`,
+            tags: ['DIN', 'KYC'],
+          }
+        );
+        updateData.dinAttachment = url;
+      } catch {
+        // fallback
+      }
+    }
+
     Object.assign(lead, updateData);
     return await lead.save();
+  }
+
+  /**
+   * Upload and verify Lead Profile Photo to Google Drive
+   */
+  static async uploadLeadPhoto(
+    id: string,
+    file: Express.Multer.File
+  ): Promise<{ photoUrl: string; lead: ILeadDocument }> {
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+
+    const { url } = await DriveService.processAndUploadAttachment(
+      file,
+      DocumentCategory.KYC_IDENTITY,
+      {
+        defaultName: `${lead.fullName}_photo`,
+        leadId: id,
+        clientName: lead.fullName,
+        description: `Verified profile photo for lead ${lead.fullName}`,
+        tags: ['Lead-Photo', 'KYC'],
+      }
+    );
+
+    lead.photo = url;
+    await lead.save();
+
+    return { photoUrl: url, lead };
+  }
+
+  /**
+   * Upload and verify identity attachment (PAN, Aadhaar, DIN) to Google Drive
+   */
+  static async uploadLeadAttachment(
+    id: string,
+    file: Express.Multer.File,
+    field: 'panAttachment' | 'aadhaarAttachment' | 'dinAttachment'
+  ): Promise<ILeadDocument> {
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+
+    const fieldLabel =
+      field === 'panAttachment' ? 'PAN' : field === 'aadhaarAttachment' ? 'Aadhaar' : 'DIN';
+
+    const { url } = await DriveService.processAndUploadAttachment(
+      file,
+      DocumentCategory.KYC_IDENTITY,
+      {
+        defaultName: `${lead.fullName}_${fieldLabel}_doc`,
+        leadId: id,
+        clientName: lead.fullName,
+        description: `Verified ${fieldLabel} attachment for lead ${lead.fullName}`,
+        tags: [fieldLabel, 'KYC'],
+      }
+    );
+
+    lead[field] = url;
+    await lead.save();
+
+    return lead;
+  }
+
+  /**
+   * Upload any general document for a lead to Google Drive
+   */
+  static async uploadLeadDocument(
+    id: string,
+    file: Express.Multer.File,
+    category: DocumentCategory = DocumentCategory.KYC_IDENTITY,
+    description?: string,
+    tags: string[] = []
+  ): Promise<any> {
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+
+    return await DriveService.uploadDocument(file, {
+      category,
+      description: description || `Document uploaded for lead ${lead.fullName}`,
+      leadId: id,
+      clientName: lead.fullName,
+      tags: [...tags, 'Lead-Document'],
+    });
   }
 
   /**

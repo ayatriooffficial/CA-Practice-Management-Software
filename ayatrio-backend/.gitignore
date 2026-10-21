@@ -27,6 +27,12 @@ Thumbs.db
 *.swp
 *.swo
 
+# Uploads & Credentials
+uploads/
+credentials/
+*.pem
+*.key
+
 # Coverage / Tests
 coverage/
 .nyc_output/

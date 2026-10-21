@@ -9,6 +9,7 @@ import {
   convertLeadSchema,
 } from './lead.validation';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
+import { uploadMiddleware } from '../drive/fileVerification';
 
 const router = Router();
 
@@ -75,6 +76,33 @@ router.post(
   mutationRateLimiter,
   validateRequest({ params: leadIdParamSchema, body: convertLeadSchema }),
   LeadController.convertLead
+);
+
+// Upload Lead Profile Photo to Google Drive
+router.post(
+  '/:id/photo',
+  mutationRateLimiter,
+  validateRequest({ params: leadIdParamSchema }),
+  uploadMiddleware.single('file'),
+  LeadController.uploadPhoto
+);
+
+// Upload Identity Attachment (PAN, Aadhaar, DIN) to Google Drive
+router.post(
+  '/:id/attachment/:field',
+  mutationRateLimiter,
+  validateRequest({ params: leadIdParamSchema }),
+  uploadMiddleware.single('file'),
+  LeadController.uploadAttachment
+);
+
+// Upload General Document for Lead to Google Drive
+router.post(
+  '/:id/documents',
+  mutationRateLimiter,
+  validateRequest({ params: leadIdParamSchema }),
+  uploadMiddleware.single('file'),
+  LeadController.uploadDocument
 );
 
 export const leadRoutes = router;

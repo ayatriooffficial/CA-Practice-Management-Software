@@ -51,8 +51,9 @@ export async function request<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     Accept: 'application/json',
   };
 

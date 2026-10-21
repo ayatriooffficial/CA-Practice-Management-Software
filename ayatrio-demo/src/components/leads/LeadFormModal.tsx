@@ -9,10 +9,15 @@ import {
   AlertCircle,
   FileText,
   Calendar,
+  Loader2,
+  ShieldCheck,
+  Check,
 } from "lucide-react";
 import { Lead, STATES } from "@/data/crmData";
 import { Select } from "@/components/ui/Select";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { driveApi, DocumentCategory } from "@/services/driveApi";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 
 interface LeadFormModalProps {
   lead?: Lead | null;
@@ -105,24 +110,69 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setUploadingField("photo");
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      formDataUpload.append("category", DocumentCategory.KYC_IDENTITY);
+      formDataUpload.append("clientName", formData.fullName || `${formData.firstName || ""} ${formData.lastName || ""}`.trim());
+      formDataUpload.append("description", `Profile photo for lead ${formData.fullName || "new lead"}`);
+
+      const res = await driveApi.uploadDocument(formDataUpload);
+      const photoUrl =
+        (res.data?.driveFileId ? driveApi.getPreviewUrl(res.data.driveFileId) : null) ||
+        res.data?.previewUrl ||
+        res.data?.thumbnailUrl ||
+        res.data?.webViewLink ||
+        res.data?.fileName;
+      if (photoUrl) {
+        handleChange("photo", photoUrl);
+      }
+    } catch {
+      // Fallback to local DataURL for offline compatibility
       const reader = new FileReader();
       reader.onload = () => {
         handleChange("photo", reader.result as string);
       };
       reader.readAsDataURL(file);
+    } finally {
+      setUploadingField(null);
     }
   };
 
-  const handleFileUpload = (
+  const handleFileUpload = async (
     field: "panAttachment" | "aadhaarAttachment" | "dinAttachment",
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setUploadingField(field);
+    try {
+      const fieldLabel = field === "panAttachment" ? "PAN" : field === "aadhaarAttachment" ? "Aadhaar" : "DIN";
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      formDataUpload.append("category", DocumentCategory.KYC_IDENTITY);
+      formDataUpload.append("clientName", formData.fullName || `${formData.firstName || ""} ${formData.lastName || ""}`.trim());
+      formDataUpload.append("description", `${fieldLabel} attachment for lead ${formData.fullName || "new lead"}`);
+
+      const res = await driveApi.uploadDocument(formDataUpload);
+      if (res.data?.fileName) {
+        handleChange(field, res.data.fileName);
+      } else {
+        handleChange(field, file.name);
+      }
+    } catch {
+      // Fallback to file name
       handleChange(field, file.name);
+    } finally {
+      setUploadingField(null);
     }
   };
 
@@ -270,7 +320,24 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   >
                     {formData.photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={formData.photo} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={getDirectFilePreviewUrl(formData.photo)}
+                        alt="Lead preview"
+                        className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const clean = formData.photo ? formData.photo.trim() : "";
+                          const idMatch = clean.match(/([a-zA-Z0-9_-]{25,})/);
+                          if (idMatch && idMatch[1]) {
+                            const fallback = driveApi.getPreviewUrl(idMatch[1]);
+                            if (target.src !== fallback) {
+                              target.src = fallback;
+                            }
+                          }
+                        }}
+                      />
                     ) : (
                       <svg className="w-8 h-8 text-gray-300 dark:text-gray-600" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z" />
@@ -280,9 +347,19 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   <button
                     type="button"
                     onClick={() => document.getElementById(fileInputId)?.click()}
-                    className="text-xs font-semibold text-[#31719B] hover:underline cursor-pointer"
+                    disabled={uploadingField === "photo"}
+                    className="text-xs font-semibold text-[#31719B] hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    {formData.photo ? "Change" : "Upload"}
+                    {uploadingField === "photo" ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : formData.photo ? (
+                      "Change"
+                    ) : (
+                      "Upload"
+                    )}
                   </button>
                   <input
                     id={fileInputId}
@@ -522,14 +599,28 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label htmlFor="lead-pan-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
-                      PAN Attachment
+                    <label htmlFor="lead-pan-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer flex items-center justify-between">
+                      <span>PAN Attachment</span>
+                      {formData.panAttachment && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Drive Verified
+                        </span>
+                      )}
                     </label>
-                    <label htmlFor="lead-pan-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span className="truncate">
-                        {formData.panAttachment || "Attach file"}
-                      </span>
+                    <label htmlFor="lead-pan-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2 transition">
+                      {uploadingField === "panAttachment" ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                          <span className="text-blue-600 font-semibold">Verifying & Syncing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span className="truncate">
+                            {formData.panAttachment || "Attach file"}
+                          </span>
+                        </>
+                      )}
                       <input
                         id="lead-pan-attachment"
                         name="panAttachment"
@@ -564,14 +655,28 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 {/* Row 2: Aadhaar Attachment, DIN, DIN Attachment */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-2">
                   <div>
-                    <label htmlFor="lead-aadhaar-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
-                      Aadhaar Attachment
+                    <label htmlFor="lead-aadhaar-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer flex items-center justify-between">
+                      <span>Aadhaar Attachment</span>
+                      {formData.aadhaarAttachment && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Drive Verified
+                        </span>
+                      )}
                     </label>
-                    <label htmlFor="lead-aadhaar-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span className="truncate">
-                        {formData.aadhaarAttachment || "Attach file"}
-                      </span>
+                    <label htmlFor="lead-aadhaar-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2 transition">
+                      {uploadingField === "aadhaarAttachment" ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                          <span className="text-blue-600 font-semibold">Verifying & Syncing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span className="truncate">
+                            {formData.aadhaarAttachment || "Attach file"}
+                          </span>
+                        </>
+                      )}
                       <input
                         id="lead-aadhaar-attachment"
                         name="aadhaarAttachment"
@@ -603,14 +708,28 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label htmlFor="lead-din-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
-                      DIN Attachment
+                    <label htmlFor="lead-din-attachment" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer flex items-center justify-between">
+                      <span>DIN Attachment</span>
+                      {formData.dinAttachment && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Drive Verified
+                        </span>
+                      )}
                     </label>
-                    <label htmlFor="lead-din-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span className="truncate">
-                        {formData.dinAttachment || "Attach file"}
-                      </span>
+                    <label htmlFor="lead-din-attachment" className="h-11 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] px-3 py-2 transition">
+                      {uploadingField === "dinAttachment" ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                          <span className="text-blue-600 font-semibold">Verifying & Syncing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span className="truncate">
+                            {formData.dinAttachment || "Attach file"}
+                          </span>
+                        </>
+                      )}
                       <input
                         id="lead-din-attachment"
                         name="dinAttachment"

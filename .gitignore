@@ -50,3 +50,12 @@ Thumbs.db
 
 # Local scratch
 ayatrio-todo.txt
+
+# Uploads & Credentials
+uploads/
+*/uploads/
+credentials/
+*/credentials/
+*.pem
+*.key
+

@@ -3,6 +3,7 @@
 import React, { memo } from "react";
 import { Phone, Pencil, Trash2, RotateCcw, UserCheck } from "lucide-react";
 import { Lead } from "@/data/crmData";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 
 export interface LeadColumnDef {
   key: keyof Lead | "actions" | "select";
@@ -59,11 +60,43 @@ export const ALL_LEAD_COLUMNS: LeadColumnDef[] = [
   { key: "referredBy", label: "Referred By", width: "w-[140px]" },
 ];
 
+export const INITIAL_LEAD_COLUMN_WIDTHS: Record<string, number> = {
+  fullName: 220,
+  mobile: 170,
+  email: 210,
+  pan: 130,
+  aadhaar: 140,
+  gender: 110,
+  dob: 130,
+  state: 150,
+  createdAt: 140,
+  updatedAt: 140,
+  firstName: 140,
+  middleName: 140,
+  lastName: 140,
+  abbreviation: 120,
+  aadhaarMobile: 170,
+  panAttachment: 140,
+  aadhaarAttachment: 140,
+  address: 220,
+  country: 120,
+  pincode: 110,
+  nationality: 120,
+  policeStation: 140,
+  postOffice: 140,
+  din: 130,
+  dinAttachment: 140,
+  mcaId: 140,
+  mcaPassword: 130,
+  referredBy: 140,
+};
+
 interface LeadTableRowProps {
   lead: Lead;
   isSelected: boolean;
   visibleColumns?: LeadColumnDef[];
   dynamicColumns?: LeadColumnDef[];
+  columnWidths?: Record<string, number>;
   formatDate?: (iso: string) => string;
   onToggleSelect: (id: string) => void;
   onEdit: (lead: Lead) => void;
@@ -78,6 +111,7 @@ export const LeadTableRow = memo(
     isSelected,
     visibleColumns,
     dynamicColumns,
+    columnWidths,
     formatDate,
     onToggleSelect,
     onEdit,
@@ -95,6 +129,8 @@ export const LeadTableRow = memo(
       : isDeleted
         ? "bg-red-50/50 dark:bg-red-950/20 group-hover:bg-red-100/50 dark:group-hover:bg-red-900/30"
         : "bg-white dark:bg-[#1e293b] group-hover:bg-[#F6F4F2] dark:group-hover:bg-[#162032]";
+
+    const fullNameWidth = columnWidths?.fullName || INITIAL_LEAD_COLUMN_WIDTHS.fullName || 220;
 
     return (
       <tr
@@ -122,18 +158,23 @@ export const LeadTableRow = memo(
 
         {/* Party Full Name (Sticky Left: 48px) */}
         <td
-          className={`sticky left-[48px] z-20 min-w-[200px] px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] opacity-100 ${stickyCellBg}`}
+          className={`sticky left-[48px] z-20 px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] opacity-100 ${stickyCellBg}`}
+          style={{
+            width: `${fullNameWidth}px`,
+            minWidth: `${fullNameWidth}px`,
+            maxWidth: `${fullNameWidth}px`,
+          }}
         >
-          <div className="flex items-center gap-2.5 text-left">
+          <div className="flex items-center gap-2.5 text-left truncate">
             <button
               type="button"
               onClick={() => onEdit(lead)}
-              className="flex items-center gap-2.5 text-left cursor-pointer group/name hover:opacity-80 transition-opacity"
+              className="flex items-center gap-2.5 text-left cursor-pointer group/name hover:opacity-80 transition-opacity truncate max-w-full"
             >
               {lead.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={lead.photo}
+                  src={getDirectFilePreviewUrl(lead.photo)}
                   alt=""
                   className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200"
                 />
@@ -144,26 +185,16 @@ export const LeadTableRow = memo(
                   </svg>
                 </div>
               )}
-              <span className="font-semibold text-[#31719B] group-hover/name:underline truncate max-w-[170px]">
+              <span className="font-semibold text-[#31719B] group-hover/name:underline truncate">
                 {lead.fullName}
               </span>
             </button>
-
-            {/* {isConverted && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                Converted
-              </span>
-            )} */}
-            {/* {isDeleted && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
-                Deleted
-              </span>
-            )} */}
           </div>
         </td>
 
         {/* Dynamic Columns */}
         {cols.map((col) => {
+          const colWidth = columnWidths?.[col.key as string] || INITIAL_LEAD_COLUMN_WIDTHS[col.key as string] || 140;
           const val = (lead as any)[col.key];
           let cellContent: React.ReactNode = val || "—";
 
@@ -203,7 +234,12 @@ export const LeadTableRow = memo(
           return (
             <td
               key={col.key as string}
-              className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-800 dark:text-gray-200 whitespace-nowrap"
+              className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-800 dark:text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                width: `${colWidth}px`,
+                minWidth: `${colWidth}px`,
+                maxWidth: `${colWidth}px`,
+              }}
             >
               {cellContent}
             </td>
@@ -274,7 +310,8 @@ export const LeadTableRow = memo(
     prev.lead.updatedAt === next.lead.updatedAt &&
     prev.lead.fullName === next.lead.fullName &&
     prev.isSelected === next.isSelected &&
-    prev.visibleColumns === next.visibleColumns
+    prev.visibleColumns === next.visibleColumns &&
+    prev.columnWidths === next.columnWidths
 );
 
 LeadTableRow.displayName = "LeadTableRow";

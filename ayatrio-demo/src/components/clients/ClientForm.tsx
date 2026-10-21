@@ -16,7 +16,11 @@ import {
   AlertCircle,
   Sparkles,
   Check,
+  Loader2,
+  ShieldCheck,
 } from "lucide-react";
+import { driveApi, DocumentCategory } from "@/services/driveApi";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 import {
   Client,
   CLIENT_TYPES,
@@ -185,16 +189,65 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const fileInputId = useId();
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingStatutoryKey, setUploadingStatutoryKey] = useState<number | null>(null);
 
-  // Photo change handler
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Photo change handler with Google Drive upload & verification
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      formDataUpload.append("category", DocumentCategory.KYC_IDENTITY);
+      formDataUpload.append("clientName", clientName || "Client");
+      formDataUpload.append("description", `Profile photo for client ${clientName || "new client"}`);
+
+      const res = await driveApi.uploadDocument(formDataUpload);
+      const photoUrl =
+        (res.data?.driveFileId ? driveApi.getPreviewUrl(res.data.driveFileId) : null) ||
+        res.data?.previewUrl ||
+        res.data?.thumbnailUrl ||
+        res.data?.webViewLink ||
+        res.data?.fileName;
+      if (photoUrl) {
+        setPhoto(photoUrl);
+      }
+    } catch {
       const reader = new FileReader();
       reader.onload = () => {
         setPhoto(reader.result as string);
       };
       reader.readAsDataURL(file);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Statutory Attachment upload to Google Drive with verification
+  const handleStatutoryFileUpload = async (key: number, file: File) => {
+    if (!file) return;
+
+    setUploadingStatutoryKey(key);
+    try {
+      const targetRow = statutoryRows.find((r) => r.key === key);
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      formDataUpload.append("category", DocumentCategory.KYC_IDENTITY);
+      formDataUpload.append("clientName", clientName || "Client");
+      formDataUpload.append(
+        "description",
+        `Statutory document (${targetRow?.type || "KYC"}) for client ${clientName || "Client"}`
+      );
+
+      const res = await driveApi.uploadDocument(formDataUpload);
+      updateStatutoryRow(key, "attachment", res.data?.fileName || file.name);
+    } catch {
+      updateStatutoryRow(key, "attachment", file.name);
+    } finally {
+      setUploadingStatutoryKey(null);
     }
   };
 
@@ -571,7 +624,24 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   >
                     {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photo} alt="Client preview" className="w-full h-full object-cover" />
+                      <img
+                        src={getDirectFilePreviewUrl(photo)}
+                        alt="Client preview"
+                        className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const clean = photo.trim();
+                          const idMatch = clean.match(/([a-zA-Z0-9_-]{25,})/);
+                          if (idMatch && idMatch[1]) {
+                            const fallback = driveApi.getPreviewUrl(idMatch[1]);
+                            if (target.src !== fallback) {
+                              target.src = fallback;
+                            }
+                          }
+                        }}
+                      />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         {/* Grey SVG photo silhouette matching screenshot */}
@@ -584,10 +654,15 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   <button
                     type="button"
                     onClick={() => document.getElementById(fileInputId)?.click()}
+                    disabled={uploadingPhoto}
                     aria-label="Upload photo"
                     className="mt-2 w-8 h-8 rounded-full bg-[#e9ebee] dark:bg-[#334155] text-gray-700 dark:text-gray-200 flex items-center justify-center hover:bg-[#dcdfe3] transition-colors cursor-pointer"
                   >
-                    <Pencil className="w-4 h-4" />
+                    {uploadingPhoto ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    ) : (
+                      <Pencil className="w-4 h-4" />
+                    )}
                   </button>
                   <input
                     id={fileInputId}
@@ -1095,15 +1170,40 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         </div>
                       </td>
                       <td className="px-2 py-2">
-                        <label htmlFor={`statutory-file-${row.key}`} className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] hover:text-[#31719B]">
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>Attach</span>
+                        <label
+                          htmlFor={`statutory-file-${row.key}`}
+                          className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-[#31719B] hover:text-[#31719B] px-2 transition"
+                        >
+                          {uploadingStatutoryKey === row.key ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                              <span className="text-[11px] text-blue-600 font-semibold">Syncing...</span>
+                            </>
+                          ) : row.attachment ? (
+                            <>
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span
+                                className="truncate max-w-[110px] text-emerald-700 dark:text-emerald-400 font-medium"
+                                title={row.attachment}
+                              >
+                                {row.attachment}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Attach</span>
+                            </>
+                          )}
                           <input
                             id={`statutory-file-${row.key}`}
                             name={`statutoryFile-${row.key}`}
                             aria-label={`Statutory ${idx + 1} Attachment`}
                             type="file"
-                            onChange={(e) => updateStatutoryRow(row.key, "attachment", e.target.files?.[0]?.name)}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleStatutoryFileUpload(row.key, file);
+                            }}
                             className="hidden"
                           />
                         </label>

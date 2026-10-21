@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { clientRoutes } from './modules/client/client.routes';
 import { leadRoutes } from './modules/lead/lead.routes';
 import { serviceRoutes } from './modules/service/service.routes';
+import { driveRoutes } from './modules/drive/drive.routes';
 import { ApiResponse } from './shared/utils/apiResponse';
 
 const router = Router();
@@ -24,5 +25,6 @@ router.get('/health', (_req: Request, res: Response) => {
 router.use('/clients', clientRoutes);
 router.use('/leads', leadRoutes);
 router.use('/services', serviceRoutes);
+router.use('/drive', driveRoutes);
 
 export const appRouter = router;

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { LeadService } from './lead.service';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
+import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
 
 export class LeadController {
@@ -93,4 +94,64 @@ export class LeadController {
     const result = await LeadService.convertLeadToClient(id, req.body);
     return ApiResponse.created(res, result, ResponseMessages.LEAD_CONVERTED);
   });
+
+  /**
+   * Upload and verify Lead Profile Photo to Google Drive
+   * POST /api/v1/leads/:id/photo
+   */
+  static uploadPhoto = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    if (!req.file) {
+      throw AppError.badRequest('Photo file is required in field "file"');
+    }
+    const result = await LeadService.uploadLeadPhoto(id, req.file);
+    return ApiResponse.success(res, result, 'Lead photo verified and synced with Google Drive');
+  });
+
+  /**
+   * Upload identity attachment (PAN, Aadhaar, DIN) to Google Drive
+   * POST /api/v1/leads/:id/attachment/:field
+   */
+  static uploadAttachment = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const field = req.params.field as 'panAttachment' | 'aadhaarAttachment' | 'dinAttachment';
+    if (!['panAttachment', 'aadhaarAttachment', 'dinAttachment'].includes(field)) {
+      throw AppError.badRequest('Field must be panAttachment, aadhaarAttachment, or dinAttachment');
+    }
+    if (!req.file) {
+      throw AppError.badRequest('Attachment file is required in field "file"');
+    }
+    const lead = await LeadService.uploadLeadAttachment(id, req.file, field);
+    return ApiResponse.success(
+      res,
+      lead,
+      `${field} document verified and uploaded to Google Drive`
+    );
+  });
+
+  /**
+   * Upload general document for a lead
+   * POST /api/v1/leads/:id/documents
+   */
+  static uploadDocument = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    if (!req.file) {
+      throw AppError.badRequest('Document file is required in field "file"');
+    }
+    const category = req.body.category || 'KYC_IDENTITY';
+    const { description, tags } = req.body;
+    const doc = await LeadService.uploadLeadDocument(
+      id,
+      req.file,
+      category,
+      description,
+      Array.isArray(tags) ? tags : typeof tags === 'string' ? tags.split(',') : []
+    );
+    return ApiResponse.created(
+      res,
+      doc,
+      'Lead document verified and uploaded to Google Drive'
+    );
+  });
 }
+

@@ -11,6 +11,7 @@ import {
   recurringItemSchema,
 } from './client.validation';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
+import { uploadMiddleware } from '../drive/fileVerification';
 import { z } from 'zod';
 
 const router = Router();
@@ -103,6 +104,33 @@ router.delete(
   mutationRateLimiter,
   validateRequest({ params: removeFileParamSchema }),
   ClientController.removeCustomerFileItem
+);
+
+// Upload Client Profile Photo to Google Drive
+router.post(
+  '/:id/photo',
+  mutationRateLimiter,
+  validateRequest({ params: clientIdParamSchema }),
+  uploadMiddleware.single('file'),
+  ClientController.uploadPhoto
+);
+
+// Upload Statutory Document Attachment to Google Drive
+router.post(
+  '/:id/statutory-file',
+  mutationRateLimiter,
+  validateRequest({ params: clientIdParamSchema }),
+  uploadMiddleware.single('file'),
+  ClientController.uploadStatutoryAttachment
+);
+
+// Upload General/Compliance Document for Client to Google Drive
+router.post(
+  '/:id/documents',
+  mutationRateLimiter,
+  validateRequest({ params: clientIdParamSchema }),
+  uploadMiddleware.single('file'),
+  ClientController.uploadDocument
 );
 
 export const clientRoutes = router;

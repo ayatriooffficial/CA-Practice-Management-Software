@@ -3,6 +3,7 @@
 import React, { memo } from "react";
 import { Phone, Eye, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { Client } from "@/data/crmData";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 
 export interface ClientColumnDef {
   id: string;
@@ -22,10 +23,23 @@ export const CLIENT_COLUMNS: ClientColumnDef[] = [
   { id: "users", label: "USERS" },
 ];
 
+export const INITIAL_CLIENT_COLUMN_WIDTHS: Record<string, number> = {
+  photo: 70,
+  fileNo: 130,
+  name: 220,
+  type: 140,
+  mobile: 150,
+  group: 150,
+  tags: 160,
+  status: 110,
+  users: 140,
+};
+
 interface ClientTableRowProps {
   client: Client;
   isSelected: boolean;
   visibleColumns: ClientColumnDef[];
+  columnWidths?: Record<string, number>;
   activeMenuId: string | null;
   onToggleSelect: (id: string) => void;
   onView: (client: Client) => void;
@@ -41,6 +55,7 @@ export const ClientTableRow = memo(
     client,
     isSelected,
     visibleColumns,
+    columnWidths,
     onToggleSelect,
     onView,
     onEdit,
@@ -83,17 +98,25 @@ export const ClientTableRow = memo(
 
         {/* Dynamic Column Cells */}
         {visibleColumns.map((col) => {
+          const colWidth = columnWidths?.[col.id] || INITIAL_CLIENT_COLUMN_WIDTHS[col.id] || 140;
+          const cellStyle: React.CSSProperties = {
+            width: `${colWidth}px`,
+            minWidth: `${colWidth}px`,
+            maxWidth: `${colWidth}px`,
+          };
+
           switch (col.id) {
             case "photo":
               return (
                 <td
                   key={col.id}
-                  className="px-3 py-2 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center w-12"
+                  className="px-3 py-2 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center overflow-hidden"
+                  style={cellStyle}
                 >
                   {client.photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={client.photo}
+                      src={getDirectFilePreviewUrl(client.photo)}
                       alt=""
                       className="w-7 h-7 rounded-full object-cover mx-auto border border-gray-200"
                     />
@@ -109,12 +132,13 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={cellStyle}
                 >
                   <button
                     type="button"
                     onClick={() => onView(client)}
-                    className="hover:text-[#31719B] hover:underline cursor-pointer"
+                    className="hover:text-[#31719B] hover:underline cursor-pointer truncate max-w-full"
                   >
                     {client.fileNo}
                   </button>
@@ -125,16 +149,17 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-[#31719B] whitespace-nowrap"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-[#31719B] whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={cellStyle}
                 >
                   <button
                     type="button"
                     onClick={() => onView(client)}
-                    className="hover:underline cursor-pointer text-left flex items-center gap-1.5"
+                    className="hover:underline cursor-pointer text-left flex items-center gap-1.5 truncate max-w-full"
                   >
-                    <span>{client.name}</span>
+                    <span className="truncate">{client.name}</span>
                     {isDeleted && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                      <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
                         Deleted
                       </span>
                     )}
@@ -146,7 +171,8 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 capitalize whitespace-nowrap"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 capitalize whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={cellStyle}
                 >
                   {client.type.replace("-", " ")}
                 </td>
@@ -156,14 +182,15 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={cellStyle}
                 >
                   <a
                     href={`tel:${client.mobile}`}
-                    className="flex items-center gap-1 text-[#31719B] hover:underline"
+                    className="flex items-center gap-1 text-[#31719B] hover:underline truncate"
                   >
-                    <Phone className="w-3 h-3" />
-                    <span>{client.mobile}</span>
+                    <Phone className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{client.mobile}</span>
                   </a>
                 </td>
               );
@@ -172,9 +199,10 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={cellStyle}
                 >
-                  <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs">
+                  <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs truncate max-w-full inline-block">
                     {client.group}
                   </span>
                 </td>
@@ -184,13 +212,14 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 overflow-hidden"
+                  style={cellStyle}
                 >
-                  <div className="flex flex-wrap gap-1 max-w-[200px]">
+                  <div className="flex flex-wrap gap-1 max-w-full">
                     {client.tags?.slice(0, 2).map((t, idx) => (
                       <span
                         key={`${client.id || 'c'}-tag-${t || 'empty'}-${idx}`}
-                        className="px-1.5 py-0.5 text-[10px] rounded bg-[#31719B]/10 text-[#31719B] font-medium"
+                        className="px-1.5 py-0.5 text-[10px] rounded bg-[#31719B]/10 text-[#31719B] font-medium truncate"
                       >
                         {t}
                       </span>
@@ -208,7 +237,8 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center overflow-hidden"
+                  style={cellStyle}
                 >
                   <button
                     type="button"
@@ -228,7 +258,8 @@ export const ClientTableRow = memo(
               return (
                 <td
                   key={col.id}
-                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-400 text-xs"
+                  className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-400 text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={cellStyle}
                 >
                   {client.users?.length ? client.users.join(", ") : "—"}
                 </td>
@@ -297,7 +328,8 @@ export const ClientTableRow = memo(
     (prev.client as any).updatedAt === (next.client as any).updatedAt &&
     prev.isSelected === next.isSelected &&
     prev.activeMenuId === next.activeMenuId &&
-    prev.visibleColumns === next.visibleColumns
+    prev.visibleColumns === next.visibleColumns &&
+    prev.columnWidths === next.columnWidths
 );
 
 ClientTableRow.displayName = "ClientTableRow";

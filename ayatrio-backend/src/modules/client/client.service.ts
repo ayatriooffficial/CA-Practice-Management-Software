@@ -5,6 +5,9 @@ import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
 import { PaginationMeta } from '../../shared/utils/apiResponse';
 
+import { DriveService } from '../drive/drive.service';
+import { DocumentCategory } from '../drive/drive.interface';
+
 export class ClientService {
   /**
    * Helper to generate unique sequential file number: CL-YYYY-XXXX
@@ -38,6 +41,46 @@ export class ClientService {
       });
       if (existingPan) {
         throw AppError.conflict(ResponseMessages.CLIENT_PAN_EXISTS);
+      }
+    }
+
+    // Process photo if base64 data was supplied
+    if (data.photo && data.photo.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          data.photo,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${data.name || 'client'}_photo`,
+            clientName: data.name,
+            description: `Profile photo for client ${data.name || fileNo}`,
+          }
+        );
+        data.photo = url;
+      } catch (err: any) {
+        // Fall back or continue if optional
+      }
+    }
+
+    // Process statutory file attachments if base64 was supplied
+    if (data.customerFiles?.statutory && Array.isArray(data.customerFiles.statutory)) {
+      for (const stat of data.customerFiles.statutory) {
+        if (stat.attachment && stat.attachment.startsWith('data:')) {
+          try {
+            const { url } = await DriveService.processAndUploadAttachment(
+              stat.attachment,
+              DocumentCategory.KYC_IDENTITY,
+              {
+                defaultName: `${stat.type || 'statutory'}_${stat.idNo || 'doc'}`,
+                clientName: data.name,
+                description: `Statutory attachment (${stat.type}) for client ${data.name || fileNo}`,
+              }
+            );
+            stat.attachment = url;
+          } catch {
+            // fallback
+          }
+        }
       }
     }
 
@@ -111,12 +154,132 @@ export class ClientService {
       }
     }
 
+    // Process photo if base64 data was supplied in update
+    if (updateData.photo && updateData.photo.startsWith('data:')) {
+      try {
+        const { url } = await DriveService.processAndUploadAttachment(
+          updateData.photo,
+          DocumentCategory.KYC_IDENTITY,
+          {
+            defaultName: `${client.name || 'client'}_photo`,
+            clientId: id,
+            clientName: client.name,
+            description: `Updated profile photo for client ${client.name}`,
+          }
+        );
+        updateData.photo = url;
+      } catch {
+        // keep fallback
+      }
+    }
+
     Object.assign(client, updateData);
     if (updateData.pan) {
       client.pan = updateData.pan.toUpperCase();
     }
 
     return await client.save();
+  }
+
+  /**
+   * Directly upload and verify Client Photo to Google Drive
+   */
+  static async uploadClientPhoto(
+    id: string,
+    file: Express.Multer.File
+  ): Promise<{ photoUrl: string; client: IClientDocument }> {
+    const client = await Client.findById(id);
+    if (!client) {
+      throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    }
+
+    const { url } = await DriveService.processAndUploadAttachment(
+      file,
+      DocumentCategory.KYC_IDENTITY,
+      {
+        defaultName: `${client.name}_photo`,
+        clientId: id,
+        clientName: client.name,
+        description: `Verified profile photo for client ${client.name} (${client.fileNo})`,
+        tags: ['Client-Photo', 'KYC'],
+      }
+    );
+
+    client.photo = url;
+    await client.save();
+
+    return { photoUrl: url, client };
+  }
+
+  /**
+   * Upload and attach statutory file (e.g. GST, PAN, Certificate) directly to Google Drive
+   */
+  static async uploadClientStatutoryAttachment(
+    id: string,
+    file: Express.Multer.File,
+    key?: number,
+    statutoryType?: string,
+    idNo?: string
+  ): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) {
+      throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    }
+
+    const { url } = await DriveService.processAndUploadAttachment(
+      file,
+      DocumentCategory.KYC_IDENTITY,
+      {
+        defaultName: `${client.name}_${statutoryType || 'statutory'}_doc`,
+        clientId: id,
+        clientName: client.name,
+        description: `Statutory attachment (${statutoryType || 'Document'}) for client ${client.name}`,
+        tags: ['Statutory', statutoryType || 'KYC'],
+      }
+    );
+
+    // If key provided, update matching row, otherwise create new entry
+    const statutoryList = client.customerFiles.statutory;
+    let targetRow = key ? statutoryList.find((r) => r.key === key) : null;
+
+    if (targetRow) {
+      targetRow.attachment = url;
+    } else {
+      const nextKey = statutoryList.length > 0 ? Math.max(...statutoryList.map((x) => x.key || 0)) + 1 : 1;
+      statutoryList.push({
+        key: nextKey,
+        type: statutoryType || 'Other Document',
+        idNo: idNo || 'N/A',
+        attachment: url,
+      });
+    }
+
+    await client.save();
+    return client;
+  }
+
+  /**
+   * Upload any general/compliance document for a client to Google Drive
+   */
+  static async uploadClientDocument(
+    id: string,
+    file: Express.Multer.File,
+    category: DocumentCategory = DocumentCategory.GENERAL,
+    description?: string,
+    tags: string[] = []
+  ): Promise<any> {
+    const client = await Client.findById(id);
+    if (!client) {
+      throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    }
+
+    return await DriveService.uploadDocument(file, {
+      category,
+      description: description || `Document uploaded for client ${client.name}`,
+      clientId: id,
+      clientName: client.name,
+      tags: [...tags, 'Client-Document'],
+    });
   }
 
   /**
