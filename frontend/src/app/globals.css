@@ -1,0 +1,346 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ==========================================================================
+   DESIGN TOKENS & CSS VARIABLES
+   Standardized styling system matching the Turia Practice management UI.
+   ========================================================================== */
+
+:root {
+  /* Brand / Primary Palette */
+  --primary: #31719B;
+  /* Vibrant indigo-purple for active tabs & accents */
+  --primary-hover: #3D88BF;
+  --primary-focus: rgba(115, 103, 240, 0.25);
+  --primary-light: #eeedfd;
+  /* Very light tint for active backgrounds */
+  --primary-border: #d2cdfb;
+
+  /* Neutrals & Surfaces */
+  --bg-app: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-muted: #f9fafb;
+  --bg-subtle: #f3f4f6;
+  --bg-hover: #f3f4f6;
+  --bg-active: #eeedfd;
+
+  /* Typography Colors */
+  --text-main: #111827;
+  /* Deep black-gray for headers and titles */
+  --text-muted: #4b5563;
+  /* Charcoal for inactive nav labels */
+  --text-subtle: #6b7280;
+  /* Subtle gray for timestamps and captions */
+  --text-placeholder: #9ca3af;
+  --text-inverse: #ffffff;
+
+  /* Borders & Dividers */
+  --border-main: #e5e7eb;
+  /* Clean light gray divider */
+  --border-subtle: #f3f4f6;
+  --border-strong: #d1d5db;
+
+  /* Header & Sidebar Dimensions */
+  --header-height: 56px;
+  --sidebar-width: 68px;
+
+  /* Status & Pill Badges */
+  --badge-addon-bg: #e0f2fe;
+  /* Light cyan */
+  --badge-addon-text: #0284c7;
+  /* Vivid cyan text */
+  --badge-new-bg: #dcfce7;
+  /* Soft mint green */
+  --badge-new-text: #16a34a;
+  /* Vibrant green text */
+
+  /* Warning / Sync Alert Banner */
+  --banner-bg: #fefce8;
+  /* Soft warm yellow */
+  --banner-border: #fef08a;
+  /* Yellow border */
+  --banner-text: #854d0e;
+  /* Amber text */
+  --banner-link: #a16207;
+  /* Link highlight */
+
+  /* Avatar / Credits */
+  --avatar-bg: #eeedfd;
+  /* Light primary tint avatar */
+  --avatar-text: #31719B;
+  --status-online: #22c55e;
+  /* Online dot indicator */
+  --credits-border: #fed7aa;
+  --credits-bg: #fff7ed;
+  --credits-text: #c2410c;
+
+  /* Calendar Specifics */
+  --cal-header-bg: #ffffff;
+  --cal-grid-border: #f1f5f9;
+  --cal-day-text: #374151;
+  --cal-day-other: #9ca3af;
+  --cal-today-bg: #31719B;
+  --cal-today-light: #eeedfd;
+
+  /* Radius & Shadows */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-dropdown: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  /* Transitions */
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Ayatrio CRM Premium Palette */
+  --premium-blue-dark: #31719B;
+  --premium-blue-light: #3D88BF;
+  --premium-orange-dark: #e8655a;
+  --premium-orange-light: #fc7d72;
+  --black: #000000;
+  --orange-havy-light: #F6F4F2;
+}
+
+/* Dark Mode Variables Support */
+[data-theme="dark"] {
+  --primary: #31719B;
+  --primary-hover: #8276f2;
+  --primary-light: rgba(115, 103, 240, 0.16);
+  --primary-border: rgba(115, 103, 240, 0.35);
+
+  --bg-app: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-muted: #0b1120;
+  --bg-subtle: #1e293b;
+  --bg-hover: #334155;
+  --bg-active: rgba(115, 103, 240, 0.22);
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --text-placeholder: #475569;
+  --text-inverse: #0f172a;
+
+  --border-main: #334155;
+  --border-subtle: #1e293b;
+  --border-strong: #475569;
+
+  --banner-bg: #422006;
+  --banner-border: #713f12;
+  --banner-text: #fef08a;
+  --banner-link: #fde047;
+
+  --avatar-bg: rgba(115, 103, 240, 0.2);
+  --avatar-text: #a59df7;
+
+  --cal-header-bg: #1e293b;
+  --cal-grid-border: #334155;
+  --cal-day-text: #e2e8f0;
+  --cal-day-other: #64748b;
+  --cal-today-bg: #31719B;
+  --cal-today-light: rgba(115, 103, 240, 0.2);
+
+  --orange-havy-light: #162032;
+}
+
+/* Global Reset & Base Styling */
+* {
+  box-sizing: border-box;
+  /* margin: 0; */
+  /* padding: 0; */
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility classes using standardized CSS variables */
+.app-header {
+  height: var(--header-height);
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-main);
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--border-main);
+}
+
+.badge-addon {
+  background-color: var(--badge-addon-bg);
+  color: var(--badge-addon-text);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.badge-new {
+  background-color: var(--badge-new-bg);
+  color: var(--badge-new-text);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-main);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Premium Ayatrio Theme Utility Helpers */
+.bg-premium-blue-dark {
+  background-color: var(--premium-blue-dark);
+}
+
+.bg-premium-blue-light {
+  background-color: var(--premium-blue-light);
+}
+
+.bg-premium-orange-dark {
+  background-color: var(--premium-orange-dark);
+}
+
+.bg-premium-orange-light {
+  background-color: var(--premium-orange-light);
+}
+
+.bg-orange-heavy-light {
+  background-color: var(--orange-havy-light);
+}
+
+.text-premium-blue-dark {
+  color: var(--premium-blue-dark);
+}
+
+.text-premium-blue-light {
+  color: var(--premium-blue-light);
+}
+
+.text-premium-orange-dark {
+  color: var(--premium-orange-dark);
+}
+
+.text-premium-orange-light {
+  color: var(--premium-orange-light);
+}
+
+.border-premium-blue-dark {
+  border-color: var(--premium-blue-dark);
+}
+
+.border-premium-blue-light {
+  border-color: var(--premium-blue-light);
+}
+
+.border-premium-orange-dark {
+  border-color: var(--premium-orange-dark);
+}
+
+.border-premium-orange-light {
+  border-color: var(--premium-orange-light);
+}
+
+.crm-table th,
+.crm-table td {
+  border-color: #e5e7eb;
+}
+
+[data-theme="dark"] .crm-table th,
+[data-theme="dark"] .crm-table td {
+  border-color: #334155;
+}
+
+/* DiscardConfirmationModal CRM design tokens */
+:root {
+  --line: #dde2e8;
+  --ink: #111827;
+  --ink-soft: #64748b;
+  --brand: #31719B;
+  --brand-soft: rgba(49, 113, 155, 0.08);
+  --danger: #e8655a;
+  --focus: rgba(49, 113, 155, 0.35);
+}
+
+[data-theme="dark"] {
+  --line: #334155;
+  --ink: #f8fafc;
+  --ink-soft: #94a3b8;
+  --brand: #3D88BF;
+  --brand-soft: rgba(61, 136, 191, 0.15);
+  --danger: #fc7d72;
+  --focus: rgba(61, 136, 191, 0.35);
+}
+
+.border-line {
+  border-color: var(--line);
+}
+
+.text-ink {
+  color: var(--ink);
+}
+
+.text-ink-soft {
+  color: var(--ink-soft);
+}
+
+.border-brand {
+  border-color: var(--brand);
+}
+
+.text-brand {
+  color: var(--brand);
+}
+
+.bg-brand-soft {
+  background-color: var(--brand-soft);
+}
+
+.hover\:bg-brand-soft:hover {
+  background-color: var(--brand-soft);
+}
+
+.bg-danger {
+  background-color: var(--danger);
+}
+
+.focus\:ring-focus:focus {
+  --tw-ring-color: var(--focus);
+}
+
+.focus\:ring-danger:focus {
+  --tw-ring-color: var(--danger);
+}
