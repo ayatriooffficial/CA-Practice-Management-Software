@@ -15,13 +15,18 @@ An enterprise-ready, high-speed, secure backend engineered with **TypeScript**, 
    - [5.3 Client Master Schema](#53-client-master-schema)
    - [5.4 Lead Pipeline Schema](#54-lead-pipeline-schema)
    - [5.5 Drive Document & Verification Schema](#55-drive-document--verification-schema)
+   - [5.6 Statutory Notice Schema](#56-statutory-notice-schema)
+   - [5.7 Compliance Matrix Schema](#57-compliance-matrix-schema)
 6. [API Endpoints Reference](#6-api-endpoints-reference)
    - [6.1 Task Endpoints (`/api/v1/tasks`)](#61-task-endpoints-apiv1tasks)
    - [6.2 Service Endpoints (`/api/v1/services`)](#62-service-endpoints-apiv1services)
    - [6.3 Client Endpoints (`/api/v1/clients`)](#63-client-endpoints-apiv1clients)
    - [6.4 Drive & Document Endpoints (`/api/v1/drive`)](#64-drive--document-endpoints-apiv1drive)
    - [6.5 Lead Endpoints (`/api/v1/leads`)](#65-lead-endpoints-apiv1leads)
-   - [6.6 System Health](#66-system-health)
+   - [6.6 Notice Endpoints (`/api/v1/notices`)](#66-notice-endpoints-apiv1notices)
+   - [6.7 Compliance Endpoints (`/api/v1/compliance`)](#67-compliance-endpoints-apiv1compliance)
+   - [6.8 Portal Sync Endpoints (`/api/v1/sync`)](#68-portal-sync-endpoints-apiv1sync)
+   - [6.9 System Health](#69-system-health)
 7. [Getting Started & Execution](#7-getting-started--execution)
 8. [Environment Configuration](#8-environment-configuration)
 
@@ -89,15 +94,36 @@ backend/
 │   │   │   ├── lead.service.ts
 │   │   │   ├── lead.controller.ts
 │   │   │   └── lead.routes.ts
-│   │   └── drive/                 # Google Drive Storage & Verification
-│   │       ├── drive.interface.ts
-│   │       ├── drive.model.ts
-│   │       ├── drive.validation.ts
-│   │       ├── drive.service.ts
-│   │       ├── drive.google.service.ts
-│   │       ├── drive.controller.ts
-│   │       ├── drive.routes.ts
-│   │       └── fileVerification.ts
+│   │   ├── drive/                 # Google Drive Storage & Verification
+│   │   │   ├── drive.interface.ts
+│   │   │   ├── drive.model.ts
+│   │   │   ├── drive.validation.ts
+│   │   │   ├── drive.service.ts
+│   │   │   ├── drive.google.service.ts
+│   │   │   ├── drive.controller.ts
+│   │   │   ├── drive.routes.ts
+│   │   │   └── fileVerification.ts
+│   │   ├── notice/                # Statutory Notices (GST, TDS, IT)
+│   │   │   ├── notice.interface.ts
+│   │   │   ├── notice.model.ts
+│   │   │   ├── notice.validation.ts
+│   │   │   ├── notice.service.ts
+│   │   │   ├── notice.controller.ts
+│   │   │   └── notice.routes.ts
+│   │   ├── compliance/            # Statutory Compliance Matrix
+│   │   │   ├── compliance.interface.ts
+│   │   │   ├── compliance.model.ts
+│   │   │   ├── compliance.validation.ts
+│   │   │   ├── compliance.service.ts
+│   │   │   ├── compliance.controller.ts
+│   │   │   └── compliance.routes.ts
+│   │   └── sync/                  # Portal Synchronization Engine
+│   │       ├── sync.interface.ts
+│   │       ├── sync.model.ts
+│   │       ├── sync.validation.ts
+│   │       ├── sync.service.ts
+│   │       ├── sync.controller.ts
+│   │       └── sync.routes.ts
 │   ├── shared/                    # Cross-cutting utilities & plugins
 │   │   ├── plugins/
 │   │   │   └── softDelete.plugin.ts  # Production Mongoose soft-delete plugin
@@ -179,6 +205,18 @@ All entities implement our Mongoose `softDeletePlugin`:
 - **Drive Model (`drive.model.ts`)**:
   - `googleFileId`, `originalName`, `sanitizedName`, `mimeType`, `sizeBytes`, `categoryKey`, `targetFolderId`, `checksumSha256`, `magicByteHex`, `verifiedBy`.
 
+### 5.6 Statutory Notice Schema
+- **Notice Model (`notice.model.ts`)**:
+  - `clientId`, `noticeNumber`, `portal` (`GST`, `TDS`, `IT`), `section`, `title`, `description`, `issuedDate`, `dueDate`, `status` (`new`, `response_preparing`, `under_dept_review`, `hearing_scheduled`, `closed`), `demandAmount`, `refundAmount`, `hearingDate`, `assignedTo`.
+
+### 5.7 Compliance Matrix Schema
+- **Compliance Category Model (`compliance-category.model.ts`)**:
+  - `id`, `name`, `code` (`cat-gst`, `cat-tds`, `cat-it`, `cat-mca`), `sortOrder`, `isActive`.
+- **Compliance Item Model (`compliance-item.model.ts`)**:
+  - `clientId`, `categoryId`, `formCode`, `label`, `frequency` (`monthly`, `quarterly`, `annual`), `identifier` (GSTIN/PAN/TAN).
+- **Compliance Entry Model (`compliance-entry.model.ts`)**:
+  - `itemId`, `clientId`, `periodKey` (`M04`–`M03`, `Q1`–`Q4`, `ANNUAL`), `financialYear`, `status` (`filed`, `pending`, `missed`), `filedDate`, `acknowledgmentNumber`, `documents`.
+
 ---
 
 ## 6. API Endpoints Reference
@@ -249,7 +287,38 @@ All entities implement our Mongoose `softDeletePlugin`:
 | `POST` | `/leads/:id/restore` | Restore soft-deleted lead |
 | `POST` | `/leads/:id/convert` | Atomic convert lead into client record |
 
-### 6.6 System Health
+### 6.6 Notice Endpoints (`/api/v1/notices`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/notices` | List notices with portal filtering (`GST`, `TDS`, `IT`), pagination, and search |
+| `GET` | `/notices/summary` | Aggregate counts of notices by portal and urgency |
+| `GET` | `/notices/calendar` | Monthly statutory notice due dates and scheduled hearings |
+| `GET` | `/notices/clients` | Client-grouped list of active notices |
+| `GET` | `/notices/credits` | Check department portal crawler balance and entitlements |
+| `PATCH` | `/notices/:id` | Update notice status, drafts, or hearing info |
+
+### 6.7 Compliance Endpoints (`/api/v1/compliance`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/compliance/categories` | List active compliance domains (`cat-gst`, `cat-tds`, `cat-it`) |
+| `GET` | `/compliance/grid` | Return client-item-period grid matrix (`categoryId`, `fy`, `frequency`) |
+| `GET` | `/compliance/calendar` | Return filing deadlines on a monthly calendar |
+| `PUT` | `/compliance/entries` | Upsert single compliance period entry |
+| `POST` | `/compliance/items/refresh` | Synchronize and recalculate item templates |
+
+### 6.8 Portal Sync Endpoints (`/api/v1/sync`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/sync/entitlement` | Check crawler balance and entitlements |
+| `GET` | `/sync/eligibility` | Check portal credentials readiness for sync |
+| `POST` | `/sync/clients` | Initiate batch portal sync across GSTN, TRACES, and IT |
+| `GET` | `/sync/jobs` | Monitor status of active portal sync jobs |
+| `GET` | `/sync/activity` | Recent sync job logs and activity history |
+
+### 6.9 System Health
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -269,10 +338,13 @@ cp .env.example .env
 # 3. (Optional) Run OAuth token helper for Google Drive
 npm run get-drive-token
 
-# 4. Start in development mode with live watch
+# 4. Seed mock client and sample notices & compliance records (<=5 records)
+npm run seed:mock-client
+
+# 5. Start in development mode with live watch
 npm run dev
 
-# 5. Type-check & Production build
+# 6. Type-check & Production build
 npm run type-check
 npm run build
 npm start

@@ -38,12 +38,18 @@ An enterprise-grade, full-stack practice management and corporate compliance pla
    - [Invoice & Billing Ledger (`/invoice`)](#6-invoice--billing-ledger-invoice)
    - [Team Directory (`/team`)](#7-team-directory-team)
    - [Statutory Notices & Calendar (`/notices`)](#8-statutory-notices--calendar-notices)
+   - [Statutory Compliance Matrix (`/compliance`)](#9-statutory-compliance-matrix-compliance)
+   - [Gmail Integration & Client Communication (`/email`)](#10-gmail-integration--client-communication-email)
 6. [Complete API Reference](#-complete-api-reference)
    - [Tasks API (`/api/v1/tasks`)](#tasks-apiv1tasks)
    - [Services API (`/api/v1/services`)](#services-apiv1services)
    - [Clients API (`/api/v1/clients`)](#clients-apiv1clients)
    - [Drive & Document Management API (`/api/v1/drive`)](#drive--documents-apiv1drive)
    - [Leads API (`/api/v1/leads`)](#leads-apiv1leads)
+   - [Notices API (`/api/v1/notices`)](#notices-apiv1notices)
+   - [Compliance API (`/api/v1/compliance`)](#compliance-apiv1compliance)
+   - [Portal Sync API (`/api/v1/sync`)](#portal-sync-apiv1sync)
+   - [Gmail Integration API (`/api/gmail`)](#gmail-integration-apigmail)
    - [Health Check (`/api/v1/health`)](#health-check-apiv1health)
 7. [Environment Variables Reference](#-environment-variables-reference)
 8. [Quick Start & Installation](#-quick-start--installation)
@@ -72,7 +78,10 @@ CA-Practice-Management-Software/
 │   │   │   ├── client/            # Client master, entity schemas, soft-delete
 │   │   │   ├── service/           # Service catalog, task synchronization, stats
 │   │   │   ├── lead/              # Lead pipeline, conversion, validation, routes
-│   │   │   └── drive/             # Google Drive API v3, verification, preview streams
+│   │   │   ├── drive/             # Google Drive API v3, verification, preview streams
+│   │   │   ├── notice/            # Statutory notices (GST, TDS, IT), calendar, summary
+│   │   │   ├── compliance/        # Period compliance matrix (returns & audit), categories, entries
+│   │   │   └── sync/              # Portal sync jobs, entitlement, activity tracking
 │   │   ├── shared/                # Soft-delete plugin, API Response, QueryBuilder
 │   │   ├── routes.ts              # Central API v1 router
 │   │   └── server.ts              # Server bootstrap & graceful shutdown hooks
@@ -91,7 +100,11 @@ CA-Practice-Management-Software/
 │   │   │   ├── team/              # Team member directory & workload distribution
 │   │   │   ├── drive/             # Cloud repository, lightbox preview, category views
 │   │   │   ├── leads/             # Pipeline, lead conversion modal
-│   │   │   └── invoice/           # Invoicing, proforma, SAC codes, analytics
+│   │   │   ├── invoice/           # Invoicing, proforma, SAC codes, analytics
+│   │   │   ├── notices/           # Statutory notices (GST, TDS, IT) & calendar view
+│   │   │   ├── compliance/        # Cross-period compliance matrix (GST, TDS, IT)
+│   │   │   ├── email/             # Gmail inbox, thread view, and compose modal
+│   │   │   └── api/               # Next.js API routes (OAuth & Gmail proxy)
 │   │   ├── components/            # High-performance modular UI components
 │   │   │   ├── tasks/             # TaskListView, TaskSummaryView, TaskDetailView, AddTaskModal
 │   │   │   ├── clients/           # ClientDetailView (17 tabs), ClientForm, Modals:
@@ -99,9 +112,12 @@ CA-Practice-Management-Software/
 │   │   │   ├── services/          # ServiceDetailView (SOP, subtasks, checklists), ServiceForm
 │   │   │   ├── drive/             # DriveModule, FileUploadModal, Lightbox viewer
 │   │   │   ├── invoice/           # InvoiceModule, SummaryCards, forms, tables
+│   │   │   ├── notices/           # NoticeShell, NoticeTable, NoticeCalendar, NoticeStats
+│   │   │   ├── compliance/        # ComplianceShell, ComplianceGrid, ComplianceStats, DocumentDrawer
+│   │   │   ├── email/             # ThreadList, ThreadView, ComposeModal
 │   │   │   └── ui/                # ColumnResizer, Select, Pagination, Discard Modal
-│   │   ├── hooks/                 # useResizableColumns, useDebounce, TanStack Query hooks
-│   │   ├── services/              # Typed API clients (taskApi, clientApi, serviceApi, driveApi)
+│   │   ├── hooks/                 # useResizableColumns, useDebounce, useNotices, useCompliance, useGmail
+│   │   ├── services/              # Typed API clients (taskApi, clientApi, serviceApi, driveApi, notices, compliance)
 │   │   ├── utils/                 # filePreview.ts (Direct image/stream resolver)
 │   │   └── data/                  # taskData.ts, teamData.ts, crmData.ts, serviceData.ts
 │   ├── .env.example               # Frontend environment template
@@ -304,8 +320,35 @@ Ayatrio implements custom, responsive, drag-resizable column borders across all 
 - Firm hierarchy directory categorized by Partners, Managers, Seniors, and Associates with active workload indicators and contact info.
 
 ### 8. Statutory Notices & Calendar (`/notices`)
-- Multi-portal notice synchronization across GST, Income Tax, and TRACES.
-- Interactive Notice Calendar with Month grid and response due date tracking.
+- **Multi-Portal Statutory Hub**: Dedicated tabs for **GST Notices** (ASMT-10, DRC-01A, REG-17, SCNs), **TDS Notices** (TRACES 201 short deduction, 234E late filing fee), and **Income Tax Notices** (143(1), 148, 142(1)).
+- **Interactive Notice Calendar**: Monthly calendar grid visualizing pending response due dates and scheduled department hearings with color-coded portal badges.
+- **Status & Compliance Workflow**: Structured lifecycle stages: `New`, `Response Preparing`, `Under Dept Review`, `Hearing Scheduled`, and `Closed`.
+- **Notice Metrics & Intelligence**: Real-time summary header cards displaying Total Notices, Response Due in 7 Days, High-Risk / Priority counts, Hearing dates, and aggregate Demand/Refund figures.
+- **Client Grouping & Search**: Search by notice reference number, section, or client name with drag-resizable table columns (`ColumnResizer.tsx`) and client dossier drilldown.
+
+### 9. Statutory Compliance Matrix (`/compliance`)
+- **Cross-Period Filing Matrix Grid**: Multi-period matrix mapping return filings across statutory practice domains:
+  - **GST Compliance**: GSTR-1, GSTR-3B, GSTR-9.
+  - **TDS Compliance**: Form 24Q (Salary), Form 26Q (Non-Salary), Form 27Q.
+  - **Income Tax Compliance**: ITR-6 (Corporate), ITR-5, Advance Tax quarterly installments.
+- **Dynamic Period Resolution**: Column headers adapt dynamically based on frequency:
+  - **Monthly (`monthly`)**: Columns `M04` through `M03` (April through March).
+  - **Quarterly (`quarterly`)**: Columns `Q1`, `Q2`, `Q3`, and `Q4`.
+  - **Annual (`annual`)**: Dedicated `ANNUAL` return column.
+- **Filing Lifecycle Badges**: Visual indicator pills for each period cell:
+  - `Filed` (Green badge with attached acknowledgment receipt document view).
+  - `Pending` (Yellow badge indicating due or work-in-progress).
+  - `Missed` / `Overdue` (Red badge for passed statutory deadlines).
+- **Compliance Document Drawer**: Slide-over drawer to inspect filing acknowledgments, view ARN / Challan numbers, and upload verification receipts.
+- **Batch Entry Updates**: Backend batching endpoint (`POST /api/v1/compliance/entries/batch`) allowing bulk status transitions and receipt attachments.
+- **Financial Year Switcher**: Toggle between active assessment periods (`2025-26`, `2026-27`) with persistent client filtering.
+
+### 10. Gmail Integration & Client Communication (`/email`)
+- **OAuth 2.0 Google Workspace / Gmail Sync**: Secure token-based integration allowing CA practitioners to link their practice Google accounts.
+- **Two-Pane Responsive Inbox**: Split layout featuring a searchable Thread List on the left and full conversation history / message inspector on the right.
+- **Client Correspondence Search**: Real-time search across subject lines, sender names, and body text with unread status indicators.
+- **Compose & Direct Reply Modal**: In-app modal supporting rich-text composition, CC/BCC headers, subject line generation, and immediate transmission through the Gmail API.
+- **Token Management & Disconnect**: Safe session disconnection and token revocation with zero storage of Google account passwords.
 
 ---
 
@@ -388,6 +431,49 @@ All endpoints are versioned under `/api/v1` and return standard JSON structures:
 | `POST` | `/leads/:id/restore` | Restore soft-deleted lead |
 | `POST` | `/leads/:id/convert` | Convert lead into a Client record and archive lead |
 
+### Notices (`/api/v1/notices`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/notices` | List notices filtered by `portal` (`GST`, `TDS`, `IT`), `status`, `search`, `page`, `limit` |
+| `GET` | `/notices/summary` | Real-time counts of notices by portal and response risk urgency |
+| `GET` | `/notices/calendar` | Monthly calendar events with due dates and scheduled department hearings |
+| `GET` | `/notices/clients` | Grouped client listing with active notice indicators |
+| `GET` | `/notices/credits` | Department portal automated crawl entitlement and balance checks |
+| `PATCH` | `/notices/:id` | Update notice status, response drafts, hearing dates, or resolution notes |
+
+### Compliance (`/api/v1/compliance`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/compliance/categories` | List active compliance domains (`cat-gst`, `cat-tds`, `cat-it`, `cat-mca`) |
+| `GET` | `/compliance/grid` | Return period compliance matrix (`categoryId`, `fy`, `frequency`) with cell records |
+| `GET` | `/compliance/calendar` | Return filing deadlines mapped onto a month calendar |
+| `PUT` | `/compliance/entries` | Upsert single compliance entry (status, filed date, acknowledgment document) |
+| `POST` | `/compliance/items/refresh` | Trigger recalculation and synchronization of statutory item templates |
+
+### Portal Sync (`/api/v1/sync`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/sync/entitlement` | Check client portal crawler entitlements and API quotas |
+| `GET` | `/sync/eligibility` | Verify client portal credentials eligibility for automatic sync |
+| `POST` | `/sync/clients` | Trigger batch statutory sync jobs across GSTN, TRACES, and Income Tax portals |
+| `GET` | `/sync/jobs` | Monitor status of active and historical background portal crawl jobs |
+| `GET` | `/sync/activity` | Audit log of recent synchronization requests and portal results |
+
+### Gmail Integration (`/api/gmail`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/auth/google` | Generates Google OAuth 2.0 consent URL requesting Gmail scopes |
+| `GET` | `/api/auth/google/callback` | Exchanges authorization code for tokens and persists user session |
+| `GET` | `/api/gmail/status` | Checks active Gmail connection status and authenticated email address |
+| `GET` | `/api/gmail/threads` | Paginated message threads list with query search (`q`) and page tokens |
+| `GET` | `/api/gmail/thread/:id` | Full thread message history with headers, body content, and sender details |
+| `POST` | `/api/gmail/send` | Transmits an email or reply via the Gmail API |
+| `POST` | `/api/gmail/disconnect` | Revokes OAuth tokens and clears current mailbox session |
+
 ### Health Check (`/api/v1/health`)
 
 | Method | Endpoint | Description |
@@ -421,6 +507,8 @@ All endpoints are versioned under `/api/v1` and return standard JSON structures:
 | Variable | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
 | `NEXT_PUBLIC_API_URL` | Optional | `http://localhost:5000/api/v1` | Base address for backend API calls |
+| `GOOGLE_CLIENT_ID` | **Required for Gmail** | — | Google Cloud OAuth 2.0 Web Client ID |
+| `GOOGLE_CLIENT_SECRET` | **Required for Gmail** | — | Google Cloud OAuth 2.0 Web Client Secret |
 
 ---
 
@@ -443,7 +531,10 @@ cp .env.example .env
 # 5. (Optional) Run OAuth token helper if you need a refresh token
 npm run get-drive-token
 
-# 6. Start backend development server
+# 6. Seed mock client, notices, and compliance matrix (at most 5 records each)
+npm run seed:mock-client
+
+# 7. Start backend development server
 npm run dev
 ```
 
@@ -453,6 +544,8 @@ The backend server will start at:
 - **Health Check**: `http://localhost:5000/api/v1/health`
 - **Drive Status**: `http://localhost:5000/api/v1/drive/status`
 - **Tasks Stats**: `http://localhost:5000/api/v1/tasks/stats`
+- **Notices**: `http://localhost:5000/api/v1/notices`
+- **Compliance Grid**: `http://localhost:5000/api/v1/compliance/grid?categoryId=cat-gst&fy=2025-26`
 
 ### 2. Frontend Setup (`frontend`)
 
@@ -466,7 +559,9 @@ npm install
 # 3. Create local environment file
 cp .env.example .env.local
 
-# 4. Start Next.js development server
+# 4. Fill in GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Gmail integration
+
+# 5. Start Next.js development server
 npm run dev
 ```
 
@@ -479,6 +574,8 @@ Open your browser and navigate to:
 - **Invoicing & Billing**: `http://localhost:3000/invoice`
 - **Team Directory**: `http://localhost:3000/team`
 - **Statutory Notices**: `http://localhost:3000/notices`
+- **Compliance Matrix**: `http://localhost:3000/compliance`
+- **Gmail Inbox**: `http://localhost:3000/email`
 
 ---
 
