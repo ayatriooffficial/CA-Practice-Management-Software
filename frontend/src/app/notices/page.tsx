@@ -1,13 +1,17 @@
-import { EmptyPagePlaceholder } from "@/components/EmptyPagePlaceholder";
+import { Suspense } from "react";
+import { NoticesShell } from "@/components/notices/NoticesShell";
 
 export default function NoticesPage() {
   return (
-    <EmptyPagePlaceholder
-      title="Notices"
-      category="Header"
-      description="GST, Income Tax & TRACES Notice Management — all portals unified."
-      iconName="FileText"
-      actionText="Add New Notice"
-    />
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen w-full"
+          style={{ backgroundColor: "var(--bg-app)" }}
+        />
+      }
+    >
+      <NoticesShell />
+    </Suspense>
   );
 }

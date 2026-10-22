@@ -86,8 +86,23 @@ Ayatrio delivers a high-performance single-pane-of-glass workspace for professio
 * Firm hierarchy directory by Partners, Managers, Seniors, and Associates with active workload indicators and contact info.
 
 ### 8. Statutory Notices & Calendar (`/notices`)
-* Multi-portal notice synchronization across GST, Income Tax, and TRACES.
-* Interactive Notice Calendar with Month grid and response due date tracking.
+* Multi-portal statutory tabs: **GST Notices** (ASMT-10, DRC-01A, SCNs), **TDS Notices** (TRACES), and **Income Tax Notices** (143(1), 148).
+* Interactive Monthly Notice Calendar with due dates and scheduled department hearings.
+* Notice lifecycle stages: `New`, `Response Preparing`, `Under Dept Review`, `Hearing Scheduled`, and `Closed`.
+* Summary metric cards with urgency indicators and drag-resizable table columns (`ColumnResizer.tsx`).
+
+### 9. Statutory Compliance Matrix (`/compliance`)
+* Cross-period matrix grid tracking statutory filings across **GST** (GSTR-1, GSTR-3B), **TDS** (24Q, 26Q), and **Income Tax** (ITR-6).
+* Dynamic period columns supporting Monthly (`M04`–`M03`), Quarterly (`Q1`–`Q4`), and Annual (`ANNUAL`) cadences.
+* Period status indicators: `Filed` (with receipt viewer), `Pending`, and `Missed` / `Overdue`.
+* Compliance document slide-over drawer to review filing acknowledgments and attached receipts.
+* Assessment Year / Financial Year switcher (`2025-26`, `2026-27`) and filing frequency filters.
+
+### 10. Gmail Inbox & Client Communication (`/email`)
+* Google OAuth 2.0 integration allowing CAs to link their Google Workspace / Gmail account.
+* Two-pane responsive inbox layout: thread list on the left, live email conversation thread on the right.
+* Client correspondence search across subjects, senders, and message bodies with unread tags.
+* In-app rich compose and reply modal with direct transmission via the Gmail API.
 
 ---
 
@@ -130,7 +145,9 @@ frontend/
 │   │   ├── leads/                    # Leads pipeline & conversion
 │   │   ├── invoice/                  # Invoice & billing ledger
 │   │   ├── notices/                  # Statutory notices & calendar
-│   │   └── ...                       # Additional modules (compliance, chat, etc.)
+│   │   ├── compliance/               # Cross-period compliance matrix
+│   │   ├── email/                    # Gmail inbox, thread view, compose
+│   │   └── api/                      # Next.js API route proxies (OAuth, Gmail)
 │   ├── components/
 │   │   ├── tasks/                    # TaskListView, TaskSummaryView, TaskDetailView, AddTaskModal
 │   │   ├── clients/                  # ClientDetailView, ClientForm, Modals:
@@ -138,10 +155,13 @@ frontend/
 │   │   ├── services/                 # ServiceDetailView, ServiceForm, ServiceTableRow
 │   │   ├── drive/                    # DriveModule, FileUploadModal, Lightbox viewer
 │   │   ├── invoice/                  # Invoicing components, tables, analytics
+│   │   ├── notices/                  # NoticeShell, NoticeTable, NoticeCalendar, NoticeStats
+│   │   ├── compliance/               # ComplianceShell, ComplianceGrid, ComplianceStats, DocumentDrawer
+│   │   ├── email/                    # ThreadList, ThreadView, ComposeModal
 │   │   ├── ui/                       # ColumnResizer, Select, Pagination, Discard Modal
 │   │   └── ...                       # Header, Sidebar, ProfileDrawer, SearchModal
-│   ├── hooks/                        # useResizableColumns, useDebounce, TanStack Query hooks
-│   ├── services/                     # Typed API clients (taskApi, clientApi, serviceApi, driveApi)
+│   ├── hooks/                        # useResizableColumns, useDebounce, useNotices, useCompliance, useGmail
+│   ├── services/                     # Typed API clients (taskApi, clientApi, serviceApi, driveApi, notices, compliance)
 │   ├── data/                         # Reference datasets (taskData, teamData, crmData, serviceData)
 │   └── utils/                        # filePreview.ts (Direct image/stream resolver)
 ├── .env.example                      # Environment template

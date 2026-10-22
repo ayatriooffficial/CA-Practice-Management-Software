@@ -16,6 +16,7 @@ interface ServiceClientsTabProps {
   isClientsLoading: boolean;
   service: Service;
   handleToggleClientService: (clientItem: Client, nextVal: boolean) => Promise<void>;
+  pendingClientId?: string | null;
 }
 
 export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
@@ -27,6 +28,7 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
   isClientsLoading,
   service,
   handleToggleClientService,
+  pendingClientId,
 }) => {
   return (
     <div className="gap-y-4">
@@ -116,14 +118,23 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
                 const recInvoice = svcSetting?.recInvoice || "Disabled";
                 const amount = svcSetting?.amount !== undefined ? svcSetting.amount : (service.professionalFee || 0);
 
+                const clientId = clientItem.id || (clientItem as any)._id;
+                const isPending = Boolean(pendingClientId && pendingClientId === clientId);
+
                 return (
-                  <tr key={clientItem.id || (clientItem as any)._id || idx} className="hover:bg-[var(--bg-hover)] transition-colors">
+                  <tr key={clientId || idx} className="hover:bg-[var(--bg-hover)] transition-colors">
                     <td className="py-2.5 px-3 text-center">
-                      <IosToggleSwitch
-                        checked={isEnabled}
-                        onChange={(nextVal) => handleToggleClientService(clientItem, nextVal)}
-                        ariaLabel={`Toggle ${service.name} for ${clientItem.name}`}
-                      />
+                      <div className="flex items-center justify-center gap-1.5">
+                        <IosToggleSwitch
+                          checked={isEnabled}
+                          disabled={isPending}
+                          onChange={(nextVal) => handleToggleClientService(clientItem, nextVal)}
+                          ariaLabel={`Toggle ${service.name} for ${clientItem.name}`}
+                        />
+                        {isPending && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--primary)] shrink-0" />
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5 px-4">
                       <div className="flex items-center gap-x-2">

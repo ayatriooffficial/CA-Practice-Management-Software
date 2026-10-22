@@ -37,6 +37,7 @@ import { clientApi } from "@/services/clientApi";
 import { Client, ClientServiceSetting } from "@/data/crmData";
 import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
 import { ServiceDetailViewTabs, AddSubTaskModal, ServiceTabType } from "./ServiceDetailViewTabs";
+import { useToggleClientServiceMutation } from "@/hooks/useServices";
 
 interface ServiceDetailViewProps {
   service: Service;
@@ -55,6 +56,10 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
   const [activeTab, setActiveTab] = useState<
     "Overview" | "SOP" | "Sub Tasks" | "Checklist" | "Document Request" | "Clients"
   >("Sub Tasks");
+
+  // Toggle Client Service Mutation
+  const toggleClientServiceMutation = useToggleClientServiceMutation();
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
 
   // Clients state
   const [clients, setClients] = useState<Client[]>([]);
@@ -350,6 +355,8 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     const clientId = clientItem.id || (clientItem as any)._id;
     if (!clientId) return;
 
+    setPendingClientId(clientId);
+
     const currentSettings = clientItem.serviceSettings || [];
     let updatedSettings: ClientServiceSetting[];
 
@@ -359,7 +366,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
 
     if (existingIndex >= 0) {
       updatedSettings = currentSettings.map((s, idx) =>
-        idx === existingIndex ? { ...s, compliance: nextVal } : s
+        idx === existingIndex ? { ...s, compliance: nextVal, recTask: nextVal ? "Enabled" : "Disabled" } : s
       );
     } else {
       const newSetting: ClientServiceSetting = {
@@ -396,7 +403,12 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     );
 
     try {
-      await clientApi.updateServiceSettings(clientId, updatedSettings);
+      const targetServiceId = service.id || (service as any)._id || service.name;
+      await toggleClientServiceMutation.mutateAsync({
+        serviceId: targetServiceId,
+        clientId,
+        enabled: nextVal,
+      });
       showToast(`Service "${service.name}" ${nextVal ? "enabled" : "disabled"} for ${clientItem.name}.`);
     } catch (err: any) {
       console.error("Failed to update client service compliance:", err);
@@ -404,6 +416,8 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
       clientApi.getClients({ limit: 100 }).then((res) => {
         if (res.data) setClients(res.data);
       });
+    } finally {
+      setPendingClientId(null);
     }
   };
 
@@ -621,6 +635,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           setSelectedDeptFilter={setSelectedDeptFilter}
           isClientsLoading={isClientsLoading}
           handleToggleClientService={handleToggleClientService}
+          pendingClientId={pendingClientId}
           sopContent={sopContent}
           setSopContent={setSopContent}
           handleSaveSop={handleSaveSop}

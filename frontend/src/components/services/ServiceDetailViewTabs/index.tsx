@@ -66,6 +66,7 @@ export interface ServiceDetailViewTabsProps {
   setSelectedDeptFilter: (val: string) => void;
   isClientsLoading: boolean;
   handleToggleClientService: (clientItem: Client, nextVal: boolean) => Promise<void>;
+  pendingClientId?: string | null;
   // SOP props
   sopContent: string;
   setSopContent: (val: string) => void;
@@ -107,6 +108,7 @@ export const ServiceDetailViewTabs: React.FC<ServiceDetailViewTabsProps> = ({
   setSelectedDeptFilter,
   isClientsLoading,
   handleToggleClientService,
+  pendingClientId,
   sopContent,
   setSopContent,
   handleSaveSop,
@@ -172,6 +174,7 @@ export const ServiceDetailViewTabs: React.FC<ServiceDetailViewTabsProps> = ({
           isClientsLoading={isClientsLoading}
           service={service}
           handleToggleClientService={handleToggleClientService}
+          pendingClientId={pendingClientId}
         />
       );
 

@@ -1,5 +1,6 @@
 import { request, ApiResponse } from './apiClient';
 import { Service } from '@/data/serviceData';
+import { Client } from '@/data/crmData';
 
 export interface ServiceQueryParams {
   page?: number;
@@ -85,6 +86,17 @@ export const serviceApi = {
   syncServiceToTasks: async (id: string): Promise<ApiResponse<{ syncedTasksCount: number }>> => {
     return request<{ syncedTasksCount: number }>(`/services/${id}/sync`, {
       method: 'POST',
+    });
+  },
+
+  toggleClientService: async (
+    serviceId: string,
+    clientId: string,
+    enabled: boolean
+  ): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/services/${serviceId}/clients/${clientId}/toggle`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
     });
   },
 };
