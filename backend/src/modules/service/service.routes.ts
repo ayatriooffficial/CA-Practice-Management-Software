@@ -6,6 +6,8 @@ import {
   updateServiceSchema,
   queryServiceSchema,
   serviceIdParamSchema,
+  toggleClientServiceParamSchema,
+  toggleClientServiceBodySchema,
 } from './service.validation';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
 
@@ -74,6 +76,17 @@ router.post(
   mutationRateLimiter,
   validateRequest({ params: serviceIdParamSchema }),
   ServiceController.syncServiceToTasks
+);
+
+// Toggle Client Service Compliance Status
+router.patch(
+  '/:id/clients/:clientId/toggle',
+  mutationRateLimiter,
+  validateRequest({
+    params: toggleClientServiceParamSchema,
+    body: toggleClientServiceBodySchema,
+  }),
+  ServiceController.toggleClientService
 );
 
 export const serviceRoutes = router;

@@ -96,4 +96,23 @@ export class ServiceController {
     const result = await ServiceService.syncServiceToTasks(id);
     return ApiResponse.success(res, result, 'Service templates synced to active tasks');
   });
+
+  /**
+   * Toggle client compliance/recurring subscription for this service
+   * PATCH /api/v1/services/:id/clients/:clientId/toggle
+   */
+  static toggleClientService = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const clientId = req.params.clientId as string;
+    const enabled =
+      req.body.enabled !== undefined
+        ? Boolean(req.body.enabled)
+        : Boolean(req.body.compliance);
+    const updatedClient = await ServiceService.toggleClientService(id, clientId, enabled);
+    return ApiResponse.success(
+      res,
+      updatedClient,
+      `Client service compliance status updated to ${enabled}`
+    );
+  });
 }

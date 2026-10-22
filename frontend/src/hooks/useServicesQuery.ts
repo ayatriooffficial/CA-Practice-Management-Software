@@ -159,3 +159,28 @@ export function useRestoreService() {
     },
   });
 }
+
+/**
+ * Mutation: Toggle client recurring service compliance status
+ */
+export function useToggleClientServiceMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      serviceId,
+      clientId,
+      enabled,
+    }: {
+      serviceId: string;
+      clientId: string;
+      enabled: boolean;
+    }) => serviceApi.toggleClientService(serviceId, clientId, enabled),
+    onSuccess: (_, variables) => {
+      // Refresh services, clients, and compliance queries
+      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}

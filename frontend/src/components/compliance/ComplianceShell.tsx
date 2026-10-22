@@ -64,7 +64,7 @@ const DEFAULT_CATEGORIES: ComplianceCategory[] = [
   { id: "cat-logs", name: "Logs", order: 27, mode: "manual" },
 ];
 
-function parseFrequency(param: string | null, categoryId?: string): FrequencyKey {
+function parseFrequency(param: string | null, _categoryId?: string): FrequencyKey {
   if (param) {
     const clean = param.trim().toLowerCase().replace("-", "_");
     if (clean === "monthly") return "monthly";
@@ -73,10 +73,7 @@ function parseFrequency(param: string | null, categoryId?: string): FrequencyKey
     if (clean === "yearly") return "yearly";
     if (clean === "all") return "all";
   }
-  if (categoryId === "cat-it" || categoryId === "Income Tax") {
-    return "yearly";
-  }
-  return "yearly";
+  return "all";
 }
 
 function parseFyStartYear(param: string | null): number {

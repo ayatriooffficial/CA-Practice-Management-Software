@@ -94,3 +94,13 @@ export const queryServiceSchema = z.object({
   status: z.enum(['Active', 'Inactive', 'Draft']).optional(),
   includeDeleted: z.enum(['true', 'false']).optional(),
 });
+
+export const toggleClientServiceParamSchema = z.object({
+  id: z.string().min(1, 'Service identifier is required'),
+  clientId: z.string().min(1, 'Client identifier is required'),
+});
+
+export const toggleClientServiceBodySchema = z.object({
+  enabled: z.boolean().optional(),
+  compliance: z.boolean().optional(),
+});

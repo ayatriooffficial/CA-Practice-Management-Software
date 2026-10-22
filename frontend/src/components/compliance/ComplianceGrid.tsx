@@ -128,61 +128,115 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
   }, [clients]);
 
   const isYearly = useMemo(() => {
-    return frequency.toLowerCase() === "yearly" || isIncomeTax;
-  }, [frequency, isIncomeTax]);
+    return frequency.toLowerCase() === "yearly";
+  }, [frequency]);
 
   const { periodColumns, groupedHeaderLabel } = useMemo(() => {
-    const isQuarterly = frequency.toLowerCase() === "quarterly";
-    const isHalfYearly =
-      frequency.toLowerCase() === "half_yearly" || frequency.toLowerCase() === "half-yearly";
+    const freqLower = frequency.toLowerCase();
+    const isQuarterly = freqLower === "quarterly";
+    const isHalfYearly = freqLower === "half_yearly" || freqLower === "half-yearly";
+    const isAnnual = freqLower === "yearly";
+    const isMonthly = freqLower === "monthly";
 
-    if (isYearly) {
+    const monthlyCols = [
+      { key: "M04", label: `Apr ${startYear}` },
+      { key: "M05", label: `May ${startYear}` },
+      { key: "M06", label: `Jun ${startYear}` },
+      { key: "M07", label: `Jul ${startYear}` },
+      { key: "M08", label: `Aug ${startYear}` },
+      { key: "M09", label: `Sep ${startYear}` },
+      { key: "M10", label: `Oct ${startYear}` },
+      { key: "M11", label: `Nov ${startYear}` },
+      { key: "M12", label: `Dec ${startYear}` },
+      { key: "M01", label: `Jan ${endYear}` },
+      { key: "M02", label: `Feb ${endYear}` },
+      { key: "M03", label: `Mar ${endYear}` },
+    ];
+
+    const quarterlyCols = [
+      { key: "Q1", label: "Q1" },
+      { key: "Q2", label: "Q2" },
+      { key: "Q3", label: "Q3" },
+      { key: "Q4", label: "Q4" },
+    ];
+
+    const halfYearlyCols = [
+      { key: "H1", label: "H1" },
+      { key: "H2", label: "H2" },
+    ];
+
+    const annualCols = [
+      { key: "ANNUAL", label: `${startYear}-${String(endYear).slice(-2)}` },
+    ];
+
+    if (isAnnual) {
       return {
-        periodColumns: [{ key: "ANNUAL", label: `${startYear}-${String(endYear).slice(-2)}` }],
+        periodColumns: annualCols,
         groupedHeaderLabel: "Annual",
       };
     }
 
     if (isQuarterly) {
       return {
-        periodColumns: [
-          { key: "Q1", label: "Q1" },
-          { key: "Q2", label: "Q2" },
-          { key: "Q3", label: "Q3" },
-          { key: "Q4", label: "Q4" },
-        ],
+        periodColumns: quarterlyCols,
         groupedHeaderLabel: "Quarterly",
       };
     }
 
     if (isHalfYearly) {
       return {
-        periodColumns: [
-          { key: "H1", label: "H1" },
-          { key: "H2", label: "H2" },
-        ],
+        periodColumns: halfYearlyCols,
         groupedHeaderLabel: "Half-Yearly",
       };
     }
 
+    if (isMonthly) {
+      return {
+        periodColumns: monthlyCols,
+        groupedHeaderLabel: "Monthly",
+      };
+    }
+
+    // frequency === "all"
+    const rowFrequencies = new Set<string>();
+    rows.forEach((r) => {
+      if (r.item?.frequency) rowFrequencies.add(r.item.frequency.toLowerCase());
+    });
+
+    if (rowFrequencies.size === 1) {
+      if (rowFrequencies.has("yearly")) {
+        return { periodColumns: annualCols, groupedHeaderLabel: "Annual" };
+      }
+      if (rowFrequencies.has("quarterly")) {
+        return { periodColumns: quarterlyCols, groupedHeaderLabel: "Quarterly" };
+      }
+      if (rowFrequencies.has("half_yearly") || rowFrequencies.has("half-yearly")) {
+        return { periodColumns: halfYearlyCols, groupedHeaderLabel: "Half-Yearly" };
+      }
+      return { periodColumns: monthlyCols, groupedHeaderLabel: "Monthly" };
+    }
+
+    if (rowFrequencies.size > 1) {
+      const combined: { key: string; label: string }[] = [];
+      if (rowFrequencies.has("monthly")) combined.push(...monthlyCols);
+      if (rowFrequencies.has("quarterly")) combined.push(...quarterlyCols);
+      if (rowFrequencies.has("half_yearly") || rowFrequencies.has("half-yearly")) combined.push(...halfYearlyCols);
+      if (rowFrequencies.has("yearly")) combined.push(...annualCols);
+      return {
+        periodColumns: combined,
+        groupedHeaderLabel: "All Periods",
+      };
+    }
+
+    // Default if no rows present yet:
+    if (isIncomeTax) {
+      return { periodColumns: annualCols, groupedHeaderLabel: "Annual" };
+    }
     return {
-      periodColumns: [
-        { key: "M04", label: `Apr ${startYear}` },
-        { key: "M05", label: `May ${startYear}` },
-        { key: "M06", label: `Jun ${startYear}` },
-        { key: "M07", label: `Jul ${startYear}` },
-        { key: "M08", label: `Aug ${startYear}` },
-        { key: "M09", label: `Sep ${startYear}` },
-        { key: "M10", label: `Oct ${startYear}` },
-        { key: "M11", label: `Nov ${startYear}` },
-        { key: "M12", label: `Dec ${startYear}` },
-        { key: "M01", label: `Jan ${endYear}` },
-        { key: "M02", label: `Feb ${endYear}` },
-        { key: "M03", label: `Mar ${endYear}` },
-      ],
+      periodColumns: monthlyCols,
       groupedHeaderLabel: "Monthly",
     };
-  }, [isYearly, frequency, startYear, endYear]);
+  }, [frequency, rows, isIncomeTax, startYear, endYear]);
 
   const initialWidths = useMemo(() => {
     const widths: Record<string, number> = {
