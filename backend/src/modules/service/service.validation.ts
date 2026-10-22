@@ -1,10 +1,46 @@
 import { z } from 'zod';
 
-const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
-
 export const serviceIdParamSchema = z.object({
-  id: z.string().regex(OBJECT_ID_REGEX, 'Invalid Service ID format'),
+  id: z.string().min(1, 'Service identifier is required'),
 });
+
+export const serviceChecklistItemSchema = z.union([
+  z.string(),
+  z.object({
+    id: z.string().optional().default(() => `c_${Date.now()}`),
+    title: z.string().min(1, 'Title is required'),
+    isMandatory: z.boolean().optional().default(true),
+    taskId: z.string().optional().nullable(),
+    serviceId: z.string().optional().nullable(),
+  }),
+]);
+
+export const serviceDocumentRequestItemSchema = z.union([
+  z.string(),
+  z.object({
+    id: z.string().optional().default(() => `d_${Date.now()}`),
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional().default(''),
+    isMandatory: z.boolean().optional().default(true),
+    taskId: z.string().optional().nullable(),
+    serviceId: z.string().optional().nullable(),
+  }),
+]);
+
+export const serviceSubTaskSchema = z.union([
+  z.string(),
+  z.object({
+    id: z.string().optional().default(() => `st_${Date.now()}`),
+    name: z.string().optional(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    totalHours: z.string().optional(),
+    percentage: z.number().optional(),
+    attachments: z.array(z.string()).optional(),
+    taskId: z.string().optional().nullable(),
+    serviceId: z.string().optional().nullable(),
+  }),
+]);
 
 export const createServiceSchema = z.object({
   name: z.string().min(2, 'Service name must be at least 2 characters').max(150),
@@ -33,11 +69,17 @@ export const createServiceSchema = z.object({
   tatHours: z.string().max(10).optional().default('00:00'),
   note: z.string().max(500).optional().default(''),
   sop: z.string().optional().default('Standard SOP v1.0'),
-  subTasks: z.array(z.string()).optional().default([]),
+  subTasks: z.array(serviceSubTaskSchema).optional().default([]),
+  checklist: z.array(serviceChecklistItemSchema).optional().default([]),
+  documentRequests: z.array(serviceDocumentRequestItemSchema).optional().default([]),
   status: z.enum(['Active', 'Inactive', 'Draft']).default('Active'),
 });
 
-export const updateServiceSchema = createServiceSchema.partial();
+export const updateServiceSchema = createServiceSchema.partial().extend({
+  subTasks: z.array(serviceSubTaskSchema).optional(),
+  checklist: z.array(serviceChecklistItemSchema).optional(),
+  documentRequests: z.array(serviceDocumentRequestItemSchema).optional(),
+}).passthrough();
 
 export const queryServiceSchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),

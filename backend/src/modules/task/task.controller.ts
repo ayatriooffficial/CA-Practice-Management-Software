@@ -5,9 +5,13 @@ import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { ResponseMessages } from '../../constants/messages';
 import { HttpStatus } from '../../constants/httpStatusCodes';
 import { QueryOptions } from '../../shared/utils/queryBuilder';
+import { AppError } from '../../shared/utils/apiError';
+import { DocumentCategory } from '../drive/drive.interface';
+import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
 
 export class TaskController {
   static getAllTasks = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
     const queryOptions: QueryOptions & {
       category?: string;
       quickFilter?: string;
@@ -16,6 +20,9 @@ export class TaskController {
       department?: string;
       financialYear?: string;
       period?: string;
+      clientId?: string;
+      clientFileNo?: string;
+      clientName?: string;
     } = {
       page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
       limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 50,
@@ -29,22 +36,27 @@ export class TaskController {
       department: req.query.department as string,
       financialYear: req.query.financialYear as string,
       period: req.query.period as string,
+      clientId: req.query.clientId as string,
+      clientFileNo: req.query.clientFileNo as string,
+      clientName: req.query.clientName as string,
     };
 
-    const { items, pagination } = await TaskService.getAllTasks(queryOptions);
+    const { items, pagination } = await TaskService.getAllTasks(queryOptions, userCtx);
     return ApiResponse.paginated(res, items, pagination, ResponseMessages.SUCCESS);
   });
 
   static getTaskStats = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
     const category = req.query.category as string | undefined;
-    const stats = await TaskService.getTaskStats(category);
+    const stats = await TaskService.getTaskStats(category, userCtx);
     return ApiResponse.success(res, stats, ResponseMessages.SUCCESS);
   });
 
   static getTaskSummaryMatrix = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
     const groupBy = (req.query.groupBy as string) || 'Assigned To';
     const search = req.query.search as string | undefined;
-    const matrix = await TaskService.getTaskSummaryMatrix(groupBy, search);
+    const matrix = await TaskService.getTaskSummaryMatrix(groupBy, search, userCtx);
     return ApiResponse.success(res, matrix, ResponseMessages.SUCCESS);
   });
 
@@ -55,7 +67,8 @@ export class TaskController {
   });
 
   static createTask = asyncHandler(async (req: Request, res: Response) => {
-    const task = await TaskService.createTask(req.body);
+    const userCtx = getUserContextFromRequest(req);
+    const task = await TaskService.createTask(req.body, userCtx);
     return ApiResponse.success(res, task, ResponseMessages.TASK_CREATED, HttpStatus.CREATED);
   });
 
@@ -96,5 +109,30 @@ export class TaskController {
     const docId = String(req.params.docId);
     const task = await TaskService.toggleDocumentRequest(id, docId, req.body.status);
     return ApiResponse.success(res, task, 'Document request status updated');
+  });
+
+  static uploadTaskDocument = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const docId = String(req.params.docId);
+    const file = req.file;
+    if (!file) {
+      throw AppError.badRequest('No file provided for upload');
+    }
+    const documentName = req.body.documentName as string | undefined;
+    const result = await TaskService.uploadTaskDocument(id, docId, file, documentName);
+    return ApiResponse.success(res, result, 'Document uploaded to Google Drive successfully');
+  });
+
+  static uploadGeneralTaskDocument = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const file = req.file;
+    if (!file) {
+      throw AppError.badRequest('No file provided for upload');
+    }
+    const title = (req.body.title as string) || file.originalname;
+    const category = req.body.category as DocumentCategory | undefined;
+    const description = req.body.description as string | undefined;
+    const result = await TaskService.uploadGeneralTaskDocument(id, file, title, category, description);
+    return ApiResponse.success(res, result, 'Task document uploaded to Google Drive successfully');
   });
 }

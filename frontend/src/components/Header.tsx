@@ -20,9 +20,11 @@ import {
   Building,
   LucideIcon,
   Menu,
+  User,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth, computeInitials } from "./auth/AuthContext";
 
 const SearchModal = dynamic(
   () => import("./SearchModal").then((m) => m.SearchModal),
@@ -117,6 +119,7 @@ const HEADER_NAV_ITEMS: NavItem[] = [
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { currentUser } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -161,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               className="text-[13.5px] font-semibold tracking-tight whitespace-nowrap"
               style={{ color: "var(--text-main)" }}
             >
-              Dipak Sahani
+              {currentUser?.name || "Ayatrio CA"}
             </span>
           </Link>
         </div>
@@ -267,27 +270,42 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             )}
           </button>
 
-          {/* User Profile Avatar with Online indicator */}
+          {/* User Profile Avatar / Login Entry Point */}
           <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="relative flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold tracking-tight transition-transform hover:scale-105 focus:outline-hidden cursor-pointer"
-              style={{
-                backgroundColor: "var(--avatar-bg)",
-                color: "var(--avatar-text)",
-              }}
-              title="User Account: Dipak Sahani"
-              aria-label="User account profile menu"
-              aria-expanded={isProfileOpen}
-            >
-              <span>DS</span>
-              {/* Online Green Dot */}
-              <span
-                className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-gray-900"
-                style={{ backgroundColor: "var(--status-online)" }}
-              />
-            </button>
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold tracking-tight transition-transform hover:scale-105 focus:outline-hidden cursor-pointer"
+                style={{
+                  backgroundColor: "var(--avatar-bg)",
+                  color: "var(--avatar-text)",
+                }}
+                title={`User Account: ${currentUser.name}`}
+                aria-label={`User Account: ${currentUser.name}`}
+                aria-expanded={isProfileOpen}
+              >
+                <span>{currentUser.initials || computeInitials(currentUser.name)}</span>
+                {/* Online Green Dot */}
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-gray-900"
+                  style={{ backgroundColor: "var(--status-online)" }}
+                />
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="relative flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold tracking-tight transition-transform hover:scale-105 focus:outline-hidden cursor-pointer"
+                style={{
+                  backgroundColor: "var(--avatar-bg)",
+                  color: "var(--avatar-text)",
+                }}
+                title="Login"
+                aria-label="Login"
+              >
+                <User className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
         </div>
       </header>

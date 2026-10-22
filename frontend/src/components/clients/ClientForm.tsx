@@ -136,6 +136,64 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     return [{ key: 1, category: "", service: "", tariff: "0.00" }];
   });
 
+  // Re-sync form fields when initialClient changes
+  React.useEffect(() => {
+    if (initialClient) {
+      setClientName(initialClient.name || "");
+      setType(initialClient.type || "");
+      setPan(initialClient.pan || "");
+      setMobile(initialClient.mobile || "");
+      setEmail(initialClient.email || "");
+      setCity(initialClient.city || "");
+      setIsActive(initialClient.active ?? true);
+      setDob(initialClient.dob || "");
+      setGroup(initialClient.group || "");
+      setReferredBy(initialClient.referredBy || "");
+      setSecondaryMobile(initialClient.secondaryMobile || "");
+      setAddress(initialClient.address || "");
+      setPincode(initialClient.pincode || "");
+      setPhoto(initialClient.photo || null);
+
+      if (initialClient.customerFiles?.promoter && initialClient.customerFiles.promoter.length > 0) {
+        setPromoterRows(
+          initialClient.customerFiles.promoter.map((p: any, idx: number) => ({
+            key: p.key || idx + 1,
+            name: p.name || "",
+            pan: p.pan || "",
+            share: p.share || "",
+            designation: p.designation || "",
+            mcaId: p.mcaId || "",
+            mcaPassword: p.mcaPassword || "",
+          }))
+        );
+      }
+
+      if (initialClient.customerFiles?.statutory && initialClient.customerFiles.statutory.length > 0) {
+        setStatutoryRows(
+          initialClient.customerFiles.statutory.map((s: any, idx: number) => ({
+            key: s.key || idx + 1,
+            type: s.type || "",
+            idNo: s.idNo || "",
+            userId: s.userId || "",
+            password: s.password || "",
+            attachment: s.attachment || null,
+          }))
+        );
+      }
+
+      if (initialClient.customerFiles?.recurring && initialClient.customerFiles.recurring.length > 0) {
+        setRecurringRows(
+          initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
+            key: r.key || idx + 1,
+            category: r.category || "",
+            service: r.service || "",
+            tariff: r.tariff || "0.00",
+          }))
+        );
+      }
+    }
+  }, [initialClient]);
+
   // Fetch Leads dynamically to populate the Promoters list
   const { data: leadsData } = useLeads({ limit: 100 });
 

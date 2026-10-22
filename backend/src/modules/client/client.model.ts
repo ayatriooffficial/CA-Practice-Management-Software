@@ -189,6 +189,21 @@ const clientSchema = new Schema<IClientDocument>(
       type: [Schema.Types.Mixed],
       default: [],
     },
+    orgId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    userId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    createdBy: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

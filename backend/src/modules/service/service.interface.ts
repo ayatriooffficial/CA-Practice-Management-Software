@@ -16,27 +16,41 @@ export type ServiceStatus = 'Active' | 'Inactive' | 'Draft';
 
 export interface IServiceSubTask {
   id: string;
-  name: string;
+  name?: string;
+  title?: string;
   description?: string;
   totalHours?: string;
   percentage?: number;
+  completed?: boolean;
+  timeSpent?: string;
   attachments?: string[];
+  taskId?: string | null;
+  serviceId?: string | null;
 }
 
 export interface IServiceChecklistItem {
   id: string;
   title: string;
+  completed?: boolean;
   isMandatory?: boolean;
+  taskId?: string | null;
+  serviceId?: string | null;
 }
 
 export interface IServiceDocumentRequestItem {
   id: string;
   title: string;
   description?: string;
+  status?: 'Pending' | 'Received' | 'Requested';
   isMandatory?: boolean;
+  fileUrl?: string;
+  receivedAt?: Date | null;
+  taskId?: string | null;
+  serviceId?: string | null;
 }
 
 export interface IService {
+  serviceId?: string;
   name: string;
   category: string;
   frequency: ServiceFrequency;
@@ -56,6 +70,9 @@ export interface IService {
   checklist?: (string | IServiceChecklistItem)[];
   documentRequests?: (string | IServiceDocumentRequestItem)[];
   status: ServiceStatus;
+  orgId?: string | null;
+  userId?: string | null;
+  createdBy?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

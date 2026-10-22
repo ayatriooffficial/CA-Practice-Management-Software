@@ -134,6 +134,9 @@ export interface IClient {
   serviceSettings?: IClientServiceSetting[];
   passwords?: IClientPassword[];
   notes?: IClientNote[];
+  orgId?: string | null;
+  userId?: string | null;
+  createdBy?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

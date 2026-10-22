@@ -4,6 +4,7 @@ import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
+import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
 
 export class LeadController {
   /**
@@ -11,7 +12,8 @@ export class LeadController {
    * POST /api/v1/leads
    */
   static createLead = asyncHandler(async (req: Request, res: Response) => {
-    const lead = await LeadService.createLead(req.body);
+    const userCtx = getUserContextFromRequest(req);
+    const lead = await LeadService.createLead(req.body, userCtx);
     return ApiResponse.created(res, lead, ResponseMessages.LEAD_CREATED);
   });
 
@@ -20,7 +22,8 @@ export class LeadController {
    * GET /api/v1/leads
    */
   static getAllLeads = asyncHandler(async (req: Request, res: Response) => {
-    const { items, pagination } = await LeadService.getAllLeads(req.query);
+    const userCtx = getUserContextFromRequest(req);
+    const { items, pagination } = await LeadService.getAllLeads(req.query, userCtx);
     return ApiResponse.paginated(res, items, pagination, 'Leads fetched successfully');
   });
 
@@ -28,8 +31,9 @@ export class LeadController {
    * Get lead statistics
    * GET /api/v1/leads/stats
    */
-  static getLeadStats = asyncHandler(async (_req: Request, res: Response) => {
-    const stats = await LeadService.getLeadStats();
+  static getLeadStats = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const stats = await LeadService.getLeadStats(userCtx);
     return ApiResponse.success(res, stats, 'Lead statistics fetched successfully');
   });
 

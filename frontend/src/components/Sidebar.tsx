@@ -22,6 +22,7 @@ import {
   ReceiptText,
   Folder,
   Grip,
+  Zap,
   X,
   Building,
   Moon,
@@ -49,6 +50,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "groups", label: "Groups", href: "/groups", icon: UserRoundGroup },
   { id: "services", label: "Services", href: "/services", icon: ShoppingCart },
   { id: "task", label: "Task", href: "/task", icon: ClipboardList },
+  // { id: "agents", label: "Agent Center", href: "/agents", icon: Zap },
   { id: "invoice", label: "Invoice", href: "/invoice", icon: ReceiptText },
   { id: "team", label: "Team", href: "/team", icon: UsersRound },
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
@@ -213,22 +215,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     key={item.id}
                     href={item.href}
                     onClick={onCloseMobile}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-colors ${
-                      isActive
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-colors ${isActive
                         ? "font-bold"
                         : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"
-                    }`}
+                      }`}
                     style={{
                       color: isActive ? "var(--primary)" : "var(--text-main)",
                       backgroundColor: isActive ? "var(--primary-light)" : "transparent",
                     }}
                   >
                     <Icon
-                      className={`w-4.5 h-4.5 shrink-0 ${
-                        isActive
+                      className={`w-4.5 h-4.5 shrink-0 ${isActive
                           ? ""
                           : "text-gray-600 dark:text-gray-300"
-                      }`}
+                        }`}
                       style={{
                         color: isActive ? "var(--primary)" : undefined,
                       }}

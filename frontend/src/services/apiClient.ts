@@ -45,25 +45,116 @@ function normalizeId(obj: any): any {
   return normalized;
 }
 
+// Global active refresh promise to coalesce concurrent 401s into a single refresh call
+let activeRefreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (activeRefreshPromise) {
+    return activeRefreshPromise;
+  }
+
+  activeRefreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        throw new Error('Refresh failed');
+      }
+
+      const json = await res.json();
+      const newAccessToken = json.data?.accessToken;
+
+      if (newAccessToken && typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('turia_current_user');
+          if (stored) {
+            const user = JSON.parse(stored);
+            user.token = newAccessToken;
+            localStorage.setItem('turia_current_user', JSON.stringify(user));
+          }
+        } catch {}
+      }
+
+      return newAccessToken || null;
+    } catch {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('turia_current_user');
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        } catch {}
+      }
+      return null;
+    } finally {
+      activeRefreshPromise = null;
+    }
+  })();
+
+  return activeRefreshPromise;
+}
+
 export async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
 
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const authHeaders: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('turia_current_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u.id) authHeaders['X-User-Id'] = u.id;
+        if (u.role) authHeaders['X-User-Role'] = u.role;
+        if (u.orgId || u.organization) authHeaders['X-Org-Id'] = u.orgId || u.organization;
+        if (u.token) authHeaders['Authorization'] = `Bearer ${u.token}`;
+      }
+    } catch {}
+  }
+
   const defaultHeaders: HeadersInit = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     Accept: 'application/json',
+    ...authHeaders,
   };
 
   const response = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       ...defaultHeaders,
       ...options.headers,
     },
   });
+
+  // Handle 401 Unauthorized with automatic token refresh (skip for auth login/refresh routes)
+  const isAuthRoute = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/refresh') || endpoint.startsWith('/auth/verify-otp');
+  if (response.status === 401 && !isRetry && !isAuthRoute) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      // Retry original request once with new token
+      return request<T>(
+        endpoint,
+        {
+          ...options,
+          headers: {
+            ...options.headers,
+            Authorization: `Bearer ${newToken}`,
+          },
+        },
+        true
+      );
+    }
+  }
 
   const contentType = response.headers.get('content-type');
   const isJson = contentType && contentType.includes('application/json');

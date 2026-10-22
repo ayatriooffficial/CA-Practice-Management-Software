@@ -34,6 +34,9 @@ export interface ILead {
   photo?: string | null;
   status: LeadStatus;
   notes?: string;
+  orgId?: string | Types.ObjectId | null;
+  userId?: string | null;
+  createdBy?: string | null;
   convertedToClientId?: Types.ObjectId | null;
   convertedAt?: Date | null;
   createdAt?: Date;

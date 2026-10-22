@@ -3,6 +3,7 @@ import { ServiceService } from './service.service';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { ResponseMessages } from '../../constants/messages';
+import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
 
 export class ServiceController {
   /**
@@ -10,7 +11,8 @@ export class ServiceController {
    * POST /api/v1/services
    */
   static createService = asyncHandler(async (req: Request, res: Response) => {
-    const service = await ServiceService.createService(req.body);
+    const userCtx = getUserContextFromRequest(req);
+    const service = await ServiceService.createService(req.body, userCtx);
     return ApiResponse.created(res, service, ResponseMessages.SERVICE_CREATED);
   });
 
@@ -19,7 +21,8 @@ export class ServiceController {
    * GET /api/v1/services
    */
   static getAllServices = asyncHandler(async (req: Request, res: Response) => {
-    const { items, pagination } = await ServiceService.getAllServices(req.query);
+    const userCtx = getUserContextFromRequest(req);
+    const { items, pagination } = await ServiceService.getAllServices(req.query, userCtx);
     return ApiResponse.paginated(res, items, pagination, 'Services fetched successfully');
   });
 
@@ -27,8 +30,9 @@ export class ServiceController {
    * Get service catalog analytics and summary
    * GET /api/v1/services/stats
    */
-  static getServiceStats = asyncHandler(async (_req: Request, res: Response) => {
-    const stats = await ServiceService.getServiceStats();
+  static getServiceStats = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const stats = await ServiceService.getServiceStats(userCtx);
     return ApiResponse.success(res, stats, 'Service analytics fetched successfully');
   });
 

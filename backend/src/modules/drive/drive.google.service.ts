@@ -9,6 +9,7 @@ import {
   CATEGORY_DEFINITIONS,
   IDriveStatusResponse,
 } from './drive.interface';
+import { AppError } from '../../shared/utils/apiError';
 
 export class GoogleDriveService {
   private driveClient: drive_v3.Drive | null = null;
@@ -102,7 +103,7 @@ export class GoogleDriveService {
   }
 
   /**
-   * Ensures that a dedicated folder exists for the category inside Google Drive (or local storage).
+   * Ensures that a dedicated folder exists for the category inside Google Drive.
    */
   public async ensureCategoryFolder(category: DocumentCategory): Promise<string> {
     const meta = CATEGORY_DEFINITIONS[category];
@@ -113,13 +114,7 @@ export class GoogleDriveService {
     }
 
     if (!this.isConfigured || !this.driveClient) {
-      // Local fallback folder
-      const localCatDir = path.join(this.localUploadsDir, folderName);
-      if (!fs.existsSync(localCatDir)) {
-        fs.mkdirSync(localCatDir, { recursive: true });
-      }
-      this.folderCache.set(category, localCatDir);
-      return localCatDir;
+      throw AppError.badRequest('Google Drive is not configured. Cannot create category folder.');
     }
 
     try {
@@ -158,32 +153,64 @@ export class GoogleDriveService {
       return newFolderId;
     } catch (error: any) {
       logger.error(`Error ensuring category folder for ${category}:`, error?.message || error);
-      if (
-        error?.message?.includes('storage quota') ||
-        error?.message?.includes('Service Accounts')
-      ) {
-        logger.warn(
-          `⚠️ Service Accounts do not have storage quota on root. Falling back to secure local storage until GOOGLE_DRIVE_PARENT_FOLDER_ID is set. To enable Google Drive sync, create a folder in your Google Drive, share it with ${this.serviceAccountEmail || 'my-drive-bot@caramel-source-512304-k1.iam.gserviceaccount.com'} as Editor, and put the folder ID in .env.`
-        );
-        const localCatDir = path.join(this.localUploadsDir, folderName);
-        if (!fs.existsSync(localCatDir)) {
-          fs.mkdirSync(localCatDir, { recursive: true });
-        }
-        this.folderCache.set(category, localCatDir);
-        return localCatDir;
-      }
-      throw error;
+      throw AppError.internal(`Google Drive folder access failed: ${error?.message || error}`);
     }
   }
 
   /**
-   * Uploads file buffer to Google Drive inside the dedicated category folder.
+   * Ensures a folder exists inside Google Drive under a parent folder.
+   */
+  public async ensureFolder(folderName: string, parentId?: string): Promise<string> {
+    const cleanName = folderName.replace(/[<>:"/\\|?*]/g, '_').trim();
+    if (!this.isConfigured || !this.driveClient) {
+      throw AppError.badRequest('Google Drive is not configured.');
+    }
+
+    try {
+      const parent = parentId || env.GOOGLE_DRIVE_PARENT_FOLDER_ID || 'root';
+      const searchRes = await this.driveClient.files.list({
+        q: `name = '${cleanName}' and '${parent}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id, name)',
+        spaces: 'drive',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+
+      if (searchRes.data.files && searchRes.data.files.length > 0) {
+        return searchRes.data.files[0].id!;
+      }
+
+      const createRes = await this.driveClient.files.create({
+        requestBody: {
+          name: cleanName,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parent],
+        },
+        fields: 'id, name',
+        supportsAllDrives: true,
+      });
+
+      return createRes.data.id!;
+    } catch (error: any) {
+      logger.error(`Error creating Google Drive folder "${folderName}":`, error?.message || error);
+      throw AppError.internal(`Google Drive folder creation failed: ${error?.message || error}`);
+    }
+  }
+
+  /**
+   * Uploads file buffer to Google Drive inside dedicated category or client/task folder.
+   * If Google Drive upload fails, throws error without saving locally.
    */
   public async uploadFile(
     file: Express.Multer.File,
     category: DocumentCategory,
     sanitizedFileName: string,
-    description?: string
+    description?: string,
+    options?: {
+      clientName?: string;
+      subFolder?: string;
+      customFileName?: string;
+    }
   ): Promise<{
     fileId: string;
     folderId: string;
@@ -191,35 +218,35 @@ export class GoogleDriveService {
     webContentLink?: string;
     provider: 'google-drive' | 'local-fallback';
   }> {
-    const folderId = await this.ensureCategoryFolder(category);
+    if (!this.isConfigured || !this.driveClient) {
+      throw AppError.badRequest('Google Drive is not configured. Local file storage is disabled.');
+    }
 
-    // If Google Drive is not configured OR folderId is a local directory, write to local disk
-    if (
-      !this.isConfigured ||
-      !this.driveClient ||
-      folderId.includes(path.sep) ||
-      folderId.startsWith(this.localUploadsDir)
-    ) {
-      const uniqueName = `${Date.now()}_${sanitizedFileName}`;
-      const filePath = path.join(folderId, uniqueName);
-      fs.writeFileSync(filePath, file.buffer);
+    const defaultCategoryFolder = await this.ensureCategoryFolder(category);
 
-      return {
-        fileId: `local_${uniqueName}`,
-        folderId,
-        webViewLink: `/api/v1/drive/download/local_${uniqueName}`,
-        webContentLink: `/api/v1/drive/download/local_${uniqueName}`,
-        provider: 'local-fallback',
-      };
+    // Compute proper document name
+    const ext = path.extname(sanitizedFileName);
+    let finalDocName = sanitizedFileName;
+    if (options?.customFileName) {
+      const cleanCustom = options.customFileName.replace(/[<>:"/\\|?*]/g, '_').trim();
+      finalDocName = cleanCustom.endsWith(ext) ? cleanCustom : `${cleanCustom}${ext}`;
     }
 
     try {
-      // 1. Upload stream to Google Drive
+      let targetFolderId = defaultCategoryFolder;
+      if (options?.clientName) {
+        const clientFolderId = await this.ensureFolder(options.clientName);
+        targetFolderId = options.subFolder
+          ? await this.ensureFolder(options.subFolder, clientFolderId)
+          : clientFolderId;
+      }
+
+      // Upload stream directly to Google Drive
       const stream = Readable.from(file.buffer);
       const res = await this.driveClient.files.create({
         requestBody: {
-          name: sanitizedFileName,
-          parents: [folderId],
+          name: finalDocName,
+          parents: [targetFolderId],
           description: description || `Uploaded via Ayatrio Practice System [${category}]`,
           mimeType: file.mimetype,
         },
@@ -233,7 +260,7 @@ export class GoogleDriveService {
 
       const fileId = res.data.id!;
 
-      // 2. Grant view permissions if appropriate (or reader to anyone with link)
+      // Grant view permissions
       try {
         await this.driveClient.permissions.create({
           fileId,
@@ -247,7 +274,7 @@ export class GoogleDriveService {
         logger.warn(`Permission set warning on file ${fileId}:`, permErr?.message);
       }
 
-      // Fetch webViewLink & webContentLink
+      // Fetch links
       const fileInfo = await this.driveClient.files.get({
         fileId,
         fields: 'id, name, webViewLink, webContentLink',
@@ -256,39 +283,30 @@ export class GoogleDriveService {
 
       return {
         fileId,
-        folderId,
+        folderId: targetFolderId,
         webViewLink: fileInfo.data.webViewLink || undefined,
         webContentLink: fileInfo.data.webContentLink || undefined,
         provider: 'google-drive',
       };
     } catch (uploadError: any) {
       logger.error('Google Drive file upload failed:', uploadError?.message || uploadError);
-      if (
-        uploadError?.message?.includes('storage quota') ||
-        uploadError?.message?.includes('Service Accounts')
-      ) {
-        logger.warn(
-          `⚠️ Service Account cannot upload to root. Falling back to local storage. Share a folder with ${this.serviceAccountEmail} and update GOOGLE_DRIVE_PARENT_FOLDER_ID in .env to upload directly to Drive.`
-        );
-        const meta = CATEGORY_DEFINITIONS[category];
-        const folderName = meta ? meta.folderName : `Category_${category}`;
-        const localCatDir = path.join(this.localUploadsDir, folderName);
-        if (!fs.existsSync(localCatDir)) fs.mkdirSync(localCatDir, { recursive: true });
-
-        const uniqueName = `${Date.now()}_${sanitizedFileName}`;
-        const filePath = path.join(localCatDir, uniqueName);
-        fs.writeFileSync(filePath, file.buffer);
-
-        return {
-          fileId: `local_${uniqueName}`,
-          folderId: localCatDir,
-          webViewLink: `/api/v1/drive/download/local_${uniqueName}`,
-          webContentLink: `/api/v1/drive/download/local_${uniqueName}`,
-          provider: 'local-fallback',
-        };
-      }
-      throw uploadError;
+      throw AppError.internal(`Google Drive upload failed: ${uploadError?.message || 'Error uploading file'}`);
     }
+  }
+
+  private findLocalFile(dir: string, fileName: string): string | null {
+    if (!fs.existsSync(dir)) return null;
+    const items = fs.readdirSync(dir, { withFileTypes: true });
+    for (const item of items) {
+      const fullPath = path.join(dir, item.name);
+      if (item.isDirectory()) {
+        const found = this.findLocalFile(fullPath, fileName);
+        if (found) return found;
+      } else if (item.name === fileName || item.name.includes(fileName)) {
+        return fullPath;
+      }
+    }
+    return null;
   }
 
   /**
@@ -296,15 +314,12 @@ export class GoogleDriveService {
    */
   public async deleteFile(fileId: string): Promise<boolean> {
     if (fileId.startsWith('local_')) {
-      // Local fallback removal
       try {
         const uniqueName = fileId.replace('local_', '');
-        for (const meta of Object.values(CATEGORY_DEFINITIONS)) {
-          const checkPath = path.join(this.localUploadsDir, meta.folderName, uniqueName);
-          if (fs.existsSync(checkPath)) {
-            fs.unlinkSync(checkPath);
-            return true;
-          }
+        const found = this.findLocalFile(this.localUploadsDir, uniqueName);
+        if (found && fs.existsSync(found)) {
+          fs.unlinkSync(found);
+          return true;
         }
       } catch {
         return false;
@@ -331,11 +346,9 @@ export class GoogleDriveService {
   public async getFileStream(fileId: string): Promise<Readable> {
     if (fileId.startsWith('local_')) {
       const uniqueName = fileId.replace('local_', '');
-      for (const meta of Object.values(CATEGORY_DEFINITIONS)) {
-        const checkPath = path.join(this.localUploadsDir, meta.folderName, uniqueName);
-        if (fs.existsSync(checkPath)) {
-          return fs.createReadStream(checkPath);
-        }
+      const found = this.findLocalFile(this.localUploadsDir, uniqueName);
+      if (found && fs.existsSync(found)) {
+        return fs.createReadStream(found);
       }
       throw new Error('Local file not found');
     }

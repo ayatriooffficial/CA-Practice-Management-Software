@@ -65,4 +65,23 @@ export class ApiResponse {
   static noContent(res: Response): Response {
     return res.status(HttpStatus.NO_CONTENT).send();
   }
+
+  /**
+   * Standard error response helper
+   */
+  static error(
+    res: Response,
+    message: string = 'An error occurred',
+    statusCode: HttpStatusCode = HttpStatus.BAD_REQUEST,
+    errors?: unknown
+  ): Response {
+    return res.status(statusCode).json({
+      success: false,
+      statusCode,
+      message,
+      ...(errors ? { errors } : {}),
+    });
+  }
 }
+
+export { HttpStatus, HttpStatusCode };

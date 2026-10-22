@@ -210,6 +210,9 @@ export interface IDocumentUploadInput {
   description?: string;
   clientId?: string;
   clientName?: string;
+  subFolder?: string;
+  customFileName?: string;
+  taskId?: string;
   leadId?: string;
   tags?: string[];
   uploadedBy?: string;

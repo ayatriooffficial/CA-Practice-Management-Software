@@ -19,7 +19,7 @@ import { TaskItem } from "@/data/taskData";
 export default function TaskPage() {
   const [activeMainTab, setActiveMainTab] = useState<
     "Task Summary" | "Task List" | "Sub Tasks" | "Recurring Schedule" | "Analytics"
-  >("Task List");
+  >("Task Summary");
 
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export default function TaskPage() {
   };
 
   return (
-    <div className="px-2 max-w-7xl mx-auto space-y-4">
+    <div className="">
       {/* Detail View Mode */}
       {selectedDetailTaskId ? (
         <TaskDetailView
@@ -53,7 +53,7 @@ export default function TaskPage() {
       ) : (
         <>
           {/* Top Main Navigation Header matching Screenshots 3 & 4 */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between items-center border-b border-[var(--border-main)] py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between items-center border-b border-[var(--border-main)] p-2">
             {/* Left Main Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto">
               {MAIN_TABS.map((tab) => {

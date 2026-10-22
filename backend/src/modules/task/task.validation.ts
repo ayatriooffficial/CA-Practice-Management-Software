@@ -5,6 +5,49 @@ export const taskIdParamSchema = z.object({
   id: z.string().min(1, 'Task identifier is required'),
 });
 
+export const taskChecklistItemSchema = z.object({
+  id: z.string().optional().default(() => `c_${Date.now()}`),
+  title: z.string().min(1, 'Checklist title is required'),
+  completed: z.boolean().optional().default(false),
+  isMandatory: z.boolean().optional().default(true),
+  taskId: z.string().optional().nullable(),
+  serviceId: z.string().optional().nullable(),
+});
+
+export const taskDocumentRequestItemSchema = z.object({
+  id: z.string().optional().default(() => `d_${Date.now()}`),
+  title: z.string().min(1, 'Document title is required'),
+  description: z.string().optional().default(''),
+  status: z.enum(['Pending', 'Received', 'Requested']).optional().default('Pending'),
+  isMandatory: z.boolean().optional().default(true),
+  fileUrl: z.string().optional().default(''),
+  receivedAt: z.union([z.string(), z.date()]).optional().nullable(),
+  taskId: z.string().optional().nullable(),
+  serviceId: z.string().optional().nullable(),
+});
+
+export const taskSubTaskSchema = z.object({
+  id: z.string().optional().default(() => `st_${Date.now()}`),
+  title: z.string().optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  completed: z.boolean().optional().default(false),
+  timeSpent: z.string().optional().default('00:00:00'),
+  totalHours: z.string().optional(),
+  percentage: z.number().optional(),
+  taskId: z.string().optional().nullable(),
+  serviceId: z.string().optional().nullable(),
+});
+
+export const taskComplianceSchema = z.object({
+  period: z.string().optional(),
+  dueDate: z.string().optional(),
+  status: z.enum(['Overdue', 'Compliant', 'Pending', 'Filed']).optional(),
+  filedDate: z.string().optional(),
+  referenceNo: z.string().optional(),
+  attachmentsCount: z.number().optional(),
+});
+
 export const createTaskSchema = z.object({
   taskId: z.string().optional(),
   taskName: z.string().optional().default('-'),
@@ -50,6 +93,13 @@ export const createTaskSchema = z.object({
     .default('Pending'),
   description: z.string().optional().default(''),
   createProformaInvoice: z.boolean().optional().default(false),
+  creatorName: z.string().optional(),
+  adminId: z.string().optional(),
+  sop: z.string().optional().default(''),
+  subTasks: z.array(taskSubTaskSchema).optional(),
+  checklist: z.array(taskChecklistItemSchema).optional(),
+  documentRequests: z.array(taskDocumentRequestItemSchema).optional(),
+  complianceStatus: taskComplianceSchema.optional(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial().extend({
@@ -69,11 +119,15 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   billingStatus: z.enum(['Pending', 'Ready to Bill', 'Billed']).optional(),
   isTimerRunning: z.boolean().optional(),
   timeSpentSeconds: z.number().optional(),
-});
+  subTasks: z.array(taskSubTaskSchema).optional(),
+  checklist: z.array(taskChecklistItemSchema).optional(),
+  documentRequests: z.array(taskDocumentRequestItemSchema).optional(),
+  complianceStatus: taskComplianceSchema.optional(),
+}).passthrough();
 
 export const addCommentSchema = z.object({
   text: z.string().min(1, 'Comment text cannot be empty'),
-  author: z.string().optional().default('Likith S'),
-  authorInitials: z.string().optional().default('LI'),
-  avatarColor: z.string().optional().default('#06B6D4'),
+  author: z.string().optional().default('Team Member'),
+  authorInitials: z.string().optional().default('TM'),
+  avatarColor: z.string().optional().default('#3B82F6'),
 });

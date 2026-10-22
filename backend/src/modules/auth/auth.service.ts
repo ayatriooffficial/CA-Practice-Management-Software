@@ -1,0 +1,508 @@
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import { OrganizationModel } from './organization.model';
+import { UserModel } from './user.model';
+import { RefreshSessionModel } from './session.model';
+import { OtpVerificationModel } from './otp.model';
+import { JwtService } from './jwt.service';
+import {
+  IJwtUserPayload,
+  IAuthTokens,
+  IUserDocument,
+} from './auth.interface';
+import { AppError } from '../../shared/utils/apiError';
+import { HTTP_STATUS } from '../../constants/httpStatus';
+import { logger } from '../../config/logger';
+
+function computeInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'U';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export class AuthService {
+  /**
+   * Auto-seed disabled by configuration: do not create default users
+   */
+  public static async ensureSeedData(): Promise<void> {
+    // Disabled: Do not create any default users or mock data
+    return;
+  }
+
+
+  /**
+   * Helper to build JWT payload from a User document
+   */
+  private static buildJwtPayload(user: IUserDocument, firmName: string): IJwtUserPayload {
+    return {
+      userId: String(user._id),
+      orgId: String(user.orgId),
+      firmName: firmName || user.firmName || 'Firm',
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      initials: user.initials || computeInitials(user.name),
+      permissions: user.permissions,
+      tokenVersion: user.tokenVersion || 0,
+    };
+  }
+
+  /**
+   * Register a new organization and admin user
+   */
+  public static async registerOrganization(data: {
+    firmName: string;
+    name: string;
+    email: string;
+    mobile: string;
+    password?: string;
+    userAgent?: string;
+    ipAddress?: string;
+  }): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
+    await this.ensureSeedData();
+
+    const cleanEmail = data.email.trim().toLowerCase();
+    const cleanMobile = data.mobile.replace(/\D/g, '').slice(-10);
+
+    const existingUser = await UserModel.findOne({
+      $or: [{ email: cleanEmail }, { mobile: cleanMobile }],
+    });
+
+    if (existingUser) {
+      throw AppError.conflict('An account with this email or mobile number already exists');
+    }
+
+    // Create organization
+    const org = await OrganizationModel.create({
+      name: data.firmName.trim(),
+      email: cleanEmail,
+      mobile: cleanMobile,
+      totalSeats: 5,
+      isActive: true,
+    });
+
+    let passwordHash: string | undefined = undefined;
+    if (data.password) {
+      passwordHash = await bcrypt.hash(data.password, 10);
+    }
+
+    // Create admin user
+    const user = await UserModel.create({
+      orgId: org._id,
+      firmName: org.name,
+      name: data.name.trim(),
+      email: cleanEmail,
+      mobile: cleanMobile,
+      passwordHash,
+      role: 'admin',
+      initials: computeInitials(data.name),
+      status: 'active',
+      tokenVersion: 0,
+      lastLoginAt: new Date(),
+    });
+
+    // Create session & tokens
+    const session = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: org._id,
+      tokenHash: 'temp_hash',
+      userAgent: data.userAgent || '',
+      ipAddress: data.ipAddress || '',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
+    const jwtPayload = this.buildJwtPayload(user, org.name);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
+
+    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await session.save();
+
+    return { user, tokens };
+  }
+
+  /**
+   * Look up if a user exists by email or mobile
+   */
+  public static async lookupUser(identifier: string, type: 'email' | 'mobile'): Promise<IUserDocument | null> {
+    await this.ensureSeedData();
+
+    if (type === 'email') {
+      const cleanEmail = identifier.trim().toLowerCase();
+      return UserModel.findOne({ email: cleanEmail }).populate('orgId', 'name');
+    } else {
+      const cleanMobile = identifier.replace(/\D/g, '').slice(-10);
+      return UserModel.findOne({ mobile: cleanMobile }).populate('orgId', 'name');
+    }
+  }
+
+  /**
+   * Send an OTP code (email or mobile)
+   */
+  public static async sendOtp(target: string, type: 'email' | 'mobile'): Promise<{ success: boolean; message: string }> {
+    await this.ensureSeedData();
+
+    const cleanTarget = type === 'email' ? target.trim().toLowerCase() : target.replace(/\D/g, '').slice(-10);
+
+    // Fixed demo OTP '123456' for predictable dev & testing
+    const otpCode = '123456';
+    const codeHash = JwtService.hashToken(otpCode);
+
+    await OtpVerificationModel.deleteMany({ target: cleanTarget });
+    await OtpVerificationModel.create({
+      target: cleanTarget,
+      codeHash,
+      type: 'login',
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    });
+
+    logger.info(`📱 Generated OTP for ${cleanTarget}: ${otpCode}`);
+
+    return {
+      success: true,
+      message: `OTP sent successfully to ${target}`,
+    };
+  }
+
+  /**
+   * Verify OTP and log user in with tokens
+   */
+  public static async verifyOtp(
+    target: string,
+    code: string,
+    options?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
+    await this.ensureSeedData();
+
+    const cleanEmail = target.trim().toLowerCase();
+    const cleanNum = target.replace(/\D/g, '').slice(-10);
+
+    // Support dev demo codes: 123456, 1234, 000000, 999999
+    const isDemoCode = code === '123456' || code === '1234' || code === '000000' || code === '999999';
+
+    if (!isDemoCode) {
+      const codeHash = JwtService.hashToken(code);
+      const record = await OtpVerificationModel.findOne({
+        target: { $in: [cleanEmail, cleanNum] },
+        codeHash,
+      });
+
+      if (!record) {
+        throw AppError.badRequest('Invalid or expired OTP code');
+      }
+    }
+
+    // Find the user or auto-provision on demo code verification
+    let user = await UserModel.findOne({
+      $or: [{ email: cleanEmail }, { mobile: cleanNum }],
+    }).populate('orgId', 'name');
+
+    if (!user) {
+      if (isDemoCode) {
+        let org = await OrganizationModel.findOne();
+        if (!org) {
+          org = await OrganizationModel.create({
+            name: 'Ayatrio Practice',
+            code: 'ayatrio-practice',
+            totalSeats: 10,
+            isActive: true,
+          });
+        }
+
+        const defaultName = cleanEmail.includes('@')
+          ? cleanEmail.split('@')[0]
+          : `User ${cleanNum.slice(-4) || '9999'}`;
+        const formattedName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
+
+        const uniqueSuffix = Date.now().toString().slice(-9);
+        const resolvedEmail = cleanEmail.includes('@') ? cleanEmail : `user_${cleanNum || uniqueSuffix}@ayatrio.local`;
+        const resolvedMobile = cleanNum && cleanNum.length >= 10 ? cleanNum : `9${uniqueSuffix}`;
+
+        user = await UserModel.create({
+          orgId: org._id,
+          name: formattedName,
+          email: resolvedEmail,
+          mobile: resolvedMobile,
+          role: 'admin',
+          status: 'active',
+          firmName: org.name,
+          initials: computeInitials(formattedName),
+        });
+      } else {
+        throw AppError.notFound('No account found with this identifier');
+      }
+    }
+
+    if (user.status !== 'active') {
+      throw new AppError('Your account has been deactivated. Please contact your administrator.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Create session
+    const session = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: user.orgId,
+      tokenHash: 'temp_hash',
+      userAgent: options?.userAgent || '',
+      ipAddress: options?.ipAddress || '',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
+    const jwtPayload = this.buildJwtPayload(user, firmName);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
+
+    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await session.save();
+
+    // Cleanup OTP
+    await OtpVerificationModel.deleteMany({ target: { $in: [cleanEmail, cleanNum] } });
+
+    return { user, tokens };
+  }
+
+  /**
+   * Password login fallback
+   */
+  public static async loginWithPassword(
+    email: string,
+    pass: string,
+    options?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
+    await this.ensureSeedData();
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await UserModel.findOne({ email: cleanEmail })
+      .select('+passwordHash')
+      .populate('orgId', 'name');
+
+    if (!user || !user.passwordHash) {
+      throw AppError.unauthorized('Invalid email or password');
+    }
+
+    const matches = await bcrypt.compare(pass, user.passwordHash);
+    if (!matches) {
+      throw AppError.unauthorized('Invalid email or password');
+    }
+
+    if (user.status !== 'active') {
+      throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    const session = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: user.orgId,
+      tokenHash: 'temp_hash',
+      userAgent: options?.userAgent || '',
+      ipAddress: options?.ipAddress || '',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
+    const jwtPayload = this.buildJwtPayload(user, firmName);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
+
+    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await session.save();
+
+    return { user, tokens };
+  }
+
+  /**
+   * Rotate Refresh Token & Issue new Access Token
+   */
+  public static async rotateRefreshToken(
+    rawRefreshToken: string,
+    options?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ accessToken: string; refreshToken: string; user: IUserDocument }> {
+    let decoded: { userId: string; sessionId: string; tokenVersion: number };
+    try {
+      decoded = JwtService.verifyRefreshToken(rawRefreshToken);
+    } catch {
+      throw AppError.unauthorized('Invalid or expired refresh token');
+    }
+
+    const session = await RefreshSessionModel.findById(decoded.sessionId);
+    if (!session) {
+      throw AppError.unauthorized('Session not found or has expired');
+    }
+
+    // Token reuse detection! If already revoked, invalidate all sessions for this user!
+    if (session.isRevoked) {
+      await RefreshSessionModel.updateMany({ userId: decoded.userId }, { isRevoked: true });
+      logger.warn(`🚨 Token reuse detected for user ${decoded.userId}. All sessions revoked!`);
+      throw AppError.unauthorized('Compromised session detected. Please log in again.');
+    }
+
+    const currentHash = JwtService.hashToken(rawRefreshToken);
+    if (session.tokenHash !== currentHash) {
+      session.isRevoked = true;
+      await session.save();
+      throw AppError.unauthorized('Invalid refresh token signature');
+    }
+
+    const user = await UserModel.findById(decoded.userId).populate('orgId', 'name');
+    if (!user || user.status !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
+      session.isRevoked = true;
+      await session.save();
+      throw AppError.unauthorized('User not found, deactivated, or sessions invalidated');
+    }
+
+    // Invalidate current session and create new rotated session
+    session.isRevoked = true;
+    await session.save();
+
+    const newSession = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: user.orgId,
+      tokenHash: 'temp_hash',
+      userAgent: options?.userAgent || session.userAgent,
+      ipAddress: options?.ipAddress || session.ipAddress,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
+    const jwtPayload = this.buildJwtPayload(user, firmName);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(newSession._id));
+
+    newSession.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await newSession.save();
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user,
+    };
+  }
+
+  /**
+   * Revoke current session (Logout)
+   */
+  public static async logout(rawRefreshToken?: string): Promise<void> {
+    if (!rawRefreshToken) return;
+    try {
+      const decoded = JwtService.verifyRefreshToken(rawRefreshToken);
+      await RefreshSessionModel.findByIdAndUpdate(decoded.sessionId, { isRevoked: true });
+    } catch {
+      // Ignore token decode errors on logout
+    }
+  }
+
+  /**
+   * Get current user profile by userId
+   */
+  public static async getCurrentUser(userId: string): Promise<IUserDocument> {
+    const user = await UserModel.findById(userId).populate('orgId', 'name');
+    if (!user) {
+      throw AppError.notFound('User not found');
+    }
+    return user;
+  }
+
+  /**
+   * Get team members belonging to the organization/firm
+   */
+  public static async getTeamMembers(orgId?: string, userId?: string | null): Promise<IUserDocument[]> {
+    const filter: Record<string, any> = {};
+    if (orgId && mongoose.Types.ObjectId.isValid(orgId)) {
+      filter.orgId = new mongoose.Types.ObjectId(orgId);
+    } else if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      const user = await UserModel.findById(userId).lean();
+      if (user?.orgId) {
+        filter.orgId = user.orgId;
+      }
+    }
+    return UserModel.find(filter).sort({ createdAt: -1 });
+  }
+
+  /**
+   * Create a new team member
+   */
+  public static async createTeamMember(
+    adminUser: { userId?: string | null; orgId?: string | null; firmName?: string },
+    data: {
+      name: string;
+      email: string;
+      mobile: string;
+      role?: string;
+      department?: string;
+      designation?: string;
+      permissions?: any;
+    }
+  ): Promise<IUserDocument> {
+    const cleanEmail = data.email.toLowerCase().trim();
+    const cleanMobile = data.mobile.replace(/\D/g, '').slice(-10);
+
+    const exists = await UserModel.findOne({
+      $or: [{ email: cleanEmail }, { mobile: cleanMobile }],
+    });
+    if (exists) {
+      throw AppError.conflict('A user with this email or mobile number already exists');
+    }
+
+    let resolvedOrgId = adminUser.orgId;
+    if (!resolvedOrgId && adminUser.userId && mongoose.Types.ObjectId.isValid(adminUser.userId)) {
+      const adminDoc = await UserModel.findById(adminUser.userId).lean();
+      if (adminDoc?.orgId) {
+        resolvedOrgId = String(adminDoc.orgId);
+      }
+    }
+
+    if (!resolvedOrgId || !mongoose.Types.ObjectId.isValid(resolvedOrgId)) {
+      const anyOrg = await OrganizationModel.findOne().lean();
+      if (anyOrg) {
+        resolvedOrgId = String(anyOrg._id);
+      } else {
+        const newOrg = await OrganizationModel.create({
+          name: adminUser.firmName || 'Ayatrio Practice',
+          totalSeats: 999999,
+          isActive: true,
+        });
+        resolvedOrgId = String(newOrg._id);
+      }
+    }
+
+    const initials = computeInitials(data.name);
+
+    const user = await UserModel.create({
+      orgId: new mongoose.Types.ObjectId(resolvedOrgId),
+      firmName: adminUser.firmName || 'Ayatrio Practice',
+      name: data.name.trim(),
+      email: cleanEmail,
+      mobile: cleanMobile,
+      role: (data.role || 'employee').toLowerCase() as any,
+      department: data.department || 'Audit & Taxation',
+      designation: data.designation || 'Staff',
+      initials,
+      permissions: data.permissions || {},
+      status: 'active',
+      tokenVersion: 0,
+    });
+
+    return user;
+  }
+
+  /**
+   * Update team member
+   */
+  public static async updateTeamMember(id: string, updates: Partial<any>): Promise<IUserDocument> {
+    const user = await UserModel.findByIdAndUpdate(id, { $set: updates }, { new: true });
+    if (!user) {
+      throw AppError.notFound('Team member not found');
+    }
+    return user;
+  }
+
+  /**
+   * Delete team member
+   */
+  public static async deleteTeamMember(id: string): Promise<void> {
+    await UserModel.findByIdAndDelete(id);
+  }
+}

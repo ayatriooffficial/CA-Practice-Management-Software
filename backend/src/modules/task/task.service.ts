@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Task } from './task.model';
 import { Service } from '../service/service.model';
 import {
@@ -12,6 +13,10 @@ import { ResponseMessages } from '../../constants/messages';
 import { PaginationMeta } from '../../shared/utils/apiResponse';
 
 
+
+import { DriveService } from '../drive/drive.service';
+import { DocumentCategory } from '../drive/drive.interface';
+import { CounterService } from '../counter/counter.service';
 
 export class TaskService {
   /**
@@ -32,10 +37,93 @@ export class TaskService {
     department?: string;
     financialYear?: string;
     period?: string;
-  }): Promise<{ items: ITaskDocument[]; pagination: PaginationMeta }> {
+    clientId?: string;
+    clientFileNo?: string;
+    clientName?: string;
+  }, userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null): Promise<{ items: ITaskDocument[]; pagination: PaginationMeta }> {
     await this.seedInitialTasksIfNeeded();
 
     const filter: Record<string, any> = { isDeleted: false };
+    const andClauses: any[] = [];
+
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+    const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
+
+    // Org and user data isolation filter
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push(
+          { userId },
+          { createdBy: userId },
+          { adminId: userId },
+          { assigneeId: userId },
+          { reviewerId: userId }
+        );
+      }
+      andClauses.push({ $or: orgConditions });
+    } else if (userId) {
+      const userConditions: any[] = [
+        { userId },
+        { createdBy: userId },
+        { adminId: userId },
+        { assigneeId: userId },
+        { reviewerId: userId },
+      ];
+
+      if (userName && userName.trim()) {
+        const nameRegex = new RegExp(`^${userName.trim()}$`, 'i');
+        userConditions.push(
+          { assigneeName: nameRegex },
+          { reviewerName: nameRegex },
+          { creatorName: nameRegex }
+        );
+      }
+
+      andClauses.push({ $or: userConditions });
+    }
+
+    // Client filter (supports clientId, clientFileNo, or clientName)
+    if (queryOptions.clientId) {
+      let clientFileNo = queryOptions.clientFileNo;
+      let clientName = queryOptions.clientName;
+
+      if (mongoose.Types.ObjectId.isValid(queryOptions.clientId)) {
+        try {
+          const cl = await mongoose.model('Client').findById(queryOptions.clientId).select('name fileNo').lean() as any;
+          if (cl) {
+            clientFileNo = clientFileNo || cl.fileNo;
+            clientName = clientName || cl.name;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const clientConditions: any[] = [
+        { clientId: queryOptions.clientId },
+      ];
+      if (clientFileNo) {
+        clientConditions.push({ clientFileNo });
+      }
+      if (clientName) {
+        clientConditions.push({ clientName: new RegExp(`^${clientName.trim()}$`, 'i') });
+      }
+      andClauses.push({ $or: clientConditions });
+    } else if (queryOptions.clientFileNo || queryOptions.clientName) {
+      const clientConditions: any[] = [];
+      if (queryOptions.clientFileNo) {
+        clientConditions.push({ clientFileNo: queryOptions.clientFileNo });
+      }
+      if (queryOptions.clientName) {
+        clientConditions.push({ clientName: new RegExp(`^${queryOptions.clientName.trim()}$`, 'i') });
+      }
+      andClauses.push({ $or: clientConditions });
+    }
 
     // Category filter
     if (queryOptions.category && queryOptions.category !== 'All Categories') {
@@ -54,7 +142,16 @@ export class TaskService {
     // Quick filters
     if (queryOptions.quickFilter) {
       if (queryOptions.quickFilter === 'My Tasks') {
-        filter.assigneeName = { $in: ['Milton', 'Likith', 'Deekshith'] };
+        const myOr: any[] = [];
+        if (userId) {
+          myOr.push({ assigneeId: userId });
+        }
+        if (userName) {
+          myOr.push({ assigneeName: new RegExp(`^${userName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+        }
+        if (myOr.length > 0) {
+          andClauses.push({ $or: myOr });
+        }
       } else if (queryOptions.quickFilter === 'Due Today') {
         filter.targetDueDate = '27/07/2026';
       } else if (queryOptions.quickFilter === 'Live Task') {
@@ -85,18 +182,24 @@ export class TaskService {
     // Full text search
     if (queryOptions.search?.trim()) {
       const s = queryOptions.search.trim();
-      filter.$or = [
-        { taskId: { $regex: s, $options: 'i' } },
-        { taskName: { $regex: s, $options: 'i' } },
-        { clientName: { $regex: s, $options: 'i' } },
-        { clientFileNo: { $regex: s, $options: 'i' } },
-        { clientPan: { $regex: s, $options: 'i' } },
-        { legalName: { $regex: s, $options: 'i' } },
-        { serviceName: { $regex: s, $options: 'i' } },
-        { assigneeName: { $regex: s, $options: 'i' } },
-        { category: { $regex: s, $options: 'i' } },
-        { status: { $regex: s, $options: 'i' } },
-      ];
+      andClauses.push({
+        $or: [
+          { taskId: { $regex: s, $options: 'i' } },
+          { taskName: { $regex: s, $options: 'i' } },
+          { clientName: { $regex: s, $options: 'i' } },
+          { clientFileNo: { $regex: s, $options: 'i' } },
+          { clientPan: { $regex: s, $options: 'i' } },
+          { legalName: { $regex: s, $options: 'i' } },
+          { serviceName: { $regex: s, $options: 'i' } },
+          { assigneeName: { $regex: s, $options: 'i' } },
+          { category: { $regex: s, $options: 'i' } },
+          { status: { $regex: s, $options: 'i' } },
+        ],
+      });
+    }
+
+    if (andClauses.length > 0) {
+      filter.$and = andClauses;
     }
 
     const pageNum = Number(queryOptions.page) || 1;
@@ -134,12 +237,44 @@ export class TaskService {
   /**
    * Retrieve Task KPI Stats (10 cards from screenshot)
    */
-  static async getTaskStats(category?: string): Promise<ITaskStats> {
+  static async getTaskStats(
+    category?: string,
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+  ): Promise<ITaskStats> {
     await this.seedInitialTasksIfNeeded();
 
     const matchFilter: Record<string, any> = { isDeleted: false };
     if (category && category !== 'All Categories') {
       matchFilter.category = category;
+    }
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push(
+          { userId },
+          { createdBy: userId },
+          { adminId: userId },
+          { assigneeId: userId },
+          { reviewerId: userId }
+        );
+      }
+      matchFilter.$or = orgConditions;
+    } else if (userId) {
+      const userConditions: any[] = [
+        { userId },
+        { createdBy: userId },
+        { adminId: userId },
+        { assigneeId: userId },
+        { reviewerId: userId },
+      ];
+
+      matchFilter.$or = userConditions;
     }
 
     const tasks = await Task.find(matchFilter).lean();
@@ -181,11 +316,43 @@ export class TaskService {
    */
   static async getTaskSummaryMatrix(
     groupBy: string = 'Assigned To',
-    search?: string
+    search?: string,
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ rows: ITaskSummaryRow[]; grandTotal: ITaskSummaryRow }> {
     await this.seedInitialTasksIfNeeded();
 
-    const tasks = await Task.find({ isDeleted: false }).lean();
+    const matchFilter: Record<string, any> = { isDeleted: false };
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push(
+          { userId },
+          { createdBy: userId },
+          { adminId: userId },
+          { assigneeId: userId },
+          { reviewerId: userId }
+        );
+      }
+      matchFilter.$or = orgConditions;
+    } else if (userId) {
+      const userConditions: any[] = [
+        { userId },
+        { createdBy: userId },
+        { adminId: userId },
+        { assigneeId: userId },
+        { reviewerId: userId },
+      ];
+
+      matchFilter.$or = userConditions;
+    }
+
+    const tasks = await Task.find(matchFilter).lean();
 
     // Grouping map
     const groupMap = new Map<string, ITaskSummaryRow>();
@@ -316,12 +483,8 @@ export class TaskService {
 
     let task: ITaskDocument | null = null;
 
-    if (id.startsWith('#') || id.startsWith('TSK')) {
-      const formatted = id.startsWith('#') ? id : `#${id}`;
-      task = await Task.findOne({ taskId: formatted, isDeleted: false });
-    }
-
-    if (!task) {
+    // 1. Try finding by MongoDB _id if valid ObjectId
+    if (mongoose.Types.ObjectId.isValid(id)) {
       try {
         task = await Task.findById(id);
       } catch {
@@ -329,12 +492,104 @@ export class TaskService {
       }
     }
 
+    // 2. Exact taskId match (e.g. #TSK05996)
     if (!task) {
       task = await Task.findOne({ taskId: id, isDeleted: false });
     }
 
+    // 3. Normalised task code variations (e.g. tsk-05996, TSK05996, #TSK05996, 05996)
+    if (!task) {
+      const cleanDigits = id.replace(/[^0-9]/g, '');
+      const possibleTaskIds = [
+        id.startsWith('#') ? id : `#${id}`,
+        id.toUpperCase(),
+        cleanDigits ? `#TSK0${cleanDigits}` : null,
+        cleanDigits ? `#TSK${cleanDigits}` : null,
+      ].filter(Boolean) as string[];
+
+      task = await Task.findOne({
+        $or: [
+          ...possibleTaskIds.map((tId) => ({ taskId: tId })),
+          { taskId: new RegExp(id.replace(/^#/, ''), 'i') },
+        ],
+        isDeleted: false,
+      });
+    }
+
     if (!task) {
       throw AppError.notFound(ResponseMessages.TASK_NOT_FOUND);
+    }
+
+    // Auto-populate from Service if task items are empty but service is linked
+    if (
+      (!task.checklist?.length || !task.subTasks?.length || !task.documentRequests?.length) &&
+      (task.serviceId || task.serviceName)
+    ) {
+      try {
+        const srv = task.serviceId
+          ? await Service.findById(task.serviceId).lean()
+          : await Service.findOne({
+              name: { $regex: new RegExp(`^${task.serviceName?.trim()}$`, 'i') },
+              isDeleted: false,
+            }).lean();
+
+        if (srv) {
+          let modified = false;
+          if (!task.subTasks?.length && srv.subTasks?.length) {
+            task.subTasks = srv.subTasks.map((t: any, idx: number) => ({
+              id: t.id || String(idx + 1),
+              title: t.title || t.name || `Step ${idx + 1}`,
+              name: t.name || t.title || `Step ${idx + 1}`,
+              description: t.description || '',
+              completed: false,
+              totalHours: t.totalHours || '00:00:00',
+              timeSpent: '00:00:00',
+              taskId: task.taskId,
+              serviceId: srv._id?.toString(),
+            }));
+            task.markModified('subTasks');
+            modified = true;
+          }
+
+          if (!task.checklist?.length && srv.checklist?.length) {
+            task.checklist = srv.checklist.map((c: any, idx: number) => ({
+              id: c.id || `c${idx + 1}`,
+              title: c.title || c.name || `Checklist ${idx + 1}`,
+              completed: false,
+              isMandatory: c.isMandatory !== false,
+              taskId: task.taskId,
+              serviceId: srv._id?.toString(),
+            }));
+            task.markModified('checklist');
+            modified = true;
+          }
+
+          if (!task.documentRequests?.length && srv.documentRequests?.length) {
+            task.documentRequests = srv.documentRequests.map((d: any, idx: number) => ({
+              id: d.id || `d${idx + 1}`,
+              title: d.title || d.name || `Document ${idx + 1}`,
+              description: d.description || '',
+              status: 'Pending',
+              isMandatory: d.isMandatory !== false,
+              taskId: task.taskId,
+              serviceId: srv._id?.toString(),
+            }));
+            task.markModified('documentRequests');
+            modified = true;
+          }
+
+          if (!task.sop && (srv as any).sop) {
+            task.sop = (srv as any).sop;
+            modified = true;
+          }
+
+          if (modified) {
+            await task.save();
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
     }
 
     return task;
@@ -343,129 +598,164 @@ export class TaskService {
   /**
    * Create a new task
    */
-  static async createTask(data: Partial<ITask>): Promise<ITaskDocument> {
-    let taskId = data.taskId;
+  static async createTask(
+    data: Partial<ITask>,
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string }
+  ): Promise<ITaskDocument> {
+    // Always generate taskId strictly and atomically via Dedicated Counter Collection
+    const taskId = await CounterService.getNextTaskId();
 
-    if (!taskId) {
-      const highestTask = await Task.findOne({}, { taskId: 1 })
-        .sort({ createdAt: -1 })
-        .lean();
+    let subTasks: any[] = data.subTasks || [];
+    let checklist: any[] = data.checklist || [];
+    let documentRequests: any[] = data.documentRequests || [];
 
-      let nextNum = 6009;
-      if (highestTask?.taskId) {
-        const match = highestTask.taskId.match(/\d+/);
-        if (match) {
-          nextNum = parseInt(match[0], 10) + 1;
-        }
-      }
-      taskId = `#TSK0${nextNum}`;
-    }
-
-    let subTasks = data.subTasks;
-    let checklist = data.checklist;
-    let documentRequests = data.documentRequests;
-
-    if ((!subTasks?.length || !checklist?.length || !documentRequests?.length) && (data.serviceId || data.serviceName)) {
+    // Find linked service to populate if empty, or to obtain serviceId / SOP
+    let srv: any = null;
+    if (data.serviceId || data.serviceName) {
       try {
-        const srv = data.serviceId
+        srv = data.serviceId
           ? await Service.findById(data.serviceId).lean()
-          : await Service.findOne({ name: { $regex: new RegExp(`^${data.serviceName?.trim()}$`, 'i') } }).lean();
-
-        if (srv) {
-          if (!subTasks?.length && srv.subTasks?.length) {
-            subTasks = srv.subTasks.map((t: any, idx: number) => {
-              if (typeof t === 'string') {
-                return {
-                  id: String(idx + 1),
-                  title: t,
-                  completed: false,
-                  timeSpent: '00:00:00',
-                };
-              }
-              return {
-                id: t.id || String(idx + 1),
-                title: t.name || t.title || `Step ${idx + 1}`,
-                completed: false,
-                timeSpent: t.totalHours || '00:00:00',
-              };
-            });
-          }
-
-          if (!checklist?.length && (srv as any).checklist?.length) {
-            checklist = (srv as any).checklist.map((c: any, idx: number) => {
-              if (typeof c === 'string') {
-                return {
-                  id: `c${idx + 1}`,
-                  title: c,
-                  completed: false,
-                  isMandatory: true,
-                };
-              }
-              return {
-                id: c.id || `c${idx + 1}`,
-                title: c.title || c.name || `Checklist ${idx + 1}`,
-                completed: false,
-                isMandatory: c.isMandatory !== false,
-              };
-            });
-          }
-
-          if (!documentRequests?.length && (srv as any).documentRequests?.length) {
-            documentRequests = (srv as any).documentRequests.map((d: any, idx: number) => {
-              if (typeof d === 'string') {
-                return {
-                  id: `d${idx + 1}`,
-                  title: d,
-                  status: 'Pending',
-                  isMandatory: true,
-                };
-              }
-              return {
-                id: d.id || `d${idx + 1}`,
-                title: d.title || d.name || `Document ${idx + 1}`,
-                status: 'Pending',
-                isMandatory: d.isMandatory !== false,
-              };
-            });
-          }
-        }
+          : await Service.findOne({
+              name: { $regex: new RegExp(`^${data.serviceName?.trim()}$`, 'i') },
+              isDeleted: false,
+            }).lean();
       } catch {
-        // Fallback gracefully
+        srv = null;
       }
     }
 
-    if (!subTasks?.length) {
-      subTasks = [
-        { id: '1', title: 'Step 1 - Collect Invoices & Statements', completed: false, timeSpent: '00:00:00' },
-        { id: '2', title: 'Step 2 - Verification & Reconciliation', completed: false, timeSpent: '00:00:00' },
-        { id: '3', title: 'Step 3 - File on Portal & Send to Client', completed: false, timeSpent: '00:00:00' },
-      ];
+    const resolvedServiceId = data.serviceId || srv?._id?.toString() || null;
+
+    if (!subTasks?.length && srv?.subTasks?.length) {
+      subTasks = srv.subTasks.map((t: any, idx: number) => {
+        if (typeof t === 'string') {
+          return {
+            id: String(idx + 1),
+            title: t,
+            name: t,
+            completed: false,
+            timeSpent: '00:00:00',
+            taskId,
+            serviceId: resolvedServiceId,
+          };
+        }
+        return {
+          id: t.id || String(idx + 1),
+          title: t.name || t.title || `Step ${idx + 1}`,
+          name: t.name || t.title || `Step ${idx + 1}`,
+          description: t.description || '',
+          completed: false,
+          totalHours: t.totalHours || '00:00:00',
+          timeSpent: '00:00:00',
+          taskId,
+          serviceId: resolvedServiceId,
+        };
+      });
     }
 
-    if (!checklist?.length) {
-      checklist = [
-        { id: 'c1', title: 'Verify Source Invoices & Bank Statements', completed: false, isMandatory: true },
-        { id: 'c2', title: 'Reconcile 2B/GSTR Data on Portal', completed: false, isMandatory: true },
-        { id: 'c3', title: 'Review Tax Computation & Get Partner Sign-off', completed: false, isMandatory: true },
-      ];
+    if (!checklist?.length && srv?.checklist?.length) {
+      checklist = srv.checklist.map((c: any, idx: number) => {
+        if (typeof c === 'string') {
+          return {
+            id: `c${idx + 1}`,
+            title: c,
+            completed: false,
+            isMandatory: true,
+            taskId,
+            serviceId: resolvedServiceId,
+          };
+        }
+        return {
+          id: c.id || `c${idx + 1}`,
+          title: c.title || c.name || `Checklist ${idx + 1}`,
+          completed: false,
+          isMandatory: c.isMandatory !== false,
+          taskId,
+          serviceId: resolvedServiceId,
+        };
+      });
     }
 
-    if (!documentRequests?.length) {
-      documentRequests = [
-        { id: 'd1', title: 'Sales Register & Output Tax Summary', status: 'Pending', isMandatory: true },
-        { id: 'd2', title: 'Bank Account Statement (Monthly)', status: 'Pending', isMandatory: true },
-      ];
+    if (!documentRequests?.length && srv?.documentRequests?.length) {
+      documentRequests = srv.documentRequests.map((d: any, idx: number) => {
+        if (typeof d === 'string') {
+          return {
+            id: `d${idx + 1}`,
+            title: d,
+            status: 'Pending',
+            isMandatory: true,
+            taskId,
+            serviceId: resolvedServiceId,
+          };
+        }
+        return {
+          id: d.id || `d${idx + 1}`,
+          title: d.title || d.name || `Document ${idx + 1}`,
+          description: d.description || '',
+          status: 'Pending',
+          isMandatory: d.isMandatory !== false,
+          taskId,
+          serviceId: resolvedServiceId,
+        };
+      });
     }
+
+    // Stamp taskId and serviceId on all items (whether provided or inherited)
+    subTasks = subTasks.map((st: any, idx: number) => ({
+      ...st,
+      id: st.id || String(idx + 1),
+      title: st.title || st.name || `Step ${idx + 1}`,
+      name: st.name || st.title || `Step ${idx + 1}`,
+      completed: !!st.completed,
+      timeSpent: st.timeSpent || '00:00:00',
+      taskId,
+      serviceId: st.serviceId || resolvedServiceId,
+    }));
+
+    checklist = checklist.map((cl: any, idx: number) => ({
+      ...cl,
+      id: cl.id || `c${idx + 1}`,
+      title: cl.title || cl.name || `Checklist ${idx + 1}`,
+      completed: !!cl.completed,
+      isMandatory: cl.isMandatory !== false,
+      taskId,
+      serviceId: cl.serviceId || resolvedServiceId,
+    }));
+
+    documentRequests = documentRequests.map((doc: any, idx: number) => ({
+      ...doc,
+      id: doc.id || `d${idx + 1}`,
+      title: doc.title || doc.name || `Document ${idx + 1}`,
+      status: doc.status || 'Pending',
+      isMandatory: doc.isMandatory !== false,
+      taskId,
+      serviceId: doc.serviceId || resolvedServiceId,
+    }));
+
+    let sop = data.sop;
+    if (!sop && srv?.sop) {
+      sop = srv.sop;
+    }
+
+    const orgId = userCtx?.orgId || data.orgId || null;
+    const userId = userCtx?.userId || data.userId || null;
+    const creatorName = data.creatorName || userCtx?.name || 'Dipak Sahani';
+    const adminId = data.adminId || userId || 'admin-dipak-sahani';
 
     const task = new Task({
       ...data,
       taskId,
+      orgId,
+      userId,
+      createdBy: userId,
+      serviceId: resolvedServiceId,
+      sop: sop || '',
       taskName: data.taskName?.trim() || '-',
       clientName: data.clientName?.trim(),
       serviceName: data.serviceName?.trim(),
       assigneeName: data.assigneeName?.trim(),
-      creatorName: data.creatorName || 'Dipak Sahani',
-      adminId: data.adminId || 'admin-dipak-sahani',
+      creatorName,
+      adminId,
       status: data.status || 'Pending',
       billingType: data.billingType || 'Billable',
       billingStatus: data.billingType === 'Billable' ? 'Pending' : 'Billed',
@@ -492,6 +782,20 @@ export class TaskService {
     const task = await this.getTaskById(id);
 
     Object.assign(task, data);
+
+    if (data.checklist) {
+      task.markModified('checklist');
+    }
+    if (data.documentRequests) {
+      task.markModified('documentRequests');
+    }
+    if (data.subTasks) {
+      task.markModified('subTasks');
+    }
+    if (data.complianceStatus) {
+      task.markModified('complianceStatus');
+    }
+
     return await task.save();
   }
 
@@ -514,9 +818,9 @@ export class TaskService {
 
     task.comments.push({
       id: Date.now().toString(),
-      author: comment.author || 'Likith S',
-      authorInitials: comment.authorInitials || 'LI',
-      avatarColor: comment.avatarColor || '#06B6D4',
+      author: comment.author || 'Team Member',
+      authorInitials: comment.authorInitials || 'TM',
+      avatarColor: comment.avatarColor || '#3B82F6',
       text: comment.text,
       createdAt: new Date(),
     });
@@ -530,7 +834,9 @@ export class TaskService {
   static async toggleSubTask(id: string, subTaskId: string): Promise<ITaskDocument> {
     const task = await this.getTaskById(id);
 
-    const sub = task.subTasks.find((s) => s.id === subTaskId);
+    const sub = task.subTasks.find(
+      (s) => s.id === subTaskId || (s as any)._id?.toString() === subTaskId || String((s as any).id) === String(subTaskId)
+    );
     if (sub) {
       sub.completed = !sub.completed;
       task.markModified('subTasks');
@@ -545,7 +851,9 @@ export class TaskService {
    */
   static async toggleChecklist(id: string, itemId: string): Promise<ITaskDocument> {
     const task = await this.getTaskById(id);
-    const item = task.checklist.find((c) => c.id === itemId);
+    const item = task.checklist.find(
+      (c) => c.id === itemId || (c as any)._id?.toString() === itemId || String((c as any).id) === String(itemId)
+    );
     if (item) {
       item.completed = !item.completed;
       task.markModified('checklist');
@@ -563,16 +871,117 @@ export class TaskService {
     status?: 'Pending' | 'Received' | 'Requested'
   ): Promise<ITaskDocument> {
     const task = await this.getTaskById(id);
-    const doc = task.documentRequests.find((d) => d.id === docId);
+    const doc = task.documentRequests.find(
+      (d) => d.id === docId || (d as any)._id?.toString() === docId || String((d as any).id) === String(docId)
+    );
     if (doc) {
       doc.status = status || (doc.status === 'Received' ? 'Pending' : 'Received');
       if (doc.status === 'Received') {
         doc.receivedAt = new Date();
+      } else {
+        doc.receivedAt = null as any;
       }
       task.markModified('documentRequests');
       await task.save();
     }
     return task;
+  }
+
+  /**
+   * Upload document for a specific document request item on a task
+   * Saves to Drive under Client Name and Task folder with clean document name
+   */
+  static async uploadTaskDocument(
+    id: string,
+    docId: string,
+    file: Express.Multer.File,
+    documentName?: string
+  ): Promise<{ task: ITaskDocument; document: any }> {
+    if (!file) {
+      throw AppError.badRequest('No file provided for upload');
+    }
+
+    const task = await this.getTaskById(id);
+    const doc = task.documentRequests.find(
+      (d) => d.id === docId || (d as any)._id?.toString() === docId || String((d as any).id) === String(docId)
+    );
+    if (!doc) {
+      throw AppError.notFound('Document request item not found on this task');
+    }
+
+    const title = documentName || doc.title || file.originalname;
+
+    // Upload through DriveService with client name, subFolder (taskId), and document name
+    const uploaded = await DriveService.uploadDocument(file, {
+      category: DocumentCategory.GENERAL,
+      description: `Task Document: ${title} for task ${task.taskId} - ${task.serviceName}`,
+      clientId: task.clientId || undefined,
+      clientName: task.clientName,
+      subFolder: task.taskId,
+      customFileName: title,
+      tags: ['Task-Document', task.taskId, task.serviceName],
+      uploadedBy: 'Practice Staff',
+    });
+
+    const fileUrl = uploaded.webViewLink || uploaded.previewUrl || `/api/v1/drive/${uploaded._id}/download`;
+
+    doc.status = 'Received';
+    doc.fileUrl = fileUrl;
+    doc.receivedAt = new Date();
+
+    task.markModified('documentRequests');
+    await task.save();
+
+    return { task, document: uploaded };
+  }
+
+  /**
+   * Upload a general document attached directly to a task
+   */
+  static async uploadGeneralTaskDocument(
+    id: string,
+    file: Express.Multer.File,
+    title: string,
+    category?: DocumentCategory,
+    description?: string
+  ): Promise<{ task: ITaskDocument; document: any }> {
+    if (!file) {
+      throw AppError.badRequest('No file provided for upload');
+    }
+
+    const task = await this.getTaskById(id);
+    const docTitle = title || file.originalname;
+
+    const uploaded = await DriveService.uploadDocument(file, {
+      category: category || DocumentCategory.GENERAL,
+      description: description || `Task Document: ${docTitle} for task ${task.taskId}`,
+      clientId: task.clientId || undefined,
+      clientName: task.clientName,
+      subFolder: task.taskId,
+      customFileName: docTitle,
+      tags: ['Task-Document', task.taskId, task.serviceName],
+      uploadedBy: 'Practice Staff',
+    });
+
+    const fileUrl = uploaded.webViewLink || uploaded.previewUrl || `/api/v1/drive/${uploaded._id}/download`;
+
+    const newDocItem = {
+      id: `d_${Date.now()}`,
+      title: docTitle,
+      description: description || '',
+      status: 'Received' as const,
+      isMandatory: false,
+      fileUrl,
+      receivedAt: new Date(),
+      taskId: task.taskId,
+      serviceId: task.serviceId,
+    };
+
+    task.documentRequests.push(newDocItem as any);
+    task.markModified('documentRequests');
+    await task.save();
+
+    return { task, document: uploaded };
   }
 }
 

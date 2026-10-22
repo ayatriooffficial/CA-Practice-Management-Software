@@ -20,22 +20,33 @@ export interface ITaskChecklistItem {
   title: string;
   completed: boolean;
   isMandatory?: boolean;
+  taskId?: string | null;
+  serviceId?: string | null;
 }
 
 export interface ITaskDocumentRequestItem {
   id: string;
   title: string;
+  description?: string;
   status: 'Pending' | 'Received' | 'Requested';
   isMandatory?: boolean;
   fileUrl?: string;
-  receivedAt?: Date;
+  receivedAt?: Date | null;
+  taskId?: string | null;
+  serviceId?: string | null;
 }
 
 export interface ITaskSubTask {
   id: string;
-  title: string;
+  title?: string;
+  name?: string;
+  description?: string;
   completed: boolean;
   timeSpent?: string;
+  totalHours?: string;
+  percentage?: number;
+  taskId?: string | null;
+  serviceId?: string | null;
 }
 
 export interface ITaskComment {
@@ -91,6 +102,7 @@ export interface ITask {
   createProformaInvoice?: boolean;
   creatorName?: string;
   adminId?: string;
+  sop?: string;
   subTasks: ITaskSubTask[];
   checklist: ITaskChecklistItem[];
   documentRequests: ITaskDocumentRequestItem[];
@@ -99,6 +111,9 @@ export interface ITask {
   isTimerRunning?: boolean;
   timerStartedAt?: Date | null;
   timeSpentSeconds?: number;
+  orgId?: string | null;
+  userId?: string | null;
+  createdBy?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

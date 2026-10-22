@@ -24,6 +24,11 @@ const envSchema = z.object({
   GOOGLE_DRIVE_PARENT_FOLDER_ID: z.string().default('root'),
   MAX_FILE_SIZE_MB: z.coerce.number().default(25),
   UPLOAD_DIR: z.string().default('uploads'),
+  // JWT Configuration
+  JWT_ACCESS_SECRET: z.string().default('ayatrio_dev_access_secret_key_change_in_production_2026'),
+  JWT_REFRESH_SECRET: z.string().default('ayatrio_dev_refresh_secret_key_change_in_production_2026'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

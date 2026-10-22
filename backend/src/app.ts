@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import hpp from 'hpp';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { requestLogger } from './middlewares/requestLogger';
 import { apiRateLimiter } from './middlewares/rateLimiter';
@@ -33,7 +34,7 @@ export const createApp = (): Application => {
     cors({
       origin: corsOrigins === '*' ? true : corsOrigins,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-User-Id'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-User-Id', 'X-User-Role', 'X-Org-Id'],
       credentials: true,
       maxAge: 86400, // 24 hours
     })
@@ -42,7 +43,8 @@ export const createApp = (): Application => {
   // 4. Response Compression (Gzip / Brotli)
   app.use(compression());
 
-  // 5. Body Parsing with Payload Limits
+  // 5. Body & Cookie Parsing
+  app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
