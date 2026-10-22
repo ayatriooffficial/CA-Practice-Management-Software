@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Eye, Save, Send, Users, Waypoints, Radio, Settings2 } from 'lucide-react';
 import {
   useAgent,
@@ -147,13 +147,17 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   const channelStepValid = Boolean(selectedChannel && definitions?.channels.includes(selectedChannel as AgentChannel));
   const actionStepValid = Boolean(selectedAction && definitions?.actions.includes(selectedAction as AgentAction) && message.trim() && message.trim().length <= 1000);
 
-  const complete = useMemo(() => {
-    if (!definitions || !name.trim() || name.trim().length > 100 || description.length > 500 || !trigger) return false;
-    if (trigger.condition && !eventStepValid) return false;
-    return recipientStepValid
+  const complete = Boolean(
+    definitions
+      && name.trim()
+      && name.trim().length <= 100
+      && description.length <= 500
+      && trigger
+      && (!trigger.condition || eventStepValid)
+      && recipientStepValid
       && channelStepValid
-      && actionStepValid;
-  }, [definitions, name, description, trigger, eventStepValid, recipientStepValid, channelStepValid, actionStepValid]);
+      && actionStepValid
+  );
 
   const lifecycleStatus: AgentStatus | undefined = agentQuery.data?.status;
   const readOnly = Boolean(agentId && lifecycleStatus && lifecycleStatus !== 'draft');
