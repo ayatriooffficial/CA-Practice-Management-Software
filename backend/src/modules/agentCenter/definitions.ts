@@ -1,4 +1,5 @@
 import { AgentAction, AgentChannel, AgentModule, AgentRecipient } from './agent.interface';
+import { PUBLIC_AGENT_DEFINITIONS } from './catalog';
 
 export interface TriggerCondition {
   key: string;
@@ -20,29 +21,12 @@ export interface ModuleDefinition {
   triggers: TriggerDefinition[];
 }
 
-export const CHANNELS: AgentChannel[] = ['Email', 'WhatsApp', 'In-app'];
-export const RECIPIENTS: AgentRecipient[] = [
-  'Assigned user',
-  'Task owner',
-  'Account administrator',
-  'Responsible person',
-];
-export const ACTIONS: AgentAction[] = [
-  'Send notification',
-  'Send expiry reminder',
-  'Send renewal reminder',
-  'Notify assignee',
-];
-export const MODULES: AgentModule[] = ['Task', 'DSC', 'License'];
+export const CHANNELS: AgentChannel[] = [...PUBLIC_AGENT_DEFINITIONS.channels] as AgentChannel[];
+export const RECIPIENTS: AgentRecipient[] = [...PUBLIC_AGENT_DEFINITIONS.recipients] as AgentRecipient[];
+export const ACTIONS: AgentAction[] = [...PUBLIC_AGENT_DEFINITIONS.actions] as AgentAction[];
+export const MODULES: AgentModule[] = Object.keys(PUBLIC_AGENT_DEFINITIONS.modules) as AgentModule[];
 
-const expiryCondition = (): TriggerCondition => ({
-  key: 'daysBeforeExpiry', label: 'Days before expiry', min: 1, max: 365, default: 30,
-});
-const dueCondition = (): TriggerCondition => ({
-  key: 'daysBeforeDue', label: 'Days before due date', min: 1, max: 90, default: 2,
-});
-
-// Fictional fixed sample records make test runs deterministic and do not read live business data.
+// Fixed sample records are used only by the backend's deterministic test-run simulation.
 const SAMPLE_TASK = {
   id: 'TASK-1001',
   title: 'Prepare monthly compliance report',
@@ -56,52 +40,42 @@ const SAMPLE_DSC = {
 const SAMPLE_LICENSE = {
   id: 'LIC-3001', name: 'Sample Trade License', owner: 'Sample Company', expiryDate: '2026-02-01',
 };
+
 const taskEvent = (event: string) => () => ({ event, task: SAMPLE_TASK });
 
-export const MODULE_DEFINITIONS: Record<AgentModule, ModuleDefinition> = {
-  Task: {
-    description: 'Task creation, assignment notifications, and reminders',
-    defaultMessage: 'Hello, this is a reminder regarding your task.',
-    triggers: [
-      { value: 'Task created', condition: null, sampleEvent: () => ({ event: 'Task created', task: SAMPLE_TASK }) },
-      { value: 'Task assigned', condition: null, sampleEvent: () => ({ event: 'Task assigned', task: SAMPLE_TASK, assignedTo: SAMPLE_TASK.assignee }) },
-      { value: 'Task due soon', condition: dueCondition(), sampleEvent: (c) => ({ event: 'Task due soon', task: SAMPLE_TASK, daysUntilDue: c?.daysBeforeDue ?? 2 }) },
-      { value: 'Task Completed & Final Document Uploaded', condition: null, sampleEvent: taskEvent('Task Completed & Final Document Uploaded') },
-      { value: 'Comment Added', condition: null, sampleEvent: taskEvent('Comment Added') },
-      { value: 'Timesheet Log Added', condition: null, sampleEvent: taskEvent('Timesheet Log Added') },
-      { value: 'Expense Added', condition: null, sampleEvent: taskEvent('Expense Added') },
-      { value: 'Due Date Approaching', condition: dueCondition(), sampleEvent: (c) => ({ event: 'Due Date Approaching', task: SAMPLE_TASK, daysUntilDue: c?.daysBeforeDue ?? 2 }) },
-      { value: 'Due Date Changed', condition: null, sampleEvent: taskEvent('Due Date Changed') },
-      { value: 'Priority Changed', condition: null, sampleEvent: taskEvent('Priority Changed') },
-      { value: 'Status Changed', condition: null, sampleEvent: taskEvent('Status Changed') },
-      { value: 'Task Completed', condition: null, sampleEvent: taskEvent('Task Completed') },
-      { value: 'Task Deleted', condition: null, sampleEvent: taskEvent('Task Deleted') },
-      { value: 'Task Sent for Review', condition: null, sampleEvent: taskEvent('Task Sent for Review') },
-      { value: 'Task Put on Hold', condition: null, sampleEvent: taskEvent('Task Put on Hold') },
-      { value: 'Sub-Status Changed', condition: null, sampleEvent: taskEvent('Sub-Status Changed') },
-      { value: 'Subtask Status Changed', condition: null, sampleEvent: taskEvent('Subtask Status Changed') },
-      { value: 'Files Uploaded', condition: null, sampleEvent: taskEvent('Files Uploaded') },
-    ],
-  },
-  DSC: {
-    description: 'Digital signature certificate expiry and renewal reminders',
-    defaultMessage: 'Your digital signature certificate is approaching expiry.',
-    triggers: [
-      { value: 'DSC expiry approaching', condition: expiryCondition(), sampleEvent: (c) => ({ event: 'DSC expiry approaching', dsc: SAMPLE_DSC, daysToExpiry: c?.daysBeforeExpiry ?? 30 }) },
-      { value: 'DSC expired', condition: null, sampleEvent: () => ({ event: 'DSC expired', dsc: SAMPLE_DSC, expired: true }) },
-      { value: 'Renewal required', condition: expiryCondition(), sampleEvent: (c) => ({ event: 'Renewal required', dsc: SAMPLE_DSC, renewalWindowDays: c?.daysBeforeExpiry ?? 30 }) },
-    ],
-  },
-  License: {
-    description: 'License expiry reminders and renewal notifications',
-    defaultMessage: 'Your license is approaching expiry.',
-    triggers: [
-      { value: 'License expiry approaching', condition: expiryCondition(), sampleEvent: (c) => ({ event: 'License expiry approaching', license: SAMPLE_LICENSE, daysToExpiry: c?.daysBeforeExpiry ?? 30 }) },
-      { value: 'License expired', condition: null, sampleEvent: () => ({ event: 'License expired', license: SAMPLE_LICENSE, expired: true }) },
-      { value: 'Renewal required', condition: expiryCondition(), sampleEvent: (c) => ({ event: 'Renewal required', license: SAMPLE_LICENSE, renewalWindowDays: c?.daysBeforeExpiry ?? 30 }) },
-    ],
-  },
-};
+function sampleEventFor(moduleName: AgentModule, trigger: string): TriggerDefinition['sampleEvent'] {
+  if (moduleName === 'Task') {
+    if (trigger === 'Task created') return () => ({ event: trigger, task: SAMPLE_TASK });
+    if (trigger === 'Task assigned') return () => ({ event: trigger, task: SAMPLE_TASK, assignedTo: SAMPLE_TASK.assignee });
+    if (trigger === 'Task due soon') return (conditions) => ({ event: trigger, task: SAMPLE_TASK, daysUntilDue: conditions?.daysBeforeDue ?? 2 });
+    if (trigger === 'Due Date Approaching') return (conditions) => ({ event: trigger, task: SAMPLE_TASK, daysUntilDue: conditions?.daysBeforeDue ?? 2 });
+    return taskEvent(trigger);
+  }
+
+  if (moduleName === 'DSC') {
+    if (trigger === 'DSC expiry approaching') return (conditions) => ({ event: trigger, dsc: SAMPLE_DSC, daysToExpiry: conditions?.daysBeforeExpiry ?? 30 });
+    if (trigger === 'DSC expired') return () => ({ event: trigger, dsc: SAMPLE_DSC, expired: true });
+    return (conditions) => ({ event: trigger, dsc: SAMPLE_DSC, renewalWindowDays: conditions?.daysBeforeExpiry ?? 30 });
+  }
+
+  if (trigger === 'License expiry approaching') return (conditions) => ({ event: trigger, license: SAMPLE_LICENSE, daysToExpiry: conditions?.daysBeforeExpiry ?? 30 });
+  if (trigger === 'License expired') return () => ({ event: trigger, license: SAMPLE_LICENSE, expired: true });
+  return (conditions) => ({ event: trigger, license: SAMPLE_LICENSE, renewalWindowDays: conditions?.daysBeforeExpiry ?? 30 });
+}
+
+export const MODULE_DEFINITIONS = Object.fromEntries(
+  MODULES.map((moduleName) => {
+    const definition = PUBLIC_AGENT_DEFINITIONS.modules[moduleName];
+    return [moduleName, {
+      description: definition.description,
+      defaultMessage: definition.defaultMessage,
+      triggers: definition.triggers.map((trigger) => ({
+        ...trigger,
+        sampleEvent: sampleEventFor(moduleName, trigger.value),
+      })),
+    }];
+  })
+) as Record<AgentModule, ModuleDefinition>;
 
 export function findTrigger(moduleName: unknown, value: unknown): TriggerDefinition | null {
   if (typeof moduleName !== 'string' || !MODULES.includes(moduleName as AgentModule)) return null;

@@ -56,7 +56,7 @@ function saveRefreshToken(refreshToken) {
     envContent += `\nGOOGLE_DRIVE_REFRESH_TOKEN=${refreshToken}\n`;
   }
   fs.writeFileSync(envPath, envContent, 'utf8');
-  console.log('\n🎉 SUCCESS! GOOGLE_DRIVE_REFRESH_TOKEN has been saved into ayatrio-backend/.env!');
+  console.log('\n🎉 SUCCESS! GOOGLE_DRIVE_REFRESH_TOKEN has been saved into backend/.env!');
   console.log('Please restart your backend server to apply changes.\n');
 }
 
@@ -109,7 +109,7 @@ const server = http.createServer(async (req, res) => {
       res.end(`
         <div style="font-family: sans-serif; text-align: center; padding: 40px;">
           <h2 style="color: #10b981;">✅ Authorization Successful!</h2>
-          <p>Your Google Drive Refresh Token was automatically saved to <code>ayatrio-backend/.env</code>.</p>
+          <p>Your Google Drive Refresh Token was automatically saved to <code>backend/.env</code>.</p>
           <p>You can close this tab and restart your backend server.</p>
         </div>
       `);

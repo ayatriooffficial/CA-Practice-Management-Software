@@ -1,13 +1,27 @@
-import dns from 'dns';
 import mongoose from 'mongoose';
 import { env } from './env';
 import { logger } from './logger';
 
-// Set public DNS servers to resolve MongoDB SRV records reliably across all platforms/routers
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
-} catch {
-  // Ignore if custom DNS cannot be applied in restricted environments
+type MongoFailureCategory = 'authentication' | 'DNS' | 'network access' | 'configuration' | 'unknown';
+
+function describeMongoFailure(error: unknown): { category: MongoFailureCategory; message: string } {
+  const value = error instanceof Error ? error : new Error(String(error));
+  const code = 'code' in value ? String(value.code) : '';
+  const diagnostic = `${value.name} ${code} ${value.message}`;
+
+  if (code === '18' || /authentication failed|bad auth|auth failed|not authorized|sasl|scram/i.test(diagnostic)) {
+    return { category: 'authentication', message: 'MongoDB rejected authentication. Check the rotated Atlas database user credentials in backend/.env.' };
+  }
+  if (/ENOTFOUND|ENODATA|ESERVFAIL|querySrv|DNS|EAI_AGAIN|getaddrinfo/i.test(diagnostic)) {
+    return { category: 'DNS', message: 'MongoDB host lookup failed. Check the Atlas cluster hostname and the Mac network DNS configuration.' };
+  }
+  if (/MongoParseError|ERR_INVALID_URL|Invalid scheme|URI malformed|MONGODB_URI/i.test(diagnostic)) {
+    return { category: 'configuration', message: 'MongoDB URI is missing or malformed. Check MONGODB_URI in backend/.env.' };
+  }
+  if (/server selection|ECONNREFUSED|ETIMEDOUT|ECONNRESET|network|no reachable servers/i.test(diagnostic)) {
+    return { category: 'network access', message: 'MongoDB could not be reached. Check Atlas Network Access and outbound connectivity.' };
+  }
+  return { category: 'unknown', message: 'MongoDB connection failed. Check backend/.env and Atlas availability.' };
 }
 
 export const connectDatabase = async (): Promise<typeof mongoose> => {
@@ -23,10 +37,11 @@ export const connectDatabase = async (): Promise<typeof mongoose> => {
       socketTimeoutMS: 45000,
     });
 
-    logger.info(`✅ MongoDB Connected successfully to host: ${mongoose.connection.host}`);
+    logger.info('✅ MongoDB connected successfully.');
 
     mongoose.connection.on('error', (err) => {
-      logger.error(`❌ MongoDB connection error: ${err.message}`);
+      const failure = describeMongoFailure(err);
+      logger.error(`❌ MongoDB connection error (${failure.category}): ${failure.message}`);
     });
 
     mongoose.connection.on('disconnected', () => {
@@ -39,7 +54,8 @@ export const connectDatabase = async (): Promise<typeof mongoose> => {
 
     return connection;
   } catch (error) {
-    logger.error('❌ Failed to connect to MongoDB:', error);
+    const failure = describeMongoFailure(error);
+    logger.error(`❌ MongoDB connection failed (${failure.category}): ${failure.message}`);
     process.exit(1);
   }
 };

@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { z } from 'zod';
 
-// Load .env file based on NODE_ENV
-const envPath = path.resolve(process.cwd(), '.env');
+// Resolve the backend env file from this module so startup does not depend on cwd.
+const envPath = path.resolve(__dirname, '../../.env');
 dotenv.config({ path: envPath });
 
 const envSchema = z.object({

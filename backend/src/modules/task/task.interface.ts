@@ -120,6 +120,18 @@ export interface ITask {
 
 export interface ITaskDocument extends ITask, ISoftDeleteDocument {}
 
+export interface ITaskProfitabilityReportRow {
+  taskId: string;
+  clientName: string;
+  serviceName: string;
+  assigneeName: string;
+  reportDate: string;
+  revenue: number | null;
+  manpowerCost: number | null;
+  expense: number | null;
+  profit: number | null;
+}
+
 export interface ITaskSummaryRow {
   groupKey: string;
   groupLabel: string;

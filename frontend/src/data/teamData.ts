@@ -13,4 +13,3 @@ export interface TeamMember {
 }
 
 export const DEMO_TEAM_MEMBERS: TeamMember[] = [];
-

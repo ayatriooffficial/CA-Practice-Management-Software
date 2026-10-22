@@ -4,19 +4,22 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Activity, ArrowRight, Bot, Plus, RefreshCw, Search, ShieldCheck, Workflow } from 'lucide-react';
 import { useAgents, useDisableAgent, usePublishAgent, useTestRunAgent } from '@/hooks/useAgentCenterQuery';
+import { PUBLIC_AGENT_DEFINITIONS } from '../../../../backend/src/modules/agentCenter/catalog';
 import { AgentModule, AgentStatus } from '@/types/agentCenter';
 import { AgentPageTitle, NoticeBanner, StatusPill } from './shared';
 
-const MODULES: Array<{ name: AgentModule; description: string; symbol: string }> = [
-  { name: 'Task', description: 'Task creation, assignment events and reminders', symbol: 'T' },
-  { name: 'DSC', description: 'Digital signature expiry and renewal reminders', symbol: 'D' },
-  { name: 'License', description: 'License expiry and renewal notifications', symbol: 'L' },
-];
+const MODULES = Object.entries(PUBLIC_AGENT_DEFINITIONS.modules).map(([name, definition]) => ({
+  name: name as AgentModule,
+  description: definition.cardDescription,
+  symbol: definition.symbol,
+}));
 
 const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function AgentList() {
-  const { data: agents = [], isLoading, isError, error, refetch, isFetching } = useAgents();
+  const [liveDataRequested, setLiveDataRequested] = useState(false);
+  const { data: liveAgents, isLoading, isError, refetch, isFetching } = useAgents({}, liveDataRequested);
+  const agents = liveAgents || [];
   const publish = usePublishAgent();
   const disable = useDisableAgent();
   const testRun = useTestRunAgent();
@@ -87,8 +90,8 @@ export default function AgentList() {
               <button type="button" onClick={() => setModuleFilter(module.name)} className="text-xs font-semibold underline" style={{ color: 'var(--primary)' }}>View</button>
             </div>
             <div className="mt-4 flex items-center justify-between border-t pt-3 text-xs" style={{ borderColor: 'var(--border-main)' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{module.total} configured</span>
-              <span className="rounded-full px-2 py-1 font-semibold" style={{ color: '#047857', backgroundColor: '#d1fae5' }}>{module.published} published</span>
+              <span style={{ color: 'var(--text-muted)' }}>{liveAgents ? `${module.total} configured` : '— configured'}</span>
+              <span className="rounded-full px-2 py-1 font-semibold" style={{ color: liveAgents ? '#047857' : 'var(--text-muted)', backgroundColor: liveAgents ? '#d1fae5' : 'var(--bg-muted)' }}>{liveAgents ? `${module.published} published` : '—'}</span>
             </div>
           </div>
         ))}
@@ -97,7 +100,7 @@ export default function AgentList() {
       <section className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border-main)', backgroundColor: 'var(--bg-surface)' }}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4" style={{ borderColor: 'var(--border-main)' }}>
           <div><h2 className="font-bold" style={{ color: 'var(--text-main)' }}>Configured agents</h2><p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Draft, publish, disable, and run a safe simulation.</p></div>
-          <button type="button" onClick={() => void refetch()} disabled={isFetching} className={`${buttonClass} hover:bg-slate-50`} style={{ borderColor: 'var(--border-main)', color: 'var(--text-main)' }}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Refresh</button>
+          <button type="button" onClick={() => { setLiveDataRequested(true); void refetch(); }} disabled={isFetching} className={`${buttonClass} hover:bg-slate-50`} style={{ borderColor: 'var(--border-main)', color: 'var(--text-main)' }}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Refresh</button>
         </div>
 
         <div className="flex flex-col gap-3 border-b p-4 lg:flex-row" style={{ borderColor: 'var(--border-main)' }}>
@@ -106,8 +109,14 @@ export default function AgentList() {
           <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'All' | AgentStatus)} className="rounded-lg border px-3 py-2.5 text-sm" style={{ borderColor: 'var(--border-main)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-main)' }}><option value="All">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="disabled">Disabled</option></select>
         </div>
 
-        {isLoading ? <div className="p-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Loading agents…</div> : isError ? (
-          <div className="p-6"><NoticeBanner type="error">Agents could not be loaded. {error instanceof Error ? error.message : 'Check that the backend is running and connected to MongoDB.'}<button type="button" onClick={() => void refetch()} className="ml-2 font-bold underline">Try again</button></NoticeBanner></div>
+        {isError && liveAgents && <div className="border-b p-4" style={{ borderColor: 'var(--border-main)' }}><NoticeBanner type="error">Could not refresh live agent records. Showing the last data received. <button type="button" onClick={() => void refetch()} className="font-bold underline">Try again</button></NoticeBanner></div>}
+
+        {isError && !liveAgents ? (
+          <div className="border-b p-6" style={{ borderColor: 'var(--border-main)' }}><NoticeBanner type="error">Could not load live agent records. Check that the backend is running and connected to MongoDB.<button type="button" onClick={() => void refetch()} className="ml-2 font-bold underline">Try again</button></NoticeBanner></div>
+        ) : isLoading && !liveAgents ? (
+          <div className="p-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Loading live agents…</div>
+        ) : !liveAgents ? (
+          <div className="p-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Live agent records have not been loaded.</div>
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center px-5 py-12 text-center"><span className="mb-3 grid h-12 w-12 place-items-center rounded-xl" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}><Bot className="h-6 w-6" /></span><h3 className="font-bold" style={{ color: 'var(--text-main)' }}>{agents.length === 0 ? 'No agents configured yet' : 'No matching agents'}</h3><p className="mt-1 max-w-md text-sm" style={{ color: 'var(--text-muted)' }}>{agents.length === 0 ? 'Create your first agent to define an event, recipients, channel and action.' : 'Try changing your search or filters.'}</p>{agents.length === 0 && <Link href="/agents/new" className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--primary)' }}><Plus className="h-4 w-4" /> Create first agent</Link>}</div>
         ) : (

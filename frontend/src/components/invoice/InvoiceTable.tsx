@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { InvoiceRecord, ReceiptRecord } from './types';
 import { useInvoice } from './InvoiceContext';
+import { TaskAllocationInput } from '@/services/financialApi';
 
 interface ColumnDef {
   key: string;
@@ -32,7 +33,13 @@ export const InvoiceTable: React.FC = () => {
     searchQuery,
     statusFilter,
     currencyFilter,
+    addCreditNote,
+    voidInvoice,
   } = useInvoice();
+  const [creditNoteTarget, setCreditNoteTarget] = useState<InvoiceRecord | null>(null);
+  const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
+  const [financialActionError, setFinancialActionError] = useState('');
+  const [financialActionBusy, setFinancialActionBusy] = useState(false);
 
   // Column definitions per tab
   const columns: ColumnDef[] = useMemo(() => {
@@ -270,6 +277,30 @@ export const InvoiceTable: React.FC = () => {
 
   const visibleColumns = columns.filter((col) => !hiddenColumns.has(col.key));
 
+  const submitCreditNote = async () => {
+    if (!creditNoteTarget) return;
+    const allocations: TaskAllocationInput[] = (creditNoteTarget.taskAllocations || []).flatMap((allocation) => {
+      const amountPaise = Math.round(Number(creditAmounts[allocation.taskId] || 0) * 100);
+      const remainingPaise = allocation.amountPaise - (allocation.creditedPaise || 0);
+      return amountPaise > 0 && amountPaise <= remainingPaise ? [{ taskId: allocation.taskId, amountPaise }] : [];
+    });
+    if (!allocations.length) {
+      setFinancialActionError('Enter a positive amount within the remaining balance for at least one task.');
+      return;
+    }
+    setFinancialActionBusy(true);
+    setFinancialActionError('');
+    try {
+      await addCreditNote(creditNoteTarget, allocations);
+      setCreditNoteTarget(null);
+      setCreditAmounts({});
+    } catch (error) {
+      setFinancialActionError(error instanceof Error ? error.message : 'Credit note could not be issued.');
+    } finally {
+      setFinancialActionBusy(false);
+    }
+  };
+
   return (
     <div className="w-full flex-1 flex flex-col bg-white dark:bg-[#1e293b] select-none transition-colors">
       {/* Table Container with Horizontal Scroll */}
@@ -367,6 +398,7 @@ export const InvoiceTable: React.FC = () => {
                   </th>
                 );
               })}
+              {activeTab === 'invoice' && <th className="py-3 px-4 whitespace-nowrap tracking-tight uppercase">Financial actions</th>}
             </tr>
           </thead>
 
@@ -374,7 +406,7 @@ export const InvoiceTable: React.FC = () => {
             {paginatedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={visibleColumns.length + 1}
+                  colSpan={visibleColumns.length + (activeTab === 'invoice' ? 2 : 1)}
                   className="py-16 text-center text-sm font-normal text-gray-500 dark:text-gray-400"
                 >
                   No rows
@@ -437,6 +469,15 @@ export const InvoiceTable: React.FC = () => {
                         </td>
                       );
                     })}
+                    {activeTab === 'invoice' && <td className="px-3 py-2 whitespace-nowrap">
+                      {row.type === 'invoice' && row.status !== 'Cancelled' && <div className="flex gap-2">
+                        {row.taskAllocations?.length > 0 && <button type="button" onClick={() => { setCreditNoteTarget(row); setCreditAmounts({}); setFinancialActionError(''); }} className="text-[11px] font-semibold text-[#7367F0] hover:underline">Credit note</button>}
+                        <button type="button" onClick={() => {
+                          const reason = window.prompt('Reason for voiding this issued invoice:');
+                          if (reason?.trim()) void voidInvoice(row, reason.trim()).catch((error) => setFinancialActionError(error instanceof Error ? error.message : 'Invoice could not be voided.'));
+                        }} className="text-[11px] font-semibold text-red-600 hover:underline">Void</button>
+                      </div>}
+                    </td>}
                   </tr>
                 );
               })
@@ -444,6 +485,19 @@ export const InvoiceTable: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {creditNoteTarget && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreditNoteTarget(null); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="credit-note-heading" className="w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-5 text-[var(--text-main)] shadow-xl">
+          <h2 id="credit-note-heading" className="text-base font-semibold">Issue credit note for {creditNoteTarget.number}</h2>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">Allocate each credit explicitly to the original task. Allocations cannot exceed the uncredited original amount.</p>
+          <div className="mt-4 space-y-3">{(creditNoteTarget.taskAllocations || []).map((allocation) => {
+            const remaining = Math.max(0, allocation.amountPaise - (allocation.creditedPaise || 0));
+            return <label key={allocation.taskId} className="grid grid-cols-[1fr_160px] items-center gap-3 text-xs"><span>{allocation.taskId} · remaining ₹{(remaining / 100).toFixed(2)}</span><input aria-label={`Credit amount for task ${allocation.taskId}`} type="number" min="0" max={remaining / 100} step="0.01" value={creditAmounts[allocation.taskId] || ''} onChange={(event) => setCreditAmounts((current) => ({ ...current, [allocation.taskId]: event.target.value }))} className="h-9 rounded border border-[var(--border-main)] bg-[var(--bg-app)] px-2" /></label>;
+          })}</div>
+          {financialActionError && <p role="alert" className="mt-3 text-xs text-red-600">{financialActionError}</p>}
+          <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCreditNoteTarget(null)} className="rounded border border-[var(--border-main)] px-3 py-2 text-xs">Cancel</button><button type="button" disabled={financialActionBusy} onClick={() => void submitCreditNote()} className="rounded bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{financialActionBusy ? 'Issuing…' : 'Issue credit note'}</button></div>
+        </section>
+      </div>}
 
       {/* Pagination Footer */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-xs text-gray-600 dark:text-gray-300">

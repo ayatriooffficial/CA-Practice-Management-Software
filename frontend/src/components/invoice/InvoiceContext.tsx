@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import {
   InvoiceTab,
   InvoiceStatus,
@@ -9,12 +9,10 @@ import {
   BankAccount,
 } from './types';
 import {
-  MOCK_INVOICES,
-  MOCK_PROFORMAS,
-  MOCK_REIMBURSEMENTS,
   MOCK_RECEIPTS,
   MOCK_BANK_ACCOUNTS,
 } from './mockData';
+import { financialApi, FinancialInvoiceRecord, TaskAllocationInput } from '@/services/financialApi';
 
 interface InvoiceContextType {
   activeTab: InvoiceTab;
@@ -34,8 +32,10 @@ interface InvoiceContextType {
   setSearchQuery: (query: string) => void;
   statusFilter: string;
   setStatusFilter: (status: string) => void;
-  addInvoice: (item: Partial<InvoiceRecord>) => InvoiceRecord;
-  addProforma: (item: Partial<InvoiceRecord>) => InvoiceRecord;
+  addInvoice: (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]) => Promise<InvoiceRecord>;
+  addProforma: (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]) => Promise<InvoiceRecord>;
+  addCreditNote: (original: InvoiceRecord, allocations: TaskAllocationInput[]) => Promise<void>;
+  voidInvoice: (invoice: InvoiceRecord, reason: string) => Promise<void>;
   addReimbursement: (item: Partial<InvoiceRecord>) => InvoiceRecord;
   addReceipt: (
     item: Partial<ReceiptRecord>,
@@ -59,15 +59,58 @@ interface InvoiceContextType {
     totalReceiptsAmount: number;
     advanceReceiptsAmount: number;
   };
+  invoiceLoadError: string | null;
+}
+
+function mapPersistedInvoice(record: FinancialInvoiceRecord): InvoiceRecord {
+  const details = record.details as Partial<InvoiceRecord>;
+  return {
+    id: record._id,
+    type: record.kind === 'credit_note' ? 'credit_note' : record.state === 'draft' ? 'proforma' : 'invoice',
+    number: record.number,
+    date: details.date || record.issueDate || '',
+    dueDate: details.dueDate || '',
+    billingOrg: details.billingOrg || '',
+    billingAddress: details.billingAddress || '',
+    clientId: details.clientId || '',
+    clientBusinessName: details.clientBusinessName || '',
+    clientLegalName: details.clientLegalName || '',
+    clientGroup: details.clientGroup || '',
+    clientGstin: details.clientGstin || '',
+    clientAddress: details.clientAddress || '',
+    clientPan: details.clientPan || '',
+    services: details.services || [],
+    subTotal: record.kind === 'credit_note' ? -Math.abs(details.subTotal || 0) : details.subTotal || 0,
+    totalPayable: record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0,
+    tdsExcludedAmount: details.tdsExcludedAmount || 0,
+    currency: details.currency || 'INR',
+    status: record.kind === 'credit_note' ? 'Credit Note' : record.state === 'void' ? 'Cancelled' : record.state === 'draft' ? 'Pending' : 'Receivable',
+    bankAccountId: details.bankAccountId || '',
+    notes: details.notes,
+    paidAmount: 0,
+    balanceAmount: record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0,
+    financialYear: details.financialYear || '',
+    createdAt: String(details.createdAt || record.issueDate || ''),
+    taskAllocations: record.allocations,
+  };
+}
+
+function toIsoDate(value: string | undefined): string | null {
+  if (!value) return null;
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
 }
 
 const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
 
 export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<InvoiceTab>('invoice');
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>(MOCK_INVOICES);
-  const [proformas, setProformas] = useState<InvoiceRecord[]>(MOCK_PROFORMAS);
-  const [reimbursements, setReimbursements] = useState<InvoiceRecord[]>(MOCK_REIMBURSEMENTS);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [proformas, setProformas] = useState<InvoiceRecord[]>([]);
+  const [reimbursements, setReimbursements] = useState<InvoiceRecord[]>([]);
+  const [invoiceLoadError, setInvoiceLoadError] = useState<string | null>(null);
   const [receipts, setReceipts] = useState<ReceiptRecord[]>(MOCK_RECEIPTS);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(MOCK_BANK_ACCOUNTS);
 
@@ -78,9 +121,26 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [activeReport, setActiveReport] = useState<string>('dashboard');
 
-  const addInvoice = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
+  const loadInvoices = useCallback(async () => {
+    try {
+      const records = await financialApi.listInvoices();
+      const mapped = records.map(mapPersistedInvoice);
+      setInvoices(mapped.filter((invoice) => invoice.type === 'invoice' || invoice.type === 'credit_note'));
+      setProformas(mapped.filter((invoice) => invoice.type === 'proforma'));
+      setInvoiceLoadError(null);
+    } catch {
+      setInvoiceLoadError('Could not load saved invoices. Check the backend connection.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadInvoices(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadInvoices]);
+
+  const addInvoice = useCallback(async (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
     const nextNumber = `INV-2026-${String(invoices.length + 1).padStart(3, '0')}`;
-    const newRecord: InvoiceRecord = {
+    const draftRecord: InvoiceRecord = {
       id: `inv-${Date.now()}`,
       type: 'invoice',
       number: nextNumber,
@@ -109,13 +169,18 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
       daysPastDue: 0,
     };
+    const saved = await financialApi.createInvoice({
+      kind: 'invoice', state: 'issued', number: nextNumber,
+      issueDate: toIsoDate(item.date), allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
+    });
+    const newRecord = mapPersistedInvoice(saved);
     setInvoices((prev) => [newRecord, ...prev]);
     return newRecord;
   }, [invoices.length, financialYear]);
 
-  const addProforma = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
+  const addProforma = useCallback(async (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
     const nextNumber = `PI-2026-${String(proformas.length + 1).padStart(3, '0')}`;
-    const newRecord: InvoiceRecord = {
+    const draftRecord: InvoiceRecord = {
       id: `prof-${Date.now()}`,
       type: 'proforma',
       number: nextNumber,
@@ -144,9 +209,44 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
       daysPastDue: 0,
     };
+    const saved = await financialApi.createInvoice({
+      kind: 'invoice', state: 'draft', number: nextNumber,
+      issueDate: null, allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
+    });
+    const newRecord = mapPersistedInvoice(saved);
     setProformas((prev) => [newRecord, ...prev]);
     return newRecord;
   }, [proformas.length, financialYear]);
+
+  const addCreditNote = useCallback(async (original: InvoiceRecord, allocations: TaskAllocationInput[]): Promise<void> => {
+    const number = `CN-2026-${String(invoices.filter((invoice) => invoice.type === 'credit_note').length + 1).padStart(3, '0')}`;
+    const amount = allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0) / 100;
+    await financialApi.createInvoice({
+      kind: 'credit_note',
+      state: 'issued',
+      number,
+      issueDate: new Date().toISOString().slice(0, 10),
+      originalInvoiceId: original.id,
+      allocations,
+      details: {
+        clientId: original.clientId,
+        clientBusinessName: original.clientBusinessName,
+        clientLegalName: original.clientLegalName,
+        clientGroup: original.clientGroup,
+        type: 'credit_note',
+        subTotal: amount,
+        totalPayable: amount,
+        currency: original.currency,
+      },
+      idempotencyKey: crypto.randomUUID(),
+    });
+    await loadInvoices();
+  }, [invoices, loadInvoices]);
+
+  const voidInvoice = useCallback(async (invoice: InvoiceRecord, reason: string): Promise<void> => {
+    await financialApi.voidInvoice(invoice.id, reason);
+    await loadInvoices();
+  }, [loadInvoices]);
 
   const addReimbursement = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
     const nextNumber = `CH-2026-${String(reimbursements.length + 1).padStart(3, '0')}`;
@@ -343,12 +443,15 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setStatusFilter,
         addInvoice,
         addProforma,
+        addCreditNote,
+        voidInvoice,
         addReimbursement,
         addReceipt,
         addBankAccount,
         activeReport,
         setActiveReport,
         summaryStats,
+        invoiceLoadError,
       }}
     >
       {children}

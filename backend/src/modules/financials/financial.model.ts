@@ -1,0 +1,79 @@
+import { Schema, model } from 'mongoose';
+import { IFinancialInvoice, ITaskExpense, ITimeEntry } from './financial.interface';
+
+const allocationSchema = new Schema(
+  {
+    taskId: { type: String, required: true, trim: true },
+    amountPaise: { type: Number, required: true, min: 0 },
+    creditedPaise: { type: Number, required: true, min: 0, default: 0 },
+  },
+  { _id: false }
+);
+
+const invoiceSchema = new Schema<IFinancialInvoice>(
+  {
+    orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
+    kind: { type: String, enum: ['invoice', 'credit_note'], required: true },
+    state: { type: String, enum: ['draft', 'issued', 'void'], required: true, default: 'draft' },
+    number: { type: String, required: true, trim: true },
+    issueDate: { type: Date, default: null },
+    originalInvoiceId: { type: Schema.Types.ObjectId, ref: 'FinancialInvoice', default: null },
+    allocations: { type: [allocationSchema], required: true, default: [] },
+    details: { type: Schema.Types.Mixed, required: true, default: {} },
+    idempotencyKey: { type: String, required: true, trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+);
+invoiceSchema.index({ orgId: 1, idempotencyKey: 1 }, { unique: true });
+invoiceSchema.index({ orgId: 1, number: 1 }, { unique: true });
+invoiceSchema.index({ orgId: 1, state: 1, issueDate: 1 });
+invoiceSchema.index({ orgId: 1, 'allocations.taskId': 1 });
+
+const timeEntrySchema = new Schema<ITimeEntry>(
+  {
+    orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
+    taskId: { type: String, required: true, trim: true, index: true },
+    employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    workDate: { type: Date, required: true, index: true },
+    durationSeconds: { type: Number, required: true, min: 1 },
+    internalCostRatePaisePerHour: { type: Number, required: true, min: 0 },
+    costPaise: { type: Number, required: true, min: 0 },
+    idempotencyKey: { type: String, required: true, trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } }
+);
+timeEntrySchema.index({ orgId: 1, idempotencyKey: 1 }, { unique: true });
+timeEntrySchema.index({ orgId: 1, taskId: 1, workDate: 1 });
+timeEntrySchema.index({ orgId: 1, employeeId: 1, workDate: 1 });
+
+const expenseSchema = new Schema<ITaskExpense>(
+  {
+    orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
+    taskId: { type: String, required: true, trim: true, index: true },
+    employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    particulars: { type: String, required: true, trim: true, maxlength: 300 },
+    incurredDate: { type: Date, required: true, index: true },
+    amountPaise: { type: Number, required: true, min: 1 },
+    state: { type: String, enum: ['pending', 'approved', 'rejected', 'cancelled'], default: 'pending', index: true },
+    idempotencyKey: { type: String, required: true, trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+);
+expenseSchema.index({ orgId: 1, idempotencyKey: 1 }, { unique: true });
+expenseSchema.index({ orgId: 1, taskId: 1, state: 1, incurredDate: 1 });
+
+export const FinancialInvoice = model<IFinancialInvoice>('FinancialInvoice', invoiceSchema);
+export const FinancialTimeEntry = model<ITimeEntry>('FinancialTimeEntry', timeEntrySchema);
+export const TaskExpense = model<ITaskExpense>('TaskExpense', expenseSchema);
+
+/** autoIndex is disabled in production, so explicitly create financial uniqueness/query indexes at startup. */
+export async function initializeFinancialIndexes(): Promise<void> {
+  await Promise.all([
+    FinancialInvoice.createIndexes(),
+    FinancialTimeEntry.createIndexes(),
+    TaskExpense.createIndexes(),
+  ]);
+}

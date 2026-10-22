@@ -61,6 +61,12 @@ const userSchema = new Schema<IUserDocument>(
       trim: true,
       default: 'Staff',
     },
+    internalCostRatePaisePerHour: {
+      type: Number,
+      min: 0,
+      default: null,
+      select: false,
+    },
     status: {
       type: String,
       enum: ['active', 'suspended', 'invited'],

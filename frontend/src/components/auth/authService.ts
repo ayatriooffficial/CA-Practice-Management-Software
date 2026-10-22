@@ -408,4 +408,3 @@ export const authService = {
     return this.getAllUsers();
   },
 };
-

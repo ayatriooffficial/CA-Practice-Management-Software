@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   BarChart3,
   TrendingUp,
@@ -29,7 +30,6 @@ import {
 import {
   FIRM_DETAILS,
   MOCK_EMPLOYEE_CLAIMS,
-  MOCK_PROFITABILITY,
   MOCK_GST_SUPPLIES,
   MOCK_SLA_RETAINERS,
   MOCK_USER_REVENUES,
@@ -119,7 +119,6 @@ export const AnalyticsView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusChip, setStatusChip] = useState<string>('All');
   const [claimStatus, setClaimStatus] = useState<'All' | 'Applied' | 'Approved' | 'Rejected'>('All');
-  const [profitView, setProfitView] = useState<'list' | 'client' | 'employee'>('list');
   const [gstTab, setGstTab] = useState<'B2B' | 'B2C' | 'Nil' | 'HSN' | 'Docs'>('B2B');
   const [consolidateTab, setConsolidateTab] = useState<'client' | 'group' | 'groupedInv' | 'nonGroupedInv'>('client');
   const [receivablesOnly, setReceivablesOnly] = useState<boolean>(false);
@@ -266,6 +265,20 @@ export const AnalyticsView: React.FC = () => {
         </div>
         {REPORT_MENU.map((item) => {
           const isActive = activeReportId === item.id;
+          const itemClassName = `w-full text-left px-4 py-3 rounded-xl border transition-all cursor-pointer ${
+            isActive
+              ? 'bg-[#eeedfd] dark:bg-[#7367F0]/20 border-l-4 border-[#7367F0] text-[#7367F0] font-semibold shadow-2xs'
+              : 'border-transparent hover:border-[#e5e7eb] dark:hover:border-[#334155] hover:bg-gray-50 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300'
+          }`;
+
+          if (item.id === 'profit') {
+            return (
+              <Link key={item.id} href="/reports/profitability" className={itemClassName}>
+                <div className="text-xs font-bold leading-tight text-gray-900 dark:text-white">{item.title}</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1 font-normal leading-relaxed">{item.description}</div>
+              </Link>
+            );
+          }
 
           return (
             <button
@@ -276,11 +289,7 @@ export const AnalyticsView: React.FC = () => {
                 setStatusChip('All');
                 setSearchQuery('');
               }}
-              className={`w-full text-left px-4 py-3 rounded-xl border transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-[#eeedfd] dark:bg-[#7367F0]/20 border-l-4 border-[#7367F0] text-[#7367F0] font-semibold shadow-2xs'
-                  : 'border-transparent hover:border-[#e5e7eb] dark:hover:border-[#334155] hover:bg-gray-50 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300'
-              }`}
+              className={itemClassName}
             >
               <div className="text-xs font-bold leading-tight text-gray-900 dark:text-white">
                 {item.title}
@@ -1668,99 +1677,6 @@ export const AnalyticsView: React.FC = () => {
                         </td>
                       </tr>
                     ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* =========================================================================
-            11. PROFITABILITY REPORT
-           ========================================================================= */}
-        {activeReportId === 'profit' && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
-                <div className="text-xs font-medium text-gray-500">Total Revenue</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">₹2,18,000</div>
-                <div className="text-[11px] text-gray-500 mt-1">Practice revenue</div>
-              </div>
-              <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
-                <div className="text-xs font-medium text-gray-500">Total Manpower Cost</div>
-                <div className="text-2xl font-bold text-red-600 mt-1.5">₹87,000</div>
-                <div className="text-[11px] text-gray-500 mt-1">Direct labor costs</div>
-              </div>
-              <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
-                <div className="text-xs font-medium text-gray-500">Net Profit</div>
-                <div className="text-2xl font-bold text-green-600 mt-1.5">₹1,30,300</div>
-                <div className="text-[11px] text-gray-500 mt-1">Gross earnings</div>
-              </div>
-              <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
-                <div className="text-xs font-medium text-gray-500">Avg Profit Margin</div>
-                <div className="text-2xl font-bold text-cyan-600 mt-1.5">59.8%</div>
-                <div className="text-[11px] text-gray-500 mt-1">Healthy CA margin</div>
-              </div>
-            </div>
-
-            {/* Segmented Controls */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setProfitView('list')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  profitView === 'list' ? 'bg-[#7367F0] text-white shadow-2xs' : 'bg-white border text-gray-700'
-                }`}
-              >
-                Task Wise
-              </button>
-              <button
-                type="button"
-                onClick={() => setProfitView('client')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  profitView === 'client' ? 'bg-[#7367F0] text-white shadow-2xs' : 'bg-white border text-gray-700'
-                }`}
-              >
-                Group by Client
-              </button>
-              <button
-                type="button"
-                onClick={() => setProfitView('employee')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  profitView === 'employee' ? 'bg-[#7367F0] text-white shadow-2xs' : 'bg-white border text-gray-700'
-                }`}
-              >
-                Group by Employee
-              </button>
-            </div>
-
-            {/* Profitability Table */}
-            <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-x-auto shadow-2xs">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#e5e7eb] dark:border-[#334155] bg-gray-50 dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 font-semibold">
-                    <th className="py-3.5 px-4">Client</th>
-                    <th className="py-3.5 px-4">Task ID</th>
-                    <th className="py-3.5 px-4">Service</th>
-                    <th className="py-3.5 px-4">Revenue</th>
-                    <th className="py-3.5 px-4">Manpower Cost</th>
-                    <th className="py-3.5 px-4">Expense</th>
-                    <th className="py-3.5 px-4">Profit</th>
-                    <th className="py-3.5 px-4 text-center">Margin %</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#e5e7eb] dark:divide-[#334155]">
-                  {MOCK_PROFITABILITY.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50/50">
-                      <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">{p.client}</td>
-                      <td className="py-3.5 px-4 text-[#7367F0] font-mono font-medium">{p.taskId}</td>
-                      <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">{p.service}</td>
-                      <td className="py-3.5 px-4 font-semibold text-gray-900 dark:text-white">₹{p.revenue.toLocaleString('en-IN')}</td>
-                      <td className="py-3.5 px-4 text-red-500 font-medium">₹{p.manpowerCost.toLocaleString('en-IN')}</td>
-                      <td className="py-3.5 px-4 text-gray-500">₹{p.expense.toLocaleString('en-IN')}</td>
-                      <td className="py-3.5 px-4 font-bold text-green-600">₹{p.profit.toLocaleString('en-IN')}</td>
-                      <td className="py-3.5 px-4 text-center font-bold text-cyan-600">{p.marginPercent}%</td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>

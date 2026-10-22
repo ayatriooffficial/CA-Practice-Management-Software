@@ -50,7 +50,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "groups", label: "Groups", href: "/groups", icon: UserRoundGroup },
   { id: "services", label: "Services", href: "/services", icon: ShoppingCart },
   { id: "task", label: "Task", href: "/task", icon: ClipboardList },
-  // { id: "agents", label: "Agent Center", href: "/agents", icon: Zap },
+  { id: "agents", label: "Agent Center", href: "/agents", icon: Zap },
   { id: "invoice", label: "Invoice", href: "/invoice", icon: ReceiptText },
   { id: "team", label: "Team", href: "/team", icon: UsersRound },
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
         <div className="flex flex-col items-center py-2 gap-0.5 w-full">
           {SIDEBAR_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
 
             return (
               <Link
@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               </div>
               {SIDEBAR_ITEMS.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
 
                 return (
                   <Link

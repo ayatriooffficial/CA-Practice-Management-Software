@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+const isoDateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, 'Date must be a valid calendar date');
+
+export const profitabilityReportQuerySchema = z.object({
+  from: isoDateOnly,
+  to: isoDateOnly,
+});
+
 
 export const taskIdParamSchema = z.object({
   id: z.string().min(1, 'Task identifier is required'),
