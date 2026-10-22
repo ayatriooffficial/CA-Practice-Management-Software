@@ -8,12 +8,25 @@ import { ResponseMessages } from '../../constants/messages';
 import { PaginationMeta } from '../../shared/utils/apiResponse';
 import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
+import { CounterService } from '../counter/counter.service';
 
 export class LeadService {
   /**
    * Register a new lead
    */
-  static async createLead(data: Partial<ILead>): Promise<ILeadDocument> {
+  static async createLead(
+    data: Partial<ILead>,
+    userCtx?: { userId: string | null; orgId?: string | null } | string | null
+  ): Promise<ILeadDocument> {
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    if (orgId) {
+      data.orgId = orgId;
+    }
+    if (userId) {
+      data.userId = userId;
+      data.createdBy = userId;
+    }
     // Check if duplicate active lead exists with same mobile or PAN
     const orConditions: Record<string, unknown>[] = [{ mobile: data.mobile }];
     if (data.pan) {
@@ -116,10 +129,51 @@ export class LeadService {
    * Retrieve paginated leads with filtering & full-text search
    */
   static async getAllLeads(
-    queryOptions: QueryOptions
+    queryOptions: QueryOptions,
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ items: ILeadDocument[]; pagination: PaginationMeta }> {
     const searchableFields = ['fullName', 'mobile', 'email', 'pan', 'notes'];
     const parsedQuery = QueryBuilder.parse<ILeadDocument>(queryOptions, searchableFields);
+
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (Types.ObjectId.isValid(orgId)) {
+        orgConditions.push({ orgId: new Types.ObjectId(orgId) });
+      }
+      if (userId) {
+        orgConditions.push({ userId }, { createdBy: userId });
+      }
+      const orgFilter = { $or: orgConditions };
+
+      if (parsedQuery.filter.$or) {
+        const existingOr = parsedQuery.filter.$or;
+        delete parsedQuery.filter.$or;
+        parsedQuery.filter.$and = [
+          { $or: existingOr },
+          orgFilter,
+        ];
+      } else {
+        Object.assign(parsedQuery.filter, orgFilter);
+      }
+    } else if (userId) {
+      const userCondition = { $or: [{ userId }, { createdBy: userId }] };
+      if (parsedQuery.filter.$or) {
+        const existingOr = parsedQuery.filter.$or;
+        delete parsedQuery.filter.$or;
+        parsedQuery.filter.$and = [
+          { $or: existingOr },
+          userCondition,
+        ];
+      } else {
+        Object.assign(parsedQuery.filter, userCondition);
+      }
+    }
 
     return await QueryBuilder.paginate<ILeadDocument>(Lead, parsedQuery);
   }
@@ -396,9 +450,7 @@ export class LeadService {
     // Generate automatic unique fileNo if not supplied
     let fileNo = conversionData.fileNo;
     if (!fileNo) {
-      const count = await Client.countDocuments().setOptions({ includeDeleted: true });
-      const year = new Date().getFullYear();
-      fileNo = `CL-${year}-${String(count + 1).padStart(4, '0')}`;
+      fileNo = await CounterService.getNextClientFileNo();
     }
 
     // Construct customerFiles from lead details (e.g. Promoter and Statutory entries)
@@ -477,9 +529,39 @@ export class LeadService {
   /**
    * Aggregate lead status statistics
    */
-  static async getLeadStats(): Promise<Record<string, unknown>> {
+  static async getLeadStats(
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+  ): Promise<Record<string, unknown>> {
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    const baseMatch: Record<string, any> = { isDeleted: false };
+    const deletedMatch: Record<string, any> = { isDeleted: true };
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (Types.ObjectId.isValid(orgId)) {
+        orgConditions.push({ orgId: new Types.ObjectId(orgId) });
+      }
+      if (userId) {
+        orgConditions.push({ userId }, { createdBy: userId });
+      }
+      baseMatch.$or = orgConditions;
+      deletedMatch.$or = orgConditions;
+    } else if (userId) {
+      const orClauses: any[] = [
+        { userId },
+        { createdBy: userId },
+      ];
+      baseMatch.$or = orClauses;
+      deletedMatch.$or = orClauses;
+    }
+
     const stats = await Lead.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: baseMatch },
       {
         $group: {
           _id: '$status',
@@ -488,8 +570,8 @@ export class LeadService {
       },
     ]);
 
-    const totalLeads = await Lead.countDocuments({ isDeleted: false });
-    const totalDeleted = await Lead.countDocuments({ isDeleted: true }).setOptions({
+    const totalLeads = await Lead.countDocuments(baseMatch);
+    const totalDeleted = await Lead.countDocuments(deletedMatch).setOptions({
       includeDeleted: true,
     });
 

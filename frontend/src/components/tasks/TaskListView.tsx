@@ -26,7 +26,8 @@ import {
   TASK_CATEGORIES,
   TASK_DEPARTMENTS,
 } from "@/data/taskData";
-import { DEMO_TEAM_MEMBERS } from "@/data/teamData";
+import { TeamMember } from "@/data/teamData";
+import { teamStore } from "@/components/team/teamStore";
 
 interface TaskListViewProps {
   onOpenAddTask: () => void;
@@ -66,6 +67,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   const [search, setSearch] = useState<string>("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   // Column resizing state
   const [colWidths, setColWidths] = useState<{ [key: string]: number }>({
@@ -156,6 +158,32 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
     selectedPeriod,
     search,
   ]);
+
+  useEffect(() => {
+    teamStore
+      .loadEmployeesFromBackend()
+      .then((emps) => {
+        if (emps && emps.length > 0) {
+          const activeEmps = emps.filter((e) => e.status === "Active");
+          setTeamMembers(
+            activeEmps.map((e) => ({
+              id: e.id,
+              name: e.name,
+              initials: e.initials || e.name.slice(0, 2).toUpperCase(),
+              email: e.email,
+              phone: e.mobile,
+              role: e.role,
+              position: e.designation,
+              department: e.department,
+              permissions: [],
+              avatarColor: "#31719B",
+              active: true,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (selectedAssigneeFilter) {
@@ -287,7 +315,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   return (
     <div className="py-2">
       {/* 1. Category Chips Bar matching Image 4 */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
+      <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs px-2">
         {TASK_CATEGORIES.slice(0, 6).map((cat) => {
           const isSelected = selectedCategory === cat;
           return (
@@ -321,7 +349,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
       </div>
 
       {/* 2. 10 KPI Metric Cards matching Image 4 */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2 px-2">
         {KPI_CARDS.map((kpi) => {
           const Icon = kpi.icon;
           const isCardActive =
@@ -355,7 +383,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
       </div>
 
       {/* 3. Secondary Filter Bar matching reference image with proper padding */}
-      <div className="bg-[var(--bg-surface)] p-4 sm:p-5 shadow-xs space-y-3">
+      <div className="bg-[var(--bg-surface)] p-4 sm:p-5 shadow-xs space-y-3 px-2">
         {/* Top Row: Quick Filter Pills, Divider, Dropdown Filters, and Search */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Left Controls */}
@@ -406,7 +434,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
               className="h-9 px-3 py-1.5 text-xs bg-[var(--bg-subtle)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] cursor-pointer"
             >
               <option value="All Assignees">All Assignees</option>
-              {DEMO_TEAM_MEMBERS.map((tm) => (
+              {teamMembers.map((tm) => (
                 <option key={tm.id} value={tm.name}>
                   {tm.name}
                 </option>

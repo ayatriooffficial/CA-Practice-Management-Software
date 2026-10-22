@@ -16,8 +16,13 @@ export type TaskType = 'One-Time Task' | 'Recurring Task';
 export interface TaskSubTask {
   id: string;
   title: string;
+  name?: string;
   completed: boolean;
   timeSpent?: string;
+  totalHours?: string;
+  percentage?: number;
+  taskId?: string;
+  serviceId?: string;
 }
 
 export interface TaskChecklistItem {
@@ -25,15 +30,20 @@ export interface TaskChecklistItem {
   title: string;
   completed: boolean;
   isMandatory?: boolean;
+  taskId?: string;
+  serviceId?: string;
 }
 
 export interface TaskDocumentRequestItem {
   id: string;
   title: string;
+  description?: string;
   status: 'Pending' | 'Received' | 'Requested';
   isMandatory?: boolean;
   fileUrl?: string;
   receivedAt?: string;
+  taskId?: string;
+  serviceId?: string;
 }
 
 export interface TaskComment {
@@ -89,6 +99,7 @@ export interface TaskItem {
   createProformaInvoice?: boolean;
   creatorName?: string;
   adminId?: string;
+  sop?: string;
   subTasks: TaskSubTask[];
   checklist: TaskChecklistItem[];
   documentRequests: TaskDocumentRequestItem[];

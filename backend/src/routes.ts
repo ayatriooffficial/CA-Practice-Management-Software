@@ -1,10 +1,13 @@
 import { Router, Request, Response } from 'express';
+import { authRoutes } from './modules/auth/auth.routes';
 import { clientRoutes } from './modules/client/client.routes';
 import { leadRoutes } from './modules/lead/lead.routes';
 import { serviceRoutes } from './modules/service/service.routes';
 import { driveRoutes } from './modules/drive/drive.routes';
 import { agentCenterRoutes } from './modules/agentCenter/agent.routes';
 import { taskRoutes } from './modules/task/task.routes';
+import { counterRoutes } from './modules/counter/counter.routes';
+import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 
 const router = Router();
@@ -23,12 +26,16 @@ router.get('/health', (_req: Request, res: Response) => {
   );
 });
 
-// Mount Feature Modules
-router.use('/clients', clientRoutes);
-router.use('/leads', leadRoutes);
-router.use('/services', serviceRoutes);
-router.use('/drive', driveRoutes);
-router.use('/tasks', taskRoutes);
-router.use('/agent-center', agentCenterRoutes);
+// Authentication Module (Public + Session)
+router.use('/auth', authRoutes);
+
+// Feature Modules (with optional authentication to support both authenticated and development/guest modes)
+router.use('/clients', optionalAuthenticate, clientRoutes);
+router.use('/leads', optionalAuthenticate, leadRoutes);
+router.use('/services', optionalAuthenticate, serviceRoutes);
+router.use('/drive', optionalAuthenticate, driveRoutes);
+router.use('/tasks', optionalAuthenticate, taskRoutes);
+router.use('/agent-center', optionalAuthenticate, agentCenterRoutes);
+router.use('/counters', optionalAuthenticate, counterRoutes);
 
 export const appRouter = router;

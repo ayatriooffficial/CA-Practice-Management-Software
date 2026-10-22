@@ -30,9 +30,13 @@ import {
   Filter,
 } from "lucide-react";
 import { Client, ClientLicense, ClientDsc, ClientDocumentInOut, ClientServiceSetting, ClientPassword, ClientNote } from "@/data/crmData";
+import { serviceApi } from "@/services/serviceApi";
+import { Service } from "@/data/serviceData";
+import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
 import { clientApi } from "@/services/clientApi";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
+import { ClientDetailViewTabs } from "./ClientDetailViewTabs";
 import { AddLicenseModal } from "./modals/AddLicenseModal";
 import { AddDocumentInOutModal } from "./modals/AddDocumentInOutModal";
 import { AddDscModal } from "./modals/AddDscModal";
@@ -88,7 +92,7 @@ interface ClientDetailViewProps {
 
 export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   client: initialClient,
-  initialTab = "Service Settings",
+  initialTab = "Master",
   onClose,
   onEdit,
   onClientUpdated,
@@ -113,6 +117,9 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [serviceSearch, setServiceSearch] = useState("");
   const [serviceFilter, setServiceFilter] = useState<"All" | "Enabled">("All");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<ClientServiceSetting | null>(null);
+  const [isSavingServiceOptions, setIsSavingServiceOptions] = useState(false);
 
   // Client Tasks State
   const [clientTasks, setClientTasks] = useState<TaskItem[]>([]);
@@ -145,19 +152,133 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     }
   }, [client.id, onClientUpdated]);
 
-  // Fetch client tasks when switching to Tasks tab
+  // Fetch client tasks when switching to Tasks or Documents tab
+  const fetchClientTasks = useCallback(() => {
+    if (!client.id && !client.name && !client.fileNo) return;
+    setIsLoadingTasks(true);
+    taskApi
+      .getTasks({
+        clientId: client.id,
+        clientFileNo: client.fileNo,
+        clientName: client.name,
+        limit: 50,
+      })
+      .then((res) => {
+        if (res.data) setClientTasks(res.data);
+      })
+      .catch((err) => console.error("Error fetching client tasks:", err))
+      .finally(() => setIsLoadingTasks(false));
+  }, [client.id, client.fileNo, client.name]);
+
   useEffect(() => {
-    if (activeTab === "Tasks" && client.id) {
-      setIsLoadingTasks(true);
-      taskApi
-        .getTasks({ clientId: client.id, limit: 50 })
-        .then((res) => {
-          if (res.data) setClientTasks(res.data);
-        })
-        .catch((err) => console.error("Error fetching client tasks:", err))
-        .finally(() => setIsLoadingTasks(false));
+    if (activeTab === "Tasks" || activeTab === "Documents") {
+      fetchClientTasks();
     }
-  }, [activeTab, client.id]);
+  }, [activeTab, fetchClientTasks]);
+
+  // Dynamic Services Catalog from Services Section
+  const [systemServices, setSystemServices] = useState<Service[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState<boolean>(false);
+
+  // Fetch real services from Services section when viewing Service Settings tab
+  useEffect(() => {
+    if (activeTab === "Service Settings") {
+      setIsLoadingServices(true);
+      serviceApi
+        .getServices({ limit: 100 })
+        .then((res) => {
+          if (res.data) setSystemServices(res.data);
+        })
+        .catch((err) => console.error("Error fetching system services:", err))
+        .finally(() => setIsLoadingServices(false));
+    }
+  }, [activeTab]);
+
+  // Real services from Services section merged with client specific settings
+  const allServices = useMemo(() => {
+    const clientSettings = client.serviceSettings || [];
+    const clientMap = new Map(clientSettings.map((s) => [s.serviceName.trim().toLowerCase(), s]));
+
+    if (systemServices.length > 0) {
+      const result: ClientServiceSetting[] = systemServices.map((svc) => {
+        const found = clientMap.get(svc.name.trim().toLowerCase());
+        if (found) {
+          return {
+            ...found,
+            id: found.id || (found as any)._id || `ss-${svc.id}`,
+            serviceId: svc.id,
+            serviceName: svc.name,
+            category: svc.category || found.category || "General",
+            compliance: !!found.compliance,
+            recTask: found.recTask || (found.compliance ? "Enabled" : "Disabled"),
+            recInvoice: found.recInvoice || "Disabled",
+            frequency: found.frequency || svc.frequency || "Monthly",
+            start: found.start || "Day 1",
+            target: found.target || (svc.tatDays ? `Day ${svc.tatDays}` : "Day 15"),
+            end: found.end || (svc.tatDays ? `Day ${svc.tatDays + 2}` : "Day 20"),
+            invFreq: found.invFreq || "Monthly",
+            invDay: found.invDay !== undefined ? found.invDay : 1,
+            amount: found.amount !== undefined ? found.amount : (svc.professionalFee || 0),
+          };
+        }
+
+        return {
+          id: `ss-${svc.id}`,
+          serviceId: svc.id,
+          serviceName: svc.name,
+          category: svc.category || "General",
+          compliance: false,
+          recTask: "Disabled",
+          recInvoice: "Disabled",
+          frequency: svc.frequency || "Monthly",
+          start: "Day 1",
+          target: svc.tatDays ? `Day ${svc.tatDays}` : "Day 15",
+          end: svc.tatDays ? `Day ${svc.tatDays + 2}` : "Day 20",
+          invFreq: "Monthly",
+          invDay: 1,
+          amount: svc.professionalFee || 0,
+        };
+      });
+
+      // Also preserve any client configured settings not currently in systemServices
+      const systemSet = new Set(systemServices.map((s) => s.name.trim().toLowerCase()));
+      for (const s of clientSettings) {
+        if (!systemSet.has(s.serviceName.trim().toLowerCase())) {
+          result.push(s);
+        }
+      }
+
+      return result;
+    }
+
+    return clientSettings;
+  }, [systemServices, client.serviceSettings]);
+
+  // Filtered services based on search and Enabled/All pill filter
+  const filteredServices = useMemo(() => {
+    return allServices.filter((item) => {
+      if (serviceFilter === "Enabled" && !item.compliance) return false;
+      if (serviceSearch.trim()) {
+        const q = serviceSearch.toLowerCase();
+        return (
+          item.serviceName.toLowerCase().includes(q) ||
+          item.category.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [allServices, serviceFilter, serviceSearch]);
+
+  // Grouped service settings by category
+  const groupedServices = useMemo(() => {
+    const groups: Record<string, ClientServiceSetting[]> = {};
+    filteredServices.forEach((item) => {
+      const cat = item.category || "General Services";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [filteredServices]);
 
   // Toggle category collapse in Service Settings
   const toggleCategory = (cat: string) => {
@@ -165,15 +286,32 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   };
 
   // Toggle compliance switch for single service
-  const handleToggleServiceCompliance = async (settingId: string, currentVal: boolean) => {
-    const updated = (client.serviceSettings || []).map((s) =>
-      s.id === settingId || (s as any)._id === settingId ? { ...s, compliance: !currentVal } : s
+  const handleToggleServiceCompliance = async (serviceName: string, currentVal: boolean) => {
+    const nextVal = !currentVal;
+    const updated = allServices.map((s) =>
+      s.serviceName.trim().toLowerCase() === serviceName.trim().toLowerCase()
+        ? {
+          ...s,
+          compliance: nextVal,
+          recTask: nextVal ? (s.recTask === "Disabled" ? "Enabled" : s.recTask) : "Disabled",
+        }
+        : s
     );
-    setClient((prev) => ({ ...prev, serviceSettings: updated }));
+    const activeNames = updated.filter((s) => s.compliance).map((s) => s.serviceName);
+
+    setClient((prev) => ({
+      ...prev,
+      serviceSettings: updated,
+      services: activeNames,
+    }));
+
     try {
       const res = await clientApi.updateServiceSettings(client.id, updated);
-      if (res.data) setClient(res.data);
-      showToast("Service compliance updated.");
+      if (res.data) {
+        setClient(res.data);
+        onClientUpdated?.(res.data);
+      }
+      showToast(`Service "${serviceName}" ${nextVal ? "enabled" : "disabled"}.`);
     } catch (err: any) {
       showToast(err.message || "Failed to update service compliance.");
       reloadClientData();
@@ -184,17 +322,66 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const handleToggleCategoryCompliance = async (catName: string, items: ClientServiceSetting[]) => {
     const allEnabled = items.every((x) => x.compliance);
     const targetState = !allEnabled;
-    const updated = (client.serviceSettings || []).map((s) =>
-      s.category === catName ? { ...s, compliance: targetState } : s
+    const updated = allServices.map((s) =>
+      s.category.trim().toLowerCase() === catName.trim().toLowerCase()
+        ? {
+          ...s,
+          compliance: targetState,
+          recTask: targetState ? (s.recTask === "Disabled" ? "Enabled" : s.recTask) : "Disabled",
+        }
+        : s
     );
-    setClient((prev) => ({ ...prev, serviceSettings: updated }));
+    const activeNames = updated.filter((s) => s.compliance).map((s) => s.serviceName);
+
+    setClient((prev) => ({
+      ...prev,
+      serviceSettings: updated,
+      services: activeNames,
+    }));
+
     try {
       const res = await clientApi.updateServiceSettings(client.id, updated);
-      if (res.data) setClient(res.data);
-      showToast(`Category "${catName}" compliance updated.`);
+      if (res.data) {
+        setClient(res.data);
+        onClientUpdated?.(res.data);
+      }
+      showToast(`Category "${catName}" services ${targetState ? "enabled" : "disabled"}.`);
     } catch (err: any) {
       showToast(err.message || "Failed to update category.");
       reloadClientData();
+    }
+  };
+
+  // Save edited options for an expanded service
+  const handleSaveServiceOptions = async (updatedSetting: ClientServiceSetting) => {
+    setIsSavingServiceOptions(true);
+    const updated = allServices.map((s) =>
+      s.serviceName.trim().toLowerCase() === updatedSetting.serviceName.trim().toLowerCase()
+        ? updatedSetting
+        : s
+    );
+    const activeNames = updated.filter((s) => s.compliance).map((s) => s.serviceName);
+
+    setClient((prev) => ({
+      ...prev,
+      serviceSettings: updated,
+      services: activeNames,
+    }));
+
+    try {
+      const res = await clientApi.updateServiceSettings(client.id, updated);
+      if (res.data) {
+        setClient(res.data);
+        onClientUpdated?.(res.data);
+      }
+      setExpandedServiceId(null);
+      setEditingService(null);
+      showToast(`Settings for "${updatedSetting.serviceName}" saved successfully.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to save service settings.");
+      reloadClientData();
+    } finally {
+      setIsSavingServiceOptions(false);
     }
   };
 
@@ -286,32 +473,9 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     );
   };
 
-  // Grouped service settings
-  const groupedServices = useMemo(() => {
-    const list = client.serviceSettings || [];
-    const filtered = list.filter((item) => {
-      if (serviceFilter === "Enabled" && !item.compliance) return false;
-      if (serviceSearch.trim()) {
-        const q = serviceSearch.toLowerCase();
-        return (
-          item.serviceName.toLowerCase().includes(q) ||
-          item.category.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-
-    const groups: Record<string, ClientServiceSetting[]> = {};
-    filtered.forEach((item) => {
-      const cat = item.category || "General Services";
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
-    });
-    return groups;
-  }, [client.serviceSettings, serviceSearch, serviceFilter]);
 
   return (
-    <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col  animate-in fade-in duration-200">
       {/* Toast */}
       {toastMsg && (
         <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[#31719B]/30 bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white animate-in slide-in-from-top-2 duration-200">
@@ -340,11 +504,10 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
               {client.legalName || client.name}
             </h1>
             <span
-              className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${
-                client.active !== false
-                  ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
-                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-              }`}
+              className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${client.active !== false
+                ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                }`}
             >
               {client.active !== false ? "Active" : "Inactive"}
             </span>
@@ -507,11 +670,10 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 key={tab}
                 type="button"
                 onClick={() => setActiveTab(tab)}
-                className={`py-3 text-xs whitespace-nowrap transition-all border-b-2 font-medium cursor-pointer ${
-                  isActive
-                    ? "border-[#7c3aed] text-[#7c3aed] dark:text-[#a78bfa] font-bold"
-                    : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
+                className={`py-3 text-xs whitespace-nowrap transition-all border-b-2 font-medium cursor-pointer ${isActive
+                  ? "border-[#7c3aed] text-[#7c3aed] dark:text-[#a78bfa] font-bold"
+                  : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
               >
                 {tab}
               </button>
@@ -522,1316 +684,45 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
       {/* Main Tab Content Area */}
       <div className="px-6 py-2">
-        {/* ======================================================== */}
-        {/* TAB 1: SERVICE SETTINGS (Screenshot 1) */}
-        {/* ======================================================== */}
-        {activeTab === "Service Settings" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            {/* Toolbar */}
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-4">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Services ({client.serviceSettings?.length || 0})
-              </h2>
-
-              <div className="flex items-center gap-3">
-                {/* Search */}
-                <div className="relative w-64">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={serviceSearch}
-                    onChange={(e) => setServiceSearch(e.target.value)}
-                    placeholder="Search service..."
-                    className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
-                  />
-                </div>
-
-                {/* Filters */}
-                <div className="flex items-center rounded-md border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
-                  <button
-                    type="button"
-                    onClick={() => setServiceFilter("Enabled")}
-                    className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
-                      serviceFilter === "Enabled"
-                        ? "bg-white dark:bg-[#1e293b] shadow-xs text-purple-700 dark:text-purple-300"
-                        : "text-gray-500 hover:text-gray-800"
-                    }`}
-                  >
-                    Enabled
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setServiceFilter("All")}
-                    className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
-                      serviceFilter === "All"
-                        ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 shadow-xs"
-                        : "text-gray-500 hover:text-gray-800"
-                    }`}
-                  >
-                    All
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Service Settings Table */}
-            <div className="overflow-x-auto scrollbar-slim">
-              <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                <thead>
-                  <tr
-                    className="text-gray-700 dark:text-gray-300"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="w-12 px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                      Compliance
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Service
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Rec. Task
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Rec. Invoice
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Frequency
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Start
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Target
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      End
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Inv. Freq
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Inv. Day
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-right">
-                      Amount
-                    </th>
-                    <th className="w-10 px-2 py-3 border-b border-[#dde2e8] dark:border-[#334155]"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.keys(groupedServices).length === 0 ? (
-                    <tr>
-                      <td colSpan={12} className="py-12 text-center text-gray-400 font-medium">
-                        No services configured for this client.
-                      </td>
-                    </tr>
-                  ) : (
-                    Object.entries(groupedServices).map(([category, items]) => {
-                      const isCollapsed = collapsedCategories[category];
-                      const allCategoryCompliance = items.every((x) => x.compliance);
-
-                      return (
-                        <React.Fragment key={category}>
-                          {/* Category Group Header Row */}
-                          <tr className="bg-gray-50/70 dark:bg-gray-800/40 hover:bg-gray-100/60 transition-colors">
-                            <td className="px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                              <input
-                                type="checkbox"
-                                checked={allCategoryCompliance}
-                                onChange={() => handleToggleCategoryCompliance(category, items)}
-                                className="w-4 h-4 rounded text-[#7c3aed] accent-[#7c3aed] cursor-pointer"
-                              />
-                            </td>
-                            <td
-                              colSpan={10}
-                              className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-bold text-gray-900 dark:text-white"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span>{category}</span>
-                                <span className="text-[11px] font-normal text-gray-500">
-                                  ({items.length} {items.length === 1 ? "service" : "services"})
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                              <button
-                                type="button"
-                                onClick={() => toggleCategory(category)}
-                                className="text-gray-500 hover:text-gray-800 dark:hover:text-white cursor-pointer"
-                              >
-                                {isCollapsed ? (
-                                  <ChevronDown className="w-4 h-4" />
-                                ) : (
-                                  <ChevronUp className="w-4 h-4" />
-                                )}
-                              </button>
-                            </td>
-                          </tr>
-
-                          {/* Category Items */}
-                          {!isCollapsed &&
-                            items.map((svc) => (
-                              <tr
-                                key={svc.id || svc.serviceName}
-                                className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                              >
-                                {/* Toggle switch */}
-                                <td className="px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={Boolean(svc.compliance)}
-                                    onChange={() =>
-                                      handleToggleServiceCompliance(svc.id || "", svc.compliance)
-                                    }
-                                    className="w-4 h-4 rounded text-[#7c3aed] accent-[#7c3aed] cursor-pointer"
-                                  />
-                                </td>
-
-                                {/* Service Name */}
-                                <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-medium text-gray-900 dark:text-white">
-                                  {svc.serviceName}
-                                </td>
-
-                                {/* Rec. Task */}
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                                      svc.recTask === "Enabled"
-                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                                    }`}
-                                  >
-                                    {svc.recTask || "Disabled"}
-                                  </span>
-                                </td>
-
-                                {/* Rec. Invoice */}
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                                      svc.recInvoice === "Enabled"
-                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                                    }`}
-                                  >
-                                    {svc.recInvoice || "Disabled"}
-                                  </span>
-                                </td>
-
-                                {/* Frequency */}
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                                      svc.frequency === "Quarterly"
-                                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                                        : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
-                                    }`}
-                                  >
-                                    {svc.frequency || "Monthly"}
-                                  </span>
-                                </td>
-
-                                {/* Start, Target, End */}
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                                  {svc.start || "-"}
-                                </td>
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                                  {svc.target || "-"}
-                                </td>
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                                  {svc.end || "-"}
-                                </td>
-
-                                {/* Inv Freq */}
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                                  {svc.invFreq ? (
-                                    <span
-                                      className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                                        svc.invFreq === "Quarterly"
-                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                                          : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
-                                      }`}
-                                    >
-                                      {svc.invFreq}
-                                    </span>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
-
-                                {/* Inv Day */}
-                                <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                                  {svc.invDay ?? "—"}
-                                </td>
-
-                                {/* Amount */}
-                                <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-right text-gray-900 dark:text-white">
-                                  {svc.amount > 0
-                                    ? `₹${svc.amount.toLocaleString("en-IN", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}`
-                                    : "—"}
-                                </td>
-
-                                {/* Row expand/menu */}
-                                <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                                  <ChevronDown className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-pointer" />
-                                </td>
-                              </tr>
-                            ))}
-                        </React.Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 2: LICENSES (Screenshot 2) */}
-        {/* ======================================================== */}
-        {activeTab === "Licenses" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Licenses
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsAddLicenseOpen(true)}
-                className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add</span>
-              </button>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto scrollbar-slim">
-              <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                <thead>
-                  <tr
-                    className="text-gray-700 dark:text-gray-300"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Name
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      License No
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Issued Date
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Expiry Date
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      URL
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-center">
-                      Files
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Remarks
-                    </th>
-                    <th className="w-12 px-2 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!client.licenses || client.licenses.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-12 text-center text-gray-400 font-medium">
-                        No licenses recorded. Click "+ Add" to add a client license.
-                      </td>
-                    </tr>
-                  ) : (
-                    client.licenses.map((lic, index) => (
-                      <tr
-                        key={lic.id || index}
-                        className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                      >
-                        {/* Name + Avatar */}
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-gray-900 dark:text-white">
-                          <div className="flex items-center gap-2.5">
-                            {getAvatarBadge(lic.name, index)}
-                            <span>{lic.name}</span>
-                          </div>
-                        </td>
-
-                        {/* License No */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono text-gray-600 dark:text-gray-300">
-                          {lic.licenseNo || "-"}
-                        </td>
-
-                        {/* Issued Date */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {lic.issuedDate || "-"}
-                        </td>
-
-                        {/* Expiry Date */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {lic.expiryDate || "-"}
-                        </td>
-
-                        {/* URL */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {lic.url && lic.url !== "-" ? (
-                            <a
-                              href={lic.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[#31719B] hover:underline flex items-center gap-1"
-                            >
-                              <span>Open</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-
-                        {/* Files */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                          {lic.file ? (
-                            <span
-                              className={`inline-flex items-center justify-center p-1 rounded ${
-                                lic.file === "xls"
-                                  ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40"
-                                  : "text-rose-600 bg-rose-50 dark:bg-rose-950/40"
-                              }`}
-                              title={lic.file.toUpperCase()}
-                            >
-                              {lic.file === "xls" ? (
-                                <FileSpreadsheet className="w-4 h-4" />
-                              ) : (
-                                <FileText className="w-4 h-4" />
-                              )}
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-
-                        {/* Remarks */}
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {lic.remarks || "-"}
-                        </td>
-
-                        {/* Action */}
-                        <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteLicense(lic.id || "", lic.name)}
-                            title="Delete License"
-                            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Pagination */}
-            <div className="p-3 border-t border-[#dde2e8] dark:border-[#334155] flex items-center justify-end gap-6 text-xs text-gray-500">
-              <div className="flex items-center gap-2">
-                <span>Rows per page:</span>
-                <span className="font-semibold text-gray-800 dark:text-gray-200">50</span>
-              </div>
-              <span>
-                1-{client.licenses?.length || 0} of {client.licenses?.length || 0}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled
-                  className="p-1 rounded opacity-50 cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="p-1 rounded opacity-50 cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 3: DOCUMENTS (Document In - Out) (Screenshot 3) */}
-        {/* ======================================================== */}
-        {activeTab === "Documents" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Document In - Out
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsAddDocInOutOpen(true)}
-                className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add</span>
-              </button>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto scrollbar-slim">
-              <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                <thead>
-                  <tr
-                    className="text-gray-700 dark:text-gray-300"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Document Name
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Person Name
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Date
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Status
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Returnable
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Return Date
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Remarks
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-center">
-                      Files
-                    </th>
-                    <th className="w-12 px-2 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!client.documentsInOut || client.documentsInOut.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-12 text-center text-gray-400 font-medium">
-                        No document movements logged. Click "+ Add" to record a document movement.
-                      </td>
-                    </tr>
-                  ) : (
-                    client.documentsInOut.map((doc, idx) => (
-                      <tr
-                        key={doc.id || idx}
-                        className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                      >
-                        {/* Document Name + Avatar */}
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-medium text-gray-900 dark:text-white">
-                          <div className="flex items-center gap-2.5">
-                            {getAvatarBadge(doc.documentName, idx)}
-                            <span>{doc.documentName}</span>
-                          </div>
-                        </td>
-
-                        {/* Person Name + Avatar */}
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300">
-                          {doc.personName && doc.personName !== "-" ? (
-                            <div className="flex items-center gap-2">
-                              {getAvatarBadge(doc.personName, idx + 3)}
-                              <span>{doc.personName}</span>
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-
-                        {/* Date */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {doc.date || "-"}
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                          <span
-                            className={`px-2.5 py-0.5 rounded text-[11px] font-semibold ${
-                              doc.status === "In"
-                                ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
-                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                            }`}
-                          >
-                            {doc.status}
-                          </span>
-                        </td>
-
-                        {/* Returnable */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                              doc.returnable === "Yes" || doc.returnable === true
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                            }`}
-                          >
-                            {doc.returnable === true || doc.returnable === "Yes" ? "Yes" : "No"}
-                          </span>
-                        </td>
-
-                        {/* Return Date */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {doc.returnDate || "-"}
-                        </td>
-
-                        {/* Remarks */}
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300 max-w-xs truncate">
-                          {doc.remarks || "-"}
-                        </td>
-
-                        {/* Files */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                          {doc.file ? (
-                            <span className="inline-flex p-1 rounded text-rose-600 bg-rose-50 dark:bg-rose-950/40">
-                              <FileText className="w-4 h-4" />
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-
-                        {/* Action */}
-                        <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDocMovement(doc.id || "", doc.documentName)}
-                            title="Delete Movement"
-                            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 4: DSC (Digital Signatures) (Screenshot 4) */}
-        {/* ======================================================== */}
-        {activeTab === "DSC" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Digital Signatures
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsAddDscOpen(true)}
-                className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add</span>
-              </button>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto scrollbar-slim">
-              <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                <thead>
-                  <tr
-                    className="text-gray-700 dark:text-gray-300"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      ID
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Name
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Issued Date
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Expiry Date
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Bin Number
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Vendor
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Class
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Location
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Status
-                    </th>
-                    <th className="w-12 px-2 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!client.dscs || client.dscs.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="py-12 text-center text-gray-400 font-medium">
-                        No digital signatures registered. Click "+ Add" to register a DSC.
-                      </td>
-                    </tr>
-                  ) : (
-                    client.dscs.map((dsc, idx) => (
-                      <tr
-                        key={dsc.id || idx}
-                        className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                      >
-                        {/* ID */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono font-medium text-gray-700 dark:text-gray-300">
-                          {dsc.dscId || dsc.id || `#S001${80 + idx}`}
-                        </td>
-
-                        {/* Name + Avatar */}
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-gray-900 dark:text-white">
-                          <div className="flex items-center gap-2.5">
-                            {getAvatarBadge(dsc.name, idx + 1)}
-                            <span>{dsc.name}</span>
-                          </div>
-                        </td>
-
-                        {/* Issued Date */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {dsc.issuedDate || "-"}
-                        </td>
-
-                        {/* Expiry Date */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {dsc.expiryDate || "-"}
-                        </td>
-
-                        {/* Bin Number */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {dsc.binNumber || "-"}
-                        </td>
-
-                        {/* Vendor */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {dsc.vendor || "-"}
-                        </td>
-
-                        {/* Class */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {dsc.class || "-"}
-                        </td>
-
-                        {/* Location */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                          <span
-                            className={`px-2.5 py-0.5 rounded text-[11px] font-semibold ${
-                              dsc.location === "Missing"
-                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                                : dsc.location === "Client Office"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                : "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
-                            }`}
-                          >
-                            {dsc.location}
-                          </span>
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                          <span
-                            className={`px-2.5 py-0.5 rounded text-[11px] font-semibold ${
-                              dsc.status === "Active"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                : "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                            }`}
-                          >
-                            {dsc.status}
-                          </span>
-                        </td>
-
-                        {/* Action */}
-                        <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDsc(dsc.id || "", dsc.name)}
-                            title="Delete DSC"
-                            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Pagination */}
-            <div className="p-3 border-t border-[#dde2e8] dark:border-[#334155] flex items-center justify-end gap-6 text-xs text-gray-500">
-              <div className="flex items-center gap-2">
-                <span>Rows per page:</span>
-                <span className="font-semibold text-gray-800 dark:text-gray-200">50</span>
-              </div>
-              <span>
-                1-{client.dscs?.length || 0} of {client.dscs?.length || 0}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled
-                  className="p-1 rounded opacity-50 cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="p-1 rounded opacity-50 cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 5: MASTER */}
-        {/* ======================================================== */}
-        {activeTab === "Master" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] p-6 shadow-card space-y-6">
-            <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">
-                Entity Master Details
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    Legal / Business Name
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm">
-                    {client.legalName || client.name}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    Constitution Type
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white capitalize">
-                    {client.type?.replace("-", " ") || "Private Limited"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    Client Group
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {client.group || "Default Group"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    File Number
-                  </span>
-                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                    #{client.fileNo}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    PAN
-                  </span>
-                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                    {client.pan || "ATVOO38723"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    Primary Mobile
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {client.mobile}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    Primary Email
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {client.email || "accounts@turia.com"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    City & State
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {client.city ? `${client.city}, ${client.state}` : "Mumbai, Maharashtra"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400 block font-medium">
-                    Tags
-                  </span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {(client.tags || ["Corporate", "Audit"]).map((t) => (
-                      <span
-                        key={t}
-                        className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-semibold text-[10px]"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Address */}
-            <div className="pt-4 border-t border-[#dde2e8] dark:border-[#334155]">
-              <span className="text-gray-500 dark:text-gray-400 block font-medium text-xs mb-1">
-                Registered Office Address
-              </span>
-              <p className="text-xs text-gray-800 dark:text-gray-200">
-                {client.address || "Plot No 44, MIDC Industrial Area, Andheri East, Mumbai 400093"}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 6: TASKS */}
-        {/* ======================================================== */}
-        {activeTab === "Tasks" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Client Tasks ({clientTasks.length})
-              </h2>
-            </div>
-            {isLoadingTasks ? (
-              <div className="py-16 text-center">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#31719B]" />
-                <span className="text-xs text-gray-500 mt-2 block">Loading client tasks...</span>
-              </div>
-            ) : clientTasks.length === 0 ? (
-              <div className="py-16 text-center text-gray-400 font-medium text-xs">
-                No tasks assigned to this client yet.
-              </div>
-            ) : (
-              <div className="overflow-x-auto scrollbar-slim">
-                <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                  <thead>
-                    <tr
-                      className="text-gray-700 dark:text-gray-300"
-                      style={{ backgroundColor: "var(--orange-havy-light)" }}
-                    >
-                      <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                        Task Name
-                      </th>
-                      <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                        Service
-                      </th>
-                      <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                        Status
-                      </th>
-                      <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                        Priority
-                      </th>
-                      <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                        Due Date
-                      </th>
-                      <th className="px-4 py-3 border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                        Assignee
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientTasks.map((t) => (
-                      <tr
-                        key={t.id}
-                        className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                      >
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-gray-900 dark:text-white">
-                          {t.taskName}
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {t.serviceName || "-"}
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
-                            {t.status}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                              t.priority === "High" || t.priority === "Urgent"
-                                ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
-                                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                            }`}
-                          >
-                            {t.priority}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {t.targetDueDate || t.endDate || "-"}
-                        </td>
-                        <td className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-gray-800 dark:text-gray-200">
-                          {t.assigneeName || "Dipak Sahani"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 7: PASSWORDS */}
-        {/* ======================================================== */}
-        {activeTab === "Passwords" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                  Statutory Portal Credentials
-                </h2>
-                <p className="text-xs text-gray-500">
-                  Secure vault for Income Tax, GST, MCA, and TRACES logins
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddPasswordOpen(true)}
-                className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Credential</span>
-              </button>
-            </div>
-
-            <div className="overflow-x-auto scrollbar-slim">
-              <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                <thead>
-                  <tr
-                    className="text-gray-700 dark:text-gray-300"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Portal
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      User ID / Login ID
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Password
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      URL
-                    </th>
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Remarks
-                    </th>
-                    <th className="w-12 px-2 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!client.passwords || client.passwords.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-gray-400 font-medium">
-                        No credentials stored. Click "+ Add Credential" to save portal login details.
-                      </td>
-                    </tr>
-                  ) : (
-                    client.passwords.map((pwd, idx) => {
-                      const isRevealed = revealedPasswords[pwd.id || idx];
-                      return (
-                        <tr
-                          key={pwd.id || idx}
-                          className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                        >
-                          <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-gray-900 dark:text-white">
-                            {pwd.portal}
-                          </td>
-                          <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono font-medium text-gray-700 dark:text-gray-300">
-                            {pwd.userId || (pwd as any).username || "-"}
-                          </td>
-                          <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono">
-                            <div className="flex items-center gap-2">
-                              <span>{isRevealed ? pwd.password : "••••••••••••"}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setRevealedPasswords((prev) => ({
-                                    ...prev,
-                                    [pwd.id || idx]: !isRevealed,
-                                  }))
-                                }
-                                className="text-gray-400 hover:text-gray-700 dark:hover:text-white cursor-pointer"
-                              >
-                                {isRevealed ? (
-                                  <EyeOff className="w-3.5 h-3.5" />
-                                ) : (
-                                  <Eye className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                            {pwd.url && pwd.url !== "-" ? (
-                              <a
-                                href={pwd.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[#31719B] hover:underline flex items-center gap-1"
-                              >
-                                <span>Login</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                            {pwd.remarks || "-"}
-                          </td>
-                          <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePassword(pwd.id || "", pwd.portal)}
-                              title="Delete Credential"
-                              className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 8: NOTES */}
-        {/* ======================================================== */}
-        {activeTab === "Notes" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Client Notes & Observations
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsAddNoteOpen(true)}
-                className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Note</span>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {!client.notes || client.notes.length === 0 ? (
-                <div className="py-12 text-center text-gray-400 font-medium text-xs">
-                  No internal notes recorded. Click "+ Add Note" to create one.
-                </div>
-              ) : (
-                client.notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="p-4 rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-gray-50/50 dark:bg-gray-800/30 flex items-start justify-between gap-4"
-                  >
-                    <div className="space-y-1 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900 dark:text-white text-sm">
-                          {note.title}
-                        </span>
-                        <span className="text-[11px] text-gray-400">
-                          {note.createdAt
-                            ? new Date(note.createdAt).toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : ""}
-                        </span>
-                      </div>
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                        {note.content}
-                      </p>
-                      <span className="text-[10px] text-gray-400 font-medium block">
-                        Logged by {note.author || "Dipak Sahani"}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteNote(note.id || "")}
-                      title="Delete Note"
-                      className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 9: CONTACTS */}
-        {/* ======================================================== */}
-        {activeTab === "Contacts" && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
-            <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155]">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-                Promoters & Key Contacts
-              </h2>
-            </div>
-            <div className="overflow-x-auto scrollbar-slim">
-              <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-                <thead>
-                  <tr
-                    className="text-gray-700 dark:text-gray-300"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Name
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Designation
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Mobile
-                    </th>
-                    <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      Email
-                    </th>
-                    <th className="px-3.5 py-3 border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                      DIN / PAN
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(client.promoters || client.customerFiles?.promoter) &&
-                  (client.promoters || client.customerFiles?.promoter)!.length > 0 ? (
-                    (client.promoters || client.customerFiles?.promoter)!.map((p: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-gray-900 dark:text-white">
-                          <div className="flex items-center gap-2">
-                            {getAvatarBadge(p.name || p.fullName || "Contact", idx)}
-                            <span>{p.name || p.fullName}</span>
-                          </div>
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {p.designation || "Director"}
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {p.mobile || client.mobile}
-                        </td>
-                        <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                          {p.email || client.email || "-"}
-                        </td>
-                        <td className="px-3.5 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] font-mono text-gray-600 dark:text-gray-300">
-                          {p.pan || "-"}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-gray-900 dark:text-white">
-                        <div className="flex items-center gap-2">
-                          {getAvatarBadge(client.name, 0)}
-                          <span>Authorized Signatory</span>
-                        </div>
-                      </td>
-                      <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                        Managing Director
-                      </td>
-                      <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                        {client.mobile}
-                      </td>
-                      <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                        {client.email || "accounts@turia.com"}
-                      </td>
-                      <td className="px-3.5 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] font-mono text-gray-600 dark:text-gray-300">
-                        {client.pan || "ATVOO38723"}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* OTHER TABS (Fallback / Clean Professional Layout) */}
-        {/* ======================================================== */}
-        {![
-          "Service Settings",
-          "Licenses",
-          "Documents",
-          "DSC",
-          "Master",
-          "Tasks",
-          "Passwords",
-          "Notes",
-          "Contacts",
-        ].includes(activeTab) && (
-          <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] p-8 shadow-card text-center space-y-3">
-            <div
-              className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center text-white"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
-            >
-              <Building2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">
-              {activeTab} Module
-            </h3>
-            <p className="text-xs text-gray-500 max-w-md mx-auto">
-              {activeTab} records and statutory tracking configured for {client.name}.
-            </p>
-          </div>
-        )}
+        <ClientDetailViewTabs
+          activeTab={activeTab}
+          client={client}
+          serviceSearch={serviceSearch}
+          setServiceSearch={setServiceSearch}
+          serviceFilter={serviceFilter}
+          setServiceFilter={setServiceFilter}
+          allServices={allServices}
+          filteredServices={filteredServices}
+          groupedServices={groupedServices}
+          collapsedCategories={collapsedCategories}
+          toggleCategory={toggleCategory}
+          expandedServiceId={expandedServiceId}
+          setExpandedServiceId={setExpandedServiceId}
+          editingService={editingService}
+          setEditingService={setEditingService}
+          isSavingServiceOptions={isSavingServiceOptions}
+          isLoadingServices={isLoadingServices}
+          handleToggleServiceCompliance={handleToggleServiceCompliance}
+          handleToggleCategoryCompliance={handleToggleCategoryCompliance}
+          handleSaveServiceOptions={handleSaveServiceOptions}
+          setIsAddLicenseOpen={setIsAddLicenseOpen}
+          handleDeleteLicense={handleDeleteLicense}
+          setIsAddDocInOutOpen={setIsAddDocInOutOpen}
+          handleDeleteDocMovement={handleDeleteDocMovement}
+          setIsAddDscOpen={setIsAddDscOpen}
+          handleDeleteDsc={handleDeleteDsc}
+          clientTasks={clientTasks}
+          isLoadingTasks={isLoadingTasks}
+          onRefreshTasks={fetchClientTasks}
+          revealedPasswords={revealedPasswords}
+          setRevealedPasswords={setRevealedPasswords}
+          setIsAddPasswordOpen={setIsAddPasswordOpen}
+          handleDeletePassword={handleDeletePassword}
+          showToast={showToast}
+          setIsAddNoteOpen={setIsAddNoteOpen}
+          handleDeleteNote={handleDeleteNote}
+          getAvatarBadge={getAvatarBadge}
+        />
       </div>
 
       {/* Sub-Section Modals */}

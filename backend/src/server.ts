@@ -2,8 +2,8 @@ import http from 'http';
 import { createApp } from './app';
 import { env } from './config/env';
 import { logger } from './config/logger';
-// Google Drive OAuth2 integration reloaded
 import { connectDatabase, disconnectDatabase } from './config/database';
+import { CounterService } from './modules/counter/counter.service';
 
 let server: http.Server | null = null;
 
@@ -12,7 +12,10 @@ const startServer = async (): Promise<void> => {
     // 1. Establish Database Connection
     await connectDatabase();
 
-    // 2. Initialize Express Application
+    // 2. Initialize Dedicated Counters Collection
+    await CounterService.initializeCounters();
+
+    // 3. Initialize Express Application
     const app = createApp();
 
     // 3. Start HTTP Server

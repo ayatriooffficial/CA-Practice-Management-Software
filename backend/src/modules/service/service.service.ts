@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Service } from './service.model';
 import { Task } from '../task/task.model';
 import { IService, IServiceDocument } from './service.interface';
@@ -5,6 +6,7 @@ import { QueryBuilder, QueryOptions } from '../../shared/utils/queryBuilder';
 import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
 import { PaginationMeta } from '../../shared/utils/apiResponse';
+import { CounterService } from '../counter/counter.service';
 
 const INITIAL_SERVICE_SEEDS: Partial<IService>[] = [
   {
@@ -162,7 +164,7 @@ const INITIAL_SERVICE_SEEDS: Partial<IService>[] = [
   },
   {
     name: 'EPFO & ESIC Monthly Compliance',
-    category: 'E.P.F.P',
+    category: 'Labour & Payroll',
     frequency: 'Monthly',
     difficulty: 'Easy',
     description: 'Monthly payroll deductions computation, ECR electronic return filing and online payment challan generation.',
@@ -199,7 +201,13 @@ export class ServiceService {
   /**
    * Create a new service master entry
    */
-  static async createService(data: Partial<IService>): Promise<IServiceDocument> {
+  static async createService(
+    data: Partial<IService>,
+    userCtx?: { userId: string | null; orgId?: string | null } | string | null
+  ): Promise<IServiceDocument> {
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+
     const existing = await Service.findOne({
       name: { $regex: new RegExp(`^${data.name?.trim()}$`, 'i') },
       isDeleted: false,
@@ -209,8 +217,21 @@ export class ServiceService {
       throw AppError.conflict(ResponseMessages.SERVICE_NAME_EXISTS);
     }
 
+    if (!data.serviceId) {
+      data.serviceId = await CounterService.getNextServiceId();
+    }
+
+    if (orgId) {
+      data.orgId = orgId;
+    }
+    if (userId) {
+      data.userId = userId;
+      data.createdBy = userId;
+    }
+
     const service = new Service({
       ...data,
+      serviceId: data.serviceId,
       name: data.name?.trim(),
       category: data.category?.trim(),
       professionalFee: Number(data.professionalFee) || 0,
@@ -223,12 +244,53 @@ export class ServiceService {
    * Retrieve paginated services with filters and full-text search
    */
   static async getAllServices(
-    queryOptions: QueryOptions
+    queryOptions: QueryOptions,
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ items: IServiceDocument[]; pagination: PaginationMeta }> {
-    await this.seedInitialServicesIfNeeded();
-
     const searchableFields = ['name', 'category', 'sacCode', 'description', 'sop'];
     const parsedQuery = QueryBuilder.parse<IServiceDocument>(queryOptions, searchableFields);
+
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push({ userId }, { createdBy: userId });
+      }
+      const orgFilter = { $or: orgConditions };
+
+      if (parsedQuery.filter.$or) {
+        const existingOr = parsedQuery.filter.$or;
+        delete parsedQuery.filter.$or;
+        parsedQuery.filter.$and = [
+          { $or: existingOr },
+          orgFilter,
+        ];
+      } else {
+        Object.assign(parsedQuery.filter, orgFilter);
+      }
+    } else if (userId) {
+      const userCondition = {
+        $or: [
+          { userId },
+          { createdBy: userId },
+        ],
+      };
+      if (parsedQuery.filter.$or) {
+        const existingOr = parsedQuery.filter.$or;
+        delete parsedQuery.filter.$or;
+        parsedQuery.filter.$and = [
+          { $or: existingOr },
+          userCondition,
+        ];
+      } else {
+        Object.assign(parsedQuery.filter, userCondition);
+      }
+    }
 
     return await QueryBuilder.paginate<IServiceDocument>(Service, parsedQuery);
   }
@@ -237,7 +299,23 @@ export class ServiceService {
    * Retrieve single service by ID
    */
   static async getServiceById(id: string, includeDeleted = false): Promise<IServiceDocument> {
-    const service = await Service.findById(id).setOptions({ includeDeleted });
+    let service: IServiceDocument | null = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      try {
+        service = await Service.findById(id).setOptions({ includeDeleted });
+      } catch {
+        service = null;
+      }
+    }
+    if (!service) {
+      service = await Service.findOne({
+        $or: [
+          { serviceId: id },
+          { name: id },
+          { name: new RegExp(`^${id}$`, 'i') },
+        ],
+      }).setOptions({ includeDeleted });
+    }
     if (!service) {
       throw AppError.notFound(ResponseMessages.SERVICE_NOT_FOUND);
     }
@@ -251,14 +329,11 @@ export class ServiceService {
     id: string,
     data: Partial<IService>
   ): Promise<IServiceDocument> {
-    const service = await Service.findById(id);
-    if (!service) {
-      throw AppError.notFound(ResponseMessages.SERVICE_NOT_FOUND);
-    }
+    const service = await this.getServiceById(id);
 
     if (data.name && data.name.trim().toLowerCase() !== service.name.toLowerCase()) {
       const conflict = await Service.findOne({
-        _id: { $ne: id },
+        _id: { $ne: service._id },
         name: { $regex: new RegExp(`^${data.name.trim()}$`, 'i') },
         isDeleted: false,
       });
@@ -268,6 +343,17 @@ export class ServiceService {
     }
 
     Object.assign(service, data);
+
+    if (data.checklist) {
+      service.markModified('checklist');
+    }
+    if (data.documentRequests) {
+      service.markModified('documentRequests');
+    }
+    if (data.subTasks) {
+      service.markModified('subTasks');
+    }
+
     return await service.save();
   }
 
@@ -308,15 +394,33 @@ export class ServiceService {
   /**
    * Analytics and category breakdown
    */
-  static async getServiceStats(): Promise<{
+  static async getServiceStats(
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+  ): Promise<{
     totalServices: number;
     activeServices: number;
     recurringServices: number;
     categoriesCount: number;
     avgFee: number;
   }> {
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+    const matchCondition: Record<string, any> = { isDeleted: false };
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push({ userId }, { createdBy: userId });
+      }
+      matchCondition.$or = orgConditions;
+    } else if (userId) {
+      matchCondition.$or = [{ userId }, { createdBy: userId }];
+    }
+
     const [stats] = await Service.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: matchCondition },
       {
         $group: {
           _id: null,
@@ -425,19 +529,73 @@ export class ServiceService {
       isDeleted: false,
       status: { $nin: ['Completed', 'Cancelled'] },
       $or: [
-        { serviceId: service._id },
+        { serviceId: service._id?.toString() },
+        { serviceId: service.id },
         { serviceName: service.name },
+        { serviceName: { $regex: new RegExp(`^${service.name?.trim()}$`, 'i') } },
       ],
     };
 
-    const result = await Task.updateMany(filter, {
-      $set: {
-        ...(subTasks.length > 0 ? { subTasks } : {}),
-        ...(checklist.length > 0 ? { checklist } : {}),
-        ...(documentRequests.length > 0 ? { documentRequests } : {}),
-      },
-    });
+    const activeTasks = await Task.find(filter);
+    let modifiedCount = 0;
 
-    return { syncedTasksCount: result.modifiedCount || 0 };
+    for (const activeTask of activeTasks) {
+      // 1. Merge subtasks while preserving completed status
+      const existingSubMap = new Map(
+        (activeTask.subTasks || []).map((s: any) => [s.id || s.title || s.name, s])
+      );
+      const mergedSubTasks = subTasks.map((st: any) => {
+        const existing: any = existingSubMap.get(st.id) || existingSubMap.get(st.title);
+        return {
+          ...st,
+          completed: existing ? existing.completed : false,
+          timeSpent: existing ? existing.timeSpent : '00:00:00',
+          taskId: activeTask.taskId,
+          serviceId: service._id?.toString(),
+        };
+      });
+
+      // 2. Merge checklist while preserving completed status
+      const existingCheckMap = new Map(
+        (activeTask.checklist || []).map((c: any) => [c.id || c.title, c])
+      );
+      const mergedChecklist = checklist.map((cl: any) => {
+        const existing: any = existingCheckMap.get(cl.id) || existingCheckMap.get(cl.title);
+        return {
+          ...cl,
+          completed: existing ? existing.completed : false,
+          taskId: activeTask.taskId,
+          serviceId: service._id?.toString(),
+        };
+      });
+
+      // 3. Merge document requests while preserving received status
+      const existingDocMap = new Map(
+        (activeTask.documentRequests || []).map((d: any) => [d.id || d.title, d])
+      );
+      const mergedDocs = documentRequests.map((doc: any) => {
+        const existing: any = existingDocMap.get(doc.id) || existingDocMap.get(doc.title);
+        return {
+          ...doc,
+          status: existing ? existing.status : 'Pending',
+          fileUrl: existing ? existing.fileUrl : '',
+          receivedAt: existing ? existing.receivedAt : null,
+          taskId: activeTask.taskId,
+          serviceId: service._id?.toString(),
+        };
+      });
+
+      if (mergedSubTasks.length > 0) activeTask.subTasks = mergedSubTasks as any;
+      if (mergedChecklist.length > 0) activeTask.checklist = mergedChecklist as any;
+      if (mergedDocs.length > 0) activeTask.documentRequests = mergedDocs as any;
+
+      activeTask.markModified('subTasks');
+      activeTask.markModified('checklist');
+      activeTask.markModified('documentRequests');
+      await activeTask.save();
+      modifiedCount++;
+    }
+
+    return { syncedTasksCount: modifiedCount };
   }
 }

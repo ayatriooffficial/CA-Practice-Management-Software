@@ -19,6 +19,8 @@ export interface TaskQueryParams {
   financialYear?: string;
   period?: string;
   clientId?: string;
+  clientFileNo?: string;
+  clientName?: string;
 }
 
 // In-memory fallback cache - real data only
@@ -41,7 +43,8 @@ export const taskApi = {
       if (params.financialYear) searchParams.set('financialYear', params.financialYear);
       if (params.period) searchParams.set('period', params.period);
       if (params.clientId) searchParams.set('clientId', params.clientId);
-      if (params.period) searchParams.set('period', params.period);
+      if (params.clientFileNo) searchParams.set('clientFileNo', params.clientFileNo);
+      if (params.clientName) searchParams.set('clientName', params.clientName);
 
       const query = searchParams.toString();
       const res = await request<TaskItem[]>(`/tasks${query ? `?${query}` : ''}`);
@@ -184,21 +187,21 @@ export const taskApi = {
       taskName: payload.taskName || '-',
       clientId: payload.clientId,
       clientName: payload.clientName || 'Demo Client',
-      clientFileNo: payload.clientFileNo || 'PVT0000',
+      clientFileNo: payload.clientFileNo || '',
       clientPan: payload.clientPan || '-',
-      legalName: payload.legalName || payload.clientName || 'Demo Legal Name',
+      legalName: payload.legalName || payload.clientName || '',
       serviceId: payload.serviceId,
-      serviceName: payload.serviceName || 'GST Return',
+      serviceName: payload.serviceName || 'Service',
       frequency: payload.frequency || 'Monthly',
       period: payload.period || 'Jun 2026',
       financialYear: payload.financialYear || 'FY 2026 - 2027',
       department: payload.department || 'GST',
       assigneeId: payload.assigneeId,
-      assigneeName: payload.assigneeName || 'Milton',
-      assigneeInitials: payload.assigneeInitials || 'MI',
-      assigneeColor: payload.assigneeColor || '#8B5CF6',
+      assigneeName: payload.assigneeName || 'Unassigned',
+      assigneeInitials: payload.assigneeInitials || (payload.assigneeName ? payload.assigneeName.slice(0, 2).toUpperCase() : 'UA'),
+      assigneeColor: payload.assigneeColor || '#31719B',
       reviewerId: payload.reviewerId,
-      reviewerName: payload.reviewerName || 'Deekshith',
+      reviewerName: payload.reviewerName || '',
       priority: payload.priority || 'Low',
       startDate: payload.startDate || '27/07/2026',
       targetDueDate: payload.targetDueDate || '27/07/2026',
@@ -411,5 +414,46 @@ export const taskApi = {
     }
 
     return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
+  },
+
+  uploadDocumentRequestFile: async (
+    taskId: string,
+    docId: string,
+    file: File,
+    documentName?: string
+  ): Promise<ApiResponse<{ task: TaskItem; document: any }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (documentName) {
+      formData.append('documentName', documentName);
+    }
+    return request<{ task: TaskItem; document: any }>(
+      `/tasks/${encodeURIComponent(taskId)}/document-requests/${encodeURIComponent(docId)}/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+  },
+
+  uploadGeneralTaskDocument: async (
+    taskId: string,
+    file: File,
+    title?: string,
+    category?: string,
+    description?: string
+  ): Promise<ApiResponse<{ task: TaskItem; document: any }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title) formData.append('title', title);
+    if (category) formData.append('category', category);
+    if (description) formData.append('description', description);
+    return request<{ task: TaskItem; document: any }>(
+      `/tasks/${encodeURIComponent(taskId)}/documents`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
   },
 };

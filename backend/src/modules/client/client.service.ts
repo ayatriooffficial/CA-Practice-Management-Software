@@ -7,21 +7,34 @@ import { PaginationMeta } from '../../shared/utils/apiResponse';
 
 import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
+import { CounterService } from '../counter/counter.service';
 
 export class ClientService {
   /**
-   * Helper to generate unique sequential file number: CL-YYYY-XXXX
+   * Helper to generate unique sequential file number: CL-YYYY-XXXX via Dedicated Counter Collection
    */
   private static async generateUniqueFileNo(): Promise<string> {
-    const currentYear = new Date().getFullYear();
-    const count = await Client.countDocuments().setOptions({ includeDeleted: true });
-    return `CL-${currentYear}-${String(count + 1).padStart(4, '0')}`;
+    return CounterService.getNextClientFileNo();
   }
 
   /**
    * Register a new client
    */
-  static async createClient(data: Partial<IClient>): Promise<IClientDocument> {
+  static async createClient(
+    data: Partial<IClient>,
+    userCtx?: { userId: string | null; orgId?: string | null } | string | null
+  ): Promise<IClientDocument> {
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    if (orgId) {
+      data.orgId = orgId;
+    }
+    if (userId) {
+      data.userId = userId;
+      data.createdBy = userId;
+      if (!data.users) data.users = [];
+      if (!data.users.includes(userId)) data.users.push(userId);
+    }
     let fileNo = data.fileNo?.trim();
     if (!fileNo) {
       fileNo = await this.generateUniqueFileNo();
@@ -93,7 +106,7 @@ export class ClientService {
     return await client.save();
   }
 
-  /**
+/**
    * Seed Turia Industries private Limited if not present
    */
   static async seedInitialClientsIfNeeded(): Promise<void> {
@@ -302,105 +315,7 @@ export class ClientService {
               file: null,
             },
           ],
-          serviceSettings: [
-            {
-              id: 'ss-1',
-              serviceName: 'Case 11',
-              category: 'Accounts',
-              compliance: true,
-              recTask: 'Enabled',
-              recInvoice: 'Disabled',
-              frequency: 'Monthly',
-              start: 'Day 19',
-              target: 'Day 19',
-              end: 'Day 19',
-              amount: 0,
-            },
-            {
-              id: 'ss-2',
-              serviceName: 'MIS Preparation for Kavin',
-              category: 'Accounts',
-              compliance: false,
-              recTask: 'Disabled',
-              recInvoice: 'Disabled',
-              frequency: 'Monthly',
-              start: 'Day 1',
-              target: 'Day 1',
-              end: 'Day 1',
-              amount: 5000,
-            },
-            {
-              id: 'ss-3',
-              serviceName: 'Monthly Accounting',
-              category: 'Accounts',
-              compliance: true,
-              recTask: 'Disabled',
-              recInvoice: 'Enabled',
-              frequency: 'Monthly',
-              start: 'Day 1',
-              target: 'Day 31',
-              end: 'Day 31',
-              invFreq: 'Monthly',
-              invDay: 1,
-              amount: 5000,
-            },
-            {
-              id: 'ss-4',
-              serviceName: 'Advance Tax (1st Installment)',
-              category: 'Adv Tax',
-              compliance: true,
-              recTask: 'Disabled',
-              recInvoice: 'Disabled',
-              frequency: 'Monthly',
-              start: 'Day 15',
-              target: 'Day 76',
-              end: 'Day 76',
-              amount: 0,
-            },
-            {
-              id: 'ss-5',
-              serviceName: 'Advance Tax (2nd Installment)',
-              category: 'Adv Tax',
-              compliance: true,
-              recTask: 'Disabled',
-              recInvoice: 'Enabled',
-              frequency: 'Monthly',
-              start: 'Day 3',
-              target: 'Day 76',
-              end: 'Day 76',
-              invFreq: 'Monthly',
-              invDay: 4,
-              amount: 5670,
-            },
-            {
-              id: 'ss-6',
-              serviceName: 'Advance Tax (3rd Installment)',
-              category: 'Adv Tax',
-              compliance: true,
-              recTask: 'Disabled',
-              recInvoice: 'Enabled',
-              frequency: 'Monthly',
-              start: 'Day 5',
-              target: 'Day 76',
-              end: 'Day 76',
-              invFreq: 'Quarterly',
-              invDay: 1,
-              amount: 15000,
-            },
-            {
-              id: 'ss-7',
-              serviceName: 'Advance Tax (4th Installment)',
-              category: 'Adv Tax',
-              compliance: true,
-              recTask: 'Disabled',
-              recInvoice: 'Disabled',
-              frequency: 'Quarterly',
-              start: 'Day 1',
-              target: 'Day 76',
-              end: 'Day 76',
-              amount: 0,
-            },
-          ],
+          serviceSettings: [],
         });
       }
     } catch {
@@ -412,12 +327,48 @@ export class ClientService {
    * Retrieve paginated clients with advanced filters and search
    */
   static async getAllClients(
-    queryOptions: QueryOptions
+    queryOptions: QueryOptions,
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ items: IClientDocument[]; pagination: PaginationMeta }> {
-    await this.seedInitialClientsIfNeeded();
-
     const searchableFields = ['name', 'fileNo', 'mobile', 'email', 'pan', 'city', 'tags'];
     const parsedQuery = QueryBuilder.parse<IClientDocument>(queryOptions, searchableFields);
+
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push({ userId }, { createdBy: userId }, { users: userId });
+      }
+      const orgFilter = { $or: orgConditions };
+
+      if (parsedQuery.filter.$or) {
+        const existingOr = parsedQuery.filter.$or;
+        delete parsedQuery.filter.$or;
+        parsedQuery.filter.$and = [
+          { $or: existingOr },
+          orgFilter,
+        ];
+      } else {
+        Object.assign(parsedQuery.filter, orgFilter);
+      }
+    } else if (userId) {
+      const userCondition = { $or: [{ userId }, { createdBy: userId }, { users: userId }] };
+      if (parsedQuery.filter.$or) {
+        const existingOr = parsedQuery.filter.$or;
+        delete parsedQuery.filter.$or;
+        parsedQuery.filter.$and = [
+          { $or: existingOr },
+          userCondition,
+        ];
+      } else {
+        Object.assign(parsedQuery.filter, userCondition);
+      }
+    }
 
     return await QueryBuilder.paginate<IClientDocument>(Client, parsedQuery);
   }
@@ -426,7 +377,10 @@ export class ClientService {
    * Retrieve client by ID
    */
   static async getClientById(id: string, includeDeleted: boolean = false): Promise<IClientDocument> {
-    const query = Client.findById(id);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    const query = isObjectId
+      ? Client.findById(id)
+      : Client.findOne({ $or: [{ fileNo: id }, { name: id }] });
     if (includeDeleted) {
       query.setOptions({ includeDeleted: true });
     }
@@ -442,7 +396,10 @@ export class ClientService {
    * Update client details
    */
   static async updateClientById(id: string, updateData: Partial<IClient>): Promise<IClientDocument> {
-    const client = await Client.findById(id);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    const client = isObjectId
+      ? await Client.findById(id)
+      : await Client.findOne({ $or: [{ fileNo: id }, { name: id }] });
     if (!client) {
       throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
     }
@@ -450,7 +407,7 @@ export class ClientService {
     // Validate fileNo uniqueness if changed
     if (updateData.fileNo && updateData.fileNo !== client.fileNo) {
       const conflict = await Client.findOne({
-        _id: { $ne: id },
+        _id: { $ne: client._id },
         fileNo: updateData.fileNo,
         isDeleted: false,
       });
@@ -462,7 +419,7 @@ export class ClientService {
     // Validate PAN uniqueness if changed
     if (updateData.pan && updateData.pan.toUpperCase() !== client.pan) {
       const conflict = await Client.findOne({
-        _id: { $ne: id },
+        _id: { $ne: client._id },
         pan: updateData.pan.toUpperCase(),
         isDeleted: false,
       });
@@ -479,7 +436,7 @@ export class ClientService {
           DocumentCategory.KYC_IDENTITY,
           {
             defaultName: `${client.name || 'client'}_photo`,
-            clientId: id,
+            clientId: String(client._id),
             clientName: client.name,
             description: `Updated profile photo for client ${client.name}`,
           }
@@ -494,6 +451,19 @@ export class ClientService {
     if (updateData.pan) {
       client.pan = updateData.pan.toUpperCase();
     }
+    if (updateData.serviceSettings) {
+      client.markModified('serviceSettings');
+      const activeNames = updateData.serviceSettings
+        .filter((s: any) => s.compliance)
+        .map((s: any) => s.serviceName);
+      client.services = activeNames;
+      client.markModified('services');
+    }
+    if (updateData.licenses) client.markModified('licenses');
+    if (updateData.documentsInOut) client.markModified('documentsInOut');
+    if (updateData.dscs) client.markModified('dscs');
+    if (updateData.passwords) client.markModified('passwords');
+    if (updateData.notes) client.markModified('notes');
 
     return await client.save();
   }
@@ -691,20 +661,48 @@ export class ClientService {
   /**
    * Aggregate client summary statistics
    */
-  static async getClientStats(): Promise<Record<string, unknown>> {
+  static async getClientStats(
+    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+  ): Promise<Record<string, unknown>> {
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+
+    const baseMatch: Record<string, any> = { isDeleted: false };
+    const deletedMatch: Record<string, any> = { isDeleted: true };
+
+    if (orgId) {
+      const orgConditions: any[] = [
+        { orgId },
+        { orgId: String(orgId) },
+      ];
+      if (userId) {
+        orgConditions.push({ userId }, { createdBy: userId }, { users: userId });
+      }
+      baseMatch.$or = orgConditions;
+      deletedMatch.$or = orgConditions;
+    } else if (userId) {
+      const orClauses: any[] = [
+        { userId },
+        { createdBy: userId },
+        { users: userId },
+      ];
+      baseMatch.$or = orClauses;
+      deletedMatch.$or = orClauses;
+    }
+
     const [totalClients, activeClients, inactiveClients, totalDeleted, typeBreakdown, groupBreakdown] =
       await Promise.all([
-        Client.countDocuments({ isDeleted: false }),
-        Client.countDocuments({ active: true, isDeleted: false }),
-        Client.countDocuments({ active: false, isDeleted: false }),
-        Client.countDocuments({ isDeleted: true }).setOptions({ includeDeleted: true }),
+        Client.countDocuments(baseMatch),
+        Client.countDocuments({ ...baseMatch, active: true }),
+        Client.countDocuments({ ...baseMatch, active: false }),
+        Client.countDocuments(deletedMatch).setOptions({ includeDeleted: true }),
         Client.aggregate([
-          { $match: { isDeleted: false } },
+          { $match: baseMatch },
           { $group: { _id: '$type', count: { $sum: 1 } } },
           { $sort: { count: -1 } },
         ]),
         Client.aggregate([
-          { $match: { isDeleted: false } },
+          { $match: baseMatch },
           { $group: { _id: '$group', count: { $sum: 1 } } },
           { $sort: { count: -1 } },
           { $limit: 10 },
@@ -828,10 +826,19 @@ export class ClientService {
    * Update Service Settings for Client
    */
   static async updateServiceSettings(id: string, settings: any[]): Promise<IClientDocument> {
-    const client = await Client.findById(id);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    const client = isObjectId
+      ? await Client.findById(id)
+      : await Client.findOne({ $or: [{ fileNo: id }, { name: id }] });
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
     client.serviceSettings = settings;
+
+    // Keep client.services in sync with enabled services
+    const activeNames = settings.filter((s: any) => s.compliance).map((s: any) => s.serviceName);
+    client.services = activeNames;
+
     client.markModified('serviceSettings');
+    client.markModified('services');
     return await client.save();
   }
 

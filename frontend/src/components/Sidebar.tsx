@@ -215,22 +215,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     key={item.id}
                     href={item.href}
                     onClick={onCloseMobile}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-colors ${
-                      isActive
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-colors ${isActive
                         ? "font-bold"
                         : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"
-                    }`}
+                      }`}
                     style={{
                       color: isActive ? "var(--primary)" : "var(--text-main)",
                       backgroundColor: isActive ? "var(--primary-light)" : "transparent",
                     }}
                   >
                     <Icon
-                      className={`w-4.5 h-4.5 shrink-0 ${
-                        isActive
+                      className={`w-4.5 h-4.5 shrink-0 ${isActive
                           ? ""
                           : "text-gray-600 dark:text-gray-300"
-                      }`}
+                        }`}
                       style={{
                         color: isActive ? "var(--primary)" : undefined,
                       }}

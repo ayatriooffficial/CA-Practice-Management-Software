@@ -2,8 +2,62 @@ import { Schema, model } from 'mongoose';
 import { IServiceDocument } from './service.interface';
 import { softDeletePlugin, ISoftDeleteModel } from '../../shared/plugins/softDelete.plugin';
 
+export const subTaskSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    title: { type: String, default: '' },
+    name: { type: String, default: '' },
+    description: { type: String, default: '' },
+    totalHours: { type: String, default: '00:00:00' },
+    percentage: { type: Number, default: 0 },
+    completed: { type: Boolean, default: false },
+    timeSpent: { type: String, default: '00:00:00' },
+    taskId: { type: String, default: null, index: true },
+    serviceId: { type: String, default: null, index: true },
+  },
+  { _id: false }
+);
+
+export const checklistSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    title: { type: String, required: true },
+    completed: { type: Boolean, default: false },
+    isMandatory: { type: Boolean, default: true },
+    taskId: { type: String, default: null, index: true },
+    serviceId: { type: String, default: null, index: true },
+  },
+  { _id: false }
+);
+
+export const documentRequestSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
+    status: {
+      type: String,
+      enum: ['Pending', 'Received', 'Requested'],
+      default: 'Pending',
+    },
+    isMandatory: { type: Boolean, default: true },
+    fileUrl: { type: String, default: '' },
+    receivedAt: { type: Date, default: null },
+    taskId: { type: String, default: null, index: true },
+    serviceId: { type: String, default: null, index: true },
+  },
+  { _id: false }
+);
+
 const serviceSchema = new Schema<IServiceDocument>(
   {
+    serviceId: {
+      type: String,
+      trim: true,
+      index: true,
+      sparse: true,
+      default: null,
+    },
     name: {
       type: String,
       required: [true, 'Service Name is required'],
@@ -98,21 +152,36 @@ const serviceSchema = new Schema<IServiceDocument>(
       default: 'Standard SOP v1.0',
     },
     subTasks: {
-      type: [Schema.Types.Mixed],
+      type: [subTaskSchema],
       default: [],
     },
     checklist: {
-      type: [Schema.Types.Mixed],
+      type: [checklistSchema],
       default: [],
     },
     documentRequests: {
-      type: [Schema.Types.Mixed],
+      type: [documentRequestSchema],
       default: [],
     },
     status: {
       type: String,
       enum: ['Active', 'Inactive', 'Draft'],
       default: 'Active',
+      index: true,
+    },
+    orgId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    userId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    createdBy: {
+      type: String,
+      default: null,
       index: true,
     },
   },

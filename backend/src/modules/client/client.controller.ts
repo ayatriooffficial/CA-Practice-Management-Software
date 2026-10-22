@@ -4,6 +4,7 @@ import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
+import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
 
 export class ClientController {
   /**
@@ -11,7 +12,8 @@ export class ClientController {
    * POST /api/v1/clients
    */
   static createClient = asyncHandler(async (req: Request, res: Response) => {
-    const client = await ClientService.createClient(req.body);
+    const userCtx = getUserContextFromRequest(req);
+    const client = await ClientService.createClient(req.body, userCtx);
     return ApiResponse.created(res, client, ResponseMessages.CLIENT_CREATED);
   });
 
@@ -20,7 +22,8 @@ export class ClientController {
    * GET /api/v1/clients
    */
   static getAllClients = asyncHandler(async (req: Request, res: Response) => {
-    const { items, pagination } = await ClientService.getAllClients(req.query);
+    const userCtx = getUserContextFromRequest(req);
+    const { items, pagination } = await ClientService.getAllClients(req.query, userCtx);
     return ApiResponse.paginated(res, items, pagination, 'Clients fetched successfully');
   });
 
@@ -28,8 +31,9 @@ export class ClientController {
    * Get client analytics and summary
    * GET /api/v1/clients/stats
    */
-  static getClientStats = asyncHandler(async (_req: Request, res: Response) => {
-    const stats = await ClientService.getClientStats();
+  static getClientStats = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const stats = await ClientService.getClientStats(userCtx);
     return ApiResponse.success(res, stats, 'Client analytics fetched successfully');
   });
 

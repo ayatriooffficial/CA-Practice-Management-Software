@@ -5,7 +5,7 @@ const MOBILE_REGEX = /^[0-9+\s\-()]{7,16}$/;
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
 
 export const clientIdParamSchema = z.object({
-  id: z.string().regex(OBJECT_ID_REGEX, 'Invalid Client ID format'),
+  id: z.string().min(1, 'Client ID is required'),
 });
 
 export const promoterItemSchema = z.object({

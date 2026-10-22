@@ -5,7 +5,8 @@ import { X, Paperclip, Loader2 } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
 import { taskApi } from "@/services/taskApi";
-import { DEMO_TEAM_MEMBERS } from "@/data/teamData";
+import { TeamMember } from "@/data/teamData";
+import { teamStore } from "@/components/team/teamStore";
 import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS } from "@/data/taskData";
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
@@ -23,8 +24,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 }) => {
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -86,6 +89,36 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         if (isMounted) setIsLoadingServices(false);
       });
 
+    setIsLoadingTeam(true);
+    teamStore
+      .loadEmployeesFromBackend()
+      .then((emps) => {
+        if (isMounted && emps && emps.length > 0) {
+          const activeEmps = emps.filter((e) => e.status === "Active");
+          const mapped: TeamMember[] = activeEmps.map((e) => ({
+            id: e.id,
+            name: e.name,
+            initials: e.initials || e.name.slice(0, 2).toUpperCase(),
+            email: e.email,
+            phone: e.mobile,
+            role: e.role,
+            position: e.designation,
+            department: e.department,
+            permissions: [],
+            avatarColor: "#31719B",
+            active: true,
+          }));
+          setTeamMembers(mapped);
+          if (mapped.length > 0 && !assigneeId) {
+            setAssigneeId(mapped[0].id);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsLoadingTeam(false);
+      });
+
     return () => {
       isMounted = false;
     };
@@ -142,8 +175,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
     const selectedClient = clients.find((c) => c.id === clientId || c.fileNo === clientId);
     const selectedService = services.find((s) => s.id === serviceId || s.name === serviceId);
-    const selectedAssignee = DEMO_TEAM_MEMBERS.find((m) => m.id === assigneeId || m.name === assigneeId);
-    const selectedReviewer = DEMO_TEAM_MEMBERS.find((m) => m.id === reviewerId || m.name === reviewerId);
+    const selectedAssignee = teamMembers.find((m) => m.id === assigneeId || m.name === assigneeId);
+    const selectedReviewer = teamMembers.find((m) => m.id === reviewerId || m.name === reviewerId);
 
     if (!selectedClient && !clientId) {
       setErrorMessage("Please select a client from the database.");
@@ -156,10 +189,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     const legalName = selectedClient?.legalName || selectedClient?.name || clientName;
 
     const serviceName = selectedService ? selectedService.name : serviceId;
-    const assigneeName = selectedAssignee ? selectedAssignee.name : (assigneeId || "Milton");
-    const assigneeInitials = selectedAssignee?.initials || (assigneeName ? assigneeName.slice(0, 2).toUpperCase() : "MI");
+    const assigneeName = selectedAssignee ? selectedAssignee.name : (assigneeId || "");
+    const assigneeInitials = selectedAssignee?.initials || (assigneeName ? assigneeName.slice(0, 2).toUpperCase() : "TM");
     const assigneeColor = selectedAssignee?.avatarColor || "#31719B";
-    const reviewerName = selectedReviewer ? selectedReviewer.name : "";
+    const reviewerName = selectedReviewer ? selectedReviewer.name : (reviewerId || "");
 
     const formatDate = (dateStr: string) => {
       if (!dateStr) return "27/07/2026";
@@ -503,7 +536,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               </select>
             </div>
 
-            {/* Assignee * */}
+            {/* Assignee */}
             <div>
               <label
                 htmlFor="task-assignee"
@@ -519,8 +552,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
               >
                 <option value="">Select Assignee</option>
-                {DEMO_TEAM_MEMBERS.map((tm) => (
-                  <option key={tm.id} value={tm.name}>
+                {teamMembers.map((tm) => (
+                  <option key={tm.id} value={tm.id}>
                     {tm.initials} - {tm.name} ({tm.role})
                   </option>
                 ))}
@@ -542,8 +575,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
               >
                 <option value="">Select Reviewer</option>
-                {DEMO_TEAM_MEMBERS.map((tm) => (
-                  <option key={tm.id} value={tm.name}>
+                {teamMembers.map((tm) => (
+                  <option key={tm.id} value={tm.id}>
                     {tm.initials} - {tm.name} ({tm.role})
                   </option>
                 ))}

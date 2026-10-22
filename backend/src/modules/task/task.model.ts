@@ -1,42 +1,7 @@
 import { Schema, model } from 'mongoose';
 import { ITaskDocument } from './task.interface';
 import { softDeletePlugin, ISoftDeleteModel } from '../../shared/plugins/softDelete.plugin';
-
-const subTaskSchema = new Schema(
-  {
-    id: { type: String, required: true },
-    title: { type: String, required: true },
-    completed: { type: Boolean, default: false },
-    timeSpent: { type: String, default: '00:00:00' },
-  },
-  { _id: false }
-);
-
-const checklistSchema = new Schema(
-  {
-    id: { type: String, required: true },
-    title: { type: String, required: true },
-    completed: { type: Boolean, default: false },
-    isMandatory: { type: Boolean, default: true },
-  },
-  { _id: false }
-);
-
-const documentRequestSchema = new Schema(
-  {
-    id: { type: String, required: true },
-    title: { type: String, required: true },
-    status: {
-      type: String,
-      enum: ['Pending', 'Received', 'Requested'],
-      default: 'Pending',
-    },
-    isMandatory: { type: Boolean, default: true },
-    fileUrl: { type: String, default: '' },
-    receivedAt: { type: Date, default: null },
-  },
-  { _id: false }
-);
+import { subTaskSchema, checklistSchema, documentRequestSchema } from '../service/service.model';
 
 const commentSchema = new Schema(
   {
@@ -252,28 +217,36 @@ const taskSchema = new Schema<ITaskDocument>(
       trim: true,
       index: true,
     },
+    orgId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    userId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    createdBy: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    sop: {
+      type: String,
+      default: '',
+    },
     subTasks: {
       type: [subTaskSchema],
-      default: [
-        { id: '1', title: 'Step 1', completed: false, timeSpent: '00:00:00' },
-        { id: '2', title: 'Step 2', completed: false, timeSpent: '00:00:00' },
-        { id: '3', title: 'Step 3', completed: false, timeSpent: '00:00:00' },
-      ],
+      default: [],
     },
     checklist: {
       type: [checklistSchema],
-      default: [
-        { id: 'c1', title: 'Verify Source Invoices & Bank Statements', completed: false, isMandatory: true },
-        { id: 'c2', title: 'Reconcile 2B/GSTR Data on Portal', completed: false, isMandatory: true },
-        { id: 'c3', title: 'Review Tax Computation & Get Partner Sign-off', completed: false, isMandatory: true },
-      ],
+      default: [],
     },
     documentRequests: {
       type: [documentRequestSchema],
-      default: [
-        { id: 'd1', title: 'Sales Register & Output Tax Summary', status: 'Pending', isMandatory: true },
-        { id: 'd2', title: 'Bank Account Statement (Monthly)', status: 'Pending', isMandatory: true },
-      ],
+      default: [],
     },
     comments: {
       type: [commentSchema],

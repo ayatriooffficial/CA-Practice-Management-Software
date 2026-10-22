@@ -34,7 +34,9 @@ import {
 } from "@/data/serviceData";
 import { serviceApi } from "@/services/serviceApi";
 import { clientApi } from "@/services/clientApi";
-import { Client } from "@/data/crmData";
+import { Client, ClientServiceSetting } from "@/data/crmData";
+import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
+import { ServiceDetailViewTabs, AddSubTaskModal, ServiceTabType } from "./ServiceDetailViewTabs";
 
 interface ServiceDetailViewProps {
   service: Service;
@@ -166,7 +168,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
   const handleSyncToTasks = async () => {
     setIsSyncing(true);
     try {
-      if (service.id && !service.id.startsWith("srv-")) {
+      if (service.id) {
         await serviceApi.syncServiceToTasks(service.id);
       }
       showToast("Template changes synced to all active tasks linked to this service!");
@@ -201,7 +203,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     setService(updatedService);
     onServiceUpdated?.(updatedService);
 
-    if (service.id && !service.id.startsWith("srv-")) {
+    if (service.id) {
       try {
         await serviceApi.updateService(service.id, { subTasks: rebalanced });
       } catch { }
@@ -221,7 +223,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     setService(updatedService);
     onServiceUpdated?.(updatedService);
 
-    if (service.id && !service.id.startsWith("srv-")) {
+    if (service.id) {
       try {
         await serviceApi.updateService(service.id, { subTasks: updated });
       } catch { }
@@ -244,7 +246,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     setService(updatedService);
     onServiceUpdated?.(updatedService);
 
-    if (service.id && !service.id.startsWith("srv-")) {
+    if (service.id) {
       try {
         await serviceApi.updateService(service.id, { checklist: updated });
       } catch { }
@@ -262,7 +264,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     setService(updatedService);
     onServiceUpdated?.(updatedService);
 
-    if (service.id && !service.id.startsWith("srv-")) {
+    if (service.id) {
       try {
         await serviceApi.updateService(service.id, { checklist: updated });
       } catch { }
@@ -286,7 +288,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     setService(updatedService);
     onServiceUpdated?.(updatedService);
 
-    if (service.id && !service.id.startsWith("srv-")) {
+    if (service.id) {
       try {
         await serviceApi.updateService(service.id, { documentRequests: updated });
       } catch { }
@@ -305,7 +307,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     setService(updatedService);
     onServiceUpdated?.(updatedService);
 
-    if (service.id && !service.id.startsWith("srv-")) {
+    if (service.id) {
       try {
         await serviceApi.updateService(service.id, { documentRequests: updated });
       } catch { }
@@ -321,7 +323,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
       setService(updatedService);
       onServiceUpdated?.(updatedService);
 
-      if (service.id && !service.id.startsWith("srv-")) {
+      if (service.id) {
         await serviceApi.updateService(service.id, { sop: sopContent });
       }
       showToast("Standard Operating Procedure saved");
@@ -343,6 +345,67 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     const q = clientSearch.toLowerCase();
     return c.name.toLowerCase().includes(q) || (c.fileNo && c.fileNo.toLowerCase().includes(q));
   });
+
+  const handleToggleClientService = async (clientItem: Client, nextVal: boolean) => {
+    const clientId = clientItem.id || (clientItem as any)._id;
+    if (!clientId) return;
+
+    const currentSettings = clientItem.serviceSettings || [];
+    let updatedSettings: ClientServiceSetting[];
+
+    const existingIndex = currentSettings.findIndex(
+      (s) => s.serviceName.trim().toLowerCase() === service.name.trim().toLowerCase()
+    );
+
+    if (existingIndex >= 0) {
+      updatedSettings = currentSettings.map((s, idx) =>
+        idx === existingIndex ? { ...s, compliance: nextVal } : s
+      );
+    } else {
+      const newSetting: ClientServiceSetting = {
+        id: `ss-${Date.now()}`,
+        serviceName: service.name,
+        category: service.category || "General",
+        compliance: nextVal,
+        recTask: nextVal ? "Enabled" : "Disabled",
+        recInvoice: "Disabled",
+        frequency: service.frequency || "Monthly",
+        start: "Day 1",
+        target: service.tatDays ? `Day ${service.tatDays}` : "Day 15",
+        end: service.tatDays ? `Day ${service.tatDays + 2}` : "Day 20",
+        amount: service.professionalFee || 0,
+      };
+      updatedSettings = [...currentSettings, newSetting];
+    }
+
+    const activeNames = updatedSettings
+      .filter((s) => s.compliance)
+      .map((s) => s.serviceName);
+
+    // Optimistically update local clients state
+    setClients((prev) =>
+      prev.map((c) =>
+        (c.id || (c as any)._id) === clientId
+          ? {
+            ...c,
+            serviceSettings: updatedSettings,
+            services: activeNames,
+          }
+          : c
+      )
+    );
+
+    try {
+      await clientApi.updateServiceSettings(clientId, updatedSettings);
+      showToast(`Service "${service.name}" ${nextVal ? "enabled" : "disabled"} for ${clientItem.name}.`);
+    } catch (err: any) {
+      console.error("Failed to update client service compliance:", err);
+      showToast("Failed to update client service.");
+      clientApi.getClients({ limit: 100 }).then((res) => {
+        if (res.data) setClients(res.data);
+      });
+    }
+  };
 
   return (
     <div className="w-full gap-y-4 animate-in fade-in duration-150">
@@ -398,9 +461,9 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
         </div>
 
         {/* 6 Summary Metric Cards matching Screenshot 1 */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-1 pt-2  ">
           {/* Category */}
-          <div className="p-3 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center gap-x-3">
+          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
             <div className="w-8 h-8 rounded-sm bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <Briefcase className="w-4 h-4" />
             </div>
@@ -412,8 +475,9 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
             </div>
           </div>
 
+
           {/* Frequency */}
-          <div className="p-3 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center gap-x-3">
+          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
             <div className="w-8 h-8 rounded-sm bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
               <Calendar className="w-4 h-4" />
             </div>
@@ -426,7 +490,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* Recurring */}
-          <div className="p-3 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center gap-x-3">
+          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
             <div className="w-8 h-8 rounded-sm bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Repeat className="w-4 h-4" />
             </div>
@@ -439,7 +503,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* Amount */}
-          <div className="p-3 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center gap-x-3">
+          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
             <div className="w-8 h-8 rounded-sm bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <IndianRupee className="w-4 h-4" />
             </div>
@@ -452,7 +516,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* TAT Days */}
-          <div className="p-3 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center gap-x-3">
+          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
             <div className="w-8 h-8 rounded-sm bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
@@ -465,7 +529,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* Sub Tasks Count */}
-          <div className="p-3 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center gap-x-3">
+          <div className="p-3   flex items-center gap-x-3">
             <div className="w-8 h-8 rounded-sm bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
               <ListTodo className="w-4 h-4" />
             </div>
@@ -524,733 +588,60 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
       </div>
 
       {/* 3. Tab Content */}
-      <div className="bg-[var(--bg-surface)]  p-5 shadow-xs">
-        {/* TAB 1: Sub Tasks (Screenshot 4 & 5) */}
-        {activeTab === "Sub Tasks" && (
-          <div className="gap-y-4">
-            {/* Header row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-[var(--text-main)]">
-                  Sub Tasks ({subTasks.length})
-                </h3>
-                <p className="text-xs text-[var(--text-subtle)] mt-0.5">
-                  Items auto-populate every task created from this service.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-x-2">
-                <button
-                  type="button"
-                  onClick={handleSyncToTasks}
-                  disabled={isSyncing}
-                  className="h-8 px-3 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-main)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-x-1.5 cursor-pointer disabled:opacity-50"
-                  title="Push changes to all active tasks linked to this service"
-                >
-                  <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                  <span>Sync</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => showToast("Subtasks imported from standard template")}
-                  className="h-8 px-3 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-main)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-x-1.5 cursor-pointer"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Import</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsAddSubTaskOpen(true)}
-                  style={{ backgroundColor: "var(--primary)" }}
-                  className="h-8 px-3.5 text-xs font-semibold rounded-lg text-white hover:opacity-95 transition-all flex items-center gap-x-1.5 cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Add</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Sub Tasks Table matching Screenshot 4 */}
-            <div className="rounded-xl border border-[var(--border-main)] overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr
-                    className="border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 font-semibold"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="py-2.5 px-3 w-12 text-center">Drag</th>
-                    <th className="py-2.5 px-3 w-16">Index</th>
-                    <th className="py-2.5 px-4">Name</th>
-                    <th className="py-2.5 px-4">Description</th>
-                    <th className="py-2.5 px-3">Total Hours</th>
-                    <th className="py-2.5 px-3 text-center">Percentage</th>
-                    <th className="py-2.5 px-3">Attachments</th>
-                    <th className="py-2.5 px-3 w-16 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-main)]">
-                  {subTasks.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-8 text-center text-xs text-[var(--text-muted)]">
-                        No sub tasks defined for this service. Click "+ Add" to create one.
-                      </td>
-                    </tr>
-                  ) : (
-                    subTasks.map((st, idx) => (
-                      <tr key={st.id || idx} className="hover:bg-[var(--bg-hover)] transition-colors">
-                        <td className="py-3 px-3 text-center text-[var(--text-subtle)]">
-                          <GripVertical className="w-4 h-4 mx-auto cursor-grab" />
-                        </td>
-                        <td className="py-3 px-3 font-semibold text-[var(--text-subtle)]">
-                          {idx + 1}
-                        </td>
-                        <td className="py-3 px-4 font-semibold text-[var(--text-main)]">
-                          {st.name}
-                        </td>
-                        <td className="py-3 px-4 text-[var(--text-muted)] truncate max-w-[200px]">
-                          {st.description || "—"}
-                        </td>
-                        <td className="py-3 px-3 font-mono text-[var(--text-subtle)]">
-                          {st.totalHours || "0 Hrs"}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
-                            {st.percentage || 33}%
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-[var(--text-subtle)]">
-                          {st.attachments && st.attachments.length > 0 ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Paperclip className="w-3 h-3" /> {st.attachments.length}
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSubTask(st.id)}
-                            className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded transition-colors"
-                            title="Delete sub task"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: Checklist (Screenshot 3) */}
-        {activeTab === "Checklist" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: Checklist management */}
-            <div className="lg:col-span-2 gap-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-bold text-[var(--text-main)]">
-                    Checklist ({checklist.length})
-                  </h3>
-                  <p className="text-xs text-[var(--text-subtle)] mt-0.5">
-                    Items auto-populate every task created from this service. All mandatory.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-x-2">
-                  <button
-                    type="button"
-                    onClick={handleSyncToTasks}
-                    disabled={isSyncing}
-                    className="h-8 px-3 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-main)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-x-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                    <span>Sync</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => showToast("Checklist items imported")}
-                    className="h-8 px-3 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-main)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-x-1.5 cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Import</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsAddChecklistInline(true)}
-                    style={{ backgroundColor: "var(--primary)" }}
-                    className="h-8 px-3.5 text-xs font-semibold rounded-lg text-white hover:opacity-95 transition-all flex items-center gap-x-1.5 cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Add</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Inline Add Input Box matching Screenshot 3 */}
-              {isAddChecklistInline && (
-                <div className="p-3.5 rounded-xl border border-[var(--primary)] bg-[var(--brand-soft)] gap-y-2.5 animate-in fade-in">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. Verify PAN details for all deductees"
-                      value={checklistTitle}
-                      onChange={(e) => setChecklistTitle(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddChecklist()}
-                      autoFocus
-                      className="flex-1 h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddChecklist}
-                      style={{ backgroundColor: "var(--primary)" }}
-                      className="h-9 px-4 text-xs font-semibold text-white rounded-lg cursor-pointer"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddChecklistInline(false);
-                        setChecklistTitle("");
-                      }}
-                      className="h-9 px-3 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-lg cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Checklist items list */}
-              <div className="rounded-xl border border-[var(--border-main)] divide-y divide-[var(--border-subtle)] overflow-hidden">
-                {checklist.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-                    No checklist items defined for this service. Click "+ Add" to create one.
-                  </div>
-                ) : (
-                  checklist.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-3.5 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors"
-                    >
-                      <div className="flex items-center gap-x-3">
-                        <div className="w-5 h-5 rounded border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
-                          <Check className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-xs font-medium text-[var(--text-main)]">
-                          {item.title}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-x-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
-                          Mandatory
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteChecklist(item.id)}
-                          className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Right 1 Col: About Checklists card matching Screenshot 3 */}
-            <div className="p-5  bg-[var(--bg-subtle)] gap-y-3 h-fit">
-              <h4 className="text-sm font-bold text-[var(--text-main)]">
-                About Checklists
-              </h4>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                All checklist items are mandatory and cannot be skipped by the assignee when completing a task.
-              </p>
-              <div className="p-3 rounded-xl bg-cyan-50/70 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 text-[11px] text-cyan-800 dark:text-cyan-300 leading-relaxed">
-                <span className="font-bold">Sync</span> pushes checklist changes to all active tasks linked to this service.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: Document Request (Screenshot 2) */}
-        {activeTab === "Document Request" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: Document Requests management */}
-            <div className="lg:col-span-2 gap-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-bold text-[var(--text-main)]">
-                    Document Requests ({documentRequests.length})
-                  </h3>
-                  <p className="text-xs text-[var(--text-subtle)] mt-0.5">
-                    Items auto-populate every task created from this service.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-x-2">
-                  <button
-                    type="button"
-                    onClick={handleSyncToTasks}
-                    disabled={isSyncing}
-                    className="h-8 px-3 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-main)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-x-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                    <span>Sync</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => showToast("Document requests imported")}
-                    className="h-8 px-3 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-main)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-x-1.5 cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Import</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsAddDocInline(true)}
-                    style={{ backgroundColor: "var(--primary)" }}
-                    className="h-8 px-3.5 text-xs font-semibold rounded-lg text-white hover:opacity-95 transition-all flex items-center gap-x-1.5 cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Add</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Inline Add Input Box matching Screenshot 2 */}
-              {isAddDocInline && (
-                <div className="p-3.5 rounded-xl border border-[var(--primary)] bg-[var(--brand-soft)] gap-y-2.5 animate-in fade-in">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Document title (e.g. Sales Invoices)"
-                      value={docTitle}
-                      onChange={(e) => setDocTitle(e.target.value)}
-                      autoFocus
-                      className="h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Description (optional)"
-                      value={docDescription}
-                      onChange={(e) => setDocDescription(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddDocumentRequest()}
-                      className="h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddDocInline(false);
-                        setDocTitle("");
-                        setDocDescription("");
-                      }}
-                      className="h-8 px-3 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAddDocumentRequest}
-                      style={{ backgroundColor: "var(--primary)" }}
-                      className="h-8 px-4 text-xs font-semibold text-white rounded-lg cursor-pointer"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Document requests items list */}
-              <div className="rounded-xl border border-[var(--border-main)] divide-y divide-[var(--border-subtle)] overflow-hidden">
-                {documentRequests.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-                    No document requests defined for this service. Click "+ Add" to create one.
-                  </div>
-                ) : (
-                  documentRequests.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-3.5 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors"
-                    >
-                      <div className="flex items-center gap-x-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                          <FileCheck className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-[var(--text-main)] block">
-                            {item.title}
-                          </span>
-                          {item.description && (
-                            <span className="text-[11px] text-[var(--text-muted)] block">
-                              {item.description}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-x-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-600 border border-blue-200 dark:border-blue-800">
-                          Required
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDocumentRequest(item.id)}
-                          className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Right 1 Col: About Document Requests card matching Screenshot 2 */}
-            <div className="p-5  bg-[var(--bg-subtle)] gap-y-3 h-fit">
-              <h4 className="text-sm font-bold text-[var(--text-main)]">
-                About Document Requests
-              </h4>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                Document requests specify what files or information clients need to provide when completing a task.
-              </p>
-              <div className="p-3 rounded-xl bg-cyan-50/70 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 text-[11px] text-cyan-800 dark:text-cyan-300 leading-relaxed">
-                <span className="font-bold">Sync</span> pushes document request changes to all active tasks linked to this service.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: Clients (Screenshot 1) */}
-        {activeTab === "Clients" && (
-          <div className="gap-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h3 className="text-base font-bold text-[var(--text-main)]">
-                Clients ({filteredClients.length})
-              </h3>
-
-              <div className="flex items-center gap-x-2">
-                <select
-                  value={selectedDeptFilter}
-                  onChange={(e) => setSelectedDeptFilter(e.target.value)}
-                  className="h-8 px-2.5 text-xs bg-[var(--bg-subtle)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none"
-                >
-                  <option value="All departments">All departments</option>
-                  <option value="GST">GST</option>
-                  <option value="Income Tax">Income Tax</option>
-                  <option value="Accounts">Accounts</option>
-                </select>
-
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-placeholder)]" />
-                  <input
-                    type="text"
-                    placeholder="Search clients..."
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    className="h-8 pl-8 pr-3 text-xs bg-[var(--bg-subtle)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] placeholder-[var(--text-placeholder)] focus:outline-none w-44"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Clients Table matching Screenshot 1 */}
-            <div className="rounded-xl border border-[var(--border-main)] overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr
-                    className="border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 font-semibold"
-                    style={{ backgroundColor: "var(--orange-havy-light)" }}
-                  >
-                    <th className="py-2.5 px-3 w-16 text-center">Compliance</th>
-                    <th className="py-2.5 px-4">Client</th>
-                    <th className="py-2.5 px-3">Rec. Task</th>
-                    <th className="py-2.5 px-3 text-center">Task Freq</th>
-                    <th className="py-2.5 px-3">Start</th>
-                    <th className="py-2.5 px-3">Target</th>
-                    <th className="py-2.5 px-3">End</th>
-                    <th className="py-2.5 px-3">Rec Invoice</th>
-                    <th className="py-2.5 px-3 text-center">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-main)]">
-                  {isClientsLoading ? (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-xs text-[var(--text-muted)]">
-                        <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-[var(--primary)]" />
-                        Loading linked clients...
-                      </td>
-                    </tr>
-                  ) : filteredClients.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-xs text-[var(--text-muted)]">
-                        No clients registered in database.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredClients.map((client, idx) => {
-                      const initials = client.name
-                        ? client.name.substring(0, 2).toUpperCase()
-                        : "CL";
-                      const isEnabled = client.status ? client.status !== "Inactive" : client.active !== false;
-                      return (
-                        <tr key={client.id || (client as any)._id || idx} className="hover:bg-[var(--bg-hover)] transition-colors">
-                          <td className="py-2.5 px-3 text-center">
-                            <input
-                              type="checkbox"
-                              defaultChecked={isEnabled}
-                              className="w-4 h-4 rounded text-[var(--primary)] border-[var(--border-main)] cursor-pointer"
-                            />
-                          </td>
-                          <td className="py-2.5 px-4">
-                            <div className="flex items-center gap-x-2">
-                              <span className="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                                {initials}
-                              </span>
-                              <div className="truncate">
-                                <span className="font-semibold text-[var(--text-main)] hover:underline cursor-pointer block truncate">
-                                  {client.name}
-                                </span>
-                                {client.fileNo && (
-                                  <span className="text-[10px] text-[var(--text-subtle)] font-mono block">
-                                    {client.fileNo}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded text-[10.5px] font-medium ${isEnabled
-                                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40"
-                                : "bg-[var(--bg-subtle)] text-[var(--text-muted)]"
-                                }`}
-                            >
-                              {isEnabled ? "Enabled" : "Disabled"}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className="inline-block px-2 py-0.5 rounded text-[10.5px] font-medium bg-purple-50 dark:bg-purple-950/40 text-purple-600">
-                              {service.frequency || "Monthly"}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-[var(--text-subtle)]">Day 1</td>
-                          <td className="py-2.5 px-3 text-[var(--text-subtle)]">
-                            {service.tatDays ? `Day ${service.tatDays}` : "Day 5"}
-                          </td>
-                          <td className="py-2.5 px-3 text-[var(--text-subtle)]">
-                            {service.tatDays ? `Day ${service.tatDays + 2}` : "Day 10"}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className="inline-block px-2 py-0.5 rounded text-[10.5px] font-medium bg-[var(--bg-subtle)] text-[var(--text-muted)]">
-                              Disabled
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-center text-[var(--text-subtle)]">
-                            {service.professionalFee ? `₹${service.professionalFee.toLocaleString()}` : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: SOP */}
-        {activeTab === "SOP" && (
-          <div className="gap-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-[var(--text-main)]">
-                  Standard Operating Procedure (SOP)
-                </h3>
-                <p className="text-xs text-[var(--text-subtle)] mt-0.5">
-                  Assigned team members will see this SOP directly in the task workspace.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveSop}
-                disabled={isSavingSop}
-                style={{ backgroundColor: "var(--primary)" }}
-                className="h-8 px-4 text-xs font-semibold text-white rounded-lg flex items-center gap-x-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
-              >
-                {isSavingSop ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                <span>Save SOP</span>
-              </button>
-            </div>
-
-            <textarea
-              rows={12}
-              value={sopContent}
-              onChange={(e) => setSopContent(e.target.value)}
-              className="w-full p-4 text-xs font-mono bg-[var(--bg-subtle)] border border-[var(--border-main)] rounded-xl text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] leading-relaxed"
-            />
-          </div>
-        )}
-
-        {/* TAB 6: Overview */}
-        {activeTab === "Overview" && (
-          <div className="gap-y-4">
-            <h3 className="text-base font-bold text-[var(--text-main)]">
-              Service Master Overview
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] gap-y-1">
-                <span className="text-[11px] font-medium text-[var(--text-subtle)]">Service Name</span>
-                <span className="text-sm font-bold text-[var(--text-main)] block">{service.name}</span>
-              </div>
-
-              <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] gap-y-1">
-                <span className="text-[11px] font-medium text-[var(--text-subtle)]">SAC / HSN Code</span>
-                <span className="text-sm font-bold text-[var(--text-main)] block">{service.sacCode || "998231"}</span>
-              </div>
-
-              <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] gap-y-1">
-                <span className="text-[11px] font-medium text-[var(--text-subtle)]">Difficulty Level</span>
-                <span className="text-sm font-bold text-[var(--text-main)] block">{service.difficulty || "Medium"}</span>
-              </div>
-
-              <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] gap-y-1">
-                <span className="text-[11px] font-medium text-[var(--text-subtle)]">Professional Fee</span>
-                <span className="text-sm font-bold text-[var(--text-main)] block">₹ {service.professionalFee || 0}</span>
-              </div>
-
-              <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] gap-y-1">
-                <span className="text-[11px] font-medium text-[var(--text-subtle)]">Tax Rate</span>
-                <span className="text-sm font-bold text-[var(--text-main)] block">{service.taxRate || "18%"}</span>
-              </div>
-
-              <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] gap-y-1">
-                <span className="text-[11px] font-medium text-[var(--text-subtle)]">Out of Pocket Budget</span>
-                <span className="text-sm font-bold text-[var(--text-main)] block">₹ {service.maxOopBudget || 0}</span>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl border border-[var(--border-main)] bg-[var(--bg-subtle)] mt-2">
-              <span className="text-[11px] font-medium text-[var(--text-subtle)]">Description</span>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                {service.description || "No description provided."}
-              </p>
-            </div>
-          </div>
-        )}
+      <div className="bg-[var(--bg-surface)] p-5 shadow-xs">
+        <ServiceDetailViewTabs
+          activeTab={activeTab}
+          service={service}
+          subTasks={subTasks}
+          handleSyncToTasks={handleSyncToTasks}
+          isSyncing={isSyncing}
+          setIsAddSubTaskOpen={setIsAddSubTaskOpen}
+          handleDeleteSubTask={handleDeleteSubTask}
+          checklist={checklist}
+          isAddChecklistInline={isAddChecklistInline}
+          setIsAddChecklistInline={setIsAddChecklistInline}
+          checklistTitle={checklistTitle}
+          setChecklistTitle={setChecklistTitle}
+          handleAddChecklist={handleAddChecklist}
+          handleDeleteChecklist={handleDeleteChecklist}
+          documentRequests={documentRequests}
+          isAddDocInline={isAddDocInline}
+          setIsAddDocInline={setIsAddDocInline}
+          docTitle={docTitle}
+          setDocTitle={setDocTitle}
+          docDescription={docDescription}
+          setDocDescription={setDocDescription}
+          handleAddDocumentRequest={handleAddDocumentRequest}
+          handleDeleteDocumentRequest={handleDeleteDocumentRequest}
+          clients={clients}
+          filteredClients={filteredClients}
+          clientSearch={clientSearch}
+          setClientSearch={setClientSearch}
+          selectedDeptFilter={selectedDeptFilter}
+          setSelectedDeptFilter={setSelectedDeptFilter}
+          isClientsLoading={isClientsLoading}
+          handleToggleClientService={handleToggleClientService}
+          sopContent={sopContent}
+          setSopContent={setSopContent}
+          handleSaveSop={handleSaveSop}
+          isSavingSop={isSavingSop}
+          showToast={showToast}
+        />
       </div>
 
-      {/* 4. Add Sub Task Modal matching Screenshot 5 */}
-      {isAddSubTaskOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in"
-        >
-          <div className="relative w-full max-w-lg bg-[var(--bg-surface)] text-[var(--text-main) shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-main)]">
-              <h3 className="text-base font-bold text-[var(--text-main)]">Sub Task</h3>
-              <button
-                type="button"
-                onClick={() => setIsAddSubTaskOpen(false)}
-                className="text-[var(--text-subtle)] hover:text-[var(--text-main)] p-1 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSubTask} className="p-6 gap-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                    Sub Task Name <span className="text-[var(--danger)]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Sub Task Name"
-                    value={subTaskName}
-                    onChange={(e) => setSubTaskName(e.target.value)}
-                    className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                    Budget Time(00:00 Hrs)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="00:00 Hrs"
-                    value={subTaskBudgetTime}
-                    onChange={(e) => setSubTaskBudgetTime(e.target.value)}
-                    className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="Description"
-                  value={subTaskDescription}
-                  onChange={(e) => setSubTaskDescription(e.target.value)}
-                  className="w-full p-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                />
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={() => showToast("Attachment selector opened")}
-                  className="px-3 py-1.5 rounded-lg border border-[var(--primary)]/30 bg-[var(--brand-soft)] text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/15 transition-colors flex items-center gap-x-1.5 cursor-pointer"
-                >
-                  <Paperclip className="w-3.5 h-3.5" />
-                  <span>+ Add Attachments</span>
-                </button>
-              </div>
-
-              <div className="flex items-center justify-end gap-x-2 pt-3 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setIsAddSubTaskOpen(false)}
-                  className="h-9 px-4 text-xs font-semibold rounded-lg border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{ backgroundColor: "var(--primary)" }}
-                  className="h-9 px-5 text-xs font-semibold text-white rounded-lg hover:opacity-95 cursor-pointer shadow-xs"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 4. Add Sub Task Modal */}
+      <AddSubTaskModal
+        isOpen={isAddSubTaskOpen}
+        onClose={() => setIsAddSubTaskOpen(false)}
+        onSubmit={handleSaveSubTask}
+        subTaskName={subTaskName}
+        setSubTaskName={setSubTaskName}
+        subTaskBudgetTime={subTaskBudgetTime}
+        setSubTaskBudgetTime={setSubTaskBudgetTime}
+        subTaskDescription={subTaskDescription}
+        setSubTaskDescription={setSubTaskDescription}
+        showToast={showToast}
+      />
     </div>
   );
 };

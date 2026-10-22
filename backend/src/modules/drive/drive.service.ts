@@ -64,12 +64,17 @@ export class DriveService {
       }
     }
 
-    // 4. Upload file to designated Google Drive Category Folder
+    // 4. Upload file to designated Google Drive Category or Client Folder
     const driveUpload = await googleDriveService.uploadFile(
       file,
       input.category,
       verification.sanitizedFileName,
-      input.description
+      input.description,
+      {
+        clientName: resolvedClientName,
+        subFolder: input.subFolder,
+        customFileName: input.customFileName,
+      }
     );
 
     const previewUrl = `/api/v1/drive/${driveUpload.fileId}/preview`;

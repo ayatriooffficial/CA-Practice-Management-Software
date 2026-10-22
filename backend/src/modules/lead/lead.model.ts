@@ -148,6 +148,22 @@ const leadSchema = new Schema<ILeadDocument>(
       trim: true,
       default: '',
     },
+    orgId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
+      default: null,
+      index: true,
+    },
+    userId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    createdBy: {
+      type: String,
+      default: null,
+      index: true,
+    },
     convertedToClientId: {
       type: Schema.Types.ObjectId,
       ref: 'Client',
