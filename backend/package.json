@@ -9,6 +9,8 @@
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "clean": "rimraf dist",
+    "seed:nc": "tsx src/scripts/seed-nc.ts",
+    "seed:mock-client": "tsx src/scripts/seed-mock-client.ts",
     "get-drive-token": "node scripts/get-refresh-token.js"
   },
   "keywords": [

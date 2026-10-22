@@ -42,6 +42,7 @@ import { AddDocumentInOutModal } from "./modals/AddDocumentInOutModal";
 import { AddDscModal } from "./modals/AddDscModal";
 import { AddPasswordModal } from "./modals/AddPasswordModal";
 import { AddNoteModal } from "./modals/AddNoteModal";
+import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab";
 
 export type ClientTabType =
   | "Master"
@@ -684,45 +685,49 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
       {/* Main Tab Content Area */}
       <div className="px-6 py-2">
-        <ClientDetailViewTabs
-          activeTab={activeTab}
-          client={client}
-          serviceSearch={serviceSearch}
-          setServiceSearch={setServiceSearch}
-          serviceFilter={serviceFilter}
-          setServiceFilter={setServiceFilter}
-          allServices={allServices}
-          filteredServices={filteredServices}
-          groupedServices={groupedServices}
-          collapsedCategories={collapsedCategories}
-          toggleCategory={toggleCategory}
-          expandedServiceId={expandedServiceId}
-          setExpandedServiceId={setExpandedServiceId}
-          editingService={editingService}
-          setEditingService={setEditingService}
-          isSavingServiceOptions={isSavingServiceOptions}
-          isLoadingServices={isLoadingServices}
-          handleToggleServiceCompliance={handleToggleServiceCompliance}
-          handleToggleCategoryCompliance={handleToggleCategoryCompliance}
-          handleSaveServiceOptions={handleSaveServiceOptions}
-          setIsAddLicenseOpen={setIsAddLicenseOpen}
-          handleDeleteLicense={handleDeleteLicense}
-          setIsAddDocInOutOpen={setIsAddDocInOutOpen}
-          handleDeleteDocMovement={handleDeleteDocMovement}
-          setIsAddDscOpen={setIsAddDscOpen}
-          handleDeleteDsc={handleDeleteDsc}
-          clientTasks={clientTasks}
-          isLoadingTasks={isLoadingTasks}
-          onRefreshTasks={fetchClientTasks}
-          revealedPasswords={revealedPasswords}
-          setRevealedPasswords={setRevealedPasswords}
-          setIsAddPasswordOpen={setIsAddPasswordOpen}
-          handleDeletePassword={handleDeletePassword}
-          showToast={showToast}
-          setIsAddNoteOpen={setIsAddNoteOpen}
-          handleDeleteNote={handleDeleteNote}
-          getAvatarBadge={getAvatarBadge}
-        />
+        {activeTab === "Compliance" ? (
+          <ClientComplianceTab client={client} />
+        ) : (
+          <ClientDetailViewTabs
+            activeTab={activeTab}
+            client={client}
+            serviceSearch={serviceSearch}
+            setServiceSearch={setServiceSearch}
+            serviceFilter={serviceFilter}
+            setServiceFilter={setServiceFilter}
+            allServices={allServices}
+            filteredServices={filteredServices}
+            groupedServices={groupedServices}
+            collapsedCategories={collapsedCategories}
+            toggleCategory={toggleCategory}
+            expandedServiceId={expandedServiceId}
+            setExpandedServiceId={setExpandedServiceId}
+            editingService={editingService}
+            setEditingService={setEditingService}
+            isSavingServiceOptions={isSavingServiceOptions}
+            isLoadingServices={isLoadingServices}
+            handleToggleServiceCompliance={handleToggleServiceCompliance}
+            handleToggleCategoryCompliance={handleToggleCategoryCompliance}
+            handleSaveServiceOptions={handleSaveServiceOptions}
+            setIsAddLicenseOpen={setIsAddLicenseOpen}
+            handleDeleteLicense={handleDeleteLicense}
+            setIsAddDocInOutOpen={setIsAddDocInOutOpen}
+            handleDeleteDocMovement={handleDeleteDocMovement}
+            setIsAddDscOpen={setIsAddDscOpen}
+            handleDeleteDsc={handleDeleteDsc}
+            clientTasks={clientTasks}
+            isLoadingTasks={isLoadingTasks}
+            onRefreshTasks={fetchClientTasks}
+            revealedPasswords={revealedPasswords}
+            setRevealedPasswords={setRevealedPasswords}
+            setIsAddPasswordOpen={setIsAddPasswordOpen}
+            handleDeletePassword={handleDeletePassword}
+            showToast={showToast}
+            setIsAddNoteOpen={setIsAddNoteOpen}
+            handleDeleteNote={handleDeleteNote}
+            getAvatarBadge={getAvatarBadge}
+          />
+        )}
       </div>
 
       {/* Sub-Section Modals */}

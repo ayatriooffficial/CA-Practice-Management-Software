@@ -1,13 +1,17 @@
-import { EmptyPagePlaceholder } from "@/components/EmptyPagePlaceholder";
+import { Suspense } from "react";
+import { ComplianceShell } from "@/components/compliance/ComplianceShell";
 
 export default function CompliancePage() {
   return (
-    <EmptyPagePlaceholder
-      title="Compliance"
-      category="Header"
-      description="Track statutory filings, GST deadlines, and annual compliance status."
-      iconName="ShieldCheck"
-      actionText="Create Compliance Record"
-    />
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen w-full"
+          style={{ backgroundColor: "var(--bg-app)" }}
+        />
+      }
+    >
+      <ComplianceShell />
+    </Suspense>
   );
 }
