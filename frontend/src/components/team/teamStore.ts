@@ -19,6 +19,7 @@ import {
 } from './mockData';
 import { getPresetPermissions } from './permissionsConfig';
 import { request } from '../../services/apiClient';
+import { financialApi } from '../../services/financialApi';
 
 const EMPLOYEES_KEY = 'turia_team_employees';
 const ATTENDANCE_KEY = 'turia_team_attendance_today';
@@ -158,6 +159,9 @@ export const teamStore = {
         if (res?.data?.id) {
           // Update local id to backend MongoDB _id
           this.updateEmployee(newEmp.id, { id: res.data.id });
+          if (employee.costPerHour !== undefined && employee.costPerHour !== '') {
+            void financialApi.setInternalCostRate(res.data.id, Number(employee.costPerHour));
+          }
         }
       }).catch(() => {
         // Continue with local storage if offline
@@ -181,6 +185,9 @@ export const teamStore = {
         method: 'PATCH',
         body: JSON.stringify(updates),
       }).catch(() => {});
+      if (Object.prototype.hasOwnProperty.call(updates, 'costPerHour')) {
+        void financialApi.setInternalCostRate(id, updates.costPerHour == null || updates.costPerHour === '' ? null : Number(updates.costPerHour));
+      }
     }
   },
 
@@ -227,8 +234,19 @@ export const teamStore = {
           tasksCount: 0,
           recurringCount: 0,
           createdAt: u.createdAt || new Date().toISOString(),
+          costPerHour: u.internalCostRatePaisePerHour == null ? undefined : Number(u.internalCostRatePaisePerHour) / 100,
         }));
         if (backendEmps.length > 0) {
+          try {
+            const rates = await financialApi.listInternalCostRates();
+            const rateByEmployee = new Map(rates.map((rate) => [rate.id, rate.ratePaisePerHour]));
+            backendEmps.forEach((employee) => {
+              const rate = rateByEmployee.get(employee.id);
+              employee.costPerHour = rate == null ? undefined : rate / 100;
+            });
+          } catch {
+            // Team list remains available when the current user cannot view compensation.
+          }
           this.saveEmployees(backendEmps);
           return backendEmps;
         }

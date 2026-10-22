@@ -16,7 +16,9 @@ interface TaskInfoPanelProps {
   activeRightTab: string;
   setActiveRightTab: (tab: string) => void;
   isTimerRunning: boolean;
-  setIsTimerRunning: (val: boolean) => void;
+  onTimerToggle: () => void;
+  timerSaving: boolean;
+  timerError: string | null;
   timerSeconds: number;
   formatTimer: (totalSec: number) => string;
   handleStatusChange: (status: string) => Promise<void>;
@@ -27,7 +29,9 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
   activeRightTab,
   setActiveRightTab,
   isTimerRunning,
-  setIsTimerRunning,
+  onTimerToggle,
+  timerSaving,
+  timerError,
   timerSeconds,
   formatTimer,
   handleStatusChange,
@@ -62,7 +66,8 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
         {/* Start Timer / Live Stopwatch button */}
         <button
           type="button"
-          onClick={() => setIsTimerRunning(!isTimerRunning)}
+          onClick={onTimerToggle}
+          disabled={timerSaving}
           className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-full border transition-all flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer ${
             isTimerRunning
               ? "bg-amber-500 text-white border-amber-600 animate-pulse"
@@ -72,7 +77,7 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
           {isTimerRunning ? (
             <>
               <Pause className="w-3.5 h-3.5" />
-              <span>Stop ({formatTimer(timerSeconds)})</span>
+              <span>{timerSaving ? 'Saving…' : `Stop (${formatTimer(timerSeconds)})`}</span>
             </>
           ) : (
             <>
@@ -109,6 +114,7 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
           <MoreVertical className="w-3.5 h-3.5" />
         </button>
       </div>
+      {timerError && <p role="alert" className="text-xs text-red-600">{timerError}</p>}
 
       {/* Tab Content Switching */}
       {activeRightTab === "SOP" && (

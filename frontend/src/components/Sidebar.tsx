@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
         <div className="flex flex-col items-center py-2 gap-0.5 w-full">
           {SIDEBAR_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
 
             return (
               <Link
@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               </div>
               {SIDEBAR_ITEMS.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
 
                 return (
                   <Link

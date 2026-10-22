@@ -358,7 +358,7 @@ npm start
 NODE_ENV=development
 PORT=5000
 API_PREFIX=/api/v1
-MONGODB_URI=mongodb://127.0.0.1:27017/ayatrio_crm
+MONGODB_URI=<enter the rotated MongoDB Atlas URI in backend/.env>
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=500

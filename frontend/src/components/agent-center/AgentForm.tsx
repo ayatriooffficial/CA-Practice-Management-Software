@@ -6,15 +6,16 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Eye, Save, Send, Users, Waypoints, Radio, Settings2 } from 'lucide-react';
 import {
   useAgent,
-  useAgentDefinitions,
   useCreateAgent,
   usePublishAgent,
   useUpdateAgent,
 } from '@/hooks/useAgentCenterQuery';
+import { PUBLIC_AGENT_DEFINITIONS } from '../../../../backend/src/modules/agentCenter/catalog';
 import {
   AgentAction,
   AgentChannel,
   AgentConfigDraft,
+  AgentDefinitions,
   AgentModule,
   AgentRecipient,
   AgentStatus,
@@ -42,7 +43,7 @@ function recipientArray(value: unknown): AgentRecipient[] {
   return items.filter((item): item is AgentRecipient => typeof item === 'string') as AgentRecipient[];
 }
 
-function triggerFor(config: AgentConfigDraft, module: AgentModule, definitions: ReturnType<typeof useAgentDefinitions>['data']): TriggerDefinition | undefined {
+function triggerFor(config: AgentConfigDraft, module: AgentModule, definitions: AgentDefinitions): TriggerDefinition | undefined {
   if (!definitions || typeof config.trigger !== 'string') return undefined;
   return definitions.modules[module]?.triggers.find((trigger) => trigger.value === config.trigger);
 }
@@ -85,7 +86,6 @@ function previewText(message: string, module: AgentModule, recipient: AgentRecip
 
 export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   const router = useRouter();
-  const definitionsQuery = useAgentDefinitions();
   const agentQuery = useAgent(agentId || '');
   const createMutation = useCreateAgent();
   const updateMutation = useUpdateAgent();
@@ -101,7 +101,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   const [localError, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const definitions = definitionsQuery.data;
+  const definitions = PUBLIC_AGENT_DEFINITIONS as unknown as AgentDefinitions;
 
   useEffect(() => {
     if (!agentId || !agentQuery.data || loadedAgentId === agentQuery.data.id) return;
@@ -340,9 +340,6 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   if (agentId && agentQuery.data && agentQuery.data.status !== 'draft') {
     return <div className="mx-auto max-w-3xl p-6"><NoticeBanner type="info">Only draft agents can be edited. This agent is {agentQuery.data.status}.</NoticeBanner><Link href={`/agents/detail?id=${encodeURIComponent(agentId)}`} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--primary)' }}><ArrowLeft className="h-4 w-4" /> Return to agent details</Link></div>;
   }
-  if (definitionsQuery.isLoading) return <div className="p-8 text-sm" style={{ color: 'var(--text-muted)' }}>Loading agent definitions…</div>;
-  if (definitionsQuery.isError || !definitions) return <div className="mx-auto max-w-3xl p-6"><NoticeBanner type="error">Agent definitions could not be loaded. Check the backend connection; the builder relies on backend definitions for valid triggers and options.</NoticeBanner><button type="button" onClick={() => void definitionsQuery.refetch()} className="mt-4 rounded-lg border px-4 py-2 text-sm font-semibold" style={{ borderColor: 'var(--border-main)', color: 'var(--text-main)' }}>Retry</button></div>;
-
   const headerAction = <Link href={agentId ? `/agents/detail?id=${encodeURIComponent(agentId)}` : '/agents'} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold" style={{ borderColor: 'var(--border-main)', color: 'var(--text-main)' }}><ArrowLeft className="h-4 w-4" /> Cancel</Link>;
   return (
     <div className="mx-auto w-full max-w-[1250px] p-4 md:p-6 lg:p-8">

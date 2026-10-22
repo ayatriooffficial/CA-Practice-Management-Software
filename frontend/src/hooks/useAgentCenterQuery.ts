@@ -7,24 +7,17 @@ export const AGENT_CENTER_KEYS = {
   lists: () => [...AGENT_CENTER_KEYS.all, 'list'] as const,
   list: (filters: AgentFilters = {}) => [...AGENT_CENTER_KEYS.lists(), filters] as const,
   detail: (id: string) => [...AGENT_CENTER_KEYS.all, 'detail', id] as const,
-  definitions: () => [...AGENT_CENTER_KEYS.all, 'definitions'] as const,
   history: () => [...AGENT_CENTER_KEYS.all, 'history'] as const,
   agentHistory: (id: string) => [...AGENT_CENTER_KEYS.history(), id] as const,
 };
 
-export function useAgentDefinitions() {
-  return useQuery({
-    queryKey: AGENT_CENTER_KEYS.definitions(),
-    queryFn: () => agentCenterApi.getDefinitions(),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useAgents(filters: AgentFilters = {}) {
+export function useAgents(filters: AgentFilters = {}, enabled = true) {
   return useQuery({
     queryKey: AGENT_CENTER_KEYS.list(filters),
     queryFn: () => agentCenterApi.listAgents(filters),
     staleTime: 30 * 1000,
+    enabled,
+    retry: false,
   });
 }
 

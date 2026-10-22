@@ -4,6 +4,7 @@ import { env } from './config/env';
 import { logger } from './config/logger';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { CounterService } from './modules/counter/counter.service';
+import { initializeFinancialIndexes } from './modules/financials/financial.model';
 
 let server: http.Server | null = null;
 
@@ -12,10 +13,13 @@ const startServer = async (): Promise<void> => {
     // 1. Establish Database Connection
     await connectDatabase();
 
-    // 2. Initialize Dedicated Counters Collection
+    // 2. Ensure financial uniqueness and query indexes (production disables autoIndex)
+    await initializeFinancialIndexes();
+
+    // 3. Initialize Dedicated Counters Collection
     await CounterService.initializeCounters();
 
-    // 3. Initialize Express Application
+    // 4. Initialize Express Application
     const app = createApp();
 
     // 3. Start HTTP Server

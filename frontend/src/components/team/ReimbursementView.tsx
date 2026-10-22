@@ -1,23 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ReimbursementClaim } from './types';
 import { teamStore } from './teamStore';
+import { financialApi, FinancialExpenseRecord } from '@/services/financialApi';
+import { taskApi } from '@/services/taskApi';
+import { TaskItem } from '@/data/taskData';
+
+function expenseToClaim(expense: FinancialExpenseRecord): ReimbursementClaim {
+  const employee = typeof expense.employeeId === 'string' ? null : expense.employeeId;
+  return {
+    id: expense._id,
+    type: 'task',
+    applicant: expense.employeeName || employee?.name || 'Employee',
+    employeeId: employee?._id || (typeof expense.employeeId === 'string' ? expense.employeeId : ''),
+    particulars: expense.particulars,
+    date: expense.incurredDate,
+    amount: expense.amountPaise / 100,
+    paidBy: '',
+    task: expense.taskId,
+    status: expense.state === 'approved' ? 'Approved' : expense.state === 'rejected' ? 'Rejected' : 'Applied',
+    paid: false,
+  };
+}
 
 export const ReimbursementView: React.FC = () => {
   const [activeType, setActiveType] = useState<'internal' | 'task'>('internal');
   const [claims, setClaims] = useState<ReimbursementClaim[]>(() => teamStore.getReimbursements());
+  const [taskClaims, setTaskClaims] = useState<ReimbursementClaim[]>([]);
+  const [expenseTasks, setExpenseTasks] = useState<TaskItem[]>([]);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [expenseTaskId, setExpenseTaskId] = useState('');
+  const [expenseParticulars, setExpenseParticulars] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
+  const [expenseError, setExpenseError] = useState('');
+  const [expenseLoading, setExpenseLoading] = useState(false);
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState('This FY');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentClaims = claims.filter((c) => c.type === activeType && (
+  const selectedClaims = activeType === 'task' ? taskClaims : claims.filter((claim) => claim.type === 'internal');
+  const currentClaims = selectedClaims.filter((c) => (
     !searchQuery.trim() ||
     c.applicant.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (c.particulars && c.particulars.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (c.client && c.client.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (c.task && c.task.toLowerCase().includes(searchQuery.toLowerCase()))
   ));
+
+  const reloadTaskExpenses = async () => {
+    try {
+      const records = await financialApi.listExpenses();
+      setTaskClaims(records.map(expenseToClaim));
+      setExpenseError('');
+    } catch {
+      setExpenseError('Task expenses could not be loaded from the backend.');
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void reloadTaskExpenses(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Compute stat totals
   const totalAmount = currentClaims.reduce((acc, c) => acc + c.amount, 0);
@@ -33,13 +78,59 @@ export const ReimbursementView: React.FC = () => {
   const notPaidCount = currentClaims.filter((c) => !c.paid).length;
 
   const handleApproveClaim = (id: string) => {
+    if (activeType === 'task') {
+      void financialApi.setExpenseState(id, 'approved').then(() => reloadTaskExpenses()).catch(() => setExpenseError('Expense approval failed.'));
+      return;
+    }
     teamStore.updateReimbursementStatus(id, 'Approved', true);
     setClaims(teamStore.getReimbursements());
   };
 
   const handleRejectClaim = (id: string) => {
+    if (activeType === 'task') {
+      void financialApi.setExpenseState(id, 'rejected').then(() => reloadTaskExpenses()).catch(() => setExpenseError('Expense rejection failed.'));
+      return;
+    }
     teamStore.updateReimbursementStatus(id, 'Rejected', false);
     setClaims(teamStore.getReimbursements());
+  };
+
+  const openExpenseForm = async () => {
+    setExpenseError('');
+    try {
+      const response = await taskApi.getTasks({ limit: 100 });
+      setExpenseTasks(response.data || []);
+      setShowExpenseForm(true);
+    } catch {
+      setExpenseError('Tasks could not be loaded.');
+    }
+  };
+
+  const submitTaskExpense = async () => {
+    const amountPaise = Math.round(Number(expenseAmount) * 100);
+    if (!expenseTaskId || !expenseParticulars.trim() || !Number.isSafeInteger(amountPaise) || amountPaise <= 0 || !expenseDate) {
+      setExpenseError('Select a task and enter the expense details and amount.');
+      return;
+    }
+    setExpenseLoading(true);
+    try {
+      await financialApi.createExpense({
+        taskId: expenseTaskId,
+        particulars: expenseParticulars.trim(),
+        incurredDate: expenseDate,
+        amountPaise,
+        idempotencyKey: crypto.randomUUID(),
+      });
+      setShowExpenseForm(false);
+      setExpenseParticulars('');
+      setExpenseAmount('');
+      setExpenseTaskId('');
+      await reloadTaskExpenses();
+    } catch (error) {
+      setExpenseError(error instanceof Error ? error.message : 'Expense submission failed.');
+    } finally {
+      setExpenseLoading(false);
+    }
   };
 
   const ranges = [
@@ -76,6 +167,17 @@ export const ReimbursementView: React.FC = () => {
           Task
         </button>
       </div>
+
+      {activeType === 'task' && <div className="flex justify-end"><button type="button" onClick={() => void openExpenseForm()} className="rounded-lg bg-[#3D6A9E] px-4 py-2 text-xs font-semibold text-white">Add task expense</button></div>}
+      {expenseError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{expenseError}</div>}
+      {showExpenseForm && <section className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2" aria-label="Submit task expense">
+        <label className="flex flex-col gap-1 text-xs">Task<select value={expenseTaskId} onChange={(event) => setExpenseTaskId(event.target.value)} className="h-10 rounded border px-2"><option value="">Select task</option>{expenseTasks.map((task) => <option key={task.taskId} value={task.taskId}>{task.taskId} · {task.clientName} · {task.serviceName}</option>)}</select></label>
+        <label className="flex flex-col gap-1 text-xs">Particulars<input value={expenseParticulars} onChange={(event) => setExpenseParticulars(event.target.value)} maxLength={300} className="h-10 rounded border px-2" /></label>
+        <label className="flex flex-col gap-1 text-xs">Incurred date<input type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} className="h-10 rounded border px-2" /></label>
+        <label className="flex flex-col gap-1 text-xs">Amount (₹)<input type="number" min="0.01" step="0.01" value={expenseAmount} onChange={(event) => setExpenseAmount(event.target.value)} className="h-10 rounded border px-2" /></label>
+        <p className="text-xs text-gray-500 sm:col-span-2">Submitted expenses are pending approval and do not affect report profit until approved.</p>
+        <div className="flex justify-end gap-2 sm:col-span-2"><button type="button" onClick={() => setShowExpenseForm(false)} className="rounded border px-3 py-2 text-xs">Cancel</button><button type="button" disabled={expenseLoading} onClick={() => void submitTaskExpense()} className="rounded bg-[#3D6A9E] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{expenseLoading ? 'Submitting…' : 'Submit expense'}</button></div>
+      </section>}
 
       {/* 6 Summary Stat Cards Matching Screenshot 1 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

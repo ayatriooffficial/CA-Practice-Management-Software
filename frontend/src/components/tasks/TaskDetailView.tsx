@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
+import { useAuth } from "@/components/auth/AuthContext";
+import { financialApi } from "@/services/financialApi";
 import {
   TaskNavigationMenu,
   TaskSubTasksList,
@@ -56,6 +58,11 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
   // Live Timer state
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [timerSeconds, setTimerSeconds] = useState<number>(0);
+  const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(null);
+  const [timerRequestKey, setTimerRequestKey] = useState<string | null>(null);
+  const [timerSaving, setTimerSaving] = useState(false);
+  const [timerError, setTimerError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
 
   // New Comment state
   const [commentText, setCommentText] = useState<string>("");
@@ -78,6 +85,50 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
     return `${hrs.toString().padStart(2, "0")}:${mins
       .toString()
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleTimerToggle = async () => {
+    if (!isTimerRunning) {
+      setTimerSeconds(0);
+      setTimerStartedAt(new Date());
+      setTimerRequestKey(crypto.randomUUID());
+      setTimerError(null);
+      setIsTimerRunning(true);
+      return;
+    }
+    if (!task || !timerStartedAt || !timerRequestKey) {
+      setTimerError('The timer session is incomplete. Start the timer again.');
+      return;
+    }
+    if (!currentUser?.id) {
+      setTimerError('Sign in before saving task time.');
+      return;
+    }
+    if (timerSeconds <= 0) {
+      setIsTimerRunning(false);
+      setTimerStartedAt(null);
+      setTimerRequestKey(null);
+      setTimerError('No elapsed time to record.');
+      return;
+    }
+    setTimerSaving(true);
+    setTimerError(null);
+    try {
+      await financialApi.createTimeEntry({
+        taskId: task.taskId,
+        workDate: timerStartedAt.toISOString().slice(0, 10),
+        durationSeconds: timerSeconds,
+        idempotencyKey: timerRequestKey,
+      });
+      setIsTimerRunning(false);
+      setTimerStartedAt(null);
+      setTimerRequestKey(null);
+      setTimerSeconds(0);
+    } catch (error) {
+      setTimerError(error instanceof Error ? error.message : 'Task time could not be saved.');
+    } finally {
+      setTimerSaving(false);
+    }
   };
 
   const fetchTaskDetails = async () => {
@@ -372,7 +423,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
           activeRightTab={activeRightTab}
           setActiveRightTab={setActiveRightTab}
           isTimerRunning={isTimerRunning}
-          setIsTimerRunning={setIsTimerRunning}
+          onTimerToggle={() => void handleTimerToggle()}
+          timerSaving={timerSaving}
+          timerError={timerError}
           timerSeconds={timerSeconds}
           formatTimer={formatTimer}
           handleStatusChange={handleStatusChange}

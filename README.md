@@ -491,7 +491,7 @@ All endpoints are versioned under `/api/v1` and return standard JSON structures:
 | `NODE_ENV` | Optional | `development` | Runtime environment (`development`, `production`, `test`) |
 | `PORT` | Optional | `5000` | Port for Express HTTP server |
 | `API_PREFIX` | Optional | `/api/v1` | URL path prefix for API routes |
-| `MONGODB_URI` | **Required** | `mongodb://127.0.0.1:27017/ayatrio_crm` | MongoDB connection URI |
+| `MONGODB_URI` | **Required** | Enter the rotated Atlas URI in ignored `backend/.env` | The backend selects the `ayatrio_crm` database |
 | `CORS_ORIGIN` | Optional | `http://localhost:3000,http://localhost:3001` | Allowed CORS origins (comma-separated) |
 | `RATE_LIMIT_WINDOW_MS`| Optional | `900000` (15m) | Rate limiting window in milliseconds |
 | `RATE_LIMIT_MAX_REQUESTS`| Optional | `500` | Max requests allowed per window per IP |

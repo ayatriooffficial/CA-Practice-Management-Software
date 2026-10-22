@@ -10,6 +10,7 @@ import { counterRoutes } from './modules/counter/counter.routes';
 import { noticeRoutes } from './modules/notice/notice.routes';
 import { syncRoutes } from './modules/sync/sync.routes';
 import { complianceRoutes } from './modules/compliance/compliance.routes';
+import { financialRoutes } from './modules/financials/financial.routes';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 
@@ -43,5 +44,6 @@ router.use('/counters', optionalAuthenticate, counterRoutes);
 router.use('/notices', optionalAuthenticate, noticeRoutes);
 router.use('/sync', optionalAuthenticate, syncRoutes);
 router.use('/compliance', optionalAuthenticate, complianceRoutes);
+router.use('/financials', financialRoutes);
 
 export const appRouter = router;

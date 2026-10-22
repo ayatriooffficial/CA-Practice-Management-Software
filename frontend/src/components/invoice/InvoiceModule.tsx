@@ -12,7 +12,7 @@ import { RecordPaymentModal } from './RecordPaymentModal';
 import { AnalyticsView } from './AnalyticsView';
 
 const InvoiceContent: React.FC = () => {
-  const { activeTab } = useInvoice();
+  const { activeTab, invoiceLoadError } = useInvoice();
 
   const [viewMode, setViewMode] = useState<'list' | 'add-invoice' | 'add-proforma' | 'add-reimbursement'>('list');
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
@@ -47,6 +47,7 @@ const InvoiceContent: React.FC = () => {
     <div className="w-full flex-1 flex flex-col min-h-[calc(100vh-var(--header-height))] bg-white dark:bg-[#0f172a] select-none transition-colors">
       {/* Top 5 Tabs Header */}
       <InvoiceTabsHeader />
+      {invoiceLoadError && activeTab !== 'analytics' && <div role="alert" className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">{invoiceLoadError}</div>}
 
       {activeTab === 'analytics' ? (
         <AnalyticsView />

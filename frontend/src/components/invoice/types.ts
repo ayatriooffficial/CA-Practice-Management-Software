@@ -1,6 +1,6 @@
 export type InvoiceTab = 'proforma' | 'invoice' | 'reimbursement' | 'receipts' | 'analytics';
 
-export type InvoiceStatus = 'Paid' | 'Partially Paid' | 'Receivable' | 'Pending' | 'Overdue' | 'Advance Paid' | 'Write-Off' | 'Cancelled' | 'Converted';
+export type InvoiceStatus = 'Paid' | 'Partially Paid' | 'Receivable' | 'Pending' | 'Overdue' | 'Advance Paid' | 'Write-Off' | 'Cancelled' | 'Converted' | 'Credit Note';
 
 export type PaymentMethod = 'Bank Transfer' | 'Cash' | 'Cheque' | 'UPI';
 
@@ -39,7 +39,7 @@ export interface ServiceItem {
 
 export interface InvoiceRecord {
   id: string;
-  type: 'invoice' | 'proforma' | 'reimbursement';
+  type: 'invoice' | 'proforma' | 'reimbursement' | 'credit_note';
   number: string;
   date: string;
   dueDate: string;
@@ -66,6 +66,7 @@ export interface InvoiceRecord {
   createdAt: string;
   daysPastDue?: number;
   taskId?: string;
+  taskAllocations?: { taskId: string; amountPaise: number; creditedPaise?: number }[];
   taskStatus?: string;
   source?: string;
   placeOfSupply?: string;
@@ -110,19 +111,6 @@ export interface EmployeeClaimRecord {
   attachments: number;
   status: 'Approved' | 'Applied' | 'Rejected';
   paymentStatus: 'Paid' | 'Unpaid' | 'Pending';
-}
-
-export interface ProfitabilityRecord {
-  id: string;
-  client: string;
-  taskId: string;
-  service: string;
-  revenue: number;
-  manpowerCost: number;
-  expense: number;
-  profit: number;
-  marginPercent: number;
-  employee: string;
 }
 
 export interface GstSupplyRecord {

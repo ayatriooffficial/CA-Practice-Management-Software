@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Plus,
@@ -11,9 +11,15 @@ import {
   FileEdit,
 } from 'lucide-react';
 import { ServiceItem } from './types';
-import { FIRM_DETAILS, MOCK_CLIENTS_LIST, MOCK_SERVICES_CATALOG } from './mockData';
+import { FIRM_DETAILS } from './mockData';
 import { useInvoice } from './InvoiceContext';
 import { AddBankAccountModal } from './AddBankAccountModal';
+import { taskApi } from '@/services/taskApi';
+import { TaskItem } from '@/data/taskData';
+import { clientApi } from '@/services/clientApi';
+import { serviceApi } from '@/services/serviceApi';
+import { Client } from '@/data/crmData';
+import { Service } from '@/data/serviceData';
 
 interface AddInvoiceFormProps {
   type: 'invoice' | 'proforma';
@@ -27,13 +33,14 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
   const titlePrefix = isProforma ? 'Proforma' : 'Invoice';
 
   // Dates
-  const todayFormatted = '19/10/2026';
-  const [invoiceDate, setInvoiceDate] = useState(todayFormatted);
-  const [dueDate, setDueDate] = useState(todayFormatted);
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toLocaleDateString('en-GB'));
+  const [dueDate, setDueDate] = useState(() => new Date().toLocaleDateString('en-GB'));
 
   // Client Selection (starts BLANK like real app)
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const selectedClient = MOCK_CLIENTS_LIST.find((c) => c.id === selectedClientId);
+  const [clients, setClients] = useState<Client[]>([]);
+  const selectedClient = clients.find((client) => client.id === selectedClientId);
+  const [serviceCatalog, setServiceCatalog] = useState<Service[]>([]);
 
   // Bank Selection (starts UNSELECTED with placeholder like real app)
   const [selectedBankId, setSelectedBankId] = useState<string>('');
@@ -58,6 +65,20 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
 
   // Note
   const [note, setNote] = useState('');
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [taskAllocations, setTaskAllocations] = useState<Array<{ taskId: string; amount: string }>>([]);
+  const [allocationTaskId, setAllocationTaskId] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    taskApi.getTasks({ limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      .then((response) => setTasks(response.data || []));
+    clientApi.getClients({ page: 1, limit: 100, active: true, sortBy: 'name', sortOrder: 'asc' })
+      .then((response) => setClients(response.data || []));
+    serviceApi.getServices({ page: 1, limit: 100, status: 'Active', sortBy: 'name', sortOrder: 'asc' })
+      .then((response) => setServiceCatalog(response.data || []));
+  }, []);
 
   // Calculations
   const subTotal = services.reduce((sum, s) => sum + s.amount, 0);
@@ -123,9 +144,21 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedClient) {
-      alert('Please select a client to proceed.');
+      setSaveError('Please select a client to proceed.');
+      return;
+    }
+    const allocations = taskAllocations.filter((allocation) => Number(allocation.amount) > 0).map((allocation) => ({
+      taskId: allocation.taskId,
+      amountPaise: Math.round(Number(allocation.amount) * 100),
+    }));
+    if (!allocations.length) {
+      setSaveError('Allocate at least one invoice amount explicitly to a task.');
+      return;
+    }
+    if (allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0) !== Math.round(totalPayable * 100)) {
+      setSaveError('Allocate the full invoice total across tasks before saving.');
       return;
     }
 
@@ -135,12 +168,12 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
       billingOrg: FIRM_DETAILS.name,
       billingAddress: FIRM_DETAILS.address,
       clientId: selectedClient.id,
-      clientBusinessName: selectedClient.businessName,
-      clientLegalName: selectedClient.legalName,
+      clientBusinessName: selectedClient.name,
+      clientLegalName: selectedClient.legalName || selectedClient.name,
       clientGroup: selectedClient.group,
-      clientGstin: selectedClient.gstin,
-      clientAddress: selectedClient.address,
-      clientPan: selectedClient.pan,
+      clientGstin: '',
+      clientAddress: selectedClient.address || '',
+      clientPan: selectedClient.pan || '',
       services,
       subTotal,
       totalPayable,
@@ -148,16 +181,20 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
       currency: 'INR',
       bankAccountId: selectedBankId,
       notes: note || undefined,
-      placeOfSupply: selectedClient.placeOfSupply,
+      placeOfSupply: selectedClient.state || '',
     };
 
-    if (isProforma) {
-      addProforma(payload);
-    } else {
-      addInvoice(payload);
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      if (isProforma) await addProforma(payload, allocations);
+      else await addInvoice(payload, allocations);
+      onBack();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'The invoice could not be saved.');
+    } finally {
+      setIsSaving(false);
     }
-
-    onBack();
   };
 
   return (
@@ -294,13 +331,13 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
 
               <select
                 value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
+                onChange={(e) => { setSelectedClientId(e.target.value); setTaskAllocations([]); }}
                 className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0] cursor-pointer"
               >
                 <option value="">Select Client/Business from list</option>
-                {MOCK_CLIENTS_LIST.map((client) => (
+                {clients.map((client) => (
                   <option key={client.id} value={client.id}>
-                    {client.businessName} ({client.type})
+                    {client.name} ({client.type})
                   </option>
                 ))}
               </select>
@@ -320,8 +357,8 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                   <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedClient.legalName}</span>
                 </div>
                 <div className="flex items-start">
-                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">GSTIN</span>
-                  <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{selectedClient.gstin}</span>
+                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
+                  <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{selectedClient.pan || '—'}</span>
                 </div>
                 <div className="flex items-start border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
                   <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Address</span>
@@ -361,9 +398,9 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                       className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
                     >
                       <option value="">Service Name</option>
-                      {MOCK_SERVICES_CATALOG.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
+                      {serviceCatalog.map((service) => (
+                        <option key={service.id} value={service.name}>
+                          {service.name}
                         </option>
                       ))}
                     </select>
@@ -507,6 +544,30 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
           </div>
         </div>
 
+        {/* Task level invoice allocation: report revenue uses these explicit issued amounts. */}
+        <section className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-5 flex flex-col gap-3" aria-labelledby="task-allocation-heading">
+          <div>
+            <h2 id="task-allocation-heading" className="text-sm font-bold text-gray-900 dark:text-white">Task Revenue Allocation</h2>
+            <p className="mt-1 text-xs text-gray-500">Allocate the full invoice amount directly to tasks so task revenue is fully attributable.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select value={allocationTaskId} onChange={(event) => setAllocationTaskId(event.target.value)} className="h-10 min-w-0 flex-1 rounded-md border px-3 text-xs dark:bg-slate-900">
+              <option value="">Select a task</option>
+              {tasks.filter((task) => task.clientId === selectedClientId).map((task) => <option key={task.taskId} value={task.taskId}>{task.taskId} · {task.clientName} · {task.serviceName}</option>)}
+            </select>
+            <button type="button" disabled={!allocationTaskId || taskAllocations.some((row) => row.taskId === allocationTaskId)} onClick={() => { setTaskAllocations((rows) => [...rows, { taskId: allocationTaskId, amount: '' }]); setAllocationTaskId(''); }} className="h-10 rounded-md border px-4 text-xs font-semibold disabled:opacity-50">Add task</button>
+          </div>
+          {taskAllocations.map((allocation) => {
+            const task = tasks.find((item) => item.taskId === allocation.taskId);
+            return <div key={allocation.taskId} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] items-center gap-2 rounded-md bg-gray-50 p-2 dark:bg-slate-900">
+              <span className="text-xs">{task?.taskId} · {task?.clientName} · {task?.serviceName}</span>
+              <label className="flex items-center gap-2 text-xs">Allocated (₹)<input aria-label={`Amount allocated to ${task?.taskId}`} type="number" min="0.01" step="0.01" value={allocation.amount} onChange={(event) => setTaskAllocations((rows) => rows.map((row) => row.taskId === allocation.taskId ? { ...row, amount: event.target.value } : row))} className="h-9 min-w-0 flex-1 rounded border px-2 dark:bg-slate-800" /></label>
+              <button type="button" aria-label={`Remove allocation for ${task?.taskId}`} onClick={() => setTaskAllocations((rows) => rows.filter((row) => row.taskId !== allocation.taskId))} className="px-2 py-1 text-xs text-red-600">Remove</button>
+            </div>;
+          })}
+          {taskAllocations.length > 0 && <p className="text-xs text-gray-500">Allocated: ₹{(taskAllocations.reduce((sum, row) => sum + (Number(row.amount) || 0), 0)).toFixed(2)} / ₹{totalPayable.toFixed(2)}</p>}
+        </section>
+
         {/* Section 5: Bank Account Section & Totals Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-start">
           {/* Bank Account Card (Left 7 Cols) */}
@@ -606,6 +667,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
 
         {/* Section 7: Footer Actions (28px padding below buttons) */}
         <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-gray-100 dark:border-gray-800 pb-7">
+          {saveError && <p role="alert" className="mr-auto text-xs text-red-600">{saveError}</p>}
           <button
             type="button"
             onClick={onBack}
@@ -615,10 +677,11 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => void handleSave()}
+            disabled={isSaving}
             className="px-7 py-2.5 rounded-lg bg-[#7367F0] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
           >
-            Save
+            {isSaving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

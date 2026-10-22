@@ -8,6 +8,7 @@ import { QueryOptions } from '../../shared/utils/queryBuilder';
 import { AppError } from '../../shared/utils/apiError';
 import { DocumentCategory } from '../drive/drive.interface';
 import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
+import { FinancialService } from '../financials/financial.service';
 
 export class TaskController {
   static getAllTasks = asyncHandler(async (req: Request, res: Response) => {
@@ -58,6 +59,19 @@ export class TaskController {
     const search = req.query.search as string | undefined;
     const matrix = await TaskService.getTaskSummaryMatrix(groupBy, search, userCtx);
     return ApiResponse.success(res, matrix, ResponseMessages.SUCCESS);
+  });
+
+  static getProfitabilityReport = asyncHandler(async (req: Request, res: Response) => {
+    const { from, to } = req.query as { from: string; to: string };
+    if (from > to) throw AppError.badRequest('Start date must be on or before end date');
+    const userCtx = getUserContextFromRequest(req);
+    if (!userCtx.userId || !userCtx.orgId) throw AppError.unauthorized('An authenticated organization user is required');
+    const report = await FinancialService.getProfitabilityReport(from, to, {
+      userId: userCtx.userId,
+      orgId: userCtx.orgId,
+      role: userCtx.role,
+    });
+    return ApiResponse.success(res, report, ResponseMessages.SUCCESS);
   });
 
   static getTaskById = asyncHandler(async (req: Request, res: Response) => {

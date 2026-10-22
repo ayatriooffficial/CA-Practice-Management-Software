@@ -2,17 +2,20 @@ import { Router } from 'express';
 import { TaskController } from './task.controller';
 import { validateRequest } from '../../middlewares/validateRequest';
 import { uploadMiddleware } from '../drive/fileVerification';
+import { authenticate } from '../../middlewares/authenticate';
 import {
   taskIdParamSchema,
   createTaskSchema,
   updateTaskSchema,
   addCommentSchema,
+  profitabilityReportQuerySchema,
 } from './task.validation';
 
 const router = Router();
 
 router.get('/stats', TaskController.getTaskStats);
 router.get('/summary-matrix', TaskController.getTaskSummaryMatrix);
+router.get('/profitability-report', authenticate, validateRequest({ query: profitabilityReportQuerySchema }), TaskController.getProfitabilityReport);
 router.get('/', TaskController.getAllTasks);
 router.get('/:id', validateRequest({ params: taskIdParamSchema }), TaskController.getTaskById);
 router.post('/', validateRequest({ body: createTaskSchema }), TaskController.createTask);

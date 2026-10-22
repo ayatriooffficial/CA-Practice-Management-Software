@@ -43,6 +43,8 @@ export interface IUser {
   initials: string;
   department?: string;
   designation?: string;
+  /** Internal labor cost in paise per hour; never a customer billing rate. */
+  internalCostRatePaisePerHour?: number;
   status: UserStatus;
   permissions?: RolePermissionsMap;
   tokenVersion: number;
