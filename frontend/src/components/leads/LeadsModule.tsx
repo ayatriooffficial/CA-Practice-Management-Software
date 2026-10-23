@@ -45,6 +45,11 @@ const ConvertLeadModal = dynamic(
   { ssr: false }
 );
 
+const LeadDetailsView = dynamic(
+  () => import("./details/LeadDetailsView").then((mod) => mod.LeadDetailsView),
+  { ssr: false }
+);
+
 // High-speed static Intl formatter (instantiated once, 100x faster than per-cell allocation)
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-IN", {
   day: "2-digit",
@@ -102,6 +107,7 @@ export const LeadsModule: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingLead, setEditingLead] = useState<Lead | null | undefined>(undefined);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+  const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<Lead | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Column resizing state with persistent storage
   const {
@@ -260,6 +266,48 @@ export const LeadsModule: React.FC = () => {
     [convertingLead, convertMutation, showToast]
   );
 
+
+  if (selectedLeadForDetails) {
+    return (
+      <div className="w-full">
+        {toastMessage && (
+          <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[#31719B]/30 bg-white dark:bg-[#1e293b] text-[#000000] dark:text-white animate-in slide-in-from-top-2 duration-200">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-white"
+              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            >
+              <Check className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-sm font-semibold">{toastMessage}</span>
+          </div>
+        )}
+
+        <LeadDetailsView
+          leadId={selectedLeadForDetails.id}
+          initialLead={selectedLeadForDetails}
+          onClose={() => setSelectedLeadForDetails(null)}
+          onEditLead={(lead) => setEditingLead(lead)}
+          onConvertLead={(lead) => setConvertingLead(lead)}
+        />
+
+        {editingLead !== undefined && (
+          <LeadFormModal
+            lead={editingLead}
+            onSave={handleSaveLead}
+            onClose={() => setEditingLead(undefined)}
+          />
+        )}
+
+        {convertingLead && (
+          <ConvertLeadModal
+            lead={convertingLead}
+            onConvert={handleConvertLead}
+            onClose={() => setConvertingLead(null)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
@@ -505,6 +553,7 @@ export const LeadsModule: React.FC = () => {
                     columnWidths={columnWidths}
                     formatDate={formatDate}
                     onToggleSelect={toggleSelectRow}
+                    onSelectLead={setSelectedLeadForDetails}
                     onEdit={setEditingLead}
                     onDelete={handleDeleteLead}
                     onRestore={handleRestoreLead}

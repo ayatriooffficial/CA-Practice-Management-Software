@@ -148,6 +148,53 @@ const leadSchema = new Schema<ILeadDocument>(
       trim: true,
       default: '',
     },
+    pipelineStage: {
+      type: String,
+      default: 'new_lead',
+      index: true,
+    },
+    leadScore: {
+      score: { type: Number, default: null },
+      businessSize: { type: Number, default: null },
+      responseTime: { type: Number, default: null },
+      engagement: { type: Number, default: null },
+      sourceQuality: { type: Number, default: null },
+    },
+    dealValue: {
+      type: Number,
+      default: 0,
+    },
+    daysInStage: {
+      type: Number,
+      default: 0,
+    },
+    businessName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    businessType: {
+      type: String,
+      trim: true,
+      default: 'Individual',
+    },
+    servicesInterested: {
+      type: [String],
+      default: [],
+    },
+    gstin: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    detailNotes: [
+      {
+        id: { type: String, required: true },
+        note: { type: String, required: true },
+        author: { type: String, default: 'Staff' },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     orgId: {
       type: Schema.Types.ObjectId,
       ref: 'Organization',

@@ -101,4 +101,41 @@ export const leadApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  getLeadTasks: async (leadId: string): Promise<ApiResponse<any[]>> => {
+    return request<any[]>(`/leads/${leadId}/tasks`);
+  },
+
+  createLeadTask: async (leadId: string, data: any): Promise<ApiResponse<any>> => {
+    return request<any>(`/leads/${leadId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateLeadTask: async (leadId: string, taskId: string, data: any): Promise<ApiResponse<any>> => {
+    return request<any>(`/leads/${leadId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteLeadTask: async (leadId: string, taskId: string): Promise<ApiResponse<any>> => {
+    return request<any>(`/leads/${leadId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  addLeadNote: async (leadId: string, note: string, author?: string): Promise<ApiResponse<Lead>> => {
+    return request<Lead>(`/leads/${leadId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ note, author }),
+    });
+  },
+
+  deleteLeadNote: async (leadId: string, noteId: string): Promise<ApiResponse<Lead>> => {
+    return request<Lead>(`/leads/${leadId}/notes/${noteId}`, {
+      method: 'DELETE',
+    });
+  },
 };

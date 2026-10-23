@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { Lead } from './lead.model';
+import { LeadTask } from './leadTask.model';
 import { ILead, ILeadDocument } from './lead.interface';
 import { Client } from '../client/client.model';
 import { QueryBuilder, QueryOptions } from '../../shared/utils/queryBuilder';
@@ -597,4 +598,99 @@ export class LeadService {
         totalLeads > 0 ? Number(((statusCounts.converted / totalLeads) * 100).toFixed(2)) : 0,
     };
   }
+
+  /**
+   * Get all follow-up tasks for a lead
+   */
+  static async getLeadTasks(leadId: string) {
+    const tasks = await LeadTask.find({ leadId, isDeleted: false }).sort({ createdAt: -1 });
+    return tasks;
+  }
+
+  /**
+   * Create a new follow-up task for a lead
+   */
+  static async createLeadTask(
+    leadId: string,
+    data: any,
+    userCtx?: { userId: string | null; orgId?: string | null } | string | null
+  ) {
+    const lead = await Lead.findById(leadId);
+    if (!lead) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+
+    const task = await LeadTask.create({
+      ...data,
+      leadId,
+      orgId: orgId || lead.orgId,
+      userId: userId || lead.userId,
+      contactEmail: data.contactEmail || lead.email || '',
+      contactPhone: data.contactPhone || lead.mobile || '',
+    });
+    return task;
+  }
+
+  /**
+   * Update a lead task
+   */
+  static async updateLeadTask(taskId: string, data: any) {
+    const task = await LeadTask.findOneAndUpdate(
+      { _id: taskId, isDeleted: false },
+      { $set: data },
+      { new: true, runValidators: true }
+    );
+    if (!task) {
+      throw AppError.notFound('Lead task not found');
+    }
+    return task;
+  }
+
+  /**
+   * Delete a lead task
+   */
+  static async deleteLeadTask(taskId: string) {
+    const task = await LeadTask.findOne({ _id: taskId, isDeleted: false });
+    if (!task) {
+      throw AppError.notFound('Lead task not found');
+    }
+    await (task as any).softDelete();
+    return { id: taskId, message: 'Task deleted successfully' };
+  }
+
+  /**
+   * Add a detail note to lead
+   */
+  static async addLeadNote(leadId: string, note: string, author = 'Staff') {
+    const lead = await Lead.findById(leadId);
+    if (!lead) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+    const newNote = {
+      id: new Types.ObjectId().toString(),
+      note,
+      author,
+      createdAt: new Date(),
+    };
+    lead.detailNotes = lead.detailNotes || [];
+    lead.detailNotes.unshift(newNote as any);
+    await lead.save();
+    return lead;
+  }
+
+  /**
+   * Delete a detail note from lead
+   */
+  static async deleteLeadNote(leadId: string, noteId: string) {
+    const lead = await Lead.findById(leadId);
+    if (!lead) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+    lead.detailNotes = (lead.detailNotes || []).filter((n: any) => n.id !== noteId);
+    await lead.save();
+    return lead;
+  }
 }
+

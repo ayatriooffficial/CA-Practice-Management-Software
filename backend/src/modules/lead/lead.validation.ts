@@ -47,6 +47,33 @@ export const createLeadSchema = z.object({
   photo: z.string().nullable().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'converted', 'dropped']).optional().default('new'),
   notes: z.string().max(1000).optional().default(''),
+  pipelineStage: z.string().optional().default('new_lead'),
+  leadScore: z
+    .object({
+      score: z.number().nullable().optional(),
+      businessSize: z.number().nullable().optional(),
+      responseTime: z.number().nullable().optional(),
+      engagement: z.number().nullable().optional(),
+      sourceQuality: z.number().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  dealValue: z.number().optional().default(0),
+  daysInStage: z.number().optional().default(0),
+  businessName: z.string().optional().default(''),
+  businessType: z.string().optional().default('Individual'),
+  servicesInterested: z.array(z.string()).optional().default([]),
+  gstin: z.string().optional().default(''),
+  detailNotes: z
+    .array(
+      z.object({
+        id: z.string(),
+        note: z.string(),
+        author: z.string().optional().default('Staff'),
+        createdAt: z.coerce.date().optional(),
+      })
+    )
+    .optional(),
 });
 
 export const updateLeadSchema = createLeadSchema.partial();
