@@ -1,4 +1,13 @@
 import http from 'http';
+import dns from 'dns';
+
+// Ensure reliable DNS resolution for MongoDB Atlas SRV records on Windows
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch {
+  // Use system default if restricted
+}
+
 import { createApp } from './app';
 import { env } from './config/env';
 import { logger } from './config/logger';

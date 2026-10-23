@@ -3,6 +3,7 @@
 import React from "react";
 import { CheckSquare, Plus, Trash2 } from "lucide-react";
 import { TaskChecklistItem } from "@/data/taskData";
+import { usePermission } from "../../team/usePermission";
 
 interface TaskChecklistTabProps {
   checklist: TaskChecklistItem[];
@@ -25,6 +26,7 @@ export const TaskChecklistTab: React.FC<TaskChecklistTabProps> = ({
   handleToggleChecklist,
   handleDeleteChecklist,
 }) => {
+  const { canDelete } = usePermission();
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between border-b border-[var(--border-main)] pb-2">
@@ -106,17 +108,19 @@ export const TaskChecklistTab: React.FC<TaskChecklistTabProps> = ({
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteChecklist(item.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-subtle)] hover:text-red-500 transition-opacity cursor-pointer"
-              title="Delete checklist item"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+              {canDelete("task_manager") && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteChecklist(item.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-subtle)] hover:text-red-500 transition-opacity cursor-pointer"
+                  title="Delete checklist item"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
           </div>
         ))}
         {(!checklist || checklist.length === 0) && (

@@ -240,7 +240,7 @@ export const authService = {
           email: u.email,
           mobile: u.mobile,
           firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
-          role: u.role || "admin",
+          role: u.role || "employee",
           initials: u.initials || computeInitials(u.name),
           orgId: u.orgId?._id || u.orgId,
           token: res.data.accessToken,
@@ -268,9 +268,24 @@ export const authService = {
       if (isDemoOtp) {
         const cleanTarget = target.trim().toLowerCase();
         const cleanNum = target.replace(/\D/g, "").slice(-10);
+        const all = this.getAllUsers();
+        const matched = all.find(
+          (u) =>
+            (u.email && u.email.toLowerCase() === cleanTarget) ||
+            (u.mobile && u.mobile.replace(/\D/g, "").slice(-10) === cleanNum)
+        );
+
+        if (matched) {
+          return {
+            success: true,
+            user: { ...matched, token: "demo_access_token_verified" },
+            message: "OTP verified successfully.",
+          };
+        }
+
         const namePart = cleanTarget.includes("@")
           ? cleanTarget.split("@")[0]
-          : `User ${cleanNum.slice(-4) || "Admin"}`;
+          : `User ${cleanNum.slice(-4) || "Staff"}`;
         const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
 
         const demoVerifiedUser: User = {
@@ -279,7 +294,7 @@ export const authService = {
           email: cleanTarget.includes("@") ? cleanTarget : `${cleanNum}@ayatrio.local`,
           mobile: cleanNum || "9876543210",
           firmName: "Ayatrio Practice",
-          role: "admin",
+          role: "employee",
           initials: computeInitials(formattedName),
           token: "demo_access_token_verified",
         };
@@ -398,6 +413,12 @@ export const authService = {
       await request("/auth/logout", { method: "POST" });
     } catch {
       // Ignore network errors on logout
+    }
+    if (typeof document !== "undefined") {
+      const cookies = ["turia_refresh_token", "turia_access_token", "token", "refreshToken"];
+      cookies.forEach((c) => {
+        document.cookie = `${c}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;`;
+      });
     }
   },
 

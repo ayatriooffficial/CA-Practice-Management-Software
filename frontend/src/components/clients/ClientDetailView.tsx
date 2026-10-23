@@ -43,6 +43,7 @@ import { AddDscModal } from "./modals/AddDscModal";
 import { AddPasswordModal } from "./modals/AddPasswordModal";
 import { AddNoteModal } from "./modals/AddNoteModal";
 import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab";
+import { usePermission } from "@/components/team/usePermission";
 
 export type ClientTabType =
   | "Master"
@@ -98,6 +99,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   onEdit,
   onClientUpdated,
 }) => {
+  const { canView, canAddEdit, canDelete } = usePermission();
   const [client, setClient] = useState<Client>(initialClient);
   const [activeTab, setActiveTab] = useState<ClientTabType>(initialTab);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -106,6 +108,22 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   // Quick Add Dropdown Menu
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+  // Filter tabs dynamically based on user role and granular permissions
+  const visibleTabs = useMemo(() => {
+    return CLIENT_TABS.filter((tab) => {
+      if (tab === "Invoices") return canView("invoice");
+      if (tab === "Passwords") return canView("password");
+      if (tab === "Licenses") return canView("licenses");
+      if (tab === "DSC") return canView("digital_signature");
+      if (tab === "Documents") return canView("document_in_out");
+      if (tab === "Recurring") return canView("recurring");
+      if (tab === "Ledger") return canView("billing");
+      if (tab === "Compliance") return canView("compliance_tracker");
+      if (tab === "Tasks") return canView("task_manager");
+      return true;
+    });
+  }, [canView]);
 
   // Modals
   const [isAddLicenseOpen, setIsAddLicenseOpen] = useState(false);
@@ -313,6 +331,30 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         onClientUpdated?.(res.data);
       }
       showToast(`Service "${serviceName}" ${nextVal ? "enabled" : "disabled"}.`);
+
+      if (nextVal) {
+        const srvSetting = allServices.find(
+          (s) => s.serviceName.toLowerCase() === serviceName.toLowerCase()
+        );
+        taskApi.createTask({
+          clientName: client.name,
+          legalName: client.legalName || client.name,
+          clientId: client.id,
+          clientFileNo: client.fileNo,
+          clientPan: client.pan,
+          serviceName,
+          category: srvSetting?.category || "Compliance",
+          status: "Pending",
+          priority: "Medium",
+          frequency: "Monthly",
+          billingType: "Billable",
+          financialYear: "FY 2026 - 2027",
+          period: "Jul 2026",
+          department: "Audit & Taxation",
+        }).then(() => {
+          fetchClientTasks();
+        }).catch(() => {});
+      }
     } catch (err: any) {
       showToast(err.message || "Failed to update service compliance.");
       reloadClientData();
@@ -664,7 +706,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       {/* 17 Sub-Tabs Navigation Bar matching Screenshots */}
       <div className="bg-white dark:bg-[#1e293b] border-b border-[#dde2e8] dark:border-[#334155] px-6">
         <div className="flex items-center space-x-6 overflow-x-auto scrollbar-none py-1">
-          {CLIENT_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button

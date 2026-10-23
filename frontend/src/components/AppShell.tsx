@@ -1,22 +1,41 @@
 "use client";
 
-import React, { useState } from "react";
-import { usePathname } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { ThemeProvider } from "../context/ThemeContext";
-import { AuthProvider } from "./auth/AuthContext";
+import { AuthProvider, useAuth } from "./auth/AuthContext";
 
 const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { currentUser, isLoading } = useAuth();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+
+  useEffect(() => {
+    if (!isLoading && !currentUser && !isAuthPage) {
+      router.replace("/login");
+    }
+  }, [isLoading, currentUser, isAuthPage, router]);
 
   if (isAuthPage) {
     return (
       <main className="min-h-screen w-full bg-[var(--bg-app)] text-[var(--text-main)]">
         {children}
       </main>
+    );
+  }
+
+  if (isLoading || !currentUser) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[var(--bg-app)] text-[var(--text-muted)] text-sm">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+          <span>Loading practice portal...</span>
+        </div>
+      </div>
     );
   }
 

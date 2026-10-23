@@ -3,6 +3,7 @@
 import React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Client } from "@/data/crmData";
+import { usePermission } from "../../team/usePermission";
 
 interface ClientNotesTabProps {
   client: Client;
@@ -15,6 +16,7 @@ export const ClientNotesTab: React.FC<ClientNotesTabProps> = ({
   setIsAddNoteOpen,
   handleDeleteNote,
 }) => {
+  const { canDelete } = usePermission();
   return (
     <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
       <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
@@ -65,14 +67,16 @@ export const ClientNotesTab: React.FC<ClientNotesTabProps> = ({
                   Logged by {note.author || "Dipak Sahani"}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleDeleteNote(note.id || "")}
-                title="Delete Note"
-                className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {canDelete("clients") && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteNote(note.id || "")}
+                  title="Delete Note"
+                  className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           ))
         )}

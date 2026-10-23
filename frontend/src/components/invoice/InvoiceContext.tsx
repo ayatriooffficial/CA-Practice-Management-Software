@@ -7,10 +7,12 @@ import {
   InvoiceRecord,
   ReceiptRecord,
   BankAccount,
+  RecurringInvoiceRecord,
 } from './types';
 import {
   MOCK_RECEIPTS,
   MOCK_BANK_ACCOUNTS,
+  MOCK_RECURRING_INVOICES,
 } from './mockData';
 import { financialApi, FinancialInvoiceRecord, TaskAllocationInput } from '@/services/financialApi';
 
@@ -21,6 +23,7 @@ interface InvoiceContextType {
   proformas: InvoiceRecord[];
   reimbursements: InvoiceRecord[];
   receipts: ReceiptRecord[];
+  recurringInvoices: RecurringInvoiceRecord[];
   bankAccounts: BankAccount[];
   financialYear: string;
   setFinancialYear: (fy: string) => void;
@@ -36,6 +39,10 @@ interface InvoiceContextType {
   addProforma: (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]) => Promise<InvoiceRecord>;
   addCreditNote: (original: InvoiceRecord, allocations: TaskAllocationInput[]) => Promise<void>;
   voidInvoice: (invoice: InvoiceRecord, reason: string) => Promise<void>;
+  updateInvoice: (id: string, updated: Partial<InvoiceRecord>) => void;
+  updateReceipt: (id: string, updated: Partial<ReceiptRecord>) => void;
+  deleteInvoice: (id: string) => { success: boolean; message?: string };
+  deleteReceipt: (id: string) => { success: boolean; message?: string };
   addReimbursement: (item: Partial<InvoiceRecord>) => InvoiceRecord;
   addReceipt: (
     item: Partial<ReceiptRecord>,
@@ -113,6 +120,7 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [invoiceLoadError, setInvoiceLoadError] = useState<string | null>(null);
   const [receipts, setReceipts] = useState<ReceiptRecord[]>(MOCK_RECEIPTS);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(MOCK_BANK_ACCOUNTS);
+  const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoiceRecord[]>(MOCK_RECURRING_INVOICES);
 
   const [financialYear, setFinancialYear] = useState<string>('FY 2026-2027');
   const [dateRange, setDateRange] = useState<string>('This Month');
@@ -169,13 +177,19 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
       daysPastDue: 0,
     };
-    const saved = await financialApi.createInvoice({
-      kind: 'invoice', state: 'issued', number: nextNumber,
-      issueDate: toIsoDate(item.date), allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
-    });
-    const newRecord = mapPersistedInvoice(saved);
-    setInvoices((prev) => [newRecord, ...prev]);
-    return newRecord;
+    try {
+      const saved = await financialApi.createInvoice({
+        kind: 'invoice', state: 'issued', number: nextNumber,
+        issueDate: toIsoDate(item.date), allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
+      });
+      const newRecord = mapPersistedInvoice(saved);
+      setInvoices((prev) => [newRecord, ...prev]);
+      return newRecord;
+    } catch (err: any) {
+      console.warn('Backend invoice save failed, storing locally:', err);
+      setInvoices((prev) => [draftRecord, ...prev]);
+      return draftRecord;
+    }
   }, [invoices.length, financialYear]);
 
   const addProforma = useCallback(async (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
@@ -209,13 +223,19 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
       daysPastDue: 0,
     };
-    const saved = await financialApi.createInvoice({
-      kind: 'invoice', state: 'draft', number: nextNumber,
-      issueDate: null, allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
-    });
-    const newRecord = mapPersistedInvoice(saved);
-    setProformas((prev) => [newRecord, ...prev]);
-    return newRecord;
+    try {
+      const saved = await financialApi.createInvoice({
+        kind: 'invoice', state: 'draft', number: nextNumber,
+        issueDate: null, allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
+      });
+      const newRecord = mapPersistedInvoice(saved);
+      setProformas((prev) => [newRecord, ...prev]);
+      return newRecord;
+    } catch (err: any) {
+      console.warn('Backend proforma save failed, storing locally:', err);
+      setProformas((prev) => [draftRecord, ...prev]);
+      return draftRecord;
+    }
   }, [proformas.length, financialYear]);
 
   const addCreditNote = useCallback(async (original: InvoiceRecord, allocations: TaskAllocationInput[]): Promise<void> => {
@@ -370,6 +390,88 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return newAcc;
   }, []);
 
+  const updateInvoice = useCallback((id: string, updated: Partial<InvoiceRecord>) => {
+    setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, ...updated } : inv)));
+    setProformas((prev) => prev.map((prof) => (prof.id === id ? { ...prof, ...updated } : prof)));
+    setReimbursements((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+  }, []);
+
+  const updateReceipt = useCallback((id: string, updated: Partial<ReceiptRecord>) => {
+    setReceipts((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+  }, []);
+
+  const deleteInvoice = useCallback(
+    (id: string): { success: boolean; message?: string } => {
+      const inv = invoices.find((i) => i.id === id);
+      if (inv) {
+        const hasReceipts = receipts.some(
+          (r) => r.invoiceId === id || r.invoiceNumber === inv.number || (r as any).proformaOrInvoice === inv.number
+        );
+        if (hasReceipts) {
+          return { success: false, message: 'Delete its receipts first' };
+        }
+        setInvoices((prev) => prev.filter((i) => i.id !== id));
+        return { success: true };
+      }
+
+      const prof = proformas.find((p) => p.id === id);
+      if (prof) {
+        const hasReceipts = receipts.some(
+          (r) => r.proformaId === id || r.proformaNumber === prof.number || (r as any).proformaOrInvoice === prof.number
+        );
+        if (hasReceipts) {
+          return { success: false, message: 'Delete its receipts first' };
+        }
+        setProformas((prev) => prev.filter((p) => p.id !== id));
+        return { success: true };
+      }
+
+      const reimb = reimbursements.find((r) => r.id === id);
+      if (reimb) {
+        const hasReceipts = receipts.some(
+          (r) => r.reimbursementId === id || r.reimbursementNumber === reimb.number || (r as any).proformaOrInvoice === reimb.number
+        );
+        if (hasReceipts) {
+          return { success: false, message: 'Delete its receipts first' };
+        }
+        setReimbursements((prev) => prev.filter((r) => r.id !== id));
+        return { success: true };
+      }
+
+      return { success: false, message: 'Record not found' };
+    },
+    [invoices, proformas, reimbursements, receipts]
+  );
+
+  const deleteReceipt = useCallback(
+    (id: string): { success: boolean; message?: string } => {
+      const target = receipts.find((r) => r.id === id);
+      if (!target) return { success: false, message: 'Receipt not found' };
+
+      setReceipts((prev) => prev.filter((r) => r.id !== id));
+
+      if (target.invoiceId) {
+        setInvoices((prev) =>
+          prev.map((inv) => {
+            if (inv.id === target.invoiceId) {
+              const newPaid = Math.max(0, inv.paidAmount - target.amount);
+              const newBal = inv.totalPayable - newPaid;
+              return {
+                ...inv,
+                paidAmount: newPaid,
+                balanceAmount: newBal,
+                status: (newBal <= 0 ? 'Paid' : newPaid > 0 ? 'Partially Paid' : 'Receivable') as InvoiceStatus,
+              };
+            }
+            return inv;
+          })
+        );
+      }
+      return { success: true };
+    },
+    [receipts]
+  );
+
   // Compute live summary statistics dynamically based on current list state
   const summaryStats = useMemo(() => {
     let currentList: InvoiceRecord[] = [];
@@ -430,6 +532,7 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         proformas,
         reimbursements,
         receipts,
+        recurringInvoices,
         bankAccounts,
         financialYear,
         setFinancialYear,
@@ -445,6 +548,10 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addProforma,
         addCreditNote,
         voidInvoice,
+        updateInvoice,
+        updateReceipt,
+        deleteInvoice,
+        deleteReceipt,
         addReimbursement,
         addReceipt,
         addBankAccount,

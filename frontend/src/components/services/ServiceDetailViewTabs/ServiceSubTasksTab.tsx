@@ -3,6 +3,7 @@
 import React from "react";
 import { RotateCcw, Upload, Plus, Trash2, GripVertical } from "lucide-react";
 import { ServiceSubTask } from "@/data/serviceData";
+import { usePermission } from "../../team/usePermission";
 
 interface ServiceSubTasksTabProps {
   subTasks: ServiceSubTask[];
@@ -21,6 +22,7 @@ export const ServiceSubTasksTab: React.FC<ServiceSubTasksTabProps> = ({
   handleDeleteSubTask,
   showToast,
 }) => {
+  const { canDelete } = usePermission();
   return (
     <div className="gap-y-4">
       {/* Header row */}
@@ -115,13 +117,17 @@ export const ServiceSubTasksTab: React.FC<ServiceSubTasksTabProps> = ({
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteSubTask(st.id)}
-                      className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canDelete("services") ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSubTask(st.id)}
+                        className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               ))

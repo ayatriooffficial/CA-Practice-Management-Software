@@ -1,40 +1,78 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Calendar, Check, AlertCircle } from 'lucide-react';
-import { PaymentMethod } from './types';
+import { PaymentMethod, ReceiptRecord } from './types';
 import { FIRM_DETAILS, MOCK_CLIENTS_LIST } from './mockData';
 import { useInvoice } from './InvoiceContext';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  mode?: 'create' | 'edit' | 'view';
+  initialData?: ReceiptRecord;
 }
 
 export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   isOpen,
   onClose,
+  mode = 'create',
+  initialData,
 }) => {
-  const { invoices, reimbursements, bankAccounts, addReceipt } = useInvoice();
+  const { invoices, reimbursements, bankAccounts, addReceipt, updateReceipt } = useInvoice();
+
+  const isView = mode === 'view';
+  const isEdit = mode === 'edit';
 
   const [activeModalTab, setActiveModalTab] = useState<'invoice' | 'reimbursement' | 'opening'>(
     'invoice'
   );
 
   // Form Fields
-  const [clientId, setClientId] = useState<string>('');
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
-  const [billingOrg, setBillingOrg] = useState<string>(FIRM_DETAILS.name);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Bank Transfer');
-  const [bankAccountId, setBankAccountId] = useState<string>(bankAccounts[0]?.id || '');
-  const [paymentDate, setPaymentDate] = useState<string>('19/10/2026');
-  const [referenceNumber, setReferenceNumber] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
+  const [clientId, setClientId] = useState<string>(initialData?.clientId || '');
+  const [paymentAmount, setPaymentAmount] = useState<number>(initialData?.amount || 0);
+  const [billingOrg, setBillingOrg] = useState<string>(initialData?.billingOrg || FIRM_DETAILS.name);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initialData?.method || 'Bank Transfer');
+  const [bankAccountId, setBankAccountId] = useState<string>(initialData?.bankAccountId || bankAccounts[0]?.id || '');
+  const [paymentDate, setPaymentDate] = useState<string>(initialData?.paymentDate || '19/10/2026');
+  const [referenceNumber, setReferenceNumber] = useState<string>(initialData?.referenceNumber || '');
+  const [notes, setNotes] = useState<string>(initialData?.notes || '');
 
   // Allocation mapping: { [invoiceId]: number }
   const [allocations, setAllocations] = useState<Record<string, number>>({});
 
-  const selectedClient = MOCK_CLIENTS_LIST.find((c) => c.id === clientId);
+  useEffect(() => {
+    if (initialData && isOpen) {
+      setClientId(initialData.clientId);
+      setPaymentAmount(initialData.amount);
+      setBillingOrg(initialData.billingOrg || FIRM_DETAILS.name);
+      setPaymentMethod(initialData.method || 'Bank Transfer');
+      setBankAccountId(initialData.bankAccountId || bankAccounts[0]?.id || '');
+      setPaymentDate(initialData.paymentDate || '19/10/2026');
+      setReferenceNumber(initialData.referenceNumber || '');
+      setNotes(initialData.notes || '');
+      if (initialData.invoiceId) {
+        setAllocations({ [initialData.invoiceId]: initialData.amount });
+      }
+    } else if (!isOpen) {
+      setAllocations({});
+    }
+  }, [initialData, isOpen, bankAccounts]);
+
+  const selectedClient =
+    MOCK_CLIENTS_LIST.find((c) => c.id === clientId) ||
+    (initialData
+      ? {
+          id: initialData.clientId,
+          businessName: initialData.businessName,
+          legalName: initialData.legalName || initialData.businessName,
+          group: initialData.group || 'Clients',
+          pan: '',
+          gstin: '',
+          address: '',
+          placeOfSupply: '27-Maharashtra',
+        }
+      : undefined);
   const selectedBank = bankAccounts.find((b) => b.id === bankAccountId) || bankAccounts[0];
 
   // Pending documents for the selected client
@@ -98,6 +136,22 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
       }
     });
 
+    if (isView) return;
+    if (isEdit && initialData) {
+      updateReceipt(initialData.id, {
+        billingOrg,
+        amount: paymentAmount,
+        paymentDate,
+        method: paymentMethod,
+        bankAccountId: selectedBank?.id || '',
+        bankName: selectedBank?.bankName || 'HDFC Bank Ltd',
+        referenceNumber: referenceNumber || initialData.referenceNumber,
+        notes: notes || undefined,
+      });
+      onClose();
+      return;
+    }
+
     const firstAllocDocId = allocationList[0]?.id;
     const firstAllocDoc = pendingInvoices.find((d) => d.id === firstAllocDocId);
 
@@ -141,10 +195,14 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
         <div className="flex items-start justify-between px-6 pt-5 pb-3">
           <div>
             <h3 className="text-base font-bold text-gray-900 dark:text-white">
-              Record Payment
+              {isView
+                ? `Receipt Details (${initialData?.receiptNo || ''})`
+                : isEdit
+                ? `Edit Receipt (${initialData?.receiptNo || ''})`
+                : 'Record Payment'}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Select a client, enter the amount, and allocate across pending invoices â€” or leave unallocated to record as Advance
+              Select a client, enter the amount, and allocate across pending invoices — or leave unallocated to record as Advance
             </p>
           </div>
           <button
@@ -165,15 +223,14 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 setActiveModalTab('invoice');
                 setAllocations({});
               }}
-              className={`py-2 relative cursor-pointer ${
-                activeModalTab === 'invoice'
-                  ? 'text-[#7367F0] font-bold'
+              className={`py-2 relative cursor-pointer ${activeModalTab === 'invoice'
+                  ? 'text-[#3D6A9E] font-bold'
                   : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <span>Proforma / Invoice</span>
               {activeModalTab === 'invoice' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#7367F0]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#3D6A9E]" />
               )}
             </button>
 
@@ -183,15 +240,14 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 setActiveModalTab('reimbursement');
                 setAllocations({});
               }}
-              className={`py-2 relative cursor-pointer ${
-                activeModalTab === 'reimbursement'
-                  ? 'text-[#7367F0] font-bold'
+              className={`py-2 relative cursor-pointer ${activeModalTab === 'reimbursement'
+                  ? 'text-[#3D6A9E] font-bold'
                   : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <span>Reimbursement</span>
               {activeModalTab === 'reimbursement' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#7367F0]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#3D6A9E]" />
               )}
             </button>
 
@@ -201,15 +257,14 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 setActiveModalTab('opening');
                 setAllocations({});
               }}
-              className={`py-2 relative cursor-pointer ${
-                activeModalTab === 'opening'
-                  ? 'text-[#7367F0] font-bold'
+              className={`py-2 relative cursor-pointer ${activeModalTab === 'opening'
+                  ? 'text-[#3D6A9E] font-bold'
                   : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <span>Opening Balance</span>
               {activeModalTab === 'opening' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#7367F0]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#3D6A9E]" />
               )}
             </button>
           </div>
@@ -236,7 +291,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                     setClientId(e.target.value);
                     setAllocations({});
                   }}
-                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0] cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E] cursor-pointer"
                 >
                   <option value="">Select Client</option>
                   {MOCK_CLIENTS_LIST.map((c) => (
@@ -258,7 +313,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                   placeholder="0.00"
                   value={paymentAmount === 0 ? '' : paymentAmount}
                   onChange={(e) => setPaymentAmount(Number(e.target.value) || 0)}
-                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold outline-none focus:border-[#7367F0]"
+                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold outline-none focus:border-[#3D6A9E]"
                 />
               </div>
 
@@ -284,7 +339,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 >
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="UPI">UPI</option>
@@ -301,7 +356,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 <select
                   value={bankAccountId}
                   onChange={(e) => setBankAccountId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 >
                   {bankAccounts.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -323,7 +378,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                     type="text"
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full pl-3 pr-8 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                    className="w-full pl-3 pr-8 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                   />
                   <Calendar className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -338,7 +393,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                   placeholder="REF-123456"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
               </div>
 
@@ -351,7 +406,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                   placeholder="Additional notes..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
               </div>
             </div>
@@ -373,7 +428,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAutoAllocate}
-                  className="text-xs text-[#7367F0] font-semibold hover:underline cursor-pointer"
+                  className="text-xs text-[#3D6A9E] font-semibold hover:underline cursor-pointer"
                 >
                   Auto-Allocate
                 </button>
@@ -407,7 +462,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
                       return (
                         <tr key={doc.id} className="hover:bg-gray-50/50 dark:hover:bg-[#0f172a]/50">
-                          <td className="py-2 px-3 font-semibold text-[#7367F0]">{doc.number}</td>
+                          <td className="py-2 px-3 font-semibold text-[#3D6A9E]">{doc.number}</td>
                           <td className="py-2 px-3 text-gray-600 dark:text-gray-300">{doc.date}</td>
                           <td className="py-2 px-3">â‚¹{doc.totalPayable.toLocaleString('en-IN')}</td>
                           <td className="py-2 px-3 font-medium text-red-600">â‚¹{doc.balanceAmount.toLocaleString('en-IN')}</td>
@@ -419,7 +474,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                               value={currentAlloc === 0 ? '' : currentAlloc}
                               onChange={(e) => handleAllocationChange(doc.id, doc.balanceAmount, e.target.value)}
                               placeholder="0.00"
-                              className="w-full px-2 py-1 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold outline-none focus:border-[#7367F0]"
+                              className="w-full px-2 py-1 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold outline-none focus:border-[#3D6A9E]"
                             />
                           </td>
                         </tr>
@@ -457,17 +512,19 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             onClick={onClose}
             className="px-4 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 cursor-pointer"
           >
-            Back
+            {isView ? 'Close' : 'Back'}
           </button>
 
-          <button
-            type="button"
-            disabled={!isValid}
-            onClick={handleSave}
-            className="px-5 py-1.5 rounded bg-[#7367F0] hover:bg-[#685dd8] text-white text-xs font-semibold shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
-          >
-            Save Payment
-          </button>
+          {!isView && (
+            <button
+              type="button"
+              disabled={!isValid}
+              onClick={handleSave}
+              className="px-5 py-1.5 rounded bg-[#3D6A9E] hover:bg-[#685dd8] text-white text-xs font-semibold shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+            >
+              {isEdit ? 'Update Receipt' : 'Save Payment'}
+            </button>
+          )}
         </div>
       </div>
     </div>

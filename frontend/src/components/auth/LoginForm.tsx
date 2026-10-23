@@ -58,7 +58,7 @@ export const LoginForm: React.FC = () => {
         name: mode === "email" ? target.split("@")[0] : `User ${cleanMobile.slice(-4)}`,
         email: mode === "email" ? target : `${cleanMobile}@ayatrio.local`,
         mobile: mode === "mobile" ? cleanMobile : "9876543210",
-        role: "admin" as const,
+        role: "employee" as const,
         firmName: "Ayatrio Practice",
         initials: "AP",
       };

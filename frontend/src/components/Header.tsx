@@ -25,6 +25,7 @@ import {
 import dynamic from "next/dynamic";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth, computeInitials } from "./auth/AuthContext";
+import { usePermission } from "./team/usePermission";
 
 const SearchModal = dynamic(
   () => import("./SearchModal").then((m) => m.SearchModal),
@@ -120,8 +121,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { currentUser } = useAuth();
+  const { canView } = usePermission();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <>
@@ -161,11 +168,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               <Building className="w-4 h-4" />
             </div>
             <span
+              suppressHydrationWarning
               className="text-[13.5px] font-semibold tracking-tight whitespace-nowrap"
               style={{ color: "var(--text-main)" }}
             >
               {currentUser?.name || "Ayatrio CA"}
             </span>
+            {currentUser?.role && (
+              <span
+                suppressHydrationWarning
+                className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                  (currentUser.role || "").toLowerCase() === "employee"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
+                    : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300"
+                }`}
+              >
+                {currentUser.role}
+              </span>
+            )}
           </Link>
         </div>
 
@@ -175,6 +195,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           aria-label="Primary Header Navigation"
         >
           {HEADER_NAV_ITEMS.map((item) => {
+            if (
+              (item.id === "notices" && !canView("notice_management")) ||
+              (item.id === "chat" && !canView("chat")) ||
+              (item.id === "sprints" && !canView("sprint_planner")) ||
+              (item.id === "action-center" && !canView("action_center")) ||
+              (item.id === "calendar" && !canView("calendar")) ||
+              (item.id === "to-do" && !canView("todo"))
+            ) {
+              return null;
+            }
+
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
@@ -272,7 +303,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
 
           {/* User Profile Avatar / Login Entry Point */}
           <div className="relative shrink-0">
-            {currentUser ? (
+            {!mounted ? (
+              <button
+                type="button"
+                className="relative flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold tracking-tight transition-transform focus:outline-hidden"
+                style={{
+                  backgroundColor: "var(--avatar-bg)",
+                  color: "var(--avatar-text)",
+                }}
+                title="User Account"
+                aria-label="User Account"
+              >
+                <span>DS</span>
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-gray-900"
+                  style={{ backgroundColor: "var(--status-online)" }}
+                />
+              </button>
+            ) : currentUser ? (
               <button
                 type="button"
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -285,7 +333,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 aria-label={`User Account: ${currentUser.name}`}
                 aria-expanded={isProfileOpen}
               >
-                <span>{currentUser.initials || computeInitials(currentUser.name)}</span>
+                <span suppressHydrationWarning>{currentUser.initials || computeInitials(currentUser.name)}</span>
                 {/* Online Green Dot */}
                 <span
                   className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-gray-900"

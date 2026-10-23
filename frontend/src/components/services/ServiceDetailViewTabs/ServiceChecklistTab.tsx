@@ -3,6 +3,7 @@
 import React from "react";
 import { RotateCcw, Upload, Plus, Check, Trash2 } from "lucide-react";
 import { ServiceChecklistItem } from "@/data/serviceData";
+import { usePermission } from "../../team/usePermission";
 
 interface ServiceChecklistTabProps {
   checklist: ServiceChecklistItem[];
@@ -29,6 +30,7 @@ export const ServiceChecklistTab: React.FC<ServiceChecklistTabProps> = ({
   isSyncing,
   showToast,
 }) => {
+  const { canDelete } = usePermission();
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left 2 Cols: Checklist items management */}
@@ -136,13 +138,15 @@ export const ServiceChecklistTab: React.FC<ServiceChecklistTabProps> = ({
                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
                     Mandatory
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteChecklist(item.id)}
-                    className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canDelete("services") && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteChecklist(item.id)}
+                      className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))

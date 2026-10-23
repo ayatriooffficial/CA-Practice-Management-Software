@@ -41,7 +41,7 @@ const userSchema = new Schema<IUserDocument>(
     },
     role: {
       type: String,
-      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff'],
+      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff', 'Admin', 'Partner', 'Manager', 'Employee'],
       default: 'admin',
       index: true,
     },
@@ -69,7 +69,7 @@ const userSchema = new Schema<IUserDocument>(
     },
     status: {
       type: String,
-      enum: ['active', 'suspended', 'invited'],
+      enum: ['active', 'suspended', 'invited', 'Active', 'Deactivated', 'Resigned', 'Inactive'],
       default: 'active',
       index: true,
     },

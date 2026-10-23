@@ -19,6 +19,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { Client, CLIENT_TYPES, CLIENT_TAGS, RECURRING_SERVICES } from "@/data/crmData";
+import { usePermission } from "@/components/team/usePermission";
 
 interface ClientViewDrawerProps {
   client: Client;
@@ -35,6 +36,7 @@ export const ClientViewDrawer: React.FC<ClientViewDrawerProps> = ({
   onDelete,
   onToggleActive,
 }) => {
+  const { canDelete, canAddEdit } = usePermission();
   const typeObj = CLIENT_TYPES.find((t) => t.value === client.type);
   const typeLabel = typeObj ? typeObj.label : client.type;
 
@@ -76,22 +78,26 @@ export const ClientViewDrawer: React.FC<ClientViewDrawerProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onEdit(client)}
-              className="p-2 rounded-xl text-gray-500 hover:text-[#31719B] hover:bg-[#31719B]/10 transition-colors cursor-pointer"
-              title="Edit Client"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(client.id, client.name)}
-              className="p-2 rounded-xl text-gray-500 hover:text-[#e8655a] hover:bg-[#e8655a]/10 transition-colors cursor-pointer"
-              title="Delete Client"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {canAddEdit("clients") && (
+              <button
+                type="button"
+                onClick={() => onEdit(client)}
+                className="p-2 rounded-xl text-gray-500 hover:text-[#31719B] hover:bg-[#31719B]/10 transition-colors cursor-pointer"
+                title="Edit Client"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+            {canDelete("clients") && (
+              <button
+                type="button"
+                onClick={() => onDelete(client.id, client.name)}
+                className="p-2 rounded-xl text-gray-500 hover:text-[#e8655a] hover:bg-[#e8655a]/10 transition-colors cursor-pointer"
+                title="Delete Client"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}

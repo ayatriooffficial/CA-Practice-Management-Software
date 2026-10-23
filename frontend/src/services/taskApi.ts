@@ -3,6 +3,7 @@ import {
   TaskItem,
   TaskStats,
   TaskSummaryRow,
+  INITIAL_TASKS,
 } from '@/data/taskData';
 
 export interface TaskQueryParams {
@@ -23,8 +24,34 @@ export interface TaskQueryParams {
   clientName?: string;
 }
 
-// In-memory fallback cache - real data only
-let fallbackTasks: TaskItem[] = [];
+const STORAGE_KEY_TASKS = 'turia_tasks_demo_cache_v1';
+
+function getStoredTasks(): TaskItem[] {
+  if (typeof window === 'undefined') return [...INITIAL_TASKS];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_TASKS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(INITIAL_TASKS));
+      return [...INITIAL_TASKS];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...INITIAL_TASKS];
+  } catch {
+    return [...INITIAL_TASKS];
+  }
+}
+
+function saveStoredTasks(tasks: TaskItem[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+  } catch {
+    // ignore
+  }
+}
+
+// In-memory fallback cache initialized with demo data
+let fallbackTasks: TaskItem[] = getStoredTasks();
 
 export const taskApi = {
   getTasks: async (params: TaskQueryParams = {}): Promise<ApiResponse<TaskItem[]>> => {
@@ -101,12 +128,14 @@ export const taskApi = {
 
   getTaskSummaryMatrix: async (
     groupBy: string = 'Assigned To',
-    search?: string
+    search?: string,
+    assigneeFilter?: string
   ): Promise<ApiResponse<{ rows: TaskSummaryRow[]; grandTotal: TaskSummaryRow }>> => {
     try {
       const params = new URLSearchParams();
       if (groupBy) params.set('groupBy', groupBy);
       if (search?.trim()) params.set('search', search.trim());
+      if (assigneeFilter && assigneeFilter !== 'All Assignees') params.set('assigneeFilter', assigneeFilter);
       const query = params.toString();
       const res = await request<{ rows: TaskSummaryRow[]; grandTotal: TaskSummaryRow }>(
         `/tasks/summary-matrix${query ? `?${query}` : ''}`
@@ -116,28 +145,86 @@ export const taskApi = {
       // Fallback
     }
 
+    let tasks = getStoredTasks();
+    if (assigneeFilter && assigneeFilter.trim() && assigneeFilter !== 'All Assignees') {
+      const filterLower = assigneeFilter.trim().toLowerCase();
+      tasks = tasks.filter(
+        (t) =>
+          (t.assigneeName && t.assigneeName.toLowerCase().includes(filterLower)) ||
+          (t.assigneeId && t.assigneeId.toLowerCase() === filterLower)
+      );
+    }
+    const groupsMap = new Map<string, TaskItem[]>();
+
+    tasks.forEach((t) => {
+      let key = t.assigneeName || 'Unassigned';
+      if (groupBy === 'Client') key = t.clientName || 'General';
+      else if (groupBy === 'Department') key = t.department || 'General';
+      else if (groupBy === 'Service') key = t.serviceName || 'General';
+
+      if (search?.trim() && !key.toLowerCase().includes(search.trim().toLowerCase())) return;
+
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(t);
+    });
+
+    const rows: TaskSummaryRow[] = Array.from(groupsMap.entries()).map(([label, list]) => {
+      const pending = list.filter((x) => x.status === 'Pending').length;
+      const inProgress = list.filter((x) => x.status === 'In Progress').length;
+      const sentForReview = list.filter((x) => x.status === 'Sent for Review').length;
+      const requestChanges = list.filter((x) => x.status === 'Request Changes').length;
+      const wipSubTotal = inProgress + sentForReview + requestChanges;
+      const overdue = list.filter((x) => x.status === 'Overdue').length;
+      const dueToday = 0;
+      const completed = list.filter((x) => x.status === 'Completed').length;
+      const readyToBill = list.filter((x) => x.status === 'Ready to Bill').length;
+      const onHold = list.filter((x) => x.status === 'On Hold').length;
+      const total = list.length;
+      const donePercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      return {
+        groupKey: label.toLowerCase().replace(/\s+/g, '_'),
+        groupLabel: label,
+        pending,
+        inProgress,
+        sentForReview,
+        requestChanges,
+        wipSubTotal,
+        overdue,
+        dueToday,
+        completed,
+        readyToBill,
+        onHold,
+        total,
+        donePercentage,
+      };
+    });
+
+    const grandTotal: TaskSummaryRow = {
+      groupKey: 'grand_total',
+      groupLabel: 'Grand Total',
+      pending: rows.reduce((s, r) => s + r.pending, 0),
+      inProgress: rows.reduce((s, r) => s + r.inProgress, 0),
+      sentForReview: rows.reduce((s, r) => s + r.sentForReview, 0),
+      requestChanges: rows.reduce((s, r) => s + r.requestChanges, 0),
+      wipSubTotal: rows.reduce((s, r) => s + r.wipSubTotal, 0),
+      overdue: rows.reduce((s, r) => s + r.overdue, 0),
+      dueToday: rows.reduce((s, r) => s + r.dueToday, 0),
+      completed: rows.reduce((s, r) => s + r.completed, 0),
+      readyToBill: rows.reduce((s, r) => s + r.readyToBill, 0),
+      onHold: rows.reduce((s, r) => s + r.onHold, 0),
+      total: rows.reduce((s, r) => s + r.total, 0),
+      donePercentage: 0,
+    };
+    grandTotal.donePercentage = grandTotal.total > 0 ? Math.round((grandTotal.completed / grandTotal.total) * 100) : 0;
+
     return {
       success: true,
       statusCode: 200,
       message: 'Summary matrix retrieved',
       data: {
-        rows: [],
-        grandTotal: {
-          groupKey: 'grand_total',
-          groupLabel: 'Grand Total',
-          pending: 0,
-          inProgress: 0,
-          sentForReview: 0,
-          requestChanges: 0,
-          wipSubTotal: 0,
-          overdue: 0,
-          dueToday: 0,
-          completed: 0,
-          readyToBill: 0,
-          onHold: 0,
-          total: 0,
-          donePercentage: 0,
-        },
+        rows,
+        grandTotal,
       },
     };
   },
@@ -243,6 +330,7 @@ export const taskApi = {
     };
 
     fallbackTasks.unshift(newTask);
+    saveStoredTasks(fallbackTasks);
     return {
       success: true,
       statusCode: 201,
@@ -260,6 +348,7 @@ export const taskApi = {
       if (res.data) {
         const idx = fallbackTasks.findIndex((t) => t.id === id || t.taskId === id);
         if (idx !== -1) fallbackTasks[idx] = { ...fallbackTasks[idx], ...res.data };
+        saveStoredTasks(fallbackTasks);
         return res;
       }
     } catch {
@@ -269,6 +358,7 @@ export const taskApi = {
     const idx = fallbackTasks.findIndex((t) => t.id === id || t.taskId === id);
     if (idx !== -1) {
       fallbackTasks[idx] = { ...fallbackTasks[idx], ...payload };
+      saveStoredTasks(fallbackTasks);
       return {
         success: true,
         statusCode: 200,
@@ -292,6 +382,7 @@ export const taskApi = {
       // Fallback
     }
     fallbackTasks = fallbackTasks.filter((t) => t.id !== id && t.taskId !== id);
+    saveStoredTasks(fallbackTasks);
     return {
       success: true,
       statusCode: 200,

@@ -28,21 +28,20 @@ export const SummaryCards: React.FC = () => {
         {/* Total Receipts Count */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'All' ? 'All' : 'All')}
-          className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-            statusFilter === 'All'
-              ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#7367F0]/40 shadow-xs'
-              : 'bg-white dark:bg-[#1e293b] border-[#e5e7eb] dark:border-[#334155] hover:border-[#7367F0]/40'
-          }`}
+          className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer shadow-2xs ${statusFilter === 'All'
+              ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#3D6A9E]/40 shadow-xs'
+              : 'bg-white dark:bg-[#1e293b] border-[#e5e7eb] dark:border-[#334155] hover:border-[#3D6A9E]/40'
+            }`}
         >
           <div>
-            <div className="text-2xl font-bold text-[#7367F0] dark:text-[#a59df7] tracking-tight">
+            <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
               {summaryStats.totalReceiptsCount}
             </div>
             <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mt-1">
               Total Receipts
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#7367F0]/20 flex items-center justify-center text-[#7367F0] shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
             <Receipt className="w-5 h-5" />
           </div>
         </div>
@@ -52,14 +51,14 @@ export const SummaryCards: React.FC = () => {
           className="flex items-center justify-between p-5 rounded-xl border bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#e9d5ff] dark:border-[#334155] transition-all cursor-pointer shadow-2xs"
         >
           <div>
-            <div className="text-2xl font-bold text-[#7367F0] dark:text-[#a59df7] tracking-tight">
+            <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
               {summaryStats.totalReceiptsCount}
             </div>
             <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mt-1">
               Receipts
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#7367F0]/20 flex items-center justify-center text-[#7367F0] shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
             <Layers className="w-5 h-5" />
           </div>
         </div>
@@ -67,11 +66,10 @@ export const SummaryCards: React.FC = () => {
         {/* Advance Amount */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'Advance' ? 'All' : 'Advance')}
-          className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-            statusFilter === 'Advance'
+          className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer shadow-2xs ${statusFilter === 'Advance'
               ? 'bg-[#fff7ed] dark:bg-[#2c1d11] border-[#fb923c] shadow-xs'
               : 'bg-[#fff7ed] dark:bg-[#2c1d11] border-[#ffedd5] dark:border-[#432818] hover:border-orange-300'
-          }`}
+            }`}
         >
           <div>
             <div className="text-2xl font-bold text-[#ea580c] dark:text-[#fb923c] tracking-tight">
@@ -94,8 +92,8 @@ export const SummaryCards: React.FC = () => {
     activeTab === 'proforma'
       ? `All Proforma (${summaryStats.allCount})`
       : activeTab === 'reimbursement'
-      ? `All Reimbursements (${summaryStats.allCount})`
-      : `All Invoices (${summaryStats.allCount})`;
+        ? `All Reimbursements (${summaryStats.allCount})`
+        : `All Invoices (${summaryStats.allCount})`;
 
   const fourthCardLabel =
     activeTab === 'proforma'
@@ -110,21 +108,20 @@ export const SummaryCards: React.FC = () => {
       {/* 1. All Items (Purple) */}
       <div
         onClick={() => setStatusFilter('All')}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${
-          statusFilter === 'All'
-            ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#7367F0] shadow-xs'
+        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'All'
+            ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#3D6A9E] shadow-xs'
             : 'bg-[#f5f3ff]/70 dark:bg-[#1e1e38]/50 border-[#e9d5ff] dark:border-[#334155] hover:border-[#c084fc]'
-        }`}
+          }`}
       >
         <div>
-          <div className="text-2xl font-bold text-[#7367F0] dark:text-[#a59df7] tracking-tight">
+          <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
             {formatCurrency(summaryStats.allAmount)}
           </div>
           <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mt-1">
             {allLabel}
           </div>
         </div>
-        <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#7367F0]/20 flex items-center justify-center text-[#7367F0] shrink-0">
+        <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
           <FileText className="w-5 h-5" />
         </div>
       </div>
@@ -132,11 +129,10 @@ export const SummaryCards: React.FC = () => {
       {/* 2. Receivable (Pink / Red) */}
       <div
         onClick={() => setStatusFilter(statusFilter === 'Receivable' ? 'All' : 'Receivable')}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${
-          statusFilter === 'Receivable'
+        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'Receivable'
             ? 'bg-[#fef2f2] dark:bg-[#2b1616] border-[#f87171] shadow-xs'
             : 'bg-[#fef2f2]/70 dark:bg-[#2b1616]/50 border-[#fee2e2] dark:border-[#4c1d1d] hover:border-[#f87171]'
-        }`}
+          }`}
       >
         <div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -159,11 +155,10 @@ export const SummaryCards: React.FC = () => {
       {/* 3. Partially Paid (Orange) */}
       <div
         onClick={() => setStatusFilter(statusFilter === 'Partially Paid' ? 'All' : 'Partially Paid')}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${
-          statusFilter === 'Partially Paid'
+        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'Partially Paid'
             ? 'bg-[#fff7ed] dark:bg-[#2c1d11] border-[#fb923c] shadow-xs'
             : 'bg-[#fff7ed]/70 dark:bg-[#2c1d11]/50 border-[#ffedd5] dark:border-[#432818] hover:border-[#fb923c]'
-        }`}
+          }`}
       >
         <div>
           <div className="text-2xl font-bold text-[#ea580c] dark:text-[#fb923c] tracking-tight">
@@ -184,11 +179,10 @@ export const SummaryCards: React.FC = () => {
           const target = activeTab === 'proforma' ? 'Advance Paid' : 'Paid';
           setStatusFilter(statusFilter === target ? 'All' : target);
         }}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${
-          statusFilter === (activeTab === 'proforma' ? 'Advance Paid' : 'Paid')
+        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === (activeTab === 'proforma' ? 'Advance Paid' : 'Paid')
             ? 'bg-[#f0fdf4] dark:bg-[#13281c] border-[#4ade80] shadow-xs'
             : 'bg-[#f0fdf4]/70 dark:bg-[#13281c]/50 border-[#dcfce7] dark:border-[#14532d] hover:border-[#4ade80]'
-        }`}
+          }`}
       >
         <div>
           <div className="text-2xl font-bold text-[#16a34a] dark:text-[#4ade80] tracking-tight">

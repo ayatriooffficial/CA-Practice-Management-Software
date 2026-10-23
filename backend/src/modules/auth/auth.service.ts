@@ -35,9 +35,13 @@ export class AuthService {
    * Helper to build JWT payload from a User document
    */
   private static buildJwtPayload(user: IUserDocument, firmName: string): IJwtUserPayload {
+    const resolvedOrgId = user.orgId && (user.orgId as any)._id
+      ? String((user.orgId as any)._id)
+      : String(user.orgId);
+
     return {
       userId: String(user._id),
-      orgId: String(user.orgId),
+      orgId: resolvedOrgId,
       firmName: firmName || user.firmName || 'Firm',
       email: user.email,
       role: user.role,
@@ -224,7 +228,7 @@ export class AuthService {
           name: formattedName,
           email: resolvedEmail,
           mobile: resolvedMobile,
-          role: 'admin',
+          role: 'employee',
           status: 'active',
           firmName: org.name,
           initials: computeInitials(formattedName),
@@ -234,7 +238,8 @@ export class AuthService {
       }
     }
 
-    if (user.status !== 'active') {
+    const statusLower = (user.status || '').toLowerCase();
+    if (statusLower !== 'active') {
       throw new AppError('Your account has been deactivated. Please contact your administrator.', HTTP_STATUS.FORBIDDEN);
     }
 
@@ -288,7 +293,8 @@ export class AuthService {
       throw AppError.unauthorized('Invalid email or password');
     }
 
-    if (user.status !== 'active') {
+    const statusLower = (user.status || '').toLowerCase();
+    if (statusLower !== 'active') {
       throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
     }
 
@@ -348,7 +354,8 @@ export class AuthService {
     }
 
     const user = await UserModel.findById(decoded.userId).populate('orgId', 'name');
-    if (!user || user.status !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
+    const userStatusLower = (user?.status || '').toLowerCase();
+    if (!user || userStatusLower !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
       session.isRevoked = true;
       await session.save();
       throw AppError.unauthorized('User not found, deactivated, or sessions invalidated');

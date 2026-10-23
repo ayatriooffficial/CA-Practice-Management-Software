@@ -128,20 +128,41 @@ export function getPresetPermissions(role: TeamRole): RolePermissionsMap {
   }
 
   // Employee preset
-  // View & Add/Edit on Leads, Clients, Services, Task Manager
-  ['leads', 'clients', 'services', 'task_manager'].forEach((k) => {
+  // View & Add/Edit on standard operational modules (NO DELETE across all sections)
+  [
+    'leads',
+    'clients',
+    'services',
+    'task_manager',
+    'time_sheet',
+    'attendance_leave',
+    'calendar',
+    'chat',
+    'todo',
+    'action_center',
+    'appointment',
+    'file_manager',
+    'agents',
+    'reports',
+    'udin',
+    'digital_signature',
+    'licenses',
+    'password',
+    'document_in_out',
+    'compliance_tracker',
+  ].forEach((k) => {
     map[k] = { view: true, addEdit: true, delete: false, import: false, export: false };
   });
 
-  // View only on Groups, Invoice, Payments, Notice Management, Team
-  ['groups', 'invoice', 'payments', 'notice_management', 'team'].forEach((k) => {
+  // View only on Groups, Payments, Notice Management, Team
+  ['groups', 'payments', 'notice_management', 'team'].forEach((k) => {
     map[k] = { view: true, addEdit: false, delete: false, import: false, export: false };
   });
 
-  // Daily tools
-  ['time_sheet', 'attendance_leave', 'calendar', 'chat', 'todo', 'action_center', 'appointment', 'file_manager'].forEach((k) => {
-    map[k] = { view: true, addEdit: true, delete: false, import: false, export: false };
-  });
+  // Invoice, Billing, and Proposals strictly inaccessible to employees
+  map['invoice'] = { view: false, addEdit: false, delete: false, import: false, export: false };
+  map['billing'] = { view: false, addEdit: false, delete: false, import: false, export: false };
+  map['proposals'] = { view: false, addEdit: false, delete: false, import: false, export: false };
 
   return map;
 }
@@ -168,8 +189,17 @@ export function handlePermissionToggle(
     updatedMod.export = false;
   }
 
-  return {
+  const result: RolePermissionsMap = {
     ...current,
     [moduleKey]: updatedMod,
   };
+
+  // Sync alias keys if updating task manager
+  if (moduleKey === 'task_manager' || moduleKey === 'tasks' || moduleKey === 'task') {
+    result['task_manager'] = updatedMod;
+    result['tasks'] = updatedMod;
+    result['task'] = updatedMod;
+  }
+
+  return result;
 }

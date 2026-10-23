@@ -13,6 +13,7 @@ import {
   FileText,
 } from "lucide-react";
 import { TaskDocumentRequestItem } from "@/data/taskData";
+import { usePermission } from "../../team/usePermission";
 
 interface TaskDocumentRequestTabProps {
   documentRequests: TaskDocumentRequestItem[];
@@ -43,6 +44,7 @@ export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
   uploadingDocId,
   uploadError,
 }) => {
+  const { canDelete } = usePermission();
   const generalFileInputRef = useRef<HTMLInputElement>(null);
   const [generalFileTitle, setGeneralFileTitle] = useState("");
   const [isGeneralUploadOpen, setIsGeneralUploadOpen] = useState(false);
@@ -341,14 +343,16 @@ export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
                 </button>
 
                 {/* Delete */}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteDocRequest(doc.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-subtle)] hover:text-red-500 transition-opacity cursor-pointer"
-                  title="Delete document request"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {canDelete("task_manager") && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDocRequest(doc.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-subtle)] hover:text-red-500 transition-opacity cursor-pointer"
+                    title="Delete document request"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           );

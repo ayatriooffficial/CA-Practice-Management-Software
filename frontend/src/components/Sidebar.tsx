@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   FileText,
@@ -27,8 +27,12 @@ import {
   Building,
   Moon,
   Sun,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "./auth/AuthContext";
+import { usePermission } from "./team/usePermission";
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -59,14 +63,35 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile }) => {
+  const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { currentUser, logout } = useAuth();
+  const { canView } = usePermission();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+
+  const isItemVisible = (id: string) => {
+    if (id === "home") return true;
+    if (id === "invoice") return !isEmployee && canView("invoice");
+    if (id === "proposal") return !isEmployee && canView("proposals");
+    if (id === "reports") return true;
+    if (id === "agents") return true;
+    if (id === "registry") return true;
+    if (id === "task") return canView("task_manager");
+    if (id === "client") return canView("clients");
+    if (id === "leads") return canView("leads");
+    if (id === "services") return canView("services");
+    if (id === "groups") return canView("groups");
+    if (id === "team") return canView("team");
+    if (id === "drive") return canView("file_manager");
+    return canView(id);
+  };
 
   return (
     <>
       {/* Desktop Sidebar (hidden on mobile, visible on md+) */}
       <aside
-        className="hidden md:flex app-sidebar sticky top-[var(--header-height)] h-[calc(100vh-var(--header-height))] z-30 shrink-0 flex-col justify-start overflow-visible select-none transition-colors"
+        className="hidden md:flex app-sidebar sticky top-[var(--header-height)] h-[calc(100vh-var(--header-height))] z-30 shrink-0 flex-col justify-between overflow-visible select-none transition-colors"
         style={{
           width: "var(--sidebar-width)",
           backgroundColor: "var(--bg-surface)",
@@ -76,6 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       >
         <div className="flex flex-col items-center py-2 gap-0.5 w-full">
           {SIDEBAR_ITEMS.map((item) => {
+            if (!isItemVisible(item.id)) return null;
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
 
@@ -142,6 +168,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             );
           })}
         </div>
+
+        {/* Desktop Sidebar Bottom: Logout / Login */}
+        <div className="flex flex-col items-center py-2 gap-1 w-full border-t mt-auto" style={{ borderColor: "var(--border-subtle)" }}>
+          {currentUser ? (
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+                router.push("/login");
+              }}
+              className="w-full flex flex-col items-center justify-center py-1.5 px-0.5 text-center transition-all group relative cursor-pointer font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4 mb-0.5 transition-transform group-hover:scale-110" />
+              <span className="text-[10px] font-semibold leading-tight">Logout</span>
+              <div
+                className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-tight whitespace-nowrap shadow-md border opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 select-none"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-main)",
+                  color: "var(--text-main)",
+                }}
+              >
+                Logout
+                <div
+                  className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 border-l border-b"
+                  style={{
+                    backgroundColor: "var(--bg-surface)",
+                    borderColor: "var(--border-main)",
+                  }}
+                />
+              </div>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="w-full flex flex-col items-center justify-center py-1.5 px-0.5 text-center transition-all group relative cursor-pointer font-semibold text-[var(--primary)] hover:bg-[var(--primary-light)]"
+              title="Login"
+            >
+              <LogIn className="w-4 h-4 mb-0.5 transition-transform group-hover:scale-110" />
+              <span className="text-[10px] font-semibold leading-tight">Login</span>
+            </Link>
+          )}
+        </div>
       </aside>
 
       {/* Mobile Drawer (Visible when isMobileOpen is true on mobile) */}
@@ -170,23 +240,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             >
               <div className="flex items-center gap-2.5">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-xs font-bold text-xs"
                   style={{
                     backgroundColor: "var(--primary)",
                     color: "var(--text-inverse)",
                   }}
                 >
-                  <Building className="w-4 h-4" />
+                  <span suppressHydrationWarning>{currentUser?.initials || (currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "DS")}</span>
                 </div>
                 <div>
                   <div
+                    suppressHydrationWarning
                     className="text-[13.5px] font-semibold tracking-tight"
                     style={{ color: "var(--text-main)" }}
                   >
-                    Dipak Sahani
+                    {currentUser?.name || "Deepak Sahani"}
                   </div>
-                  <div className="text-[10.5px] text-gray-500 dark:text-gray-400">
-                    Practice Management
+                  <div suppressHydrationWarning className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                    {currentUser?.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : "Practice Management"}
                   </div>
                 </div>
               </div>
@@ -207,6 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                 Navigation
               </div>
               {SIDEBAR_ITEMS.map((item) => {
+                if (!isItemVisible(item.id)) return null;
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
 
@@ -239,31 +311,77 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               })}
             </nav>
 
-            {/* Drawer Footer with Theme Toggle */}
+            {/* Drawer Footer with User Status & Logout */}
             <div
-              className="p-3 border-t shrink-0 flex items-center justify-between"
+              className="p-3 border-t shrink-0 flex flex-col gap-2.5"
               style={{ borderColor: "var(--border-main)" }}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">Appearance</span>
+              {currentUser ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                      style={{
+                        backgroundColor: "var(--avatar-bg)",
+                        color: "var(--avatar-text)",
+                      }}
+                    >
+                      <span suppressHydrationWarning>{currentUser.initials || (currentUser.name ? currentUser.name.slice(0, 2).toUpperCase() : "DS")}</span>
+                    </div>
+                    <span
+                      suppressHydrationWarning
+                      className="text-xs font-semibold truncate max-w-[130px]"
+                      style={{ color: "var(--text-main)" }}
+                    >
+                      {currentUser.name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      if (onCloseMobile) onCloseMobile();
+                      router.push("/login");
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={onCloseMobile}
+                  className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Login</span>
+                </Link>
+              )}
+
+              <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500">Appearance</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer"
+                  style={{
+                    borderColor: "var(--border-main)",
+                    backgroundColor: "var(--bg-subtle)",
+                    color: "var(--text-main)",
+                  }}
+                >
+                  {theme === "light" ? (
+                    <Moon className="w-3.5 h-3.5" />
+                  ) : (
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  <span className="capitalize">{theme}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer"
-                style={{
-                  borderColor: "var(--border-main)",
-                  backgroundColor: "var(--bg-subtle)",
-                  color: "var(--text-main)",
-                }}
-              >
-                {theme === "light" ? (
-                  <Moon className="w-3.5 h-3.5" />
-                ) : (
-                  <Sun className="w-3.5 h-3.5 text-amber-400" />
-                )}
-                <span className="capitalize">{theme}</span>
-              </button>
             </div>
           </aside>
         </div>

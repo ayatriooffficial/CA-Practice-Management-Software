@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Plus, Trash2, Search } from "lucide-react";
 import { ClientDsc } from "@/data/crmData";
 import { getAvatarBadge } from "./utils";
+import { usePermission } from "../../team/usePermission";
 
 export interface ClientDscTabProps {
   dscs: ClientDsc[];
@@ -14,6 +15,7 @@ export const ClientDscTab: React.FC<ClientDscTabProps> = ({
   setIsAddDscOpen,
   handleDeleteDsc,
 }) => {
+  const { canDelete } = usePermission();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Expired">("All");
 
@@ -200,14 +202,18 @@ export const ClientDscTab: React.FC<ClientDscTabProps> = ({
 
                   {/* Delete action */}
                   <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteDsc(dsc.dscId || dsc.id || "", dsc.name)}
-                      title="Delete digital signature"
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canDelete("digital_signature") ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDsc(dsc.dscId || dsc.id || "", dsc.name)}
+                        title="Delete digital signature"
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               ))

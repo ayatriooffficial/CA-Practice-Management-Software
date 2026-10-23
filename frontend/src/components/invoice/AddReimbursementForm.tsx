@@ -9,7 +9,7 @@ import {
   Building,
   FileEdit,
 } from 'lucide-react';
-import { ServiceItem } from './types';
+import { ServiceItem, InvoiceRecord } from './types';
 import {
   FIRM_DETAILS,
   MOCK_CLIENTS_LIST,
@@ -19,41 +19,68 @@ import { useInvoice } from './InvoiceContext';
 import { AddBankAccountModal } from './AddBankAccountModal';
 
 interface AddReimbursementFormProps {
+  mode?: 'create' | 'edit' | 'view';
+  initialData?: InvoiceRecord;
   onBack: () => void;
 }
 
-export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBack }) => {
-  const { addReimbursement, bankAccounts } = useInvoice();
+export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
+  mode = 'create',
+  initialData,
+  onBack,
+}) => {
+  const { addReimbursement, updateInvoice, bankAccounts } = useInvoice();
+
+  const isView = mode === 'view';
+  const isEdit = mode === 'edit';
 
   const todayFormatted = '19/10/2026';
-  const [challanDate, setChallanDate] = useState(todayFormatted);
-  const [dueDate, setDueDate] = useState(todayFormatted);
+  const [challanDate, setChallanDate] = useState(initialData?.date || todayFormatted);
+  const [dueDate, setDueDate] = useState(initialData?.dueDate || todayFormatted);
 
-  // Client Selection (starts blank like real app)
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const selectedClient = MOCK_CLIENTS_LIST.find((c) => c.id === selectedClientId);
+  // Client Selection
+  const [selectedClientId, setSelectedClientId] = useState<string>(initialData?.clientId || '');
+  const selectedClient =
+    MOCK_CLIENTS_LIST.find((c) => c.id === selectedClientId) ||
+    (initialData
+      ? {
+          id: initialData.clientId,
+          businessName: initialData.clientBusinessName,
+          legalName: initialData.clientLegalName || initialData.clientBusinessName,
+          group: initialData.clientGroup || 'Clients',
+          pan: initialData.clientPan || '',
+          gstin: initialData.clientGstin || '',
+          address: initialData.clientAddress || '',
+          placeOfSupply: initialData.placeOfSupply || '27-Maharashtra',
+        }
+      : undefined);
 
-  // Bank Selection (starts unselected like real app)
-  const [selectedBankId, setSelectedBankId] = useState<string>('');
+  // Bank Selection
+  const [selectedBankId, setSelectedBankId] = useState<string>(initialData?.bankAccountId || '');
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const selectedBank = bankAccounts.find((b) => b.id === selectedBankId);
 
-  // Items (starts with 1 row)
-  const [items, setItems] = useState<ServiceItem[]>([
-    {
-      id: 'reimb-item-1',
-      serviceName: '',
-      description: '',
-      compliancePeriod: 'FY 2026-27',
-      frequency: 'One-Time',
-      periodLabel: 'One Time',
-      quantity: 1,
-      price: 0,
-      amount: 0,
-      total: 0,
-      isReimbursement: true,
-    },
-  ]);
+  // Items
+  const [items, setItems] = useState<ServiceItem[]>(() => {
+    if (initialData?.services && initialData.services.length > 0) {
+      return initialData.services;
+    }
+    return [
+      {
+        id: 'reimb-item-1',
+        serviceName: '',
+        description: '',
+        compliancePeriod: 'FY 2026-27',
+        frequency: 'One-Time',
+        periodLabel: 'One Time',
+        quantity: 1,
+        price: 0,
+        amount: 0,
+        total: 0,
+        isReimbursement: true,
+      },
+    ];
+  });
 
   const [note, setNote] = useState('');
 
@@ -107,7 +134,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
       return;
     }
 
-    addReimbursement({
+    const payload = {
       date: challanDate,
       dueDate: dueDate,
       billingOrg: FIRM_DETAILS.name,
@@ -127,7 +154,13 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
       bankAccountId: selectedBankId,
       notes: note || undefined,
       placeOfSupply: selectedClient.placeOfSupply,
-    });
+    };
+
+    if (isEdit && initialData) {
+      updateInvoice(initialData.id, payload);
+    } else {
+      addReimbursement(payload);
+    }
 
     onBack();
   };
@@ -136,19 +169,25 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
     <div className="w-full flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0f172a] p-4 sm:p-6 lg:p-8 select-none text-gray-800 dark:text-gray-200 transition-colors">
       {/* Outer Single White Card Shell as an explicit flex column with 32px gap */}
       <div className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e5e7eb] dark:border-[#334155] shadow-xs p-7 sm:p-9 flex flex-col gap-8">
-        
+
         {/* Section 1: Top Breadcrumb & Square Bordered Close Button */}
         <div className="flex items-center justify-between pb-4 border-b border-[#f1f5f9] dark:border-[#334155]/60">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <button
               type="button"
               onClick={onBack}
-              className="text-[#7367F0] hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[#3D6A9E] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>‹ Reimbursement List</span>
             </button>
             <span className="text-gray-400">›</span>
-            <span className="text-gray-900 dark:text-white font-bold">Add Reimbursement</span>
+            <span className="text-gray-900 dark:text-white font-bold">
+              {isView
+                ? `View Reimbursement (${initialData?.number || ''})`
+                : isEdit
+                  ? `Edit Reimbursement (${initialData?.number || ''})`
+                  : 'Add Reimbursement'}
+            </span>
           </div>
 
           <button
@@ -164,7 +203,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
         {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
         <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
           {/* Large KA Circular Avatar */}
-          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#7367F0]/20 flex items-center justify-center text-[#7367F0] text-3xl font-bold tracking-tight shadow-xs shrink-0">
+          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-3xl font-bold tracking-tight shadow-xs shrink-0">
             KA
           </div>
 
@@ -178,6 +217,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
               <input
                 type="text"
                 disabled
+                value={initialData?.number || ''}
                 placeholder="Auto-generated"
                 className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-100 dark:bg-gray-800/60 text-xs text-gray-500 cursor-not-allowed outline-none"
               />
@@ -193,7 +233,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                   type="text"
                   value={challanDate}
                   onChange={(e) => setChallanDate(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
                 <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -209,7 +249,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                   type="text"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
                 <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -250,7 +290,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
               </div>
               <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
                 <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Priority</span>
-                <span className="px-2.5 py-0.5 rounded border border-[#7367F0] text-[#7367F0] bg-white dark:bg-[#1e293b] text-xs font-semibold">
+                <span className="px-2.5 py-0.5 rounded border border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b] text-xs font-semibold">
                   {FIRM_DETAILS.priority}
                 </span>
               </div>
@@ -267,7 +307,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
               <select
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0] cursor-pointer"
+                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
               >
                 <option value="">Select Client/Business from list</option>
                 {MOCK_CLIENTS_LIST.map((client) => (
@@ -283,7 +323,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
               <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
                 <div className="flex justify-between items-center pb-1">
                   <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#7367F0] font-semibold">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
                     {selectedClient.group}
                   </span>
                 </div>
@@ -330,7 +370,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                     <select
                       value={it.serviceName}
                       onChange={(e) => handleItemChange(it.id, 'serviceName', e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                      className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
                     >
                       <option value="">Select Reimbursement Type</option>
                       {MOCK_REIMBURSEMENT_TYPES.map((t) => (
@@ -348,7 +388,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                       min={1}
                       value={it.quantity}
                       onChange={(e) => handleItemChange(it.id, 'quantity', e.target.value)}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                     />
                   </div>
 
@@ -360,7 +400,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                       placeholder=""
                       value={it.price === 0 ? '' : it.price}
                       onChange={(e) => handleItemChange(it.id, 'price', e.target.value)}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                     />
                   </div>
 
@@ -400,7 +440,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                     placeholder="Description"
                     value={it.description}
                     onChange={(e) => handleItemChange(it.id, 'description', e.target.value)}
-                    className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                    className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                   />
                 </div>
               </div>
@@ -412,7 +452,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
             <button
               type="button"
               onClick={handleAddItem}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#7367F0] text-[#7367F0] hover:bg-[#eeedfd] dark:hover:bg-[#7367F0]/20 text-xs font-semibold cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Item</span>
@@ -432,7 +472,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
               <select
                 value={selectedBankId}
                 onChange={(e) => setSelectedBankId(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0] cursor-pointer"
+                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
               >
                 <option value="">No bank accounts - Add Bank Account in Settings</option>
                 {bankAccounts.map((b) => (
@@ -466,7 +506,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
                   <button
                     type="button"
                     onClick={() => setIsAddBankModalOpen(true)}
-                    className="inline-flex items-center gap-1 text-[#7367F0] hover:underline font-semibold text-xs cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[#3D6A9E] hover:underline font-semibold text-xs cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Bank Account</span>
@@ -506,7 +546,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
             placeholder="No note added"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+            className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
           />
         </div>
 
@@ -515,17 +555,19 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({ onBa
           <button
             type="button"
             onClick={onBack}
-            className="px-6 py-2.5 rounded-lg border border-[#7367F0] text-[#7367F0] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
+            className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
           >
-            Cancel
+            {isView ? 'Close' : 'Cancel'}
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-7 py-2.5 rounded-lg bg-[#7367F0] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
-          >
-            Save
-          </button>
+          {!isView && (
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
+            >
+              {isEdit ? 'Update' : 'Save'}
+            </button>
+          )}
         </div>
       </div>
 

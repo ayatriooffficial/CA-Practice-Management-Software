@@ -70,7 +70,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb] dark:border-[#334155]">
           <div className="flex items-center gap-2">
-            <Building className="w-5 h-5 text-[#7367F0]" />
+            <Building className="w-5 h-5 text-[#3D6A9E]" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
               Add Bank Account
             </h3>
@@ -101,7 +101,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               >
                 <option value="Bank Transfer">Bank Transfer</option>
                 <option value="UPI">UPI</option>
@@ -118,7 +118,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
               <select
                 value={accountType}
                 onChange={(e) => setAccountType(e.target.value as AccountType)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               >
                 <option value="Current">Current</option>
                 <option value="Savings">Savings</option>
@@ -136,7 +136,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 placeholder="e.g. HDFC Bank, ICICI Bank, SBI"
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
 
@@ -149,7 +149,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 type="text"
                 value={accountBusinessName}
                 onChange={(e) => setAccountBusinessName(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
 
@@ -163,7 +163,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 placeholder="Enter account number"
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
 
@@ -177,7 +177,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 placeholder="e.g. HDFC0000214"
                 value={ifscCode}
                 onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
 
@@ -191,7 +191,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 placeholder="Branch address / locality"
                 value={branchAddress}
                 onChange={(e) => setBranchAddress(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
 
@@ -205,7 +205,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 placeholder="username@bank"
                 value={upi}
                 onChange={(e) => setUpi(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
 
@@ -216,7 +216,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 id="isPrimary"
                 checked={isPrimary}
                 onChange={(e) => setIsPrimary(e.target.checked)}
-                className="w-4 h-4 rounded text-[#7367F0] focus:ring-[#7367F0] cursor-pointer"
+                className="w-4 h-4 rounded text-[#3D6A9E] focus:ring-[#3D6A9E] cursor-pointer"
               />
               <label htmlFor="isPrimary" className="text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
                 Mark as Primary Account
@@ -233,7 +233,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
                 placeholder="Additional account details..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                className="w-full px-2.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
               />
             </div>
           </div>
@@ -249,7 +249,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 rounded bg-[#7367F0] hover:bg-[#685dd8] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+              className="px-4 py-1.5 rounded bg-[#3D6A9E] hover:bg-[#685dd8] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
             >
               Submit
             </button>

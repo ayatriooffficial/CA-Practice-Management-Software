@@ -12,9 +12,15 @@ type AttendanceSubTab = 'today' | 'weekly' | 'monthly' | 'regularization';
 
 export const AttendanceView: React.FC = () => {
   const [subTab, setSubTab] = useState<AttendanceSubTab>('today');
-  const [todayRecords] = useState<TodayAttendanceRecord[]>(() => teamStore.getTodayAttendance());
+  const [todayRecords, setTodayRecords] = useState<TodayAttendanceRecord[]>(() => teamStore.getTodayAttendance());
   const [regularizations, setRegularizations] = useState<RegularizationRecord[]>(() => teamStore.getRegularizations());
   const [selectedDate, setSelectedDate] = useState('2026-10-21');
+
+  React.useEffect(() => {
+    teamStore.syncTodayAttendanceFromBackend().then((recs) => {
+      if (recs && recs.length > 0) setTodayRecords(recs);
+    });
+  }, []);
 
   const employees = teamStore.getEmployees().filter((e) => e.status === 'Active');
 

@@ -265,11 +265,10 @@ export const AnalyticsView: React.FC = () => {
         </div>
         {REPORT_MENU.map((item) => {
           const isActive = activeReportId === item.id;
-          const itemClassName = `w-full text-left px-4 py-3 rounded-xl border transition-all cursor-pointer ${
-            isActive
-              ? 'bg-[#eeedfd] dark:bg-[#7367F0]/20 border-l-4 border-[#7367F0] text-[#7367F0] font-semibold shadow-2xs'
+          const itemClassName = `w-full text-left px-4 py-3 rounded-xl border transition-all cursor-pointer ${isActive
+              ? 'bg-[#eeedfd] dark:bg-[#3D6A9E]/20 border-l-4 border-[#3D6A9E] text-[#3D6A9E] font-semibold shadow-2xs'
               : 'border-transparent hover:border-[#e5e7eb] dark:hover:border-[#334155] hover:bg-gray-50 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300'
-          }`;
+            }`;
 
           if (item.id === 'profit') {
             return (
@@ -318,7 +317,7 @@ export const AnalyticsView: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#7367F0] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
             >
               <span>{FIRM_DETAILS.name}</span>
               <ChevronDown className="w-3.5 h-3.5" />
@@ -335,7 +334,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Billed</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">
                   ₹{totalBilled.toLocaleString('en-IN')}
                 </div>
                 <div className="text-[11px] text-gray-500 mt-1">{invoices.length} invoices · Current FY</div>
@@ -382,7 +381,7 @@ export const AnalyticsView: React.FC = () => {
                 </span>
                 <div className="flex items-center gap-4 text-xs font-medium">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#7367F0]" /> Billed
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#3D6A9E]" /> Billed
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]" /> Collected
@@ -402,7 +401,7 @@ export const AnalyticsView: React.FC = () => {
 
                   <polyline
                     fill="none"
-                    stroke="#7367F0"
+                    stroke="#3D6A9E"
                     strokeWidth="2.5"
                     points="25,120 75,100 125,110 175,85 225,95 275,60 325,40 375,120 425,120 475,120 525,120 575,120"
                   />
@@ -445,7 +444,7 @@ export const AnalyticsView: React.FC = () => {
                       <span>₹1,56,000 (37%)</span>
                     </div>
                     <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-[#7367F0] h-full rounded-full" style={{ width: '37%' }} />
+                      <div className="bg-[#3D6A9E] h-full rounded-full" style={{ width: '37%' }} />
                     </div>
                   </div>
                   <div>
@@ -538,11 +537,10 @@ export const AnalyticsView: React.FC = () => {
                     key={st}
                     type="button"
                     onClick={() => setStatusChip(st)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                      statusChip === st
-                        ? 'bg-[#7367F0] text-white shadow-2xs'
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${statusChip === st
+                        ? 'bg-[#3D6A9E] text-white shadow-2xs'
                         : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300 hover:border-gray-400'
-                    }`}
+                      }`}
                   >
                     {st} ({st === 'All' ? invoices.length : invoices.filter(i => i.status.includes(st)).length})
                   </button>
@@ -557,7 +555,7 @@ export const AnalyticsView: React.FC = () => {
                     placeholder="Search invoices..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                   />
                 </div>
                 <button
@@ -592,7 +590,7 @@ export const AnalyticsView: React.FC = () => {
                     .filter(inv => !searchQuery || inv.number.toLowerCase().includes(searchQuery.toLowerCase()) || inv.clientBusinessName.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((inv) => (
                       <tr key={inv.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                        <td className="py-3.5 px-4 font-semibold text-[#7367F0]">{inv.number}</td>
+                        <td className="py-3.5 px-4 font-semibold text-[#3D6A9E]">{inv.number}</td>
                         <td className="py-3.5 px-4 text-gray-500">{inv.billingOrg}</td>
                         <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">{inv.clientBusinessName}</td>
                         <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">{inv.services[0]?.serviceName || '—'}</td>
@@ -601,13 +599,12 @@ export const AnalyticsView: React.FC = () => {
                         <td className="py-3.5 px-4 text-green-600 font-medium">₹{inv.paidAmount.toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-4 font-bold text-red-600">₹{inv.balanceAmount.toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            inv.status === 'Paid'
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${inv.status === 'Paid'
                               ? 'bg-green-100 text-green-700'
                               : inv.status === 'Partially Paid'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}>
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
                             {inv.status}
                           </span>
                         </td>
@@ -628,7 +625,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Receipts</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">{receipts.length}</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">{receipts.length}</div>
                 <div className="text-[11px] text-gray-500 mt-1">Recorded this FY</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -660,11 +657,10 @@ export const AnalyticsView: React.FC = () => {
                     key={m}
                     type="button"
                     onClick={() => setStatusChip(m)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                      statusChip === m
-                        ? 'bg-[#7367F0] text-white shadow-2xs'
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${statusChip === m
+                        ? 'bg-[#3D6A9E] text-white shadow-2xs'
                         : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300'
-                    }`}
+                      }`}
                   >
                     {m}
                   </button>
@@ -679,7 +675,7 @@ export const AnalyticsView: React.FC = () => {
                     placeholder="Search receipt / client..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                   />
                 </div>
                 <button
@@ -713,12 +709,12 @@ export const AnalyticsView: React.FC = () => {
                     .filter(r => !searchQuery || r.receiptNo.toLowerCase().includes(searchQuery.toLowerCase()) || r.businessName.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                        <td className="py-3.5 px-4 font-semibold text-[#7367F0] font-mono">{r.receiptNo}</td>
+                        <td className="py-3.5 px-4 font-semibold text-[#3D6A9E] font-mono">{r.receiptNo}</td>
                         <td className="py-3.5 px-4 text-gray-500">{r.paymentDate}</td>
                         <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">{r.businessName}</td>
-                        <td className="py-3.5 px-4 font-medium text-[#7367F0]">{r.invoiceNumber || 'Advance'}</td>
+                        <td className="py-3.5 px-4 font-medium text-[#3D6A9E]">{r.invoiceNumber || 'Advance'}</td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-[#7367F0] border border-[#7367F0]/30">
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-[#3D6A9E] border border-[#3D6A9E]/30">
                             {r.method}
                           </span>
                         </td>
@@ -742,7 +738,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Proforma Invoices</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">{proformas.length}</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">{proformas.length}</div>
                 <div className="text-[11px] text-gray-500 mt-1">Quotations generated</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -769,7 +765,7 @@ export const AnalyticsView: React.FC = () => {
                     placeholder="Search proformas..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                   />
                 </div>
               </div>
@@ -801,18 +797,17 @@ export const AnalyticsView: React.FC = () => {
                     .filter(p => !searchQuery || p.number.toLowerCase().includes(searchQuery.toLowerCase()) || p.clientBusinessName.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                        <td className="py-3.5 px-4 font-semibold text-[#7367F0]">{p.number}</td>
+                        <td className="py-3.5 px-4 font-semibold text-[#3D6A9E]">{p.number}</td>
                         <td className="py-3.5 px-4 text-gray-500">{p.date}</td>
                         <td className="py-3.5 px-4 text-gray-500">{p.dueDate}</td>
                         <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">{p.clientBusinessName}</td>
                         <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">{p.services[0]?.serviceName || '—'}</td>
                         <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">₹{p.totalPayable.toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            p.status === 'Converted'
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${p.status === 'Converted'
                               ? 'bg-green-100 text-green-700'
-                              : 'bg-purple-100 text-[#7367F0]'
-                          }`}>
+                              : 'bg-purple-100 text-[#3D6A9E]'
+                            }`}>
                             {p.status}
                           </span>
                         </td>
@@ -833,7 +828,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Reimbursements</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">{reimbursements.length}</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">{reimbursements.length}</div>
                 <div className="text-[11px] text-gray-500 mt-1">Pass-through claims</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -872,11 +867,10 @@ export const AnalyticsView: React.FC = () => {
                     key={st}
                     type="button"
                     onClick={() => setStatusChip(st)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                      statusChip === st
-                        ? 'bg-[#7367F0] text-white shadow-2xs'
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${statusChip === st
+                        ? 'bg-[#3D6A9E] text-white shadow-2xs'
                         : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300'
-                    }`}
+                      }`}
                   >
                     {st}
                   </button>
@@ -891,7 +885,7 @@ export const AnalyticsView: React.FC = () => {
                     placeholder="Search challan / client..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                   />
                 </div>
                 <button
@@ -926,7 +920,7 @@ export const AnalyticsView: React.FC = () => {
                     .filter(r => !searchQuery || r.number.toLowerCase().includes(searchQuery.toLowerCase()) || r.clientBusinessName.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                        <td className="py-3.5 px-4 font-semibold text-[#7367F0]">{r.number}</td>
+                        <td className="py-3.5 px-4 font-semibold text-[#3D6A9E]">{r.number}</td>
                         <td className="py-3.5 px-4 text-gray-500">{r.date}</td>
                         <td className="py-3.5 px-4 text-gray-500">{r.dueDate}</td>
                         <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">{r.clientBusinessName}</td>
@@ -935,11 +929,10 @@ export const AnalyticsView: React.FC = () => {
                         <td className="py-3.5 px-4 text-green-600 font-medium">₹{r.paidAmount.toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-4 font-bold text-red-600">₹{r.balanceAmount.toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            r.status === 'Paid'
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${r.status === 'Paid'
                               ? 'bg-green-100 text-green-700'
                               : 'bg-red-100 text-red-700'
-                          }`}>
+                            }`}>
                             {r.status}
                           </span>
                         </td>
@@ -960,7 +953,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Clients Billed</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">{clientAggregates.length} Clients</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">{clientAggregates.length} Clients</div>
                 <div className="text-[11px] text-gray-500 mt-1">With active practice billing</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -989,7 +982,7 @@ export const AnalyticsView: React.FC = () => {
                   placeholder="Search client business name or group..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
               </div>
 
@@ -1041,14 +1034,14 @@ export const AnalyticsView: React.FC = () => {
                             className="hover:bg-gray-50/70 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
                           >
                             <td className="py-3.5 px-4 text-gray-400">
-                              <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#7367F0]' : ''}`} />
+                              <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#3D6A9E]' : ''}`} />
                             </td>
                             <td className="py-3.5 px-4">
                               <div className="font-bold text-gray-900 dark:text-white">{c.businessName}</div>
                               <div className="text-[10.5px] text-gray-400 font-normal">{c.legalName}</div>
                             </td>
                             <td className="py-3.5 px-4">
-                              <span className="px-2 py-0.5 rounded bg-purple-50 text-[#7367F0] font-semibold text-[11px]">
+                              <span className="px-2 py-0.5 rounded bg-purple-50 text-[#3D6A9E] font-semibold text-[11px]">
                                 {c.group}
                               </span>
                             </td>
@@ -1094,16 +1087,15 @@ export const AnalyticsView: React.FC = () => {
                                     <tbody className="divide-y divide-[#e5e7eb] dark:divide-[#334155]">
                                       {c.invoices.map((inv) => (
                                         <tr key={inv.id} className="hover:bg-gray-50/50">
-                                          <td className="py-2.5 px-3 font-semibold text-[#7367F0]">{inv.number}</td>
+                                          <td className="py-2.5 px-3 font-semibold text-[#3D6A9E]">{inv.number}</td>
                                           <td className="py-2.5 px-3 text-gray-500">{inv.date}</td>
                                           <td className="py-2.5 px-3">{inv.services[0]?.serviceName}</td>
                                           <td className="py-2.5 px-3 font-semibold">₹{inv.totalPayable.toLocaleString('en-IN')}</td>
                                           <td className="py-2.5 px-3 text-green-600 font-medium">₹{inv.paidAmount.toLocaleString('en-IN')}</td>
                                           <td className="py-2.5 px-3 font-bold text-red-600">₹{inv.balanceAmount.toLocaleString('en-IN')}</td>
                                           <td className="py-2.5 px-3">
-                                            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
-                                              inv.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                            }`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${inv.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                              }`}>
                                               {inv.status}
                                             </span>
                                           </td>
@@ -1133,7 +1125,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Active Team Members</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">{MOCK_USER_REVENUES.length} Members</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">{MOCK_USER_REVENUES.length} Members</div>
                 <div className="text-[11px] text-gray-500 mt-1">Handling billing portfolio</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -1167,11 +1159,10 @@ export const AnalyticsView: React.FC = () => {
                     key={tab}
                     type="button"
                     onClick={() => setUserRoleTab(tab)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                      userRoleTab === tab
-                        ? 'bg-white dark:bg-[#1e293b] text-[#7367F0] shadow-xs'
+                    className={`px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${userRoleTab === tab
+                        ? 'bg-white dark:bg-[#1e293b] text-[#3D6A9E] shadow-xs'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
                     {tab}
                   </button>
@@ -1218,11 +1209,11 @@ export const AnalyticsView: React.FC = () => {
                             className="hover:bg-gray-50/70 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
                           >
                             <td className="py-3.5 px-4 text-gray-400">
-                              <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#7367F0]' : ''}`} />
+                              <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#3D6A9E]' : ''}`} />
                             </td>
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-full bg-[#eeedfd] text-[#7367F0] font-bold flex items-center justify-center text-xs">
+                                <div className="w-7 h-7 rounded-full bg-[#eeedfd] text-[#3D6A9E] font-bold flex items-center justify-center text-xs">
                                   {u.member.split(' ').map(n => n[0]).join('')}
                                 </div>
                                 <span className="font-bold text-gray-900 dark:text-white">{u.member}</span>
@@ -1278,16 +1269,15 @@ export const AnalyticsView: React.FC = () => {
                                     <tbody className="divide-y divide-[#e5e7eb] dark:divide-[#334155]">
                                       {invoices.slice(0, 3).map((inv) => (
                                         <tr key={inv.id} className="hover:bg-gray-50/50">
-                                          <td className="py-2.5 px-3 font-semibold text-[#7367F0]">{inv.number}</td>
+                                          <td className="py-2.5 px-3 font-semibold text-[#3D6A9E]">{inv.number}</td>
                                           <td className="py-2.5 px-3 font-medium">{inv.clientBusinessName}</td>
                                           <td className="py-2.5 px-3">{inv.services[0]?.serviceName}</td>
                                           <td className="py-2.5 px-3 font-semibold">₹{inv.totalPayable.toLocaleString('en-IN')}</td>
                                           <td className="py-2.5 px-3 text-green-600">₹{inv.paidAmount.toLocaleString('en-IN')}</td>
                                           <td className="py-2.5 px-3 font-bold text-red-600">₹{inv.balanceAmount.toLocaleString('en-IN')}</td>
                                           <td className="py-2.5 px-3">
-                                            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
-                                              inv.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                            }`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${inv.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                              }`}>
                                               {inv.status}
                                             </span>
                                           </td>
@@ -1322,7 +1312,7 @@ export const AnalyticsView: React.FC = () => {
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Billed</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">₹{totalBilled.toLocaleString('en-IN')}</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">₹{totalBilled.toLocaleString('en-IN')}</div>
                 <div className="text-[11px] text-gray-500 mt-1">Gross billing</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -1360,11 +1350,10 @@ export const AnalyticsView: React.FC = () => {
                     key={chip.id}
                     type="button"
                     onClick={() => setConsolidateTab(chip.id as any)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                      consolidateTab === chip.id
-                        ? 'bg-[#7367F0] text-white shadow-2xs'
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${consolidateTab === chip.id
+                        ? 'bg-[#3D6A9E] text-white shadow-2xs'
                         : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300'
-                    }`}
+                      }`}
                   >
                     {chip.label}
                   </button>
@@ -1378,7 +1367,7 @@ export const AnalyticsView: React.FC = () => {
                     type="checkbox"
                     checked={receivablesOnly}
                     onChange={(e) => setReceivablesOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#7367F0] accent-[#7367F0]"
+                    className="w-4 h-4 rounded text-[#3D6A9E] accent-[#3D6A9E]"
                   />
                   <span>Receivables &gt; 0</span>
                 </label>
@@ -1419,7 +1408,7 @@ export const AnalyticsView: React.FC = () => {
                           <td className="py-3.5 px-4 font-semibold text-gray-900 dark:text-white">₹{g.totalBilled.toLocaleString('en-IN')}</td>
                           <td className="py-3.5 px-4 text-green-600 font-semibold">₹{g.totalCollected.toLocaleString('en-IN')}</td>
                           <td className="py-3.5 px-4 font-bold text-red-600">₹{g.totalOutstanding.toLocaleString('en-IN')}</td>
-                          <td className="py-3.5 px-4 text-center font-bold text-[#7367F0]">{g.collectionRate}%</td>
+                          <td className="py-3.5 px-4 text-center font-bold text-[#3D6A9E]">{g.collectionRate}%</td>
                         </tr>
                       ))
                   ) : (
@@ -1429,7 +1418,7 @@ export const AnalyticsView: React.FC = () => {
                         <tr key={c.clientId} className="hover:bg-gray-50/50">
                           <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">{c.businessName}</td>
                           <td className="py-3.5 px-4">
-                            <span className="px-2 py-0.5 rounded bg-purple-50 text-[#7367F0] font-semibold text-[11px]">
+                            <span className="px-2 py-0.5 rounded bg-purple-50 text-[#3D6A9E] font-semibold text-[11px]">
                               {c.group}
                             </span>
                           </td>
@@ -1437,7 +1426,7 @@ export const AnalyticsView: React.FC = () => {
                           <td className="py-3.5 px-4 font-semibold text-gray-900 dark:text-white">₹{c.totalInvoiced.toLocaleString('en-IN')}</td>
                           <td className="py-3.5 px-4 text-green-600 font-semibold">₹{c.totalReceived.toLocaleString('en-IN')}</td>
                           <td className="py-3.5 px-4 font-bold text-red-600">₹{c.balance.toLocaleString('en-IN')}</td>
-                          <td className="py-3.5 px-4 text-center font-bold text-[#7367F0]">{c.collectionRate}%</td>
+                          <td className="py-3.5 px-4 text-center font-bold text-[#3D6A9E]">{c.collectionRate}%</td>
                         </tr>
                       ))
                   )}
@@ -1456,7 +1445,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Total Retainer Clients</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">{MOCK_SLA_RETAINERS.length} Clients</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">{MOCK_SLA_RETAINERS.length} Clients</div>
                 <div className="text-[11px] text-gray-500 mt-1">Active Retainer Agreements</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -1499,11 +1488,10 @@ export const AnalyticsView: React.FC = () => {
                     key={chip.id}
                     type="button"
                     onClick={() => setSlaFilter(chip.id as any)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                      slaFilter === chip.id
-                        ? 'bg-[#7367F0] text-white shadow-2xs'
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${slaFilter === chip.id
+                        ? 'bg-[#3D6A9E] text-white shadow-2xs'
                         : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300'
-                    }`}
+                      }`}
                   >
                     {chip.label}
                   </button>
@@ -1546,9 +1534,8 @@ export const AnalyticsView: React.FC = () => {
                         <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">{s.client}</td>
                         <td className="py-3.5 px-4 text-gray-500">{s.group}</td>
                         <td className="py-3.5 px-4 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                            s.hasSla ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${s.hasSla ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                            }`}>
                             {s.hasSla ? 'Active SLA' : 'Ad-hoc'}
                           </span>
                         </td>
@@ -1559,11 +1546,10 @@ export const AnalyticsView: React.FC = () => {
                         <td className="py-3.5 px-4 font-bold text-green-600">₹{s.netProfit.toLocaleString('en-IN')}</td>
                         <td className="py-3.5 px-4 text-center font-bold text-cyan-600">{s.marginPercent}%</td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            s.status === 'Profitable'
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${s.status === 'Profitable'
                               ? 'bg-green-100 text-green-700'
                               : 'bg-amber-100 text-amber-700'
-                          }`}>
+                            }`}>
                             {s.status}
                           </span>
                         </td>
@@ -1617,11 +1603,10 @@ export const AnalyticsView: React.FC = () => {
                   key={st}
                   type="button"
                   onClick={() => setClaimStatus(st)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                    claimStatus === st
-                      ? 'bg-[#7367F0] text-white shadow-2xs'
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${claimStatus === st
+                      ? 'bg-[#3D6A9E] text-white shadow-2xs'
                       : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300'
-                  }`}
+                    }`}
                 >
                   {st} ({st === 'All' ? MOCK_EMPLOYEE_CLAIMS.length : MOCK_EMPLOYEE_CLAIMS.filter(c => c.status === st).length})
                 </button>
@@ -1649,7 +1634,7 @@ export const AnalyticsView: React.FC = () => {
                     .filter(c => claimStatus === 'All' || c.status === claimStatus)
                     .map((c) => (
                       <tr key={c.id} className="hover:bg-gray-50/50">
-                        <td className="py-3.5 px-4 font-mono font-semibold text-[#7367F0]">{c.taskId}</td>
+                        <td className="py-3.5 px-4 font-mono font-semibold text-[#3D6A9E]">{c.taskId}</td>
                         <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">{c.employee}</td>
                         <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">{c.client}</td>
                         <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">{c.particulars}</td>
@@ -1662,16 +1647,14 @@ export const AnalyticsView: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            c.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${c.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
                             {c.status}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                            c.paymentStatus === 'Paid' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${c.paymentStatus === 'Paid' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                            }`}>
                             {c.paymentStatus}
                           </span>
                         </td>
@@ -1741,7 +1724,7 @@ export const AnalyticsView: React.FC = () => {
                 <tbody className="divide-y divide-[#e5e7eb] dark:divide-[#334155]">
                   {invoices.filter(i => i.balanceAmount > 0).map((inv) => (
                     <tr key={inv.id} className="hover:bg-gray-50/50">
-                      <td className="py-3.5 px-4 font-semibold text-[#7367F0]">{inv.number}</td>
+                      <td className="py-3.5 px-4 font-semibold text-[#3D6A9E]">{inv.number}</td>
                       <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">{inv.clientBusinessName}</td>
                       <td className="py-3.5 px-4 text-gray-500">{inv.clientGroup}</td>
                       <td className="py-3.5 px-4 text-gray-500">{inv.date}</td>
@@ -1773,7 +1756,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
                 <div className="text-xs font-medium text-gray-500">Taxable Value</div>
-                <div className="text-2xl font-bold text-[#7367F0] mt-1.5">₹1,50,000</div>
+                <div className="text-2xl font-bold text-[#3D6A9E] mt-1.5">₹1,50,000</div>
                 <div className="text-[11px] text-gray-500 mt-1">B2B Supplies</div>
               </div>
               <div className="p-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] shadow-2xs">
@@ -1803,9 +1786,8 @@ export const AnalyticsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setGstTab('B2B')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                  gstTab === 'B2B' ? 'bg-[#7367F0] text-white shadow-2xs' : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] text-gray-700'
-                }`}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${gstTab === 'B2B' ? 'bg-[#3D6A9E] text-white shadow-2xs' : 'bg-white dark:bg-[#1e293b] border border-[#dde2e8] text-gray-700'
+                  }`}
               >
                 B2B (4A,4B,6B,6C) ({MOCK_GST_SUPPLIES.length})
               </button>
@@ -1860,7 +1842,7 @@ export const AnalyticsView: React.FC = () => {
                     <tr key={row.id} className="hover:bg-gray-50/50">
                       <td className="py-3.5 px-4 font-mono font-medium">{row.gstin}</td>
                       <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">{row.receiverName}</td>
-                      <td className="py-3.5 px-4 font-semibold text-[#7367F0]">{row.invoiceNo}</td>
+                      <td className="py-3.5 px-4 font-semibold text-[#3D6A9E]">{row.invoiceNo}</td>
                       <td className="py-3.5 px-4 text-gray-500">{row.invoiceDate}</td>
                       <td className="py-3.5 px-4 font-semibold">₹{row.invoiceValue.toLocaleString('en-IN')}</td>
                       <td className="py-3.5 px-4">{row.placeOfSupply}</td>

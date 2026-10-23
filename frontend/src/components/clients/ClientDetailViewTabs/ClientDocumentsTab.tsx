@@ -17,6 +17,7 @@ import { ClientDocumentInOut } from "@/data/crmData";
 import { TaskItem } from "@/data/taskData";
 import { getAvatarBadge } from "./utils";
 import { taskApi } from "@/services/taskApi";
+import { usePermission } from "../../team/usePermission";
 
 export interface ClientDocumentsTabProps {
   documents: ClientDocumentInOut[];
@@ -37,6 +38,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   clientId = "",
   onRefreshTasks,
 }) => {
+  const { canDelete } = usePermission();
   const [activeSection, setActiveSection] = useState<"Movements" | "Required">("Required");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "In" | "Out">("All");
@@ -535,14 +537,18 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
 
                     {/* Delete action */}
                     <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteDocMovement(doc.id || "", doc.documentName)}
-                        title="Delete document record"
-                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canDelete("document_in_out") ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDocMovement(doc.id || "", doc.documentName)}
+                          title="Delete document record"
+                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                      )}
                     </td>
                   </tr>
                 ))

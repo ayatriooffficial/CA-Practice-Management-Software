@@ -84,12 +84,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
       return newAccessToken || null;
     } catch {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem('turia_current_user');
-          window.dispatchEvent(new CustomEvent('auth:session-expired'));
-        } catch {}
-      }
+      // Do not wipe local user session in dev/demo mode when refresh fails
       return null;
     } finally {
       activeRefreshPromise = null;
@@ -127,14 +122,22 @@ export async function request<T>(
     ...authHeaders,
   };
 
-  const response = await fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    });
+  } catch (err: any) {
+    throw new ApiError(
+      err?.message || 'Network error: Unable to connect to backend server',
+      0
+    );
+  }
 
   // Handle 401 Unauthorized with automatic token refresh (skip for auth login/refresh routes)
   const isAuthRoute = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/refresh') || endpoint.startsWith('/auth/verify-otp');

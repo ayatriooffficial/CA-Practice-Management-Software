@@ -10,7 +10,7 @@ import {
   FileText,
   FileEdit,
 } from 'lucide-react';
-import { ServiceItem } from './types';
+import { ServiceItem, InvoiceRecord } from './types';
 import { FIRM_DETAILS } from './mockData';
 import { useInvoice } from './InvoiceContext';
 import { AddBankAccountModal } from './AddBankAccountModal';
@@ -23,48 +23,78 @@ import { Service } from '@/data/serviceData';
 
 interface AddInvoiceFormProps {
   type: 'invoice' | 'proforma';
+  mode?: 'create' | 'edit' | 'view';
+  initialData?: InvoiceRecord;
   onBack: () => void;
 }
 
-export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) => {
-  const { addInvoice, addProforma, bankAccounts } = useInvoice();
+export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
+  type,
+  mode = 'create',
+  initialData,
+  onBack,
+}) => {
+  const { addInvoice, addProforma, updateInvoice, bankAccounts } = useInvoice();
 
+  const isView = mode === 'view';
+  const isEdit = mode === 'edit';
   const isProforma = type === 'proforma';
   const titlePrefix = isProforma ? 'Proforma' : 'Invoice';
 
   // Dates
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toLocaleDateString('en-GB'));
-  const [dueDate, setDueDate] = useState(() => new Date().toLocaleDateString('en-GB'));
+  const [invoiceDate, setInvoiceDate] = useState(() => initialData?.date || new Date().toLocaleDateString('en-GB'));
+  const [dueDate, setDueDate] = useState(() => initialData?.dueDate || new Date().toLocaleDateString('en-GB'));
 
-  // Client Selection (starts BLANK like real app)
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  // Client Selection
+  const [selectedClientId, setSelectedClientId] = useState<string>(() => initialData?.clientId || '');
   const [clients, setClients] = useState<Client[]>([]);
-  const selectedClient = clients.find((client) => client.id === selectedClientId);
+  const matchedClient = clients.find(
+    (client) =>
+      client.id === selectedClientId ||
+      (client.name && initialData?.clientBusinessName && client.name.toLowerCase() === initialData.clientBusinessName.toLowerCase())
+  );
+  const selectedClient = matchedClient || (initialData?.clientBusinessName ? {
+    id: initialData.clientId || 'client-prefilled',
+    fileNo: '',
+    name: initialData.clientBusinessName,
+    legalName: initialData.clientLegalName || initialData.clientBusinessName,
+    group: initialData.clientGroup || 'Clients',
+    category: 'Corporate',
+    pan: initialData.clientPan || '',
+    active: true,
+    address: initialData.clientAddress || '',
+  } as unknown as Client : undefined);
+
   const [serviceCatalog, setServiceCatalog] = useState<Service[]>([]);
 
-  // Bank Selection (starts UNSELECTED with placeholder like real app)
-  const [selectedBankId, setSelectedBankId] = useState<string>('');
+  // Bank Selection
+  const [selectedBankId, setSelectedBankId] = useState<string>(() => initialData?.bankAccountId || '');
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const selectedBank = bankAccounts.find((b) => b.id === selectedBankId);
 
-  // Services list (starts with 1 blank row)
-  const [services, setServices] = useState<ServiceItem[]>([
-    {
-      id: 'srv-1',
-      serviceName: '',
-      description: '',
-      compliancePeriod: 'FY 2026-27',
-      frequency: 'One-Time',
-      periodLabel: 'N/A - One-Time',
-      quantity: 1,
-      price: 0,
-      amount: 0,
-      total: 0,
-    },
-  ]);
+  // Services list
+  const [services, setServices] = useState<ServiceItem[]>(() => {
+    if (initialData?.services && initialData.services.length > 0) {
+      return initialData.services;
+    }
+    return [
+      {
+        id: 'srv-1',
+        serviceName: '',
+        description: '',
+        compliancePeriod: 'FY 2026-27',
+        frequency: 'One-Time',
+        periodLabel: 'N/A - One-Time',
+        quantity: 1,
+        price: 0,
+        amount: 0,
+        total: 0,
+      },
+    ];
+  });
 
   // Note
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(() => initialData?.notes || '');
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [taskAllocations, setTaskAllocations] = useState<Array<{ taskId: string; amount: string }>>([]);
   const [allocationTaskId, setAllocationTaskId] = useState('');
@@ -73,12 +103,47 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
 
   useEffect(() => {
     taskApi.getTasks({ limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-      .then((response) => setTasks(response.data || []));
+      .then((response) => {
+        const fetchedTasks = response.data || [];
+        setTasks(fetchedTasks);
+        if (initialData && !taskAllocations.length) {
+          // If draft invoice came from task, match taskId
+          const incomingTaskId = (initialData as any).taskId;
+          const cleanIncoming = incomingTaskId ? String(incomingTaskId).replace(/^#/, '').toLowerCase() : '';
+          const matched = fetchedTasks.find(
+            (t) =>
+              (t.taskId && String(t.taskId).replace(/^#/, '').toLowerCase() === cleanIncoming) ||
+              t.id === incomingTaskId ||
+              (t.clientName && initialData.clientBusinessName && t.clientName.toLowerCase() === initialData.clientBusinessName.toLowerCase())
+          );
+          if (matched) {
+            setTaskAllocations([{ taskId: matched.taskId || incomingTaskId || matched.id, amount: String(initialData.totalPayable || subTotal) }]);
+          } else if (incomingTaskId) {
+            setTaskAllocations([{ taskId: incomingTaskId, amount: String(initialData.totalPayable || subTotal) }]);
+          }
+        }
+      });
     clientApi.getClients({ page: 1, limit: 100, active: true, sortBy: 'name', sortOrder: 'asc' })
-      .then((response) => setClients(response.data || []));
+      .then((response) => {
+        const fetchedClients = response.data || [];
+        if (initialData?.clientBusinessName && !fetchedClients.some((c) => c.name.toLowerCase() === initialData.clientBusinessName.toLowerCase())) {
+          fetchedClients.unshift({
+            id: initialData.clientId || 'client-prefilled',
+            fileNo: '',
+            name: initialData.clientBusinessName,
+            legalName: initialData.clientLegalName || initialData.clientBusinessName,
+            group: initialData.clientGroup || 'Clients',
+            category: 'Corporate',
+            pan: initialData.clientPan || '',
+            active: true,
+            address: initialData.clientAddress || '',
+          } as unknown as Client);
+        }
+        setClients(fetchedClients);
+      });
     serviceApi.getServices({ page: 1, limit: 100, status: 'Active', sortBy: 'name', sortOrder: 'asc' })
       .then((response) => setServiceCatalog(response.data || []));
-  }, []);
+  }, [initialData]);
 
   // Calculations
   const subTotal = services.reduce((sum, s) => sum + s.amount, 0);
@@ -149,10 +214,18 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
       setSaveError('Please select a client to proceed.');
       return;
     }
-    const allocations = taskAllocations.filter((allocation) => Number(allocation.amount) > 0).map((allocation) => ({
+    let allocations = taskAllocations.filter((allocation) => Number(allocation.amount) > 0).map((allocation) => ({
       taskId: allocation.taskId,
       amountPaise: Math.round(Number(allocation.amount) * 100),
     }));
+
+    if (!allocations.length && (initialData as any)?.taskId) {
+      allocations = [{
+        taskId: (initialData as any).taskId,
+        amountPaise: Math.round(totalPayable * 100),
+      }];
+    }
+
     if (!allocations.length) {
       setSaveError('Allocate at least one invoice amount explicitly to a task.');
       return;
@@ -187,6 +260,11 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
     setIsSaving(true);
     setSaveError('');
     try {
+      if (isEdit && initialData) {
+        updateInvoice(initialData.id, payload);
+        onBack();
+        return;
+      }
       if (isProforma) await addProforma(payload, allocations);
       else await addInvoice(payload, allocations);
       onBack();
@@ -201,19 +279,25 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
     <div className="w-full flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0f172a] p-4 sm:p-6 lg:p-8 select-none text-gray-800 dark:text-gray-200 transition-colors">
       {/* Outer Single White Card Shell as an explicit flex column with 32px gap */}
       <div className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e5e7eb] dark:border-[#334155] shadow-xs p-7 sm:p-9 flex flex-col gap-8">
-        
+
         {/* Section 1: Top Breadcrumb & Square Bordered Close Button */}
         <div className="flex items-center justify-between pb-4 border-b border-[#f1f5f9] dark:border-[#334155]/60">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <button
               type="button"
               onClick={onBack}
-              className="text-[#7367F0] hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[#3D6A9E] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>‹ {titlePrefix} List</span>
             </button>
             <span className="text-gray-400">›</span>
-            <span className="text-gray-900 dark:text-white font-bold">Add {titlePrefix}</span>
+            <span className="text-gray-900 dark:text-white font-bold">
+              {isView
+                ? `View ${initialData?.number || titlePrefix}`
+                : isEdit
+                  ? `Edit ${initialData?.number || titlePrefix}`
+                  : `Add ${titlePrefix}`}
+            </span>
           </div>
 
           <button
@@ -229,7 +313,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
         {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
         <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
           {/* Large KA Circular Avatar */}
-          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#7367F0]/20 flex items-center justify-center text-[#7367F0] text-3xl font-bold tracking-tight shadow-xs shrink-0">
+          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-3xl font-bold tracking-tight shadow-xs shrink-0">
             KA
           </div>
 
@@ -243,6 +327,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
               <input
                 type="text"
                 disabled
+                value={initialData?.number || ''}
                 placeholder="Auto-generated"
                 className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-100 dark:bg-gray-800/60 text-xs text-gray-500 cursor-not-allowed outline-none"
               />
@@ -258,7 +343,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                   type="text"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
                 <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -274,7 +359,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                   type="text"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                 />
                 <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -315,7 +400,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
               </div>
               <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
                 <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Priority</span>
-                <span className="px-2.5 py-0.5 rounded border border-[#7367F0] text-[#7367F0] bg-white dark:bg-[#1e293b] text-xs font-semibold">
+                <span className="px-2.5 py-0.5 rounded border border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b] text-xs font-semibold">
                   {FIRM_DETAILS.priority}
                 </span>
               </div>
@@ -332,7 +417,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
               <select
                 value={selectedClientId}
                 onChange={(e) => { setSelectedClientId(e.target.value); setTaskAllocations([]); }}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0] cursor-pointer"
+                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
               >
                 <option value="">Select Client/Business from list</option>
                 {clients.map((client) => (
@@ -348,7 +433,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
               <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
                 <div className="flex justify-between items-center pb-1">
                   <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#7367F0] font-semibold">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
                     {selectedClient.group}
                   </span>
                 </div>
@@ -395,7 +480,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                     <select
                       value={srv.serviceName}
                       onChange={(e) => handleServiceChange(srv.id, 'serviceName', e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+                      className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
                     >
                       <option value="">Service Name</option>
                       {serviceCatalog.map((service) => (
@@ -413,7 +498,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                       min={1}
                       value={srv.quantity}
                       onChange={(e) => handleServiceChange(srv.id, 'quantity', e.target.value)}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                     />
                   </div>
 
@@ -425,7 +510,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                       placeholder=""
                       value={srv.price === 0 ? '' : srv.price}
                       onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                     />
                   </div>
 
@@ -469,7 +554,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                         placeholder="Description"
                         value={srv.description}
                         onChange={(e) => handleServiceChange(srv.id, 'description', e.target.value)}
-                        className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#7367F0]"
+                        className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                       />
                       <span className="text-[10px] text-gray-400 text-right">
                         {srv.description.length}/300
@@ -528,7 +613,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
             <button
               type="button"
               onClick={handleAddService}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#7367F0] text-[#7367F0] hover:bg-[#eeedfd] dark:hover:bg-[#7367F0]/20 text-xs font-semibold cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Service</span>
@@ -536,7 +621,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
             <button
               type="button"
               onClick={handleAddReimbursementItem}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#7367F0] text-[#7367F0] hover:bg-[#eeedfd] dark:hover:bg-[#7367F0]/20 text-xs font-semibold cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Reimbursement</span>
@@ -580,7 +665,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
               <select
                 value={selectedBankId}
                 onChange={(e) => setSelectedBankId(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0] cursor-pointer"
+                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
               >
                 <option value="">No bank accounts - Add Bank Account in Settings</option>
                 {bankAccounts.map((b) => (
@@ -614,7 +699,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
                   <button
                     type="button"
                     onClick={() => setIsAddBankModalOpen(true)}
-                    className="inline-flex items-center gap-1 text-[#7367F0] hover:underline font-semibold text-xs cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[#3D6A9E] hover:underline font-semibold text-xs cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Bank Account</span>
@@ -661,7 +746,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
             placeholder="No note added"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#7367F0]"
+            className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
           />
         </div>
 
@@ -671,18 +756,20 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({ type, onBack }) 
           <button
             type="button"
             onClick={onBack}
-            className="px-6 py-2.5 rounded-lg border border-[#7367F0] text-[#7367F0] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
+            className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
           >
-            Cancel
+            {isView ? 'Close' : 'Cancel'}
           </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={isSaving}
-            className="px-7 py-2.5 rounded-lg bg-[#7367F0] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </button>
+          {!isView && (
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+              className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
+            >
+              {isSaving ? 'Saving…' : isEdit ? 'Update' : 'Save'}
+            </button>
+          )}
         </div>
       </div>
 

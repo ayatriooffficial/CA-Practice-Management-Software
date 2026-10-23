@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Download } from "lucide-react";
+import { Search, Download, ShieldCheck } from "lucide-react";
 import { taskApi } from "@/services/taskApi";
 import { TaskSummaryRow } from "@/data/taskData";
+import { useAuth } from "../auth/AuthContext";
 
 interface TaskSummaryViewProps {
   onSelectGroupFilter?: (groupKey: string, status?: string) => void;
@@ -12,26 +13,36 @@ interface TaskSummaryViewProps {
 export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
   onSelectGroupFilter,
 }) => {
-  const [groupBy, setGroupBy] = useState<string>("Assigned To");
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+  const employeeName = currentUser?.name || "";
+
+  const [groupBy, setGroupBy] = useState<string>(isEmployee ? "Category" : "Assigned To");
   const [search, setSearch] = useState<string>("");
   const [isHeatMap, setIsHeatMap] = useState<boolean>(false);
   const [rows, setRows] = useState<TaskSummaryRow[]>([]);
   const [grandTotal, setGrandTotal] = useState<TaskSummaryRow | null>(null);
 
-  const GROUP_OPTIONS = [
-    "Assigned To",
-    "Category",
-    "Client",
-    "Service",
-    "Priority",
-    "Task Type",
-    "Month",
-    "Financial Year",
-  ];
+  const GROUP_OPTIONS = isEmployee
+    ? ["Category", "Client", "Service", "Priority", "Task Type", "Month"]
+    : [
+        "Assigned To",
+        "Category",
+        "Client",
+        "Service",
+        "Priority",
+        "Task Type",
+        "Month",
+        "Financial Year",
+      ];
 
   const fetchMatrix = async () => {
     try {
-      const res = await taskApi.getTaskSummaryMatrix(groupBy, search);
+      const res = await taskApi.getTaskSummaryMatrix(
+        groupBy,
+        search,
+        isEmployee ? employeeName : undefined
+      );
       if (res.data) {
         setRows(res.data.rows);
         setGrandTotal(res.data.grandTotal);
@@ -43,7 +54,7 @@ export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
 
   useEffect(() => {
     fetchMatrix();
-  }, [groupBy, search]);
+  }, [groupBy, search, isEmployee, employeeName]);
 
   const handleExportCSV = () => {
     if (!rows.length) return;
@@ -113,6 +124,15 @@ export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
 
   return (
     <div className="py-2">
+      {isEmployee && (
+        <div className="mb-2.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+          <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+          <span>
+            Staff View: Showing summary matrix for your assigned tasks (<strong>{employeeName}</strong>)
+          </span>
+        </div>
+      )}
+
       {/* Group By Filter Bar matching Image 3 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[var(--bg-surface)] p-2.5 shadow-xs">
         <div className="flex flex-wrap items-center gap-1.5">

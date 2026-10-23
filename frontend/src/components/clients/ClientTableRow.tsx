@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { Phone, Eye, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { Client } from "@/data/crmData";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
+import { usePermission } from "@/components/team/usePermission";
 
 export interface ClientColumnDef {
   id: string;
@@ -63,6 +64,7 @@ export const ClientTableRow = memo(
     onDelete,
     onRestore,
   }: ClientTableRowProps) => {
+    const { canDelete, canAddEdit } = usePermission();
     const isDeleted = Boolean((client as any).isDeleted);
 
     const stickyCellBg = isSelected
@@ -285,25 +287,29 @@ export const ClientTableRow = memo(
                 >
                   <Eye className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onEdit(client)}
-                  className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
-                  title="Edit Client"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(client.id, client.name)}
-                  className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
-                  title="Soft Delete"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {canAddEdit("clients") && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(client)}
+                    className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
+                    title="Edit Client"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {canDelete("clients") && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(client.id, client.name)}
+                    className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
+                    title="Soft Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ) : (
-              onRestore && (
+              canDelete("clients") && onRestore && (
                 <button
                   type="button"
                   onClick={() => onRestore(client.id, client.name)}

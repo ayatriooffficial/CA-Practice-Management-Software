@@ -3,6 +3,7 @@
 import React, { memo } from "react";
 import { Pencil, Trash2, RotateCcw, Clock, BookOpen, Layers } from "lucide-react";
 import { Service } from "@/data/serviceData";
+import { usePermission } from "@/components/team/usePermission";
 
 export interface ServiceColumnDef {
   key: keyof Service | "actions" | "select";
@@ -80,6 +81,7 @@ export const ServiceTableRow = memo(function ServiceTableRow({
   onDelete,
   onRestore,
 }: ServiceTableRowProps) {
+  const { canDelete, canAddEdit } = usePermission();
   const isDeleted = Boolean(service.isDeleted);
 
   const stickyCellBg = isSelected
@@ -261,18 +263,20 @@ export const ServiceTableRow = memo(function ServiceTableRow({
         className={`sticky right-0 z-20 w-24 min-w-[96px] max-w-[96px] px-3 py-2.5 border-l border-b border-[#dde2e8] dark:border-[#334155] text-center whitespace-nowrap opacity-100 ${stickyCellBg}`}
       >
         <div className="flex items-center justify-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => onEdit(service)}
-            className="p-1 rounded text-gray-500 hover:text-[#31719B] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-            title="Edit Service"
-            aria-label={`Edit ${service.name}`}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
+          {canAddEdit("services") && (
+            <button
+              type="button"
+              onClick={() => onEdit(service)}
+              className="p-1 rounded text-gray-500 hover:text-[#31719B] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              title="Edit Service"
+              aria-label={`Edit ${service.name}`}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {isDeleted ? (
-            onRestore && (
+            canDelete("services") && onRestore && (
               <button
                 type="button"
                 onClick={() => onRestore(service.id, service.name)}
@@ -284,15 +288,17 @@ export const ServiceTableRow = memo(function ServiceTableRow({
               </button>
             )
           ) : (
-            <button
-              type="button"
-              onClick={() => onDelete(service.id, service.name)}
-              className="p-1 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
-              title="Soft Delete Service"
-              aria-label={`Delete ${service.name}`}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            canDelete("services") && (
+              <button
+                type="button"
+                onClick={() => onDelete(service.id, service.name)}
+                className="p-1 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                title="Soft Delete Service"
+                aria-label={`Delete ${service.name}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )
           )}
         </div>
       </td>

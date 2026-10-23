@@ -5,6 +5,8 @@ import { User } from "./authTypes";
 import { authService } from "./authService";
 import { request } from "../../services/apiClient";
 
+import { getPresetPermissions } from "../team/permissionsConfig";
+
 export function computeInitials(name?: string | null): string {
   if (!name || !name.trim()) return "U";
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -14,15 +16,41 @@ export function computeInitials(name?: string | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
   login: (user: User) => void;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  switchToUser: (target: 'employee' | 'admin' | 'vikram') => void;
 }
 
 const STORAGE_KEY = "turia_current_user";
+
+export const DEMO_EMPLOYEE_USER: User = {
+  id: "6ad9f7c459ba9327d3d347ae",
+  name: "Vikram Singhania",
+  email: "vikram@ayatrio.com",
+  mobile: "8080014896",
+  role: "employee",
+  firmName: "Ayatrio Practice",
+  initials: "VS",
+  department: "Audit & Taxation",
+  designation: "Staff",
+  status: "Active",
+  permissions: getPresetPermissions("Employee"),
+};
+
+export const DEFAULT_USER: User = {
+  id: "6ad9e23bf460aa2e6102c0c8",
+  name: "Deepak Sahani",
+  email: "deepak.sahani@krishnaassociates.example",
+  mobile: "9876543210",
+  firmName: "Ayatrio Practice",
+  role: "admin",
+  initials: "DS",
+  createdAt: "2026-01-15T09:00:00Z",
+};
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
@@ -30,6 +58,7 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: async () => {},
   refreshProfile: async () => {},
+  switchToUser: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,7 +74,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(null);
       if (typeof window !== "undefined") {
         try {
+          localStorage.setItem("turia_user_logged_out", "true");
           localStorage.removeItem(STORAGE_KEY);
+          document.cookie = "token=; Max-Age=0; path=/;";
+          document.cookie = "refreshToken=; Max-Age=0; path=/;";
+          document.cookie = "turia_access_token=; Max-Age=0; path=/;";
+          document.cookie = "turia_refresh_token=; Max-Age=0; path=/;";
         } catch {}
       }
     }
@@ -59,19 +93,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
         const existingToken = stored ? JSON.parse(stored).token : undefined;
 
+        const roleLower = (u.role || "employee").toLowerCase();
+        let resolvedPerms = u.permissions;
+        if (!resolvedPerms || Object.keys(resolvedPerms).length === 0) {
+          resolvedPerms = getPresetPermissions(roleLower === "admin" ? "Admin" : "Employee");
+        }
+
         const updatedUser: User = {
           id: u.id || u._id,
           name: u.name,
           email: u.email,
           mobile: u.mobile,
-          firmName: u.firmName || u.orgId?.name || "Practice Firm",
-          role: u.role,
+          firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
+          role: roleLower,
           initials: u.initials || computeInitials(u.name),
           orgId: u.orgId?._id || u.orgId,
           department: u.department,
           designation: u.designation,
           status: u.status,
-          permissions: u.permissions,
+          permissions: resolvedPerms,
           token: existingToken,
         };
 
@@ -81,33 +121,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch {
-      // If /auth/me fails (e.g. offline or unauthenticated), retain existing or do not block
+      // Retain existing state if offline
+    }
+  }, []);
+
+  const login = useCallback((user: User) => {
+    const roleLower = (user.role || "employee").toLowerCase();
+    let resolvedPerms = user.permissions;
+    if (!resolvedPerms || Object.keys(resolvedPerms).length === 0) {
+      resolvedPerms = getPresetPermissions(roleLower === "admin" ? "Admin" : "Employee");
+    }
+
+    const enrichedUser: User = {
+      ...user,
+      role: roleLower,
+      permissions: resolvedPerms,
+      initials: computeInitials(user.name),
+    };
+    setCurrentUser(enrichedUser);
+    try {
+      localStorage.removeItem("turia_user_logged_out");
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(enrichedUser));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  const switchToUser = useCallback((target: 'employee' | 'admin' | 'vikram') => {
+    const selected = (target === 'employee' || target === 'vikram') ? DEMO_EMPLOYEE_USER : DEFAULT_USER;
+    setCurrentUser(selected);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("turia_user_logged_out");
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+      } catch {}
     }
   }, []);
 
   useEffect(() => {
-    // 1. Initial hydration from storage
     try {
+      if (localStorage.getItem("turia_user_logged_out") === "true") {
+        setCurrentUser(null);
+        return;
+      }
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed: User = JSON.parse(stored);
         if (parsed && parsed.name) {
+          const roleLower = (parsed.role || "employee").toLowerCase();
+          if (!parsed.permissions || Object.keys(parsed.permissions).length === 0) {
+            parsed.permissions = getPresetPermissions(roleLower === "admin" ? "Admin" : "Employee");
+          }
           parsed.initials = computeInitials(parsed.name);
           setCurrentUser(parsed);
 
-          // If token exists, verify with backend /auth/me in background
           if (parsed.token) {
             refreshProfile().catch(() => {});
           }
+          return;
         }
       }
+      setCurrentUser(null);
     } catch {
-      // Ignore parse errors
+      setCurrentUser(null);
     } finally {
       setIsLoading(false);
     }
 
-    // 2. Listen for global session expiration events (dispatched by apiClient 401 handler)
     const handleSessionExpired = () => {
       logout();
     };
@@ -118,21 +198,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [logout, refreshProfile]);
 
-  const login = (user: User) => {
-    const enrichedUser: User = {
-      ...user,
-      initials: computeInitials(user.name),
-    };
-    setCurrentUser(enrichedUser);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(enrichedUser));
-    } catch {
-      // Ignore storage errors
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ currentUser, isLoading, login, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ currentUser, isLoading, login, logout, refreshProfile, switchToUser }}>
       {children}
     </AuthContext.Provider>
   );

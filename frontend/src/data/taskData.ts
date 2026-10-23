@@ -107,6 +107,13 @@ export interface TaskItem {
   complianceStatus?: TaskComplianceStatus;
   isTimerRunning?: boolean;
   timeSpentSeconds?: number;
+  trackedHours?: number;
+  hourlyRate?: number;
+  serviceFee?: number;
+  clientGstin?: string;
+  groupName?: string;
+  clientAddress?: string;
+  reimbursements?: Array<{ id: string; category?: string; title?: string; description?: string; amount: number }>;
   createdAt: string;
   updatedAt?: string;
 }

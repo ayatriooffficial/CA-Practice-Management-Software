@@ -40,6 +40,10 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
 }) => {
   const {
     activeTab,
+    invoices,
+    proformas,
+    reimbursements,
+    receipts,
     financialYear,
     setFinancialYear,
     dateRange,
@@ -55,6 +59,80 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+  const handleExportCSV = () => {
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `turia_${activeTab}_export_${timestamp}.csv`;
+    let csvContent = '';
+
+    if (activeTab === 'invoice' || activeTab === 'proforma') {
+      const records = activeTab === 'invoice' ? invoices : proformas;
+      const headers = [
+        'Document No',
+        'Date',
+        'Due Date',
+        'Client Business Name',
+        'Client Legal Name',
+        'GSTIN',
+        'PAN',
+        'Services',
+        'SubTotal (INR)',
+        'Paid Amount (INR)',
+        'Balance Due (INR)',
+        'Status',
+      ];
+      const rows = records.map((r) => [
+        `"${r.number || ''}"`,
+        `"${r.date || ''}"`,
+        `"${r.dueDate || ''}"`,
+        `"${(r.clientBusinessName || '').replace(/"/g, '""')}"`,
+        `"${(r.clientLegalName || '').replace(/"/g, '""')}"`,
+        `"${r.clientGstin || ''}"`,
+        `"${r.clientPan || ''}"`,
+        `"${(r.services || []).map((s) => s.serviceName).join('; ').replace(/"/g, '""')}"`,
+        r.subTotal || 0,
+        r.paidAmount || 0,
+        r.balanceAmount || 0,
+        `"${r.status || ''}"`,
+      ]);
+      csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    } else if (activeTab === 'reimbursement') {
+      const headers = ['Ref No', 'Date', 'Client Business Name', 'Category / Details', 'Amount (INR)', 'Status'];
+      const rows = reimbursements.map((r) => [
+        `"${r.number || ''}"`,
+        `"${r.date || ''}"`,
+        `"${(r.clientBusinessName || '').replace(/"/g, '""')}"`,
+        `"${(r.services?.[0]?.serviceName || r.notes || '').replace(/"/g, '""')}"`,
+        r.totalPayable || r.subTotal || 0,
+        `"${r.status || ''}"`,
+      ]);
+      csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    } else if (activeTab === 'receipts') {
+      const headers = ['Receipt No', 'Date', 'Client Business Name', 'Invoice No', 'Payment Method', 'Amount (INR)'];
+      const rows = receipts.map((rc) => [
+        `"${rc.receiptNo || ''}"`,
+        `"${rc.paymentDate || ''}"`,
+        `"${(rc.businessName || '').replace(/"/g, '""')}"`,
+        `"${rc.invoiceNumber || ''}"`,
+        `"${rc.method || ''}"`,
+        rc.amount || 0,
+      ]);
+      csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    } else {
+      csvContent = 'Document,Date,Amount\n';
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsMoreMenuOpen(false);
+  };
 
   // FY Stepper navigation
   const currentFyIndex = FINANCIAL_YEARS.indexOf(financialYear);
@@ -101,11 +179,10 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
                     setDateRange(range);
                     setIsDateRangeOpen(false);
                   }}
-                  className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${
-                    dateRange === range
-                      ? 'bg-[#eeedfd] dark:bg-[#7367F0]/20 text-[#7367F0] font-semibold'
+                  className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${dateRange === range
+                      ? 'bg-[#eeedfd] dark:bg-[#3D6A9E]/20 text-[#3D6A9E] font-semibold'
                       : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155]'
-                  }`}
+                    }`}
                 >
                   {range}
                 </button>
@@ -164,11 +241,10 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
                     setCurrencyFilter(curr);
                     setIsCurrencyOpen(false);
                   }}
-                  className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${
-                    currencyFilter === curr
-                      ? 'bg-[#eeedfd] dark:bg-[#7367F0]/20 text-[#7367F0] font-semibold'
+                  className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${currencyFilter === curr
+                      ? 'bg-[#eeedfd] dark:bg-[#3D6A9E]/20 text-[#3D6A9E] font-semibold'
                       : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155]'
-                  }`}
+                    }`}
                 >
                   {curr}
                 </button>
@@ -200,7 +276,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#7367F0] focus:ring-1 focus:ring-[#7367F0] shadow-2xs"
+            className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#3D6A9E] focus:ring-1 focus:ring-[#3D6A9E] shadow-2xs"
           />
         </div>
 
@@ -208,7 +284,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
         <button
           type="button"
           onClick={onAddNew}
-          className="h-10 flex items-center gap-1 px-4 rounded-lg bg-[#7367F0] hover:bg-[#685dd8] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
+          className="h-10 flex items-center gap-1 px-4 rounded-lg bg-[#3D6A9E] hover:bg-[#685dd8] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
         >
           {actionButtonText}
         </button>
@@ -243,10 +319,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  alert('Exporting data as CSV...');
-                }}
+                onClick={handleExportCSV}
                 className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] text-left cursor-pointer font-medium"
               >
                 <Download className="w-3.5 h-3.5" />

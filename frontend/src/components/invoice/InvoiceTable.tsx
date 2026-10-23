@@ -22,7 +22,12 @@ interface ColumnDef {
   sortable?: boolean;
 }
 
-export const InvoiceTable: React.FC = () => {
+interface InvoiceTableProps {
+  onView?: (item: InvoiceRecord | ReceiptRecord) => void;
+  onEdit?: (item: InvoiceRecord | ReceiptRecord) => void;
+}
+
+export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) => {
   const {
     activeTab,
     invoices,
@@ -35,6 +40,8 @@ export const InvoiceTable: React.FC = () => {
     currencyFilter,
     addCreditNote,
     voidInvoice,
+    deleteInvoice,
+    deleteReceipt,
   } = useInvoice();
   const [creditNoteTarget, setCreditNoteTarget] = useState<InvoiceRecord | null>(null);
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
@@ -314,7 +321,7 @@ export const InvoiceTable: React.FC = () => {
                   type="checkbox"
                   checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
                   onChange={handleSelectAll}
-                  className="w-3.5 h-3.5 rounded border-gray-300 text-[#7367F0] focus:ring-[#7367F0] cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-[#3D6A9E] focus:ring-[#3D6A9E] cursor-pointer"
                 />
               </th>
 
@@ -330,16 +337,15 @@ export const InvoiceTable: React.FC = () => {
                     <div className="flex items-center justify-between gap-1">
                       <span
                         onClick={() => col.sortable && handleSort(col.key)}
-                        className={`cursor-pointer flex items-center gap-1 ${
-                          col.sortable ? 'hover:text-[#7367F0]' : ''
-                        }`}
+                        className={`cursor-pointer flex items-center gap-1 ${col.sortable ? 'hover:text-[#3D6A9E]' : ''
+                          }`}
                       >
                         {col.label}
                         {isSorted && (
                           sortOrder === 'asc' ? (
-                            <ArrowUp className="w-3 h-3 text-[#7367F0]" />
+                            <ArrowUp className="w-3 h-3 text-[#3D6A9E]" />
                           ) : (
-                            <ArrowDown className="w-3 h-3 text-[#7367F0]" />
+                            <ArrowDown className="w-3 h-3 text-[#3D6A9E]" />
                           )
                         )}
                       </span>
@@ -398,7 +404,7 @@ export const InvoiceTable: React.FC = () => {
                   </th>
                 );
               })}
-              {activeTab === 'invoice' && <th className="py-3 px-4 whitespace-nowrap tracking-tight uppercase">Financial actions</th>}
+              <th className="py-3 px-4 text-center whitespace-nowrap tracking-tight uppercase">Actions</th>
             </tr>
           </thead>
 
@@ -406,7 +412,7 @@ export const InvoiceTable: React.FC = () => {
             {paginatedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={visibleColumns.length + (activeTab === 'invoice' ? 2 : 1)}
+                  colSpan={visibleColumns.length + 2}
                   className="py-16 text-center text-sm font-normal text-gray-500 dark:text-gray-400"
                 >
                   No rows
@@ -419,16 +425,15 @@ export const InvoiceTable: React.FC = () => {
                 return (
                   <tr
                     key={row.id}
-                    className={`border-b border-[#e5e7eb] dark:border-[#334155] hover:bg-gray-50/80 dark:hover:bg-[#0f172a]/40 transition-colors ${
-                      isSelected ? 'bg-[#eeedfd]/40 dark:bg-[#7367F0]/10' : ''
-                    }`}
+                    className={`border-b border-[#e5e7eb] dark:border-[#334155] hover:bg-gray-50/80 dark:hover:bg-[#0f172a]/40 transition-colors ${isSelected ? 'bg-[#eeedfd]/40 dark:bg-[#3D6A9E]/10' : ''
+                      }`}
                   >
                     <td className="py-3.5 px-4 text-center">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleSelectRow(row.id)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#7367F0] focus:ring-[#7367F0] cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#3D6A9E] focus:ring-[#3D6A9E] cursor-pointer"
                       />
                     </td>
 
@@ -437,7 +442,7 @@ export const InvoiceTable: React.FC = () => {
 
                       if (col.key === 'number' || col.key === 'receiptNo') {
                         cellContent = (
-                          <span className="font-semibold text-[#7367F0] dark:text-[#a59df7]">
+                          <span className="font-semibold text-[#3D6A9E] dark:text-[#a59df7]">
                             {row[col.key]}
                           </span>
                         );
@@ -469,15 +474,75 @@ export const InvoiceTable: React.FC = () => {
                         </td>
                       );
                     })}
-                    {activeTab === 'invoice' && <td className="px-3 py-2 whitespace-nowrap">
-                      {row.type === 'invoice' && row.status !== 'Cancelled' && <div className="flex gap-2">
-                        {row.taskAllocations?.length > 0 && <button type="button" onClick={() => { setCreditNoteTarget(row); setCreditAmounts({}); setFinancialActionError(''); }} className="text-[11px] font-semibold text-[#7367F0] hover:underline">Credit note</button>}
-                        <button type="button" onClick={() => {
-                          const reason = window.prompt('Reason for voiding this issued invoice:');
-                          if (reason?.trim()) void voidInvoice(row, reason.trim()).catch((error) => setFinancialActionError(error instanceof Error ? error.message : 'Invoice could not be voided.'));
-                        }} className="text-[11px] font-semibold text-red-600 hover:underline">Void</button>
-                      </div>}
-                    </td>}
+                    <td className="px-3 py-2 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onView?.(row)}
+                          className="text-[11px] font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
+                          title="View Details"
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onEdit?.(row)}
+                          className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                          title="Edit"
+                        >
+                          Edit
+                        </button>
+                        {activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Cancelled' && (
+                          <>
+                            {row.taskAllocations?.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCreditNoteTarget(row);
+                                  setCreditAmounts({});
+                                  setFinancialActionError('');
+                                }}
+                                className="text-[11px] font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
+                              >
+                                Credit note
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const reason = window.prompt('Reason for voiding this issued invoice:');
+                                if (reason?.trim()) {
+                                  void voidInvoice(row, reason.trim()).catch((error) =>
+                                    setFinancialActionError(error instanceof Error ? error.message : 'Invoice could not be voided.')
+                                  );
+                                }
+                              }}
+                              className="text-[11px] font-semibold text-amber-600 hover:underline cursor-pointer"
+                            >
+                              Void
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this record?')) {
+                              if (activeTab === 'receipts') {
+                                const res = deleteReceipt(row.id);
+                                if (!res.success && res.message) alert(res.message);
+                              } else {
+                                const res = deleteInvoice(row.id);
+                                if (!res.success && res.message) alert(res.message);
+                              }
+                            }
+                          }}
+                          className="text-[11px] font-semibold text-red-600 hover:underline cursor-pointer"
+                          title="Delete"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Zap,
   Hourglass,
@@ -18,6 +19,7 @@ import {
   ArrowUpDown,
   MoreVertical,
   Repeat,
+  ReceiptText,
 } from "lucide-react";
 import { taskApi } from "@/services/taskApi";
 import {
@@ -28,6 +30,7 @@ import {
 } from "@/data/taskData";
 import { TeamMember } from "@/data/teamData";
 import { teamStore } from "@/components/team/teamStore";
+import { useAuth } from "../auth/AuthContext";
 
 interface TaskListViewProps {
   onOpenAddTask: () => void;
@@ -40,6 +43,11 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   onOpenTaskDetail,
   selectedAssigneeFilter,
 }) => {
+  const router = useRouter();
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+  const employeeName = currentUser?.name || "";
+
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [stats, setStats] = useState<TaskStats>({
     wip: 0,
@@ -60,7 +68,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState<string>("All Dept");
   const [selectedAssignee, setSelectedAssignee] = useState<string>(
-    selectedAssigneeFilter || "All Assignees"
+    isEmployee ? (currentUser?.name || "") : (selectedAssigneeFilter || "All Assignees")
   );
   const [selectedSort, setSelectedSort] = useState<string>("Created Date");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("All Period");
@@ -118,12 +126,16 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   const fetchTasks = async () => {
     setIsLoading(true);
     try {
+      const activeAssignee = isEmployee
+        ? (currentUser?.name || employeeName)
+        : selectedAssignee;
+
       const [tasksRes, statsRes] = await Promise.all([
         taskApi.getTasks({
           category: selectedCategory,
           quickFilter: selectedQuickFilter,
           status: selectedStatusFilter || undefined,
-          assigneeName: selectedAssignee,
+          assigneeName: activeAssignee,
           department: selectedDept,
           period: selectedPeriod !== "All Period" ? selectedPeriod : undefined,
           search,
@@ -145,6 +157,82 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
       setIsLoading(false);
     }
   };
+
+  const handleGenerateInvoice = (task: TaskItem) => {
+    const trackedHrs = Number(task.trackedHours) || 3.5;
+    const hrRate = Number(task.hourlyRate) || 1200;
+    const hourlyBilling = Math.round(trackedHrs * hrRate);
+    const baseFee = Number(task.serviceFee) || 5000;
+    const totalProfessionalFee = baseFee + hourlyBilling;
+
+    const draftInvoice = {
+      type: "invoice",
+      taskId: task.taskId,
+      clientBusinessName: task.clientName,
+      clientLegalName: task.legalName || task.clientName,
+      clientId: task.clientId || "client-prefilled",
+      clientGroup: task.groupName || "Clients",
+      clientGstin: task.clientGstin || "",
+      clientAddress: task.clientAddress || "",
+      placeOfSupply: "27-Maharashtra",
+      date: new Date().toLocaleDateString("en-GB"),
+      dueDate: new Date(Date.now() + 15 * 86400000).toLocaleDateString("en-GB"),
+      subTotal: totalProfessionalFee + (task.reimbursements ? 1500 : 0),
+      totalPayable: totalProfessionalFee + (task.reimbursements ? 1500 : 0),
+      services: [
+        {
+          id: "srv-from-task-1",
+          serviceName: task.serviceName || task.taskName,
+          description: `Professional execution fees for ${task.serviceName || task.taskName} (${trackedHrs} tracked hours @ ₹${hrRate}/hr + base fee ₹${baseFee})`,
+          compliancePeriod: task.period || "FY 2026-27",
+          frequency: task.frequency || "Monthly",
+          periodLabel: task.period || "FY 2026-27",
+          quantity: 1,
+          price: totalProfessionalFee,
+          amount: totalProfessionalFee,
+          total: totalProfessionalFee,
+        },
+        ...(task.reimbursements
+          ? [
+              {
+                id: "srv-from-task-reimb",
+                serviceName: "Statutory MCA/ROC Filing Fee",
+                description: "Government portal statutory charges",
+                compliancePeriod: task.period || "FY 2026-27",
+                frequency: "One-Time",
+                periodLabel: "One-Time",
+                quantity: 1,
+                price: 1500,
+                amount: 1500,
+                total: 1500,
+              },
+            ]
+          : []),
+      ],
+      notes: `Pre-filled from task ${task.taskId} - ${task.taskName}. Client: ${task.clientName}.`,
+    };
+
+    sessionStorage.setItem("turia_draft_invoice_from_task", JSON.stringify(draftInvoice));
+    router.push("/invoice?fromTask=1");
+  };
+
+  const displayTasks = isEmployee
+    ? tasks.filter((t) => {
+        const myName = (currentUser?.name || employeeName).toLowerCase().trim();
+        const tAssignee = (t.assigneeName || "").toLowerCase().trim();
+        const myId = currentUser?.id || (currentUser as any)?._id;
+        return (
+          (myName && (tAssignee.includes(myName) || myName.includes(tAssignee))) ||
+          (myId && t.assigneeId === myId)
+        );
+      })
+    : tasks;
+
+  useEffect(() => {
+    if (isEmployee) {
+      setSelectedAssignee(currentUser?.name || employeeName);
+    }
+  }, [isEmployee, currentUser?.name, employeeName]);
 
   useEffect(() => {
     fetchTasks();
@@ -429,16 +517,23 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
             </select>
 
             <select
-              value={selectedAssignee}
+              value={isEmployee ? employeeName : selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="h-9 px-3 py-1.5 text-xs bg-[var(--bg-subtle)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] cursor-pointer"
+              disabled={isEmployee}
+              className="h-9 px-3 py-1.5 text-xs bg-[var(--bg-subtle)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] cursor-pointer disabled:opacity-85"
             >
-              <option value="All Assignees">All Assignees</option>
-              {teamMembers.map((tm) => (
-                <option key={tm.id} value={tm.name}>
-                  {tm.name}
-                </option>
-              ))}
+              {isEmployee ? (
+                <option value={employeeName}>{employeeName} (My Queue)</option>
+              ) : (
+                <>
+                  <option value="All Assignees">All Assignees</option>
+                  {teamMembers.map((tm) => (
+                    <option key={tm.id} value={tm.name}>
+                      {tm.name}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
 
             <select
@@ -655,14 +750,14 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
             </thead>
 
             <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-main)]">
-              {tasks.length === 0 ? (
+              {displayTasks.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-[var(--text-placeholder)] text-xs">
                     No tasks found matching your filters.
                   </td>
                 </tr>
               ) : (
-                tasks.map((task) => {
+                displayTasks.map((task) => {
                   const isChecked = selectedTaskIds.includes(task.id);
                   const clientInitials = task.clientName
                     ? task.clientName.substring(0, 2).toUpperCase()
@@ -773,14 +868,30 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
 
                       {/* Actions */}
                       <td className="py-2.5 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onOpenTaskDetail(task.id)}
-                          aria-label={`View details for task ${task.taskId}`}
-                          className="text-[var(--text-subtle)] hover:text-[var(--text-main)] p-1 rounded"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center space-x-1.5">
+                          {task.status === "Ready to Bill" && !isEmployee && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGenerateInvoice(task);
+                              }}
+                              title="Generate Invoice from task"
+                              className="px-2.5 py-1 rounded bg-[var(--brand-soft)] hover:bg-[var(--primary-light)] text-[var(--primary)] font-bold text-[10.5px] inline-flex items-center space-x-1 transition-all shadow-2xs whitespace-nowrap cursor-pointer"
+                            >
+                              <ReceiptText className="w-3.5 h-3.5" />
+                              <span>Generate Invoice</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onOpenTaskDetail(task.id)}
+                            aria-label={`View details for task ${task.taskId}`}
+                            className="text-[var(--text-subtle)] hover:text-[var(--text-main)] p-1 rounded hover:bg-[var(--bg-hover)] cursor-pointer"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

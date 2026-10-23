@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Clock,
@@ -42,6 +43,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
   taskId,
   onBack,
 }) => {
+  const router = useRouter();
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+
   const [task, setTask] = useState<TaskItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeSubTab, setActiveSubTab] = useState<string>("Task Summary");
@@ -62,7 +67,6 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
   const [timerRequestKey, setTimerRequestKey] = useState<string | null>(null);
   const [timerSaving, setTimerSaving] = useState(false);
   const [timerError, setTimerError] = useState<string | null>(null);
-  const { currentUser } = useAuth();
 
   // New Comment state
   const [commentText, setCommentText] = useState<string>("");
@@ -308,6 +312,64 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
     }
   };
 
+  const handleGenerateInvoice = () => {
+    if (!task) return;
+    const trackedTimerHrs = timerSeconds > 0 ? Number((timerSeconds / 3600).toFixed(2)) : (Number(task.trackedHours) || 3.5);
+    const hourlyBilling = Math.round(trackedTimerHrs * (Number(task.hourlyRate) || 1200));
+    const serviceBaseFee = Number(task.serviceFee) || 5000;
+    const totalProfessionalFee = serviceBaseFee + hourlyBilling;
+
+    const draftInvoice = {
+      type: "invoice",
+      taskId: task.taskId,
+      clientBusinessName: task.clientName,
+      clientLegalName: task.legalName || task.clientName,
+      clientId: task.clientId || "client-prefilled",
+      clientGroup: task.groupName || "Clients",
+      clientGstin: task.clientGstin || "",
+      clientAddress: task.clientAddress || "",
+      placeOfSupply: "27-Maharashtra",
+      date: new Date().toLocaleDateString("en-GB"),
+      dueDate: new Date(Date.now() + 15 * 86400000).toLocaleDateString("en-GB"),
+      subTotal: totalProfessionalFee + (task.reimbursements ? 1500 : 0),
+      totalPayable: totalProfessionalFee + (task.reimbursements ? 1500 : 0),
+      services: [
+        {
+          id: "srv-from-task-1",
+          serviceName: task.serviceName || task.taskName,
+          description: `Professional execution fees for ${task.serviceName || task.taskName} (${trackedTimerHrs} hrs tracked @ ₹${task.hourlyRate || 1200}/hr + base fee ₹${serviceBaseFee})`,
+          compliancePeriod: task.period || "FY 2026-27",
+          frequency: task.frequency || "Monthly",
+          periodLabel: task.period || "FY 2026-27",
+          quantity: 1,
+          price: totalProfessionalFee,
+          amount: totalProfessionalFee,
+          total: totalProfessionalFee,
+        },
+        ...(task.reimbursements
+          ? [
+              {
+                id: "srv-from-task-reimb",
+                serviceName: "Statutory MCA/ROC Filing Fee",
+                description: "Government portal statutory charges",
+                compliancePeriod: task.period || "FY 2026-27",
+                frequency: "One-Time",
+                periodLabel: "One-Time",
+                quantity: 1,
+                price: 1500,
+                amount: 1500,
+                total: 1500,
+              },
+            ]
+          : []),
+      ],
+      notes: `Pre-filled from task ${task.taskId} - ${task.taskName}. Client: ${task.clientName}.`,
+    };
+
+    sessionStorage.setItem("turia_draft_invoice_from_task", JSON.stringify(draftInvoice));
+    router.push("/invoice?fromTask=1");
+  };
+
   const handleStatusChange = async (newStatus: any) => {
     if (!task) return;
     const res = await taskApi.updateTask(task.id, { status: newStatus });
@@ -429,6 +491,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
           timerSeconds={timerSeconds}
           formatTimer={formatTimer}
           handleStatusChange={handleStatusChange}
+          onGenerateInvoice={handleGenerateInvoice}
+          isEmployee={isEmployee}
         />
       </div>
       </div>

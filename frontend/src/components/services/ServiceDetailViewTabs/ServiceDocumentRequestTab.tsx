@@ -3,6 +3,7 @@
 import React from "react";
 import { RotateCcw, Upload, Plus, FileCheck, Trash2 } from "lucide-react";
 import { ServiceDocumentRequestItem } from "@/data/serviceData";
+import { usePermission } from "../../team/usePermission";
 
 interface ServiceDocumentRequestTabProps {
   documentRequests: ServiceDocumentRequestItem[];
@@ -33,6 +34,7 @@ export const ServiceDocumentRequestTab: React.FC<ServiceDocumentRequestTabProps>
   isSyncing,
   showToast,
 }) => {
+  const { canDelete } = usePermission();
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left 2 Cols: Document Requests management */}
@@ -156,13 +158,15 @@ export const ServiceDocumentRequestTab: React.FC<ServiceDocumentRequestTabProps>
                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-600 border border-blue-200 dark:border-blue-800">
                     Required
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteDocumentRequest(item.id)}
-                    className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canDelete("services") && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDocumentRequest(item.id)}
+                      className="text-[var(--text-subtle)] hover:text-[var(--danger)] p-1 rounded cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))

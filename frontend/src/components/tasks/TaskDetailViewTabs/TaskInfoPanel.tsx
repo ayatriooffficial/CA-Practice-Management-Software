@@ -8,6 +8,7 @@ import {
   Edit,
   Mail,
   MessageSquare,
+  ReceiptText,
 } from "lucide-react";
 import { TaskItem } from "@/data/taskData";
 
@@ -22,6 +23,8 @@ interface TaskInfoPanelProps {
   timerSeconds: number;
   formatTimer: (totalSec: number) => string;
   handleStatusChange: (status: string) => Promise<void>;
+  onGenerateInvoice?: () => void;
+  isEmployee?: boolean;
 }
 
 export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
@@ -35,6 +38,8 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
   timerSeconds,
   formatTimer,
   handleStatusChange,
+  onGenerateInvoice,
+  isEmployee,
 }) => {
   return (
     <div className="lg:col-span-4 p-4 space-y-4 bg-[var(--bg-muted)]">
@@ -61,14 +66,14 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
         })}
       </div>
 
-      {/* Action Buttons: Start Timer, Send for Review, Complete, ⋮ */}
-      <div className="flex items-center space-x-2 pt-1">
+      {/* Action Buttons: Start Timer, Send for Review, Complete, Ready to Bill, Generate Invoice, ⋮ */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-1">
         {/* Start Timer / Live Stopwatch button */}
         <button
           type="button"
           onClick={onTimerToggle}
           disabled={timerSaving}
-          className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-full border transition-all flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer ${
+          className={`py-1.5 px-3 text-xs font-semibold rounded-full border transition-all flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer ${
             isTimerRunning
               ? "bg-amber-500 text-white border-amber-600 animate-pulse"
               : "bg-[var(--bg-surface)] text-[var(--text-main)] border-[var(--border-main)] hover:bg-[var(--bg-hover)]"
@@ -105,6 +110,29 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
         >
           Complete
         </button>
+
+        {/* Ready to Bill button */}
+        {task.status !== "Ready to Bill" && (
+          <button
+            type="button"
+            onClick={() => handleStatusChange("Ready to Bill")}
+            className="py-1.5 px-3 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-xs transition-colors cursor-pointer"
+          >
+            Ready to Bill
+          </button>
+        )}
+
+        {/* Generate Invoice button */}
+        {task.status === "Ready to Bill" && !isEmployee && onGenerateInvoice && (
+          <button
+            type="button"
+            onClick={onGenerateInvoice}
+            className="py-1.5 px-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xs transition-all cursor-pointer flex items-center space-x-1"
+          >
+            <ReceiptText className="w-3.5 h-3.5" />
+            <span>Generate Invoice</span>
+          </button>
+        )}
 
         <button
           type="button"

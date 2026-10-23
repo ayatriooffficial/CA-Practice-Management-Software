@@ -20,6 +20,7 @@ import {
 import { getPresetPermissions } from './permissionsConfig';
 import { request } from '../../services/apiClient';
 import { financialApi } from '../../services/financialApi';
+import { attendanceApi } from '../../services/attendanceApi';
 
 const EMPLOYEES_KEY = 'turia_team_employees';
 const ATTENDANCE_KEY = 'turia_team_attendance_today';
@@ -275,6 +276,35 @@ export const teamStore = {
 
   saveTodayAttendance(records: TodayAttendanceRecord[]): void {
     safeSet(ATTENDANCE_KEY, records);
+  },
+
+  async syncTodayAttendanceFromBackend(): Promise<TodayAttendanceRecord[]> {
+    try {
+      const res = await attendanceApi.getTodayAttendance();
+      if (res && res.rows && res.rows.length > 0) {
+        const records: TodayAttendanceRecord[] = res.rows.map((r) => ({
+          id: r.id,
+          employeeId: r.employee.id,
+          name: r.employee.name,
+          initials: r.employee.initials,
+          status: r.attendanceBadge,
+          clockIn: r.clockInAndOut.inTime,
+          clockOut: r.clockInAndOut.outTime,
+          totalHours: r.clockInAndOut.totalHours,
+          workLocation: r.location,
+          clientOrTaskName: r.nameOfTheLocation,
+          inTime: r.clockInAndOut.inTime,
+          outTime: r.clockInAndOut.outTime,
+          officeLocation: r.officeLocation,
+          distanceRadius: r.distanceRadius,
+        }));
+        this.saveTodayAttendance(records);
+        return records;
+      }
+    } catch {
+      // Retain offline cached records
+    }
+    return this.getTodayAttendance();
   },
 
   // Regularization

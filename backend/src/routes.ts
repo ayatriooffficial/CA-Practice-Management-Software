@@ -11,6 +11,7 @@ import { noticeRoutes } from './modules/notice/notice.routes';
 import { syncRoutes } from './modules/sync/sync.routes';
 import { complianceRoutes } from './modules/compliance/compliance.routes';
 import { financialRoutes } from './modules/financials/financial.routes';
+import { attendanceRoutes } from './modules/attendance/attendance.routes';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 
@@ -32,6 +33,10 @@ router.get('/health', (_req: Request, res: Response) => {
 
 // Authentication Module (Public + Session)
 router.use('/auth', authRoutes);
+
+// Attendance & Home Dashboard Module
+router.use('/attendance', attendanceRoutes);
+router.use('/home/attendance', attendanceRoutes);
 
 // Feature Modules (with optional authentication to support both authenticated and development/guest modes)
 router.use('/clients', optionalAuthenticate, clientRoutes);

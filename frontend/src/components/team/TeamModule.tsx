@@ -28,11 +28,7 @@ export const TeamModule: React.FC = () => {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (isEmployee && activeTab !== 'team') {
-      setActiveTab('team');
-    }
-  }, [isEmployee, activeTab]);
+  const currentTab: TeamTab = isEmployee ? 'team' : activeTab;
 
   if (!isLoaded) {
     return (
@@ -49,10 +45,15 @@ export const TeamModule: React.FC = () => {
   return (
     <div className="min-h-full bg-gray-50/50 pb-12">
       {/* Top Level Tabs Header */}
-      <TeamTabsHeader activeTab={activeTab} onTabChange={setActiveTab} />
+      <TeamTabsHeader
+        activeTab={currentTab}
+        onTabChange={(tab) => {
+          if (!isEmployee) setActiveTab(tab);
+        }}
+      />
 
       {/* Tab Content */}
-      {activeTab === 'team' && (
+      {currentTab === 'team' && (
         <div className="space-y-2">
           {!isEmployee && (
             <TeamSummaryCards
@@ -65,11 +66,11 @@ export const TeamModule: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'attendance' && !isEmployee && <AttendanceView />}
+      {currentTab === 'attendance' && !isEmployee && <AttendanceView />}
 
-      {activeTab === 'leave' && !isEmployee && <LeaveView />}
+      {currentTab === 'leave' && !isEmployee && <LeaveView />}
 
-      {activeTab === 'reimbursement' && !isEmployee && <ReimbursementView />}
+      {currentTab === 'reimbursement' && !isEmployee && <ReimbursementView />}
     </div>
   );
 };

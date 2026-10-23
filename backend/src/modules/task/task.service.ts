@@ -50,23 +50,40 @@ export class TaskService {
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
 
-    // Org and user data isolation filter
+    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
+    const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+
+    // Org data isolation filter
     if (orgId) {
       const orgConditions: any[] = [
         { orgId },
         { orgId: String(orgId) },
       ];
+      andClauses.push({ $or: orgConditions });
+    }
+
+    // For employees, strictly restrict to tasks assigned to or reviewed by them
+    if (isEmployeeRole) {
+      const assignedConditions: any[] = [];
       if (userId) {
-        orgConditions.push(
-          { userId },
-          { createdBy: userId },
-          { adminId: userId },
+        assignedConditions.push(
           { assigneeId: userId },
-          { reviewerId: userId }
+          { assigneeId: String(userId) },
+          { reviewerId: userId },
+          { userId }
         );
       }
-      andClauses.push({ $or: orgConditions });
-    } else if (userId) {
+      if (userName && userName.trim()) {
+        const nameRegex = new RegExp(`^${userName.trim()}$`, 'i');
+        assignedConditions.push(
+          { assigneeName: nameRegex },
+          { reviewerName: nameRegex }
+        );
+      }
+      if (assignedConditions.length) {
+        andClauses.push({ $or: assignedConditions });
+      }
+    } else if (!orgId && userId) {
       const userConditions: any[] = [
         { userId },
         { createdBy: userId },
@@ -250,22 +267,38 @@ export class TaskService {
     const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
+    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
+    const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+    const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
+
     if (orgId) {
-      const orgConditions: any[] = [
+      matchFilter.$or = [
         { orgId },
         { orgId: String(orgId) },
       ];
+    }
+
+    if (isEmployeeRole) {
+      const assignedConditions: any[] = [];
       if (userId) {
-        orgConditions.push(
-          { userId },
-          { createdBy: userId },
-          { adminId: userId },
+        assignedConditions.push(
           { assigneeId: userId },
-          { reviewerId: userId }
+          { assigneeId: String(userId) },
+          { reviewerId: userId },
+          { userId }
         );
       }
-      matchFilter.$or = orgConditions;
-    } else if (userId) {
+      if (userName && userName.trim()) {
+        const nameRegex = new RegExp(`^${userName.trim()}$`, 'i');
+        assignedConditions.push(
+          { assigneeName: nameRegex },
+          { reviewerName: nameRegex }
+        );
+      }
+      if (assignedConditions.length) {
+        matchFilter.$and = [{ $or: assignedConditions }];
+      }
+    } else if (!orgId && userId) {
       const userConditions: any[] = [
         { userId },
         { createdBy: userId },
@@ -325,22 +358,38 @@ export class TaskService {
     const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
+    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
+    const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+    const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
+
     if (orgId) {
-      const orgConditions: any[] = [
+      matchFilter.$or = [
         { orgId },
         { orgId: String(orgId) },
       ];
+    }
+
+    if (isEmployeeRole) {
+      const assignedConditions: any[] = [];
       if (userId) {
-        orgConditions.push(
-          { userId },
-          { createdBy: userId },
-          { adminId: userId },
+        assignedConditions.push(
           { assigneeId: userId },
-          { reviewerId: userId }
+          { assigneeId: String(userId) },
+          { reviewerId: userId },
+          { userId }
         );
       }
-      matchFilter.$or = orgConditions;
-    } else if (userId) {
+      if (userName && userName.trim()) {
+        const nameRegex = new RegExp(`^${userName.trim()}$`, 'i');
+        assignedConditions.push(
+          { assigneeName: nameRegex },
+          { reviewerName: nameRegex }
+        );
+      }
+      if (assignedConditions.length) {
+        matchFilter.$and = [{ $or: assignedConditions }];
+      }
+    } else if (!orgId && userId) {
       const userConditions: any[] = [
         { userId },
         { createdBy: userId },

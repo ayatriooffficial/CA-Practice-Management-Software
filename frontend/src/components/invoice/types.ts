@@ -1,4 +1,24 @@
-export type InvoiceTab = 'proforma' | 'invoice' | 'reimbursement' | 'receipts' | 'analytics';
+export type InvoiceTab = 'proforma' | 'invoice' | 'reimbursement' | 'receipts' | 'recurring' | 'analytics';
+
+export type RecurringFrequency = 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly';
+
+export interface RecurringInvoiceRecord {
+  id: string;
+  templateNo: string;
+  billingOrg: string;
+  clientBusinessName: string;
+  clientLegalName: string;
+  clientGroup?: string;
+  clientGstin?: string;
+  service: string;
+  taxRate: string;
+  frequency: RecurringFrequency;
+  createdOn: string;
+  startDate: string;
+  totalAmount: number;
+  status: 'Active' | 'Paused' | 'Ended' | 'Completed';
+  financialYear: string;
+}
 
 export type InvoiceStatus = 'Paid' | 'Partially Paid' | 'Receivable' | 'Pending' | 'Overdue' | 'Advance Paid' | 'Write-Off' | 'Cancelled' | 'Converted' | 'Credit Note';
 

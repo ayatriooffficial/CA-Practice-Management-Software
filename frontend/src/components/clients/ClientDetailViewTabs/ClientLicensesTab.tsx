@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Plus, Trash2, ExternalLink, FileText, Search } from "lucide-react";
 import { ClientLicense } from "@/data/crmData";
 import { getAvatarBadge } from "./utils";
+import { usePermission } from "../../team/usePermission";
 
 export interface ClientLicensesTabProps {
   licenses: ClientLicense[];
@@ -14,6 +15,7 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
   setIsAddLicenseOpen,
   handleDeleteLicense,
 }) => {
+  const { canDelete } = usePermission();
   const [search, setSearch] = useState("");
 
   const filteredLicenses = useMemo(() => {
@@ -165,14 +167,18 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
 
                   {/* Delete action */}
                   <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteLicense(lic.id || "", lic.name)}
-                      title="Delete license"
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canDelete("licenses") ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLicense(lic.id || "", lic.name)}
+                        title="Delete license"
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               ))

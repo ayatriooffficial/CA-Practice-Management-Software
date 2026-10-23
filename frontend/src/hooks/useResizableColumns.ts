@@ -48,7 +48,9 @@ export function useResizableColumns({
   } | null>(null);
 
   const columnWidthsRef = useRef(columnWidths);
-  columnWidthsRef.current = columnWidths;
+  useEffect(() => {
+    columnWidthsRef.current = columnWidths;
+  }, [columnWidths]);
 
   const animationFrameRef = useRef<number | null>(null);
 

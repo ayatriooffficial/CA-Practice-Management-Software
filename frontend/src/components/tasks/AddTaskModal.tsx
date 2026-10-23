@@ -10,6 +10,7 @@ import { teamStore } from "@/components/team/teamStore";
 import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS } from "@/data/taskData";
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
+import { appSyncService } from "@/services/appSyncService";
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -22,8 +23,20 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onClose,
   onTaskCreated,
 }) => {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [clients, setClients] = useState<Client[]>(() => {
+    try {
+      return appSyncService.getClients();
+    } catch {
+      return [];
+    }
+  });
+  const [services, setServices] = useState<Service[]>(() => {
+    try {
+      return appSyncService.getServices();
+    } catch {
+      return [];
+    }
+  });
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
@@ -32,8 +45,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [errorMessage, setErrorMessage] = useState("");
 
   // Form Fields matching Screenshot 1
-  const [clientId, setClientId] = useState("");
-  const [serviceId, setServiceId] = useState("");
+  const [clientId, setClientId] = useState(() => (clients.length > 0 ? (clients[0].id || clients[0].fileNo || "") : ""));
+  const [serviceId, setServiceId] = useState(() => (services.length > 0 ? (services[0].id || services[0].name || "") : ""));
   const [frequency, setFrequency] = useState("Monthly");
   const [period, setPeriod] = useState("Jun 2026");
   const [taskName, setTaskName] = useState("");

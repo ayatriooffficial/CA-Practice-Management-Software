@@ -25,6 +25,7 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Pagination } from "@/components/ui/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
+import { usePermission } from "@/components/team/usePermission";
 import {
   useLeads,
   useCreateLead,
@@ -88,6 +89,7 @@ const DEFAULT_HIDDEN = new Set([
 export { ALL_LEAD_COLUMNS };
 
 export const LeadsModule: React.FC = () => {
+  const { canDelete, canAddEdit } = usePermission();
   // Query parameters state
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -291,22 +293,24 @@ export const LeadsModule: React.FC = () => {
 
         <div className="flex items-center gap-3 py-2">
           {/* Toggle Soft-Deleted Records */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowDeleted((prev) => !prev);
-              setPage(1);
-            }}
-            className={`flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
-              showDeleted
-                ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300"
-                : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
-            }`}
-            title="Toggle deleted records"
-          >
-            {showDeleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            <span>{showDeleted ? "Trash View" : "Active Only"}</span>
-          </button>
+          {canDelete("leads") && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeleted((prev) => !prev);
+                setPage(1);
+              }}
+              className={`flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
+                showDeleted
+                  ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300"
+                  : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
+              }`}
+              title="Toggle deleted records"
+            >
+              {showDeleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{showDeleted ? "Trash View" : "Active Only"}</span>
+            </button>
+          )}
 
           {/* Search box with Debounced input */}
           <div className="relative min-w-[240px] md:min-w-[280px]">
@@ -339,15 +343,17 @@ export const LeadsModule: React.FC = () => {
           </div>
 
           {/* Add Lead button */}
-          <button
-            type="button"
-            onClick={() => setEditingLead(null)}
-            className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            style={{ backgroundColor: "var(--premium-blue-dark)" }}
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add</span>
-          </button>
+          {canAddEdit("leads") && (
+            <button
+              type="button"
+              onClick={() => setEditingLead(null)}
+              className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add</span>
+            </button>
+          )}
         </div>
       </div>
 

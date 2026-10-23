@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { Phone, Pencil, Trash2, RotateCcw, UserCheck } from "lucide-react";
 import { Lead } from "@/data/crmData";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
+import { usePermission } from "@/components/team/usePermission";
 
 export interface LeadColumnDef {
   key: keyof Lead | "actions" | "select";
@@ -119,6 +120,7 @@ export const LeadTableRow = memo(
     onRestore,
     onConvert,
   }: LeadTableRowProps) => {
+    const { canDelete, canAddEdit } = usePermission();
     const isDeleted = Boolean((lead as any).isDeleted);
     const isConverted = (lead as any).status === "converted";
 
@@ -266,28 +268,32 @@ export const LeadTableRow = memo(
                 )}
 
                 {/* Edit Button */}
-                <button
-                  type="button"
-                  onClick={() => onEdit(lead)}
-                  className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
-                  title="Edit Lead"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
+                {canAddEdit("leads") && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(lead)}
+                    className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
+                    title="Edit Lead"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
 
                 {/* Soft Delete Button */}
-                <button
-                  type="button"
-                  onClick={() => onDelete(lead.id, lead.fullName)}
-                  className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
-                  title="Soft Delete"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {canDelete("leads") && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(lead.id, lead.fullName)}
+                    className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
+                    title="Soft Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </>
             ) : (
               /* Restore Button */
-              onRestore && (
+              canDelete("leads") && onRestore && (
                 <button
                   type="button"
                   onClick={() => onRestore(lead.id, lead.fullName)}

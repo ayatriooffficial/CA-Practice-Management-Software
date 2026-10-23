@@ -19,7 +19,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const savedTheme = localStorage.getItem("app-theme") as Theme | null;
     if (savedTheme) {
       setTheme(savedTheme);
@@ -29,6 +28,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTheme("light");
       document.documentElement.setAttribute("data-theme", "light");
     }
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleTheme = () => {

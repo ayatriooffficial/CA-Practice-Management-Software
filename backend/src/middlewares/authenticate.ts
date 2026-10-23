@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { JwtService } from '../modules/auth/jwt.service';
 import { ApiResponse } from '../shared/utils/apiResponse';
 import { HTTP_STATUS } from '../constants/httpStatus';
@@ -13,6 +14,9 @@ declare global {
   }
 }
 
+const DEV_FALLBACK_USER_ID = '6ad9e23bf460aa2e6102c0c8';
+const DEV_FALLBACK_ORG_ID = '6ad9e23bf460aa2e6102c0c6';
+
 /**
  * Strict JWT Authentication Middleware.
  * Extracts Bearer token from Authorization header, validates signature & expiry,
@@ -22,21 +26,6 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // Development fallback for existing mock sessions if no JWT was provided yet
-    if (process.env.NODE_ENV !== 'production' && req.headers['x-user-id']) {
-      req.user = {
-        userId: String(req.headers['x-user-id']),
-        orgId: String(req.headers['x-org-id'] || '67b7e8000000000000000001'),
-        firmName: 'Ayatrio Practice',
-        email: 'sahanidipak777@gmail.com',
-        role: (req.headers['x-user-role'] as any) || 'admin',
-        name: 'Dipak Sahani',
-        initials: 'DS',
-        tokenVersion: 0,
-      };
-      return next();
-    }
-
     ApiResponse.error(
       res,
       'Access denied. No authentication token provided.',
@@ -95,19 +84,25 @@ export const optionalAuthenticate = (req: Request, _res: Response, next: NextFun
     }
   }
 
-  // Also support X-User-Id and query userId for multi-client testing
-  if (!req.user && (req.headers['x-user-id'] || req.query.userId)) {
-    const rawUserId = String(req.headers['x-user-id'] || req.query.userId);
+  // Also support X-User-Id and query userId for multi-client testing or dev fallback
+  if (!req.user && (req.headers['x-user-id'] || req.query.userId || process.env.NODE_ENV !== 'production')) {
+    const rawUserId = String(req.headers['x-user-id'] || req.query.userId || DEV_FALLBACK_USER_ID);
+    const validUserId = mongoose.Types.ObjectId.isValid(rawUserId) ? rawUserId : DEV_FALLBACK_USER_ID;
+    const rawOrgId = String(req.headers['x-org-id'] || req.query.orgId || DEV_FALLBACK_ORG_ID);
+    const validOrgId = mongoose.Types.ObjectId.isValid(rawOrgId) ? rawOrgId : DEV_FALLBACK_ORG_ID;
+
     req.user = {
-      userId: rawUserId,
-      orgId: String(req.headers['x-org-id'] || ''),
-      firmName: '',
-      email: '',
+      userId: validUserId,
+      orgId: validOrgId,
+      firmName: 'Krishna Associates',
+      email: 'deepak.sahani@krishnaassociates.example',
       role: (req.headers['x-user-role'] as any) || 'admin',
-      name: '',
-      initials: '',
+      name: 'Deepak Sahani',
+      initials: 'DS',
       tokenVersion: 0,
     };
+    req.headers['x-user-id'] = validUserId;
+    req.headers['x-org-id'] = validOrgId;
   }
 
   next();

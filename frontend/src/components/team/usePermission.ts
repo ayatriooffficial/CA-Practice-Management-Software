@@ -13,7 +13,7 @@ export function usePermission() {
     if (!user) return null;
 
     // 1. If user object has permissions directly
-    if (user.permissions) {
+    if (user.permissions && Object.keys(user.permissions).length > 0) {
       return user.permissions as RolePermissionsMap;
     }
 
@@ -44,10 +44,28 @@ export function usePermission() {
   const can = (moduleKey: string, action: PermissionAction = 'view'): boolean => {
     if (!user) return true;
     const roleLower = (user.role || '').toLowerCase();
-    if (roleLower === 'admin') return true;
+
+    // Big roles can see and do everything
+    if (roleLower === 'admin' || roleLower === 'partner' || roleLower === 'manager' || roleLower === 'owner') {
+      return true;
+    }
+
+    // Role-based rule for Employees:
+    if (roleLower === 'employee') {
+      // 1. Invoice, billing, and proposals are completely hidden/blocked for employees
+      if (moduleKey === 'invoice' || moduleKey === 'billing' || moduleKey === 'proposals') {
+        return false;
+      }
+      // 2. Delete is strictly disallowed across all sections for employees
+      if (action === 'delete') {
+        return false;
+      }
+    }
 
     if (!permissions) return false;
-    const mod = permissions[moduleKey];
+    const normalizedKey =
+      moduleKey === 'task' || moduleKey === 'tasks' ? 'task_manager' : moduleKey;
+    const mod = permissions[normalizedKey] || permissions[moduleKey];
     if (!mod) return false;
 
     return Boolean(mod[action]);

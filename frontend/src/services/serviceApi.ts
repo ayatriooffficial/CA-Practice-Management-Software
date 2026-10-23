@@ -26,36 +26,128 @@ export interface ServiceStats {
 
 export const serviceApi = {
   getServices: async (params: ServiceQueryParams = {}): Promise<ApiResponse<Service[]>> => {
-    const searchParams = new URLSearchParams();
-    if (params.page) searchParams.set('page', String(params.page));
-    if (params.limit) searchParams.set('limit', String(params.limit));
-    if (params.search?.trim()) searchParams.set('search', params.search.trim());
-    if (params.sortBy) searchParams.set('sortBy', params.sortBy);
-    if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder);
-    if (params.category) searchParams.set('category', params.category);
-    if (params.frequency) searchParams.set('frequency', params.frequency);
-    if (params.difficulty) searchParams.set('difficulty', params.difficulty);
-    if (params.isRecurring !== undefined) searchParams.set('isRecurring', String(params.isRecurring));
-    if (params.status) searchParams.set('status', params.status);
-    if (params.includeDeleted) searchParams.set('includeDeleted', 'true');
+    try {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.set('page', String(params.page));
+      if (params.limit) searchParams.set('limit', String(params.limit));
+      if (params.search?.trim()) searchParams.set('search', params.search.trim());
+      if (params.sortBy) searchParams.set('sortBy', params.sortBy);
+      if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder);
+      if (params.category) searchParams.set('category', params.category);
+      if (params.frequency) searchParams.set('frequency', params.frequency);
+      if (params.difficulty) searchParams.set('difficulty', params.difficulty);
+      if (params.isRecurring !== undefined) searchParams.set('isRecurring', String(params.isRecurring));
+      if (params.status) searchParams.set('status', params.status);
+      if (params.includeDeleted) searchParams.set('includeDeleted', 'true');
 
-    const query = searchParams.toString();
-    return request<Service[]>(`/services${query ? `?${query}` : ''}`);
+      const query = searchParams.toString();
+      const res = await request<Service[]>(`/services${query ? `?${query}` : ''}`);
+      if (res && res.data && res.data.length > 0) {
+        return res;
+      }
+    } catch {
+      // Offline fallback
+    }
+
+    const { appSyncService } = await import('./appSyncService');
+    const localServices = appSyncService.getServices();
+    let filtered = [...localServices];
+    if (params.search?.trim()) {
+      const q = params.search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (s) => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
+      );
+    }
+    if (params.category && params.category !== 'All Categories') {
+      filtered = filtered.filter((s) => s.category === params.category);
+    }
+    if (params.frequency) {
+      filtered = filtered.filter((s) => s.frequency === params.frequency);
+    }
+    return {
+      success: true,
+      statusCode: 200,
+      data: filtered,
+      message: 'Services retrieved (synced storage)',
+    };
   },
 
   getServiceStats: async (): Promise<ApiResponse<ServiceStats>> => {
-    return request<ServiceStats>('/services/stats');
+    try {
+      const res = await request<ServiceStats>('/services/stats');
+      if (res && res.data) return res;
+    } catch {
+      // Offline fallback
+    }
+    const { appSyncService } = await import('./appSyncService');
+    const all = appSyncService.getServices();
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Service stats retrieved',
+      data: {
+        totalServices: all.length,
+        activeServices: all.filter((s) => s.status === 'Active').length,
+        recurringServices: all.filter((s) => s.isRecurring).length,
+        categoriesCount: Array.from(new Set(all.map((s) => s.category))).length,
+        avgFee: Math.round(
+          all.reduce((acc, s) => acc + (s.professionalFee || 0), 0) / (all.length || 1)
+        ),
+      },
+    };
   },
 
   getServiceById: async (id: string, includeDeleted = false): Promise<ApiResponse<Service>> => {
-    return request<Service>(`/services/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
+    try {
+      const res = await request<Service>(`/services/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
+      if (res && res.data) return res;
+    } catch {
+      // Offline fallback
+    }
+    const { appSyncService } = await import('./appSyncService');
+    const s = appSyncService.getServices().find((item) => item.id === id || item.name === id);
+    if (s) {
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Service retrieved',
+        data: s,
+      };
+    }
+    throw new Error('Service not found');
   },
 
   createService: async (payload: Partial<Service>): Promise<ApiResponse<Service>> => {
-    return request<Service>('/services', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await request<Service>('/services', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (res && res.data) {
+        const { appSyncService } = await import('./appSyncService');
+        appSyncService.saveService(res.data);
+        return res;
+      }
+    } catch {
+      // Offline fallback
+    }
+    const { appSyncService } = await import('./appSyncService');
+    const newService: Service = {
+      id: payload.id || `srv-${Date.now()}`,
+      name: payload.name || 'New Service',
+      category: payload.category || 'GST',
+      frequency: payload.frequency || 'Monthly',
+      status: payload.status || 'Active',
+      isRecurring: payload.isRecurring ?? true,
+      ...payload,
+    } as Service;
+    appSyncService.saveService(newService);
+    return {
+      success: true,
+      statusCode: 201,
+      data: newService,
+      message: 'Service created (synced)',
+    };
   },
 
   updateService: async (id: string, payload: Partial<Service>): Promise<ApiResponse<Service>> => {

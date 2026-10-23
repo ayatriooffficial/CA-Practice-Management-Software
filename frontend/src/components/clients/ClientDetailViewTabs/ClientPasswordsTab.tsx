@@ -2,6 +2,7 @@ import React from "react";
 import { Plus, Trash2, Eye, EyeOff, Copy } from "lucide-react";
 import { ClientPassword } from "@/data/crmData";
 import { getAvatarBadge } from "./utils";
+import { usePermission } from "../../team/usePermission";
 
 export interface ClientPasswordsTabProps {
   passwords: ClientPassword[];
@@ -20,6 +21,7 @@ export const ClientPasswordsTab: React.FC<ClientPasswordsTabProps> = ({
   handleDeletePassword,
   showToast,
 }) => {
+  const { canDelete } = usePermission();
   return (
     <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
       <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
@@ -141,14 +143,18 @@ export const ClientPasswordsTab: React.FC<ClientPasswordsTabProps> = ({
                       {pwd.remarks || "—"}
                     </td>
                     <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePassword(pwd.id || "", pwd.portal)}
-                        title="Delete Credential"
-                        className="p-1 text-gray-400 hover:text-red-600 cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canDelete("password") ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePassword(pwd.id || "", pwd.portal)}
+                          title="Delete Credential"
+                          className="p-1 text-gray-400 hover:text-red-600 cursor-pointer transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                      )}
                     </td>
                   </tr>
                 );

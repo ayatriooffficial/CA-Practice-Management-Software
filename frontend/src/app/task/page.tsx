@@ -15,8 +15,14 @@ import { TaskListView } from "@/components/tasks/TaskListView";
 import { TaskDetailView } from "@/components/tasks/TaskDetailView";
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
 import { TaskItem } from "@/data/taskData";
+import { useAuth } from "@/components/auth/AuthContext";
+import { usePermission } from "@/components/team/usePermission";
 
 export default function TaskPage() {
+  const { currentUser } = useAuth();
+  const { canAddEdit } = usePermission();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+
   const [activeMainTab, setActiveMainTab] = useState<
     "Task Summary" | "Task List" | "Sub Tasks" | "Recurring Schedule" | "Analytics"
   >("Task Summary");
@@ -95,15 +101,17 @@ export default function TaskPage() {
                 <span>Activity</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setIsAddTaskOpen(true)}
-                style={{ backgroundColor: "var(--primary)" }}
-                className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Task</span>
-              </button>
+              {!isEmployee && canAddEdit("task_manager") && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddTaskOpen(true)}
+                  style={{ backgroundColor: "var(--primary)" }}
+                  className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Task</span>
+                </button>
+              )}
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import {
   ReceiptText,
   IndianRupee,
   Receipt,
+  Repeat,
   BarChart3,
   LucideIcon,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ const TABS: TabConfig[] = [
   { id: 'invoice', label: 'Invoice', icon: ReceiptText },
   { id: 'reimbursement', label: 'Reimbursement', icon: IndianRupee },
   { id: 'receipts', label: 'Receipts', icon: Receipt },
+  { id: 'recurring', label: 'Recurring Invoice', icon: Repeat },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
@@ -41,11 +43,10 @@ export const InvoiceTabsHeader: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 h-full px-3.5 text-[13px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? 'text-[#7367F0] dark:text-[#8276f2]'
+              className={`relative flex items-center gap-2 h-full px-3.5 text-[13px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${isActive
+                  ? 'text-[#3D6A9E] dark:text-[#8276f2]'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
               <span>{tab.label}</span>
@@ -53,7 +54,7 @@ export const InvoiceTabsHeader: React.FC = () => {
               {/* Active Tab Underline */}
               {isActive && (
                 <div
-                  className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t bg-[#7367F0] dark:bg-[#8276f2]"
+                  className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t bg-[#3D6A9E] dark:bg-[#8276f2]"
                 />
               )}
             </button>
