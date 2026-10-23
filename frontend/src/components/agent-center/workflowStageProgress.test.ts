@@ -22,7 +22,7 @@ test('only Event is unlocked initially, and reopening infers only a valid sequen
 });
 
 test('selecting an option alone must not unlock the next stage until committed', () => {
-  const config = { trigger: 'Task created', recipient: [] };
+  const _config = { trigger: 'Task created', recipient: [] };
   const progress: WorkflowStageProgress = {};
   // Selecting a trigger does not alter progress
   assert.equal(isWorkflowStageUnlocked('recipient', progress), false);

@@ -1,3 +1,18 @@
+export type AgentModule = 'Task' | 'DSC' | 'License';
+export type AgentStatus = 'draft' | 'published' | 'disabled';
+export type AgentChannel = 'Email' | 'WhatsApp' | 'In-app';
+export type AgentAction =
+  | 'Send notification'
+  | 'Send expiry reminder'
+  | 'Send renewal reminder'
+  | 'Notify assignee';
+export type AgentRecipient =
+  | 'Client'
+  | 'Assigned user'
+  | 'Task owner'
+  | 'Account administrator'
+  | 'Responsible person';
+
 /**
  * Static Agent Center catalog shared with the frontend. Dynamic agent records
  * and execution history remain backend data and are never represented here.

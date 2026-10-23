@@ -1,5 +1,4 @@
-import { AgentAction, AgentChannel, AgentModule, AgentRecipient } from './agent.interface';
-import { PUBLIC_AGENT_DEFINITIONS } from './catalog';
+import { AgentAction, AgentChannel, AgentModule, AgentRecipient, PUBLIC_AGENT_DEFINITIONS } from './catalog';
 
 export interface TriggerCondition {
   key: string;

@@ -1,19 +1,19 @@
 import { HydratedDocument, Types } from 'mongoose';
+import type {
+  AgentModule,
+  AgentStatus,
+  AgentChannel,
+  AgentAction,
+  AgentRecipient,
+} from './catalog';
 
-export type AgentModule = 'Task' | 'DSC' | 'License';
-export type AgentStatus = 'draft' | 'published' | 'disabled';
-export type AgentChannel = 'Email' | 'WhatsApp' | 'In-app';
-export type AgentAction =
-  | 'Send notification'
-  | 'Send expiry reminder'
-  | 'Send renewal reminder'
-  | 'Notify assignee';
-export type AgentRecipient =
-  | 'Client'
-  | 'Assigned user'
-  | 'Task owner'
-  | 'Account administrator'
-  | 'Responsible person';
+export type {
+  AgentModule,
+  AgentStatus,
+  AgentChannel,
+  AgentAction,
+  AgentRecipient,
+};
 
 export type WorkflowNodeType = 'action' | 'condition';
 export type WorkflowOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'exists';
