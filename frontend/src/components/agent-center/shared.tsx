@@ -17,6 +17,9 @@ const statusStyles: Record<string, string> = {
   disabled: 'border-amber-200 bg-amber-50 text-amber-800',
   success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   failed: 'border-rose-200 bg-rose-50 text-rose-800',
+  'partial-failed': 'border-amber-200 bg-amber-50 text-amber-800',
+  skipped: 'border-slate-200 bg-slate-100 text-slate-700',
+  simulated: 'border-sky-200 bg-sky-50 text-sky-800',
   activity: 'border-sky-200 bg-sky-50 text-sky-800',
 };
 
@@ -77,6 +80,7 @@ export function RunDetails({ run }: { run: AgentRun }) {
   return (
     <div className="space-y-4 text-sm">
       <NoticeBanner type="info">SIMULATED ONLY — no email, WhatsApp message, or in-app notification was sent.</NoticeBanner>
+      {run.runType === 'actual' && <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>A real Task lifecycle event started this run. Every action shown below was simulated.</p>}
       {result?.message && <p style={{ color: 'var(--text-main)' }}>{result.message}</p>}
       {result?.renderedMessage && (
         <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border-main)', backgroundColor: 'var(--bg-muted)' }}>
@@ -85,7 +89,7 @@ export function RunDetails({ run }: { run: AgentRun }) {
         </div>
       )}
       {result?.steps?.length ? <div><h3 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Simulation steps</h3><ol className="space-y-2">{result.steps.map((step, index) => <li key={`${index}-${step}`} className="flex gap-2"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>{index + 1}</span><span style={{ color: 'var(--text-main)' }}>{step}</span></li>)}</ol></div> : null}
-      {result?.results?.length ? <div><h3 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Recipient outcomes</h3><div className="space-y-2">{result.results.map((item, index) => <div key={`${item.recipient || 'recipient'}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3" style={{ borderColor: 'var(--border-main)' }}><div><p className="font-semibold" style={{ color: 'var(--text-main)' }}>{item.recipient || item.recipientData?.name || 'Recipient'}</p><p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>{item.provider || result.channel} · {item.executionId || 'Mock provider'}</p>{item.error && <p className="mt-1 text-xs text-rose-700">{item.error}</p>}</div><StatusPill status={item.status === 'failed' ? 'failed' : 'success'} /></div>)}</div></div> : null}
+      {result?.results?.length ? <div><h3 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Recipient outcomes</h3><div className="space-y-2">{result.results.map((item, index) => <div key={`${item.recipient || 'recipient'}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3" style={{ borderColor: 'var(--border-main)' }}><div><p className="font-semibold" style={{ color: 'var(--text-main)' }}>{item.recipient || item.recipientData?.name || 'Recipient'}</p><p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>{item.provider || result.channel} · {item.executionId || 'Mock provider'}</p>{item.error && <p className="mt-1 text-xs text-rose-700">{item.error}</p>}</div><StatusPill status={item.status} /></div>)}</div></div> : null}
       {run.errorMessage && <p className="text-sm text-rose-700">{run.errorMessage}</p>}
     </div>
   );

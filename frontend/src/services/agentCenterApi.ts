@@ -77,6 +77,10 @@ export const agentCenterApi = {
     return response.data;
   },
 
+  async deleteAgent(id: string): Promise<void> {
+    await request(`/agent-center/agents/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
   async testRunAgent(id: string): Promise<AgentRun> {
     const response = await request<AgentRun>(`/agent-center/agents/${encodeURIComponent(id)}/test-run`, {
       method: 'POST',

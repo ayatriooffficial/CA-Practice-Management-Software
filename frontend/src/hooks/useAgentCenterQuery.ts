@@ -83,6 +83,14 @@ export function useDisableAgent() {
   });
 }
 
+export function useDeleteAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => agentCenterApi.deleteAgent(id),
+    onSuccess: () => invalidateAgentData(queryClient),
+  });
+}
+
 export function useTestRunAgent() {
   const queryClient = useQueryClient();
   return useMutation({

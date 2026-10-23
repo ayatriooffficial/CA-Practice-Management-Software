@@ -4,6 +4,7 @@ import { MODULES } from './definitions';
 
 const agentSchema = new Schema<IAgent>(
   {
+    orgId: { type: String, required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 100, index: true },
     module: { type: String, enum: MODULES, required: true, index: true },
     description: { type: String, trim: true, maxlength: 500, default: '' },
@@ -20,13 +21,14 @@ const agentSchema = new Schema<IAgent>(
       transform: (_doc: unknown, ret: Record<string, unknown>) => {
         ret.id = String(ret._id);
         delete ret._id;
+        delete ret.orgId;
         return ret;
       },
     },
   }
 );
 
-agentSchema.index({ module: 1, status: 1, updatedAt: -1 });
+agentSchema.index({ orgId: 1, module: 1, status: 1, updatedAt: -1 });
 agentSchema.index({ updatedAt: -1 });
 
 export const Agent: Model<IAgent> = (models.AgentCenterAgent as Model<IAgent>) || model<IAgent>('AgentCenterAgent', agentSchema);

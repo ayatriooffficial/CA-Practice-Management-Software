@@ -18,8 +18,18 @@ import { PaginationMeta } from '../../shared/utils/apiResponse';
 import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
+import { AgentExecutionService } from '../agentCenter/execution.service';
 
 export class TaskService {
+  private static async dispatchAgentTaskEvents(task: ITaskDocument, triggers: string[]) {
+    if (!task.orgId || !triggers.length) return;
+    const eventTime = task.updatedAt?.toISOString?.() || String(Date.now());
+    const eventTask = task.toObject() as unknown as Record<string, unknown>;
+    await Promise.all(triggers.map((trigger) => AgentExecutionService.dispatchTaskEvent(
+      String(task.orgId), trigger, eventTask, `${String(task._id)}:${eventTime}:${trigger}`
+    ).catch(() => [])));
+  }
+
   /**
    * Auto seed initial tasks if collection is empty (disabled: real data only)
    */
@@ -823,7 +833,11 @@ export class TaskService {
       },
     });
 
-    return await task.save();
+    const created = await task.save();
+    const createdTriggers = ['Task created'];
+    if (created.assigneeId || created.assigneeName) createdTriggers.push('Task assigned');
+    await this.dispatchAgentTaskEvents(created, createdTriggers);
+    return created;
   }
 
   /**
@@ -831,6 +845,7 @@ export class TaskService {
    */
   static async updateTaskById(id: string, data: Partial<ITask>): Promise<ITaskDocument> {
     const task = await this.getTaskById(id);
+    const previous = { status: task.status, priority: task.priority, targetDueDate: task.targetDueDate, assigneeId: task.assigneeId, assigneeName: task.assigneeName };
 
     Object.assign(task, data);
 
@@ -847,7 +862,19 @@ export class TaskService {
       task.markModified('complianceStatus');
     }
 
-    return await task.save();
+    const updated = await task.save();
+    const triggers = new Set<string>();
+    if (previous.status !== updated.status) {
+      triggers.add('Status Changed');
+      if (updated.status === 'Completed') triggers.add('Task Completed');
+      if (updated.status === 'Sent for Review') triggers.add('Task Sent for Review');
+      if (updated.status === 'On Hold') triggers.add('Task Put on Hold');
+    }
+    if (previous.priority !== updated.priority) triggers.add('Priority Changed');
+    if (previous.targetDueDate !== updated.targetDueDate) triggers.add('Due Date Changed');
+    if ((previous.assigneeId !== updated.assigneeId || previous.assigneeName !== updated.assigneeName) && (updated.assigneeId || updated.assigneeName)) triggers.add('Task assigned');
+    await this.dispatchAgentTaskEvents(updated, [...triggers]);
+    return updated;
   }
 
   /**
@@ -856,6 +883,7 @@ export class TaskService {
   static async deleteTaskById(id: string): Promise<void> {
     const task = await this.getTaskById(id);
     await task.softDelete();
+    await this.dispatchAgentTaskEvents(task, ['Task Deleted']);
   }
 
   /**
@@ -876,7 +904,9 @@ export class TaskService {
       createdAt: new Date(),
     });
 
-    return await task.save();
+    const updated = await task.save();
+    await this.dispatchAgentTaskEvents(updated, ['Comment Added']);
+    return updated;
   }
 
   /**
@@ -891,7 +921,9 @@ export class TaskService {
     if (sub) {
       sub.completed = !sub.completed;
       task.markModified('subTasks');
-      await task.save();
+      const updated = await task.save();
+      await this.dispatchAgentTaskEvents(updated, ['Subtask Status Changed']);
+      return updated;
     }
 
     return task;
@@ -982,6 +1014,7 @@ export class TaskService {
 
     task.markModified('documentRequests');
     await task.save();
+    await this.dispatchAgentTaskEvents(task, ['Files Uploaded']);
 
     return { task, document: uploaded };
   }
@@ -1031,6 +1064,7 @@ export class TaskService {
     task.documentRequests.push(newDocItem as any);
     task.markModified('documentRequests');
     await task.save();
+    await this.dispatchAgentTaskEvents(task, ['Files Uploaded']);
 
     return { task, document: uploaded };
   }
