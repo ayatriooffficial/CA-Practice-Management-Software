@@ -29,7 +29,7 @@ const STORAGE_KEY = "turia_current_user";
 
 export const DEMO_EMPLOYEE_USER: User = {
   id: "6ad9f7c459ba9327d3d347ae",
-  orgId: "6ad9e0000000000000000001",
+  orgId: "6ad9e23bf460aa2e6102c0c6",
   name: "Vikram Singhania",
   email: "vikram@ayatrio.com",
   mobile: "8080014896",
@@ -40,18 +40,20 @@ export const DEMO_EMPLOYEE_USER: User = {
   designation: "Staff",
   status: "Active",
   permissions: getPresetPermissions("Employee"),
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWQ5ZjdjNDU5YmE5MzI3ZDNkMzQ3YWUiLCJvcmdJZCI6IjZhZDllMjNiZjQ2MGFhMmU2MTAyYzBjNiIsImZpcm1OYW1lIjoiQXlhdHJpbyBQcmFjdGljZSIsImVtYWlsIjoidmlrcmFtQGF5YXRyaW8uY29tIiwicm9sZSI6ImVtcGxveWVlIiwibmFtZSI6IlZpa3JhbSBTaW5naGFuaWEiLCJpbml0aWFscyI6IlZTIiwidG9rZW5WZXJzaW9uIjowLCJpYXQiOjE3OTI3NDI4MzEsImV4cCI6MTc5NTMzNDgzMX0.RuO4e3g-9qFb6e8-jYJLCKDZa_JqYE5nL8h7JTwi0ow",
 };
 
 export const DEFAULT_USER: User = {
   id: "6ad9e23bf460aa2e6102c0c8",
-  orgId: "6ad9e0000000000000000001",
-  name: "Deepak Sahani",
-  email: "deepak.sahani@krishnaassociates.example",
-  mobile: "9876543210",
+  orgId: "6ad9e23bf460aa2e6102c0c6",
+  name: "Dipak Sahani",
+  email: "sahanidipak777@gmail.com",
+  mobile: "8080014895",
   firmName: "Ayatrio Practice",
   role: "admin",
   initials: "DS",
   createdAt: "2026-01-15T09:00:00Z",
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWQ5ZTIzYmY0NjBhYTJlNjEwMmMwYzgiLCJvcmdJZCI6IjZhZDllMjNiZjQ2MGFhMmU2MTAyYzBjNiIsImZpcm1OYW1lIjoiQXlhdHJpbyBQcmFjdGljZSIsImVtYWlsIjoic2FoYW5pZGlwYWs3NzdAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwibmFtZSI6IkRpcGFrIFNhaGFuaSIsImluaXRpYWxzIjoiRFMiLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTc5Mjc0MjgzMSwiZXhwIjoxNzk1MzM0ODMxfQ.AXP25evAjvFRXNoEnv2nAXa_bb7qbrLrOIOPZoozEC0",
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -165,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         localStorage.removeItem("turia_user_logged_out");
         localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+        if (selected.orgId) localStorage.setItem("x-org-id", selected.orgId);
       } catch {}
     }
   }, []);
