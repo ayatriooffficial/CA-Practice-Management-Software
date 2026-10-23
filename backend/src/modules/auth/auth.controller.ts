@@ -192,7 +192,10 @@ export class AuthController {
   public static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const rawToken = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
-      await AuthService.logout(rawToken);
+      const authUser = (req as any).user;
+      const userId = authUser?.userId || (req.headers['x-user-id'] as string) || req.body?.userId;
+
+      await AuthService.logout(rawToken, userId);
       clearRefreshCookie(res);
       ApiResponse.success(res, null, 'Logged out successfully');
     } catch (error) {

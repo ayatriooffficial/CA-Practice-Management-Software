@@ -171,18 +171,6 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                 Location
               </th>
               <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Name Of The ...
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Geo Location
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Office Location
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Distance (Radius)
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
                 Break
               </th>
             </tr>
@@ -190,13 +178,13 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
             {isLoading ? (
               <tr>
-                <td colSpan={10} className="text-center py-12 text-xs text-gray-400">
+                <td colSpan={6} className="text-center py-12 text-xs text-gray-400">
                   Loading attendance records...
                 </td>
               </tr>
             ) : paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-12 text-xs text-gray-400">
+                <td colSpan={6} className="text-center py-12 text-xs text-gray-400">
                   No attendance records found for this date.
                 </td>
               </tr>
@@ -277,26 +265,6 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                     {/* Location */}
                     <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
                       {r.location || '-'}
-                    </td>
-
-                    {/* Name of Location */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.nameOfTheLocation || '-'}
-                    </td>
-
-                    {/* Geo Location */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.geoLocation || '-'}
-                    </td>
-
-                    {/* Office Location */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.officeLocation || '-'}
-                    </td>
-
-                    {/* Distance (Radius) */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.distanceRadius || '-'}
                     </td>
 
                     {/* Break */}

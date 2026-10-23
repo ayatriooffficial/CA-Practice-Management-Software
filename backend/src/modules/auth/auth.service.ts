@@ -16,6 +16,7 @@ import {
 import { AppError } from '../../shared/utils/apiError';
 import { HTTP_STATUS } from '../../constants/httpStatus';
 import { logger } from '../../config/logger';
+import { AttendanceService } from '../attendance/attendance.service';
 
 function computeInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -583,15 +584,30 @@ export class AuthService {
   }
 
   /**
-   * Revoke current session (Logout)
+   * Revoke current session (Logout) and automatically check out from office attendance
    */
-  public static async logout(rawRefreshToken?: string): Promise<void> {
-    if (!rawRefreshToken) return;
-    try {
-      const decoded = JwtService.verifyRefreshToken(rawRefreshToken);
-      await RefreshSessionModel.findByIdAndUpdate(decoded.sessionId, { isRevoked: true });
-    } catch {
-      // Ignore token decode errors on logout
+  public static async logout(rawRefreshToken?: string, userId?: string): Promise<void> {
+    let resolvedUserId = userId;
+
+    if (rawRefreshToken) {
+      try {
+        const decoded = JwtService.verifyRefreshToken(rawRefreshToken);
+        if (!resolvedUserId && decoded.userId) {
+          resolvedUserId = decoded.userId;
+        }
+        await RefreshSessionModel.findByIdAndUpdate(decoded.sessionId, { isRevoked: true });
+      } catch {
+        // Ignore token decode errors on logout
+      }
+    }
+
+    // Auto-checkout employee on logout if currently punched in without punch-out
+    if (resolvedUserId) {
+      try {
+        await AttendanceService.autoCheckoutOnLogout(resolvedUserId);
+      } catch (err) {
+        logger.warn(`Failed to auto-checkout user on logout: ${err}`);
+      }
     }
   }
 

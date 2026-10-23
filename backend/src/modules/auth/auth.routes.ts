@@ -23,7 +23,7 @@ router.post('/device-login', validateRequest({ body: deviceLoginSchema }), AuthC
 router.post('/device-status', validateRequest({ body: deviceStatusSchema }), AuthController.checkDeviceStatus);
 router.post('/login', validateRequest({ body: loginSchema }), AuthController.login);
 router.post('/refresh', AuthController.refresh);
-router.post('/logout', AuthController.logout);
+router.post('/logout', optionalAuthenticate, AuthController.logout);
 
 // Protected Authentication Endpoints
 router.get('/me', authenticate, AuthController.me);

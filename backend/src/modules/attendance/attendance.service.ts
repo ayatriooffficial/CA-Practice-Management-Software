@@ -142,6 +142,33 @@ export class AttendanceService {
   }
 
   /**
+   * Automatically check out employee on logout if currently punched in without punch-out
+   */
+  static async autoCheckoutOnLogout(userId: string) {
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) return null;
+
+    const now = getNowIST();
+    const todayStr = toISTDateString(now);
+    const userObjId = new mongoose.Types.ObjectId(userId);
+
+    const record = await AttendanceModel.findOne({
+      userId: userObjId,
+      date: todayStr,
+    });
+
+    if (record && !record.punchOut && record.punchIn) {
+      record.punchOut = now;
+      const diffMs = Math.max(0, now.getTime() - record.punchIn.getTime());
+      const breakMs = (record.breakMinutes || 0) * 60 * 1000;
+      record.totalMinutes = Math.floor(Math.max(0, diffMs - breakMs) / 60000);
+      await record.save();
+      return record;
+    }
+
+    return null;
+  }
+
+  /**
    * GET CURRENT STATUS FOR LOGGED IN USER (FOR LIVE PUNCH CARD)
    */
   static async getLivePunchStatus(_firmId: string, userId: string) {
