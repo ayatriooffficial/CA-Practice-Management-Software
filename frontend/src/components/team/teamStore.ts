@@ -380,6 +380,7 @@ export const teamStore = {
         createdAt?: string;
         status?: 'Active' | 'Deactivated' | 'Resigned';
         permissions?: RolePermissionsMap;
+        orgId?: string;
       }> = rawUsers ? JSON.parse(rawUsers) : [];
 
       authUsers = authUsers.filter(
@@ -405,16 +406,17 @@ export const teamStore = {
           };
         } else {
           authUsers.push({
-            id: `usr_${emp.id}`,
+            id: emp.id,
             name: emp.name,
             email: emp.email,
             mobile: emp.mobile,
-            firmName: 'Krishna Associates',
+            firmName: (emp as any).firmName || 'Ayatrio Practice',
             role: authRole,
             initials: emp.initials,
             status: emp.status,
             permissions: emp.permissions,
             createdAt: emp.createdAt,
+            orgId: emp.orgId || '',
           });
         }
       });

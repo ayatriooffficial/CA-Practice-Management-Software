@@ -43,7 +43,7 @@ const userSchema = new Schema<IUserDocument>(
     },
     role: {
       type: String,
-      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff'],
+      set: (v: string) => (v ? v.toLowerCase() : 'admin'),
       default: 'admin',
       index: true,
     },
@@ -71,7 +71,7 @@ const userSchema = new Schema<IUserDocument>(
     },
     status: {
       type: String,
-      enum: ['active', 'suspended', 'invited'],
+      set: (v: string) => (v ? v.toLowerCase() : 'active'),
       default: 'active',
       index: true,
     },

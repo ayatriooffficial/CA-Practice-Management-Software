@@ -99,7 +99,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed: User = JSON.parse(stored);
-        if (parsed && parsed.name && parsed.orgId) {
+        const isLegacyFake =
+          parsed.id?.startsWith("usr_") ||
+          parsed.orgId === "org_ayatrio_practice" ||
+          parsed.token === "demo_access_token_verified";
+
+        if (isLegacyFake) {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem("x-org-id");
+          setCurrentUser(null);
+        } else if (parsed && parsed.name && parsed.orgId) {
           parsed.initials = computeInitials(parsed.name);
           setCurrentUser(parsed);
           localStorage.setItem("x-org-id", parsed.orgId);
@@ -128,18 +137,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [logout, refreshProfile]);
 
   const login = (user: User) => {
-    const orgId =
-      user.orgId ||
-      (typeof window !== "undefined" ? localStorage.getItem("x-org-id") : "") ||
-      "";
+    const orgId = user.orgId || "";
 
     const enrichedUser: User = {
       id: user.id || "",
       name: user.name || "",
       email: user.email || "",
       mobile: user.mobile || "",
-      firmName: user.firmName || "Practice Firm",
-      role: user.role || "admin",
+      firmName: user.firmName || "Ayatrio Practice",
+      role: user.role || "Admin",
       initials: user.initials || computeInitials(user.name),
       orgId: orgId,
       createdAt: user.createdAt || new Date().toISOString(),

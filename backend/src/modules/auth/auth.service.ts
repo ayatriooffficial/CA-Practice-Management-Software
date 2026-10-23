@@ -35,9 +35,10 @@ export class AuthService {
    * Helper to build JWT payload from a User document
    */
   private static buildJwtPayload(user: IUserDocument, firmName: string): IJwtUserPayload {
+    const resolvedOrgId = String((user.orgId as any)?._id || user.orgId || '');
     return {
       userId: String(user._id),
-      orgId: String(user.orgId),
+      orgId: resolvedOrgId,
       firmName: firmName || user.firmName || 'Firm',
       email: user.email,
       role: user.role,
@@ -234,7 +235,8 @@ export class AuthService {
       }
     }
 
-    if (user.status !== 'active') {
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
       throw new AppError('Your account has been deactivated. Please contact your administrator.', HTTP_STATUS.FORBIDDEN);
     }
 
@@ -258,7 +260,7 @@ export class AuthService {
     // Create session
     const session = await RefreshSessionModel.create({
       userId: user._id,
-      orgId: user.orgId,
+      orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
@@ -302,7 +304,8 @@ export class AuthService {
       throw AppError.unauthorized('Invalid email or password');
     }
 
-    if (user.status !== 'active') {
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
       throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
     }
 
@@ -325,7 +328,7 @@ export class AuthService {
 
     const session = await RefreshSessionModel.create({
       userId: user._id,
-      orgId: user.orgId,
+      orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
@@ -376,7 +379,8 @@ export class AuthService {
     }
 
     const user = await UserModel.findById(decoded.userId).populate('orgId', 'name');
-    if (!user || user.status !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
+    const userStatusStr = String(user?.status || 'active').toLowerCase();
+    if (!user || userStatusStr !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
       session.isRevoked = true;
       await session.save();
       throw AppError.unauthorized('User not found, deactivated, or sessions invalidated');
@@ -388,7 +392,7 @@ export class AuthService {
 
     const newSession = await RefreshSessionModel.create({
       userId: user._id,
-      orgId: user.orgId,
+      orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || session.userAgent,
       ipAddress: options?.ipAddress || session.ipAddress,

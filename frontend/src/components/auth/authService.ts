@@ -79,7 +79,7 @@ export const authService = {
             name: emp.name,
             role: emp.role.toLowerCase(),
             initials: emp.initials,
-            orgId: combined[existingIdx].orgId || emp.orgId || "org_ayatrio_practice",
+            orgId: combined[existingIdx].orgId || emp.orgId || "",
             department: emp.department,
             designation: emp.designation,
             status: emp.status,
@@ -91,10 +91,10 @@ export const authService = {
             name: emp.name,
             email: emp.email,
             mobile: emp.mobile,
-            firmName: "Ayatrio Practice",
+            firmName: (emp as any).firmName || "Ayatrio Practice",
             role: emp.role.toLowerCase(),
             initials: emp.initials,
-            orgId: emp.orgId || "org_ayatrio_practice",
+            orgId: emp.orgId || "",
             department: emp.department,
             designation: emp.designation,
             status: emp.status,
@@ -227,8 +227,6 @@ export const authService = {
     target: string,
     code: string
   ): Promise<{ success: boolean; user?: User; message: string }> {
-    const isDemoOtp = code === DEMO_OTP || code === "1234" || code === "000000" || code === "999999";
-
     try {
       const res = await request<{ user: any; accessToken: string }>("/auth/verify-otp", {
         method: "POST",
@@ -237,15 +235,16 @@ export const authService = {
 
       if (res.data?.user) {
         const u = res.data.user;
+        const resolvedOrgId = String(u.orgId?._id || u.orgId || "");
         const verifiedUser: User = {
-          id: u.id || u._id,
+          id: String(u.id || u._id || ""),
           name: u.name,
           email: u.email,
           mobile: u.mobile,
           firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
           role: u.role || "admin",
           initials: u.initials || computeInitials(u.name),
-          orgId: String(u.orgId?._id || u.orgId || "org_ayatrio_practice"),
+          orgId: resolvedOrgId,
           token: res.data.accessToken,
           createdAt: u.createdAt,
           department: u.department,
@@ -262,58 +261,16 @@ export const authService = {
         };
       }
 
-      if (res.success) {
-        return {
-          success: true,
-          message: "Code verified successfully.",
-        };
-      }
+      return {
+        success: false,
+        message: res.message || "Invalid OTP code. Please enter the correct code.",
+      };
     } catch (err: any) {
-      // If code was demo OTP, guarantee verification succeeds
-      if (isDemoOtp) {
-        const cleanTarget = target.trim().toLowerCase();
-        const cleanNum = target.replace(/\D/g, "").slice(-10);
-        const namePart = cleanTarget.includes("@")
-          ? cleanTarget.split("@")[0]
-          : `User ${cleanNum.slice(-4) || "Admin"}`;
-        const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-
-        const demoVerifiedUser: User = {
-          id: `usr_${Date.now()}`,
-          name: formattedName,
-          email: cleanTarget.includes("@") ? cleanTarget : `${cleanNum}@ayatrio.local`,
-          mobile: cleanNum || "9876543210",
-          firmName: "Ayatrio Practice",
-          role: "admin",
-          initials: computeInitials(formattedName),
-          orgId: "org_ayatrio_practice",
-          token: "demo_access_token_verified",
-        };
-
-        return {
-          success: true,
-          user: demoVerifiedUser,
-          message: "Demo OTP verified successfully.",
-        };
-      }
-
       return {
         success: false,
         message: err.message || "Invalid OTP code. Please enter the correct code.",
       };
     }
-
-    if (isDemoOtp) {
-      return {
-        success: true,
-        message: "Code verified successfully.",
-      };
-    }
-
-    return {
-      success: false,
-      message: "Invalid OTP code. Please enter the correct code.",
-    };
   },
 
   /**
@@ -340,15 +297,16 @@ export const authService = {
 
       if (res.data?.user) {
         const u = res.data.user;
+        const resolvedOrgId = String(u.orgId?._id || u.orgId || "");
         const registeredUser: User = {
-          id: u.id || u._id,
+          id: String(u.id || u._id || ""),
           name: u.name,
           email: u.email,
           mobile: u.mobile,
           firmName: payload.firmName.trim(),
           role: "admin",
           initials: computeInitials(payload.name),
-          orgId: String(u.orgId?._id || u.orgId || "org_ayatrio_practice"),
+          orgId: resolvedOrgId,
           token: res.data.accessToken,
           createdAt: u.createdAt || new Date().toISOString(),
         };
@@ -363,6 +321,11 @@ export const authService = {
           message: "Organization registered successfully with JWT session.",
         };
       }
+
+      return {
+        success: false,
+        message: res.message || "Failed to register organization.",
+      };
     } catch (err: any) {
       if (err instanceof ApiError && err.statusCode === 409) {
         return {
@@ -371,30 +334,11 @@ export const authService = {
           message: err.message,
         };
       }
+      return {
+        success: false,
+        message: err.message || "Registration failed. Please try again.",
+      };
     }
-
-    // Fallback registration
-    const users = getStoredUsers();
-    const newUser: User = {
-      id: `usr_${Date.now()}`,
-      name: payload.name.trim(),
-      email: payload.email.trim().toLowerCase(),
-      mobile: payload.mobile.replace(/\D/g, "").slice(-10),
-      firmName: payload.firmName.trim(),
-      role: "admin",
-      initials: computeInitials(payload.name),
-      orgId: "org_ayatrio_practice",
-      createdAt: new Date().toISOString(),
-    };
-
-    users.push(newUser);
-    saveStoredUsers(users);
-
-    return {
-      success: true,
-      user: newUser,
-      message: "Organization registered successfully.",
-    };
   },
 
   /**
