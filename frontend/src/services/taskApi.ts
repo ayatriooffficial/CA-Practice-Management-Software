@@ -214,8 +214,8 @@ export const taskApi = {
       status: payload.status || 'Pending',
       description: payload.description || '',
       createProformaInvoice: !!payload.createProformaInvoice,
-      creatorName: 'Dipak Sahani',
-      adminId: 'admin-dipak-sahani',
+      creatorName: '',
+      adminId: '',
       subTasks: payload.subTasks || [
         { id: '1', title: 'Step 1 - Collect Invoices', completed: false, timeSpent: '00:00:00' },
         { id: '2', title: 'Step 2 - Verification & Reconciliation', completed: false, timeSpent: '00:00:00' },
@@ -303,8 +303,8 @@ export const taskApi = {
   addComment: async (
     id: string,
     text: string,
-    author: string = 'Dipak Sahani (Admin)',
-    authorInitials: string = 'DS',
+    author: string = 'Staff',
+    authorInitials: string = 'ST',
     avatarColor: string = '#6366F1'
   ): Promise<ApiResponse<TaskItem>> => {
     try {

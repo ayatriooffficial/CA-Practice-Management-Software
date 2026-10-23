@@ -739,8 +739,8 @@ export class TaskService {
 
     const orgId = userCtx?.orgId || data.orgId || null;
     const userId = userCtx?.userId || data.userId || null;
-    const creatorName = data.creatorName || userCtx?.name || 'Dipak Sahani';
-    const adminId = data.adminId || userId || 'admin-dipak-sahani';
+    const creatorName = data.creatorName || userCtx?.name || '';
+    const adminId = data.adminId || userId || '';
 
     const task = new Task({
       ...data,

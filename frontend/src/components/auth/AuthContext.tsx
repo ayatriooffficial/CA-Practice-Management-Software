@@ -58,6 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const u = res.data;
         const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
         const existingToken = stored ? JSON.parse(stored).token : undefined;
+        const resolvedOrgId = String(
+          u.orgId?._id || u.orgId || (stored ? JSON.parse(stored).orgId : "") || ""
+        );
 
         const updatedUser: User = {
           id: u.id || u._id,
@@ -67,10 +70,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           firmName: u.firmName || u.orgId?.name || "Practice Firm",
           role: u.role,
           initials: u.initials || computeInitials(u.name),
-          orgId: u.orgId?._id || u.orgId,
+          orgId: resolvedOrgId,
+          createdAt: u.createdAt,
           department: u.department,
           designation: u.designation,
           status: u.status,
+          employeeId: u.employeeId,
           permissions: u.permissions,
           token: existingToken,
         };
@@ -78,6 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(updatedUser);
         if (typeof window !== "undefined") {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+          if (resolvedOrgId) {
+            localStorage.setItem("x-org-id", resolvedOrgId);
+          }
         }
       }
     } catch {
@@ -90,10 +98,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.name) {
+        const parsed: User = JSON.parse(stored);
+        if (parsed && parsed.name && parsed.orgId) {
           parsed.initials = computeInitials(parsed.name);
           setCurrentUser(parsed);
+          localStorage.setItem("x-org-id", parsed.orgId);
 
           // If token exists, verify with backend /auth/me in background
           if (parsed.token) {
@@ -119,13 +128,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [logout, refreshProfile]);
 
   const login = (user: User) => {
+    const orgId =
+      user.orgId ||
+      (typeof window !== "undefined" ? localStorage.getItem("x-org-id") : "") ||
+      "";
+
     const enrichedUser: User = {
-      ...user,
-      initials: computeInitials(user.name),
+      id: user.id || "",
+      name: user.name || "",
+      email: user.email || "",
+      mobile: user.mobile || "",
+      firmName: user.firmName || "Practice Firm",
+      role: user.role || "admin",
+      initials: user.initials || computeInitials(user.name),
+      orgId: orgId,
+      createdAt: user.createdAt || new Date().toISOString(),
+      department: user.department || "General",
+      designation: user.designation || "Staff",
+      status: (user.status as any) || "Active",
+      employeeId: user.employeeId || "",
+      token: user.token,
+      permissions: user.permissions || {},
     };
+
     setCurrentUser(enrichedUser);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(enrichedUser));
+      if (orgId) {
+        localStorage.setItem("x-org-id", orgId);
+      }
     } catch {
       // Ignore storage errors
     }

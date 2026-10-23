@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { validateRequest } from '../../middlewares/validateRequest';
-import { authenticate } from '../../middlewares/authenticate';
+import { authenticate, optionalAuthenticate } from '../../middlewares/authenticate';
 import {
   registerOrgSchema,
   lookupUserSchema,
@@ -24,6 +24,10 @@ router.post('/logout', AuthController.logout);
 // Protected Authentication Endpoints
 router.get('/me', authenticate, AuthController.me);
 
+// Organization Endpoints (Address, Bank Details, Billing Profile)
+router.get('/organization', optionalAuthenticate, AuthController.getOrganization);
+router.patch('/organization', authenticate, AuthController.updateOrganization);
+
 // Team Member Management Endpoints
 router.get('/team', AuthController.getTeamMembers);
 router.post('/team', AuthController.createTeamMember);
@@ -31,3 +35,4 @@ router.patch('/team/:id', AuthController.updateTeamMember);
 router.delete('/team/:id', AuthController.deleteTeamMember);
 
 export const authRoutes = router;
+

@@ -1,5 +1,7 @@
 import { Schema, model } from 'mongoose';
 import { ILeadDocument } from './lead.interface';
+import { addressSchema } from '../../shared/schemas/address.schema';
+import { paymentDetailsSchema } from '../../shared/schemas/payment.schema';
 import { softDeletePlugin, ISoftDeleteModel } from '../../shared/plugins/softDelete.plugin';
 
 const leadSchema = new Schema<ILeadDocument>(
@@ -219,6 +221,14 @@ const leadSchema = new Schema<ILeadDocument>(
     convertedAt: {
       type: Date,
       default: null,
+    },
+    addressDetails: {
+      type: addressSchema,
+      default: () => ({}),
+    },
+    paymentDetails: {
+      type: paymentDetailsSchema,
+      default: () => ({}),
     },
   },
   {

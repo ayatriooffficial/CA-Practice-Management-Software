@@ -5,6 +5,8 @@ import {
   IStatutoryFile,
   IRecurringFile,
 } from './client.interface';
+import { addressSchema } from '../../shared/schemas/address.schema';
+import { paymentDetailsSchema } from '../../shared/schemas/payment.schema';
 import { softDeletePlugin, ISoftDeleteModel } from '../../shared/plugins/softDelete.plugin';
 
 const promoterSchema = new Schema<IPromoterFile>(
@@ -99,6 +101,14 @@ const clientSchema = new Schema<IClientDocument>(
       type: String,
       trim: true,
       default: '',
+    },
+    addressDetails: {
+      type: addressSchema,
+      default: () => ({}),
+    },
+    paymentDetails: {
+      type: paymentDetailsSchema,
+      default: () => ({}),
     },
     group: {
       type: String,

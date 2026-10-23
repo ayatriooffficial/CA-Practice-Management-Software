@@ -227,4 +227,26 @@ export class AuthController {
       next(error);
     }
   }
+
+  public static async getOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const authUser = (req as any).user;
+      const orgId = authUser?.orgId || (req.headers['x-org-id'] as string) || (req.query.orgId as string);
+      const org = await AuthService.getOrganization(orgId);
+      ApiResponse.success(res, org, 'Organization details fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async updateOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const authUser = (req as any).user;
+      const orgId = authUser?.orgId || (req.headers['x-org-id'] as string) || (req.body.orgId as string);
+      const updated = await AuthService.updateOrganization(orgId, req.body);
+      ApiResponse.success(res, updated, 'Organization details updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

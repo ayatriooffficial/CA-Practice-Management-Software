@@ -79,6 +79,7 @@ export const authService = {
             name: emp.name,
             role: emp.role.toLowerCase(),
             initials: emp.initials,
+            orgId: combined[existingIdx].orgId || emp.orgId || "org_ayatrio_practice",
             department: emp.department,
             designation: emp.designation,
             status: emp.status,
@@ -90,9 +91,10 @@ export const authService = {
             name: emp.name,
             email: emp.email,
             mobile: emp.mobile,
-            firmName: "Krishna Associates",
+            firmName: "Ayatrio Practice",
             role: emp.role.toLowerCase(),
             initials: emp.initials,
+            orgId: emp.orgId || "org_ayatrio_practice",
             department: emp.department,
             designation: emp.designation,
             status: emp.status,
@@ -127,11 +129,12 @@ export const authService = {
           firmName: u.firmName || u.orgId?.name || "Practice Firm",
           role: u.role,
           initials: u.initials || computeInitials(u.name),
-          orgId: u.orgId?._id || u.orgId,
+          orgId: String(u.orgId?._id || u.orgId || ""),
           createdAt: u.createdAt,
           department: u.department,
           designation: u.designation,
           status: u.status,
+          employeeId: u.employeeId,
           permissions: u.permissions,
         };
       }
@@ -242,11 +245,13 @@ export const authService = {
           firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
           role: u.role || "admin",
           initials: u.initials || computeInitials(u.name),
-          orgId: u.orgId?._id || u.orgId,
+          orgId: String(u.orgId?._id || u.orgId || "org_ayatrio_practice"),
           token: res.data.accessToken,
+          createdAt: u.createdAt,
           department: u.department,
           designation: u.designation,
           status: u.status,
+          employeeId: u.employeeId,
           permissions: u.permissions,
         };
 
@@ -281,6 +286,7 @@ export const authService = {
           firmName: "Ayatrio Practice",
           role: "admin",
           initials: computeInitials(formattedName),
+          orgId: "org_ayatrio_practice",
           token: "demo_access_token_verified",
         };
 
@@ -342,7 +348,7 @@ export const authService = {
           firmName: payload.firmName.trim(),
           role: "admin",
           initials: computeInitials(payload.name),
-          orgId: u.orgId,
+          orgId: String(u.orgId?._id || u.orgId || "org_ayatrio_practice"),
           token: res.data.accessToken,
           createdAt: u.createdAt || new Date().toISOString(),
         };
@@ -377,6 +383,7 @@ export const authService = {
       firmName: payload.firmName.trim(),
       role: "admin",
       initials: computeInitials(payload.name),
+      orgId: "org_ayatrio_practice",
       createdAt: new Date().toISOString(),
     };
 

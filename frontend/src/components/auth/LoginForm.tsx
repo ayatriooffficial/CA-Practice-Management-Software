@@ -53,7 +53,7 @@ export const LoginForm: React.FC = () => {
     try {
       // Look up user in database or use provisional user for demo testing
       const existing = await authService.lookupUser(target, mode);
-      const userToUse = existing || {
+      const userToUse: User = existing || {
         id: `usr_${Date.now()}`,
         name: mode === "email" ? target.split("@")[0] : `User ${cleanMobile.slice(-4)}`,
         email: mode === "email" ? target : `${cleanMobile}@ayatrio.local`,
@@ -61,6 +61,7 @@ export const LoginForm: React.FC = () => {
         role: "admin" as const,
         firmName: "Ayatrio Practice",
         initials: "AP",
+        orgId: "org_ayatrio_practice",
       };
 
       setPendingUser(userToUse);

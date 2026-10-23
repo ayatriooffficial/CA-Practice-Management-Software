@@ -237,16 +237,6 @@ export const teamStore = {
           costPerHour: u.internalCostRatePaisePerHour == null ? undefined : Number(u.internalCostRatePaisePerHour) / 100,
         }));
         if (backendEmps.length > 0) {
-          try {
-            const rates = await financialApi.listInternalCostRates();
-            const rateByEmployee = new Map(rates.map((rate) => [rate.id, rate.ratePaisePerHour]));
-            backendEmps.forEach((employee) => {
-              const rate = rateByEmployee.get(employee.id);
-              employee.costPerHour = rate == null ? undefined : rate / 100;
-            });
-          } catch {
-            // Team list remains available when the current user cannot view compensation.
-          }
           this.saveEmployees(backendEmps);
           return backendEmps;
         }

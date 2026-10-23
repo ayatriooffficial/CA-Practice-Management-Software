@@ -2,6 +2,8 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./auth/AuthContext";
 import {
   X,
   User,
@@ -21,6 +23,8 @@ interface ProfileDrawerProps {
 }
 
 export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose }) => {
+  const router = useRouter();
+  const { currentUser, logout } = useAuth();
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -85,33 +89,65 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
             {/* Overlapping Avatar Circle */}
             <div className="absolute -bottom-9 left-1/2 -translate-x-1/2">
               <div
-                className="w-18 h-18 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900 relative transition-transform hover:scale-105"
+                className="w-18 h-18 rounded-full flex items-center justify-center text-xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900 relative transition-transform hover:scale-105"
                 style={{
-                  backgroundColor: "#3D88BF",
+                  backgroundColor: currentUser ? "#3D88BF" : "var(--bg-muted)",
+                  color: currentUser ? "#ffffff" : "var(--text-muted)",
                 }}
               >
-                <span>DS</span>
-                {/* Green Online Dot */}
-                <span
-                  className="w-3.5 h-3.5 rounded-full absolute bottom-0.5 right-0.5 border-2 border-white dark:border-gray-900"
-                  style={{ backgroundColor: "var(--status-online)" }}
-                />
+                {currentUser ? (
+                  <span>{currentUser.initials || currentUser.name.slice(0, 2).toUpperCase()}</span>
+                ) : (
+                  <User className="w-8 h-8 text-gray-400" />
+                )}
+                {currentUser && (
+                  <span
+                    className="w-3.5 h-3.5 rounded-full absolute bottom-0.5 right-0.5 border-2 border-white dark:border-gray-900"
+                    style={{ backgroundColor: "var(--status-online)" }}
+                  />
+                )}
               </div>
             </div>
           </div>
 
           {/* User Name & Email */}
-          <div className="pt-11 pb-2 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>
-            <h2
-              className="text-base font-bold tracking-tight"
-              style={{ color: "var(--text-main)" }}
-            >
-              Dipak Sahani
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5 font-normal">
-              sahanidipak671@gmail.com
-            </p>
-          </div>
+          {currentUser ? (
+            <div className="pt-11 pb-2 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <h2
+                className="text-base font-bold tracking-tight"
+                style={{ color: "var(--text-main)" }}
+              >
+                {currentUser.name}
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5 font-normal">
+                {currentUser.email || currentUser.mobile || "Logged In"}
+              </p>
+              {currentUser.firmName && (
+                <span className="inline-block mt-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-[#31719B] dark:bg-blue-900/30 dark:text-blue-300">
+                  {currentUser.firmName}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="pt-11 pb-2 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <h2
+                className="text-base font-bold tracking-tight text-gray-500 dark:text-gray-400"
+              >
+                Not Logged In
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5 font-normal">
+                Sign in to access your organization workspace
+              </p>
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="inline-block mt-2.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "var(--primary)" }}
+              >
+                Sign In
+              </Link>
+            </div>
+          )}
 
           {/* Scrollable Navigation Items */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
@@ -301,19 +337,34 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
 
             <div className="my-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />
 
-            <button
-              type="button"
-              onClick={() => {
-                alert("Logged out successfully");
-                onClose();
-              }}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <LogOut className="w-4 h-4 text-red-600 group-hover:scale-105 transition-transform" />
-                <span>Logout</span>
-              </div>
-            </button>
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  await logout();
+                  onClose();
+                  router.push("/login");
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <LogOut className="w-4 h-4 text-red-600 group-hover:scale-105 transition-transform" />
+                  <span>Logout</span>
+                </div>
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#31719B] dark:text-[#60a5fa] cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <User className="w-4 h-4 text-[#31719B] dark:text-[#60a5fa] group-hover:scale-105 transition-transform" />
+                  <span>Sign In</span>
+                </div>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
         </aside>
       </div>

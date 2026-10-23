@@ -74,6 +74,38 @@ export const createLeadSchema = z.object({
       })
     )
     .optional(),
+  addressDetails: z
+    .object({
+      addressLine1: z.string().optional(),
+      addressLine2: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      stateCode: z.string().optional(),
+      pincode: z.string().optional(),
+      country: z.string().optional(),
+      landmark: z.string().optional(),
+    })
+    .optional(),
+  paymentDetails: z
+    .object({
+      bankDetails: z
+        .object({
+          bankName: z.string().optional(),
+          accountNumber: z.string().optional(),
+          accountHolderName: z.string().optional(),
+          ifscCode: z.string().optional(),
+          branchName: z.string().optional(),
+          accountType: z.string().optional(),
+          upiId: z.string().optional(),
+          qrCodeUrl: z.string().optional(),
+        })
+        .optional(),
+      paymentMode: z.string().optional(),
+      currency: z.string().optional(),
+      terms: z.string().optional(),
+      isDefault: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const updateLeadSchema = createLeadSchema.partial();

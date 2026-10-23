@@ -138,7 +138,8 @@ export async function request<T>(
 
   // Handle 401 Unauthorized with automatic token refresh (skip for auth login/refresh routes)
   const isAuthRoute = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/refresh') || endpoint.startsWith('/auth/verify-otp');
-  if (response.status === 401 && !isRetry && !isAuthRoute) {
+  const hasToken = Boolean(authHeaders['Authorization']);
+  if (response.status === 401 && !isRetry && !isAuthRoute && hasToken) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       // Retry original request once with new token

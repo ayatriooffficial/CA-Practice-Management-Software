@@ -122,6 +122,17 @@ export class LeadService {
       }
     }
 
+    if (!data.addressDetails || Object.keys(data.addressDetails).length === 0) {
+      if (data.address || data.state || data.pincode) {
+        data.addressDetails = {
+          addressLine1: data.address || '',
+          state: data.state || '',
+          pincode: data.pincode || '',
+          country: data.country || 'India',
+        };
+      }
+    }
+
     const lead = new Lead(data);
     return await lead.save();
   }
@@ -290,6 +301,17 @@ export class LeadService {
         updateData.dinAttachment = url;
       } catch {
         // fallback
+      }
+    }
+
+    if (updateData.address || updateData.state || updateData.pincode) {
+      if (!updateData.addressDetails) {
+        updateData.addressDetails = {
+          addressLine1: updateData.address ?? lead.address ?? '',
+          state: updateData.state ?? lead.state ?? '',
+          pincode: updateData.pincode ?? lead.pincode ?? '',
+          country: updateData.country ?? lead.country ?? 'India',
+        };
       }
     }
 
@@ -505,6 +527,13 @@ export class LeadService {
       active: conversionData.active ?? true,
       services: conversionData.services || [],
       users: conversionData.users || [],
+      addressDetails: lead.addressDetails || {
+        addressLine1: lead.address || '',
+        state: lead.state || '',
+        pincode: lead.pincode || '',
+        country: lead.country || 'India',
+      },
+      paymentDetails: lead.paymentDetails || {},
       leadId: lead._id,
       customerFiles: {
         promoter: promoterFiles,

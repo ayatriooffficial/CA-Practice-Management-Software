@@ -421,7 +421,7 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
                   CREATOR (ADMIN)
                 </span>
                 <span className="text-[var(--text-main)] font-semibold">
-                  {task.creatorName || "Dipak Sahani"}
+                  {task.creatorName || "—"}
                 </span>
               </div>
               <div>

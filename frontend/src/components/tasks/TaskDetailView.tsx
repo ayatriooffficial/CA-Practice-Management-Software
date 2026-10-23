@@ -293,8 +293,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
       const res = await taskApi.addComment(
         task.id,
         commentText.trim(),
-        "Dipak Sahani (Admin)",
-        "DS",
+        currentUser?.name ? `${currentUser.name} (${currentUser.role || "Staff"})` : "Staff",
+        currentUser?.initials || "ST",
         "var(--primary)"
       );
       if (res.data) {
@@ -357,17 +357,17 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs">
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold"
-            style={{
-              backgroundColor: "var(--brand-soft)",
-              color: "var(--primary)",
-            }}
-          >
-            Admin: {task.creatorName || "Dipak Sahani"}
-          </span>
-        </div>
+          {task.creatorName && (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold"
+              style={{
+                backgroundColor: "var(--brand-soft)",
+                color: "var(--primary)",
+              }}
+            >
+              Admin: {task.creatorName}
+            </span>
+          )}
       </div>
 
       {/* 3-Column Layout matching Image 2 */}

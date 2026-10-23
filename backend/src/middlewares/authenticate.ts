@@ -22,21 +22,6 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // Development fallback for existing mock sessions if no JWT was provided yet
-    if (process.env.NODE_ENV !== 'production' && req.headers['x-user-id']) {
-      req.user = {
-        userId: String(req.headers['x-user-id']),
-        orgId: String(req.headers['x-org-id'] || '67b7e8000000000000000001'),
-        firmName: 'Ayatrio Practice',
-        email: 'sahanidipak777@gmail.com',
-        role: (req.headers['x-user-role'] as any) || 'admin',
-        name: 'Dipak Sahani',
-        initials: 'DS',
-        tokenVersion: 0,
-      };
-      return next();
-    }
-
     ApiResponse.error(
       res,
       'Access denied. No authentication token provided.',

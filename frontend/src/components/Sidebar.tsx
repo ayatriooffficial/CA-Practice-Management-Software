@@ -29,6 +29,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "./auth/AuthContext";
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -61,6 +62,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile }) => {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { currentUser } = useAuth();
 
   return (
     <>
@@ -176,19 +178,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     color: "var(--text-inverse)",
                   }}
                 >
-                  <Building className="w-4 h-4" />
+                  {currentUser?.initials ? (
+                    <span className="text-xs font-bold">{currentUser.initials}</span>
+                  ) : (
+                    <Building className="w-4 h-4" />
+                  )}
                 </div>
-                <div>
-                  <div
-                    className="text-[13.5px] font-semibold tracking-tight"
-                    style={{ color: "var(--text-main)" }}
-                  >
-                    Dipak Sahani
+                {currentUser ? (
+                  <div>
+                    <div
+                      className="text-[13.5px] font-semibold tracking-tight"
+                      style={{ color: "var(--text-main)" }}
+                    >
+                      {currentUser.name}
+                    </div>
+                    <div className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                      {currentUser.firmName || "Practice Management"}
+                    </div>
                   </div>
-                  <div className="text-[10.5px] text-gray-500 dark:text-gray-400">
-                    Practice Management
+                ) : (
+                  <div>
+                    <div
+                      className="text-[13.5px] font-semibold tracking-tight text-gray-500 dark:text-gray-400"
+                    >
+                      Not Logged In
+                    </div>
+                    <Link
+                      href="/login"
+                      onClick={onCloseMobile}
+                      className="text-[10.5px] text-[#31719B] dark:text-[#60a5fa] hover:underline font-medium"
+                    >
+                      Sign In →
+                    </Link>
                   </div>
-                </div>
+                )}
               </div>
 
               <button

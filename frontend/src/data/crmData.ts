@@ -35,6 +35,36 @@ export interface LeadFollowUpTask {
   updatedAt?: string;
 }
 
+export interface AddressDetails {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  stateCode?: string;
+  pincode?: string;
+  country?: string;
+  landmark?: string;
+}
+
+export interface BankDetails {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  ifscCode?: string;
+  branchName?: string;
+  accountType?: string;
+  upiId?: string;
+  qrCodeUrl?: string;
+}
+
+export interface PaymentDetails {
+  bankDetails?: BankDetails;
+  paymentMode?: string;
+  currency?: string;
+  terms?: string;
+  isDefault?: boolean;
+}
+
 export interface Lead {
   id: string;
   fullName: string;
@@ -76,6 +106,8 @@ export interface Lead {
   servicesInterested?: string[];
   gstin?: string;
   detailNotes?: LeadNoteItem[];
+  addressDetails?: AddressDetails;
+  paymentDetails?: PaymentDetails;
 }
 
 export interface ClientLicense {
@@ -185,6 +217,8 @@ export interface Client {
   serviceSettings?: ClientServiceSetting[];
   passwords?: ClientPassword[];
   notes?: ClientNote[];
+  addressDetails?: AddressDetails;
+  paymentDetails?: PaymentDetails;
 }
 
 export const STATES = [

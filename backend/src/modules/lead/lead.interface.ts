@@ -1,5 +1,7 @@
 import { Types } from 'mongoose';
 import { ISoftDeleteDocument } from '../../shared/plugins/softDelete.plugin';
+import { IAddress } from '../../shared/schemas/address.schema';
+import { IPaymentDetails } from '../../shared/schemas/payment.schema';
 
 export type LeadGender = 'Male' | 'Female' | 'Others' | 'Transgender' | '';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'dropped';
@@ -58,6 +60,8 @@ export interface ILead {
   servicesInterested?: string[];
   gstin?: string;
   detailNotes?: ILeadNoteItem[];
+  addressDetails?: IAddress;
+  paymentDetails?: IPaymentDetails;
   orgId?: string | Types.ObjectId | null;
   userId?: string | null;
   createdBy?: string | null;

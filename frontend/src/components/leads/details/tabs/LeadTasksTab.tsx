@@ -217,11 +217,11 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
                     Assignee
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                      {task.assigneeInitials || (task.assigneeName ? task.assigneeName.slice(0, 2).toUpperCase() : "KR")}
+                    <div className="w-5 h-5 rounded-full bg-[#31719B]/10 text-[#31719B] dark:bg-[#31719B]/30 dark:text-[#93c5fd] text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {task.assigneeInitials || (task.assigneeName ? task.assigneeName.slice(0, 2).toUpperCase() : "—")}
                     </div>
                     <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
-                      {task.assigneeName || "kavin raj"}
+                      {task.assigneeName || "Unassigned"}
                     </span>
                   </div>
                 </div>
@@ -272,7 +272,7 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
                     Outcome
                   </div>
                   <div className="font-semibold text-[#31719B] dark:text-[#60a5fa] mt-1">
-                    {task.outcome || "RNR"}
+                    {task.outcome || "—"}
                   </div>
                 </div>
               </div>
@@ -282,7 +282,7 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1">
                     <User className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{task.author || "kavin raj"}</span>
+                    <span>{task.author || "Staff"}</span>
                   </span>
                   <span>·</span>
                   <span className="flex items-center gap-1">

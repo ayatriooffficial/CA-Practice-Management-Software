@@ -1,48 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Plus, Trash2, Calendar, Building2, ChevronDown, Check } from "lucide-react";
-import { Lead } from "@/data/crmData";
+import React, { useState, useEffect } from "react";
+import { X, Plus, Trash2, Calendar, ChevronDown, Check, CreditCard, ChevronUp } from "lucide-react";
+import { Lead, STATES } from "@/data/crmData";
 import { useCreateQuotation } from "@/hooks/useQuotationsQuery";
-import { QuotationItem } from "@/services/quotationApi";
+import { QuotationItem, QuotationBankDetails } from "@/services/quotationApi";
+import { organizationApi } from "@/services/organizationApi";
+import { serviceApi } from "@/services/serviceApi";
 
 interface AddQuotationModalProps {
   lead: Lead;
   onClose: () => void;
   onSuccess?: () => void;
 }
-
-const INDIAN_STATES = [
-  "Karnataka",
-  "Maharashtra",
-  "Delhi",
-  "Tamil Nadu",
-  "Gujarat",
-  "Uttar Pradesh",
-  "Telangana",
-  "West Bengal",
-  "Kerala",
-  "Rajasthan",
-  "Haryana",
-  "Punjab",
-  "Madhya Pradesh",
-  "Bihar",
-  "Odisha",
-  "Goa",
-  "Assam",
-  "Jharkhand",
-  "Chhattisgarh",
-];
-
-const PREDEFINED_SERVICES = [
-  { name: "Advance Tax (1st Installment)", hsn: "998311", price: 288, taxRate: 18 },
-  { name: "GSTR-1 (Monthly Filing)", hsn: "998311", price: 1500, taxRate: 18 },
-  { name: "GSTR-3B (Monthly Return)", hsn: "998311", price: 2000, taxRate: 18 },
-  { name: "ITR 1 - Salaried Individual", hsn: "998311", price: 1000, taxRate: 18 },
-  { name: "Statutory Audit Compliance", hsn: "998311", price: 15000, taxRate: 18 },
-  { name: "TDS Filing (Quarterly)", hsn: "998311", price: 3000, taxRate: 18 },
-  { name: "Company Incorporation ROC", hsn: "998311", price: 7500, taxRate: 18 },
-];
 
 export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   lead,
@@ -53,41 +23,86 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   const createMutation = useCreateQuotation();
 
   // Quotation Metadata
-  const [quotationNo, setQuotationNo] = useState("");
   const [quotationDate, setQuotationDate] = useState(todayStr);
   const [dueDate, setDueDate] = useState(todayStr);
 
-  // Billing Org State
-  const [billingOrgName, setBillingOrgName] = useState("Turia Associates Demo");
-  const [billingAddress, setBillingAddress] = useState(
-    "165, Cambridge Layout Bangalore - 560008 Karnataka"
-  );
-  const [billingGstin, setBillingGstin] = useState("29AARCS3638L2ZH");
-  const [billingPan, setBillingPan] = useState("KKXPS8986J");
-  const [lutNumber, setLutNumber] = useState("LUT28798");
-  const [lutDisabled, setLutDisabled] = useState(true);
+  // Billing Org State (Fetched dynamically from Database)
+  const [billingOrgName, setBillingOrgName] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingGstin, setBillingGstin] = useState("");
+  const [billingPan, setBillingPan] = useState("");
+  const [lutNumber, setLutNumber] = useState("");
+  const [lutDisabled, setLutDisabled] = useState(false);
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingMobile, setBillingMobile] = useState("");
+  const [billingWebsite, setBillingWebsite] = useState("");
 
-  // Lead / Quotation To State
+  // Payment & Bank Details State (Linked to Organization Schema in DB)
+  const [showBankDetails, setShowBankDetails] = useState(false);
+  const [bankDetails, setBankDetails] = useState<QuotationBankDetails>({
+    paymentType: "Bank",
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
+    ifsc: "",
+    accountType: "Current",
+    bankBranch: "",
+    upi: "",
+    currencyCode: "INR",
+  });
+
+  // Quotation To (Lead) State
+  const initialLeadAddress = lead.addressDetails
+    ? [
+        lead.addressDetails.addressLine1,
+        lead.addressDetails.addressLine2,
+        lead.addressDetails.city,
+        lead.addressDetails.pincode,
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : (lead.address || "");
+
+  const initialLeadState = lead.addressDetails?.state || lead.state || "Maharashtra";
+  const matchedState = STATES.find(
+    (s) => s.label.toLowerCase() === initialLeadState.toLowerCase()
+  );
+  const initialLeadStateCode = lead.addressDetails?.stateCode || matchedState?.code || "27";
+
   const [leadBusinessName, setLeadBusinessName] = useState(lead.businessName || lead.fullName);
-  const [leadState, setLeadState] = useState(lead.state || "Karnataka");
+  const [leadAddressLine, setLeadAddressLine] = useState(initialLeadAddress);
+  const [leadState, setLeadState] = useState(matchedState?.label || initialLeadState);
+  const [leadStateCode, setLeadStateCode] = useState(initialLeadStateCode);
   const [leadGstin, setLeadGstin] = useState(lead.gstin || "");
 
-  // Items State
+  // Dynamic Services fetched from Organization's services in DB
+  const [orgServices, setOrgServices] = useState<
+    Array<{
+      id?: string;
+      name: string;
+      hsn: string;
+      price: number;
+      taxRate: number;
+      description?: string;
+    }>
+  >([]);
+
+  // Line Items State
   const [items, setItems] = useState<QuotationItem[]>([
     {
       id: "item-1",
-      serviceName: "Advance Tax (1st Installment)",
+      serviceName: "",
       hsnSac: "998311",
       quantity: 1,
-      price: 288,
+      price: 0,
       discountType: "percentage",
       discountValue: 0,
       taxRate: 18,
-      sgst: 25.92,
-      cgst: 25.92,
+      sgst: 0,
+      cgst: 0,
       igst: 0,
-      amount: 288,
-      total: 339.84,
+      amount: 0,
+      total: 0,
       description: "",
       isReimbursement: false,
     },
@@ -121,6 +136,117 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
     };
   };
 
+  // Fetch Organization details & Services on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Fetch organization details from DB
+    organizationApi
+      .getOrganization()
+      .then((res) => {
+        if (!isMounted || !res.success || !res.data) return;
+        const org = res.data;
+        if (org.name) setBillingOrgName(org.name);
+
+        // Format address from addressDetails or flat address
+        let formattedAddr = "";
+        if (org.addressDetails) {
+          const parts = [
+            org.addressDetails.addressLine1,
+            org.addressDetails.addressLine2,
+            org.addressDetails.city,
+            org.addressDetails.pincode,
+            org.addressDetails.state,
+            org.addressDetails.country,
+          ].filter(Boolean);
+          if (parts.length > 0) {
+            formattedAddr = parts.join(", ");
+          }
+        }
+        if (!formattedAddr && org.address) {
+          formattedAddr = org.address;
+        }
+        setBillingAddress(formattedAddr);
+        setBillingGstin(org.gstin || "");
+        setBillingPan(org.pan || "");
+        setLutNumber(org.lutNumber || "");
+        if (org.lutDisabled !== undefined) {
+          setLutDisabled(org.lutDisabled);
+        }
+        setBillingEmail(org.email || "");
+        setBillingMobile(org.mobile || "");
+        setBillingWebsite(org.website || "");
+
+        // Payment / Bank Details from Organization DB
+        const bank = org.paymentDetails?.bankDetails;
+        if (bank) {
+          setBankDetails({
+            paymentType: org.paymentDetails?.paymentMode || "Bank",
+            bankName: bank.bankName || "",
+            accountName: bank.accountHolderName || org.name || "",
+            accountNumber: bank.accountNumber || "",
+            ifsc: bank.ifscCode || "",
+            accountType: bank.accountType || "Current",
+            bankBranch: bank.branchName || "",
+            upi: bank.upiId || "",
+            currencyCode: org.paymentDetails?.currency || "INR",
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch organization billing details:", err);
+      });
+
+    // 2. Fetch organization services from DB
+    serviceApi
+      .getServices({ limit: 100 })
+      .then((res) => {
+        if (!isMounted || !res.success || !res.data) return;
+        const fetched = res.data.map((s) => {
+          const rawTax = String(s.taxRate || "18").replace("%", "").trim();
+          const numericTax = Number(rawTax) || 18;
+          return {
+            id: s.id,
+            name: s.name,
+            hsn: s.sacCode || "998311",
+            price: Number(s.professionalFee) || 0,
+            taxRate: numericTax,
+            description: s.description || "",
+          };
+        });
+
+        if (fetched.length > 0) {
+          setOrgServices(fetched);
+
+          // Pre-populate first item if currently empty
+          setItems((prev) => {
+            if (prev.length === 1 && !prev[0].serviceName) {
+              const first = fetched[0];
+              return [
+                calculateItem({
+                  ...prev[0],
+                  serviceId: first.id,
+                  serviceName: first.name,
+                  hsnSac: first.hsn,
+                  price: first.price,
+                  taxRate: first.taxRate,
+                  description: first.description || "",
+                }),
+              ];
+            }
+            return prev;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch organization services:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleItemChange = (index: number, updates: Partial<QuotationItem>) => {
     setItems((prev) => {
       const copy = [...prev];
@@ -130,13 +256,15 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   };
 
   const handleSelectServicePreset = (index: number, serviceName: string) => {
-    const found = PREDEFINED_SERVICES.find((s) => s.name === serviceName);
+    const found = orgServices.find((s) => s.name.toLowerCase() === serviceName.toLowerCase());
     if (found) {
       handleItemChange(index, {
+        serviceId: found.id,
         serviceName: found.name,
         hsnSac: found.hsn,
         price: found.price,
         taxRate: found.taxRate,
+        description: found.description || "",
       });
     } else {
       handleItemChange(index, { serviceName });
@@ -144,24 +272,26 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   };
 
   const handleAddService = () => {
+    const defaultSvc = orgServices[0];
     const newItem: QuotationItem = {
       id: `item-${Date.now()}`,
-      serviceName: "",
-      hsnSac: "998311",
+      serviceId: defaultSvc?.id,
+      serviceName: defaultSvc?.name || "",
+      hsnSac: defaultSvc?.hsn || "998311",
       quantity: 1,
-      price: 0,
+      price: defaultSvc?.price || 0,
       discountType: "percentage",
       discountValue: 0,
-      taxRate: 18,
+      taxRate: defaultSvc?.taxRate || 18,
       sgst: 0,
       cgst: 0,
       igst: 0,
       amount: 0,
       total: 0,
-      description: "",
+      description: defaultSvc?.description || "",
       isReimbursement: false,
     };
-    setItems((prev) => [...prev, newItem]);
+    setItems((prev) => [...prev, calculateItem(newItem)]);
   };
 
   const handleAddReimbursement = () => {
@@ -210,42 +340,32 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         template: "Aura",
         leadId: lead.id,
         billingOrg: {
-          name: billingOrgName,
+          name: billingOrgName || "Practice Organization",
           address: billingAddress,
           priority: "Primary",
           gstin: billingGstin,
           pan: billingPan,
           lutNumber,
           lutDisabled,
-          email: "kavinraj@turia.in",
-          mobile: "8722750204",
-          website: "https://turia.in/",
+          email: billingEmail,
+          mobile: billingMobile,
+          website: billingWebsite,
         },
         quotationTo: {
           leadId: lead.id,
           businessName: leadBusinessName,
           name: lead.fullName,
-          addressLine1: lead.address || "",
-          city: lead.policeStation || lead.postOffice || "",
+          addressLine1: leadAddressLine || lead.address || "",
+          city: lead.addressDetails?.city || lead.policeStation || lead.postOffice || "",
           state: leadState,
-          stateCode: "29",
-          placeOfSupply: leadState,
+          stateCode: leadStateCode,
+          placeOfSupply: `${leadStateCode}-${leadState}`,
           gstin: leadGstin,
           pan: lead.pan || "",
           email: lead.email || "",
           mobile: lead.mobile || "",
         },
-        bankDetails: {
-          paymentType: "Bank",
-          bankName: "HDFC",
-          accountName: "Turia Books Technologies Private Limited",
-          accountNumber: "8934784834990842",
-          ifsc: "HDFC9003928",
-          accountType: "Current",
-          bankBranch: "Indira Nagar",
-          upi: "6363693138@ybl",
-          currencyCode: "INR",
-        },
+        bankDetails,
         items,
         subtotal: totals.subtotal,
         taxTotal: totals.tax,
@@ -265,7 +385,10 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         {/* Top Header Bar */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0 bg-gray-50/50 dark:bg-gray-800/40">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer" onClick={onClose}>
+            <span
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              onClick={onClose}
+            >
               &lt; Leads
             </span>
             <span className="text-gray-300 dark:text-gray-600">&gt;</span>
@@ -286,13 +409,21 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-slim">
           {/* Top Dates & Quotation No Card */}
           <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Lead Avatar Initial */}
+            {/* Org Initial */}
             <div className="flex items-center gap-3">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm"
                 style={{ backgroundColor: "var(--premium-blue-dark)" }}
               >
-                {billingOrgName.slice(0, 2).toUpperCase() || "TA"}
+                {(billingOrgName || "Org").slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                  {billingOrgName || "Loading Organization..."}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {billingGstin ? `GSTIN: ${billingGstin}` : "Verified Firm Account"}
+                </p>
               </div>
             </div>
 
@@ -344,40 +475,36 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
 
           {/* Two Main Cards Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Card: Billing Organization (Your Details) */}
-            <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-gray-700 p-4.5 space-y-4 shadow-sm">
+            {/* Left Card: Billing Organization (Fetched from DB) */}
+            <div className="bg-white dark:bg-[#1e293b] rounded-sm border border-gray-200 dark:border-gray-700 p-4.5 space-y-4 shadow-sm">
               <div className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-between">
-                <span>Billing Organization (Your details)</span>
+                <span>Billing Organization (Organization in DB)</span>
               </div>
 
-              {/* Selector */}
-              <div className="relative">
-                <select
-                  value={billingOrgName}
-                  onChange={(e) => setBillingOrgName(e.target.value)}
-                  className="w-full h-9 px-3 pr-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B] appearance-none"
-                >
-                  <option value="Turia Associates Demo">Turia Associates Demo</option>
-                  <option value="Ayatrio Business Services">Ayatrio Business Services</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+              {/* Organization Business Name Display */}
+              <input
+                type="text"
+                value={billingOrgName}
+                onChange={(e) => setBillingOrgName(e.target.value)}
+                placeholder="Organization Name"
+                className="w-full h-9 px-3 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
+              />
 
               {/* Details Box */}
-              <div className="p-3 bg-gray-50/70 dark:bg-gray-800/40 rounded-lg border border-gray-100 dark:border-gray-700/60 text-xs space-y-2">
+              <div className="p-3 bg-gray-50/70 dark:bg-gray-800/40 rounded-sm border border-gray-100 dark:border-gray-700/60 text-xs space-y-2">
                 <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  Business Details
+                  Organization Details
                 </div>
                 <div className="flex justify-between items-start gap-2">
                   <span className="text-gray-500">Business Name</span>
                   <span className="font-semibold text-gray-800 dark:text-gray-200 text-right">
-                    {billingOrgName}
+                    {billingOrgName || "Ayatrio Practice"}
                   </span>
                 </div>
                 <div className="flex justify-between items-start gap-2">
                   <span className="text-gray-500 shrink-0">Address</span>
                   <span className="font-medium text-gray-700 dark:text-gray-300 text-right">
-                    {billingAddress}
+                    {billingAddress || "Office address not set"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
@@ -390,17 +517,19 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                   <div className="flex justify-between">
                     <span className="text-gray-500">GSTIN:</span>
                     <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
-                      {billingGstin}
+                      {billingGstin || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">PAN:</span>
                     <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
-                      {billingPan}
+                      {billingPan || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500">LUT Number: {lutNumber}</span>
+                    <span className="text-gray-500">
+                      LUT Number: {lutNumber || "None"}
+                    </span>
                     <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-500">
                       <input
                         type="checkbox"
@@ -416,24 +545,24 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
             </div>
 
             {/* Right Card: Quotation To (Lead's Details) */}
-            <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-gray-700 p-4.5 space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-[#1e293b] rounded-sm border border-gray-200 dark:border-gray-700 p-4.5 space-y-4 shadow-sm">
               <div className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-between">
                 <span>Quotation To (Lead's details)</span>
               </div>
 
-              {/* Selector */}
+              {/* Business Name Input */}
               <input
                 type="text"
                 value={leadBusinessName}
                 onChange={(e) => setLeadBusinessName(e.target.value)}
                 placeholder="Lead or Business Name"
-                className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
+                className="w-full h-9 px-3 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-semibold text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
               />
 
               {/* Details Box */}
-              <div className="p-3 bg-gray-50/70 dark:bg-gray-800/40 rounded-lg border border-gray-100 dark:border-gray-700/60 text-xs space-y-2.5">
+              <div className="p-3 bg-gray-50/70 dark:bg-gray-800/40 rounded-sm border border-gray-100 dark:border-gray-700/60 text-xs space-y-2.5">
                 <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  Business Details
+                  Lead Details
                 </div>
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-gray-500">Contact Person</span>
@@ -442,15 +571,30 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                   </span>
                 </div>
                 <div>
+                  <span className="text-gray-500 block mb-1">Address / Street</span>
+                  <input
+                    type="text"
+                    value={leadAddressLine}
+                    onChange={(e) => setLeadAddressLine(e.target.value)}
+                    placeholder="Lead Street Address"
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+                <div>
                   <span className="text-gray-500 block mb-1">State / Place of Supply</span>
                   <select
                     value={leadState}
-                    onChange={(e) => setLeadState(e.target.value)}
+                    onChange={(e) => {
+                      const selectedLabel = e.target.value;
+                      setLeadState(selectedLabel);
+                      const stObj = STATES.find((s) => s.label === selectedLabel);
+                      if (stObj) setLeadStateCode(stObj.code);
+                    }}
                     className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
                   >
-                    {INDIAN_STATES.map((st) => (
-                      <option key={st} value={st}>
-                        {st}
+                    {STATES.map((st) => (
+                      <option key={st.code} value={st.label}>
+                        {st.code} - {st.label}
                       </option>
                     ))}
                   </select>
@@ -469,9 +613,156 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
             </div>
           </div>
 
+          {/* Payment & Bank Details Card */}
+          <div className="bg-white dark:bg-[#1e293b] rounded-sm border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-sm">
+            <div
+              className="flex items-center justify-between cursor-pointer select-none"
+              onClick={() => setShowBankDetails(!showBankDetails)}
+            >
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
+                <CreditCard className="w-4 h-4 text-[#31719B]" />
+                <span>Payment & Bank Details</span>
+                <span className="text-[11px] font-normal text-gray-400">
+                  {bankDetails.bankName
+                    ? `${bankDetails.bankName} (A/C: ${bankDetails.accountNumber || "N/A"})`
+                    : "(Synced from Organization DB)"}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                {showBankDetails ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+
+            {showBankDetails && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-gray-100 dark:border-gray-700/60 text-xs">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    Bank Name
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.bankName}
+                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
+                    placeholder="e.g. HDFC Bank Ltd."
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    Account Holder Name
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.accountName}
+                    onChange={(e) =>
+                      setBankDetails({ ...bankDetails, accountName: e.target.value })
+                    }
+                    placeholder="Firm Account Name"
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    Account Number
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.accountNumber}
+                    onChange={(e) =>
+                      setBankDetails({ ...bankDetails, accountNumber: e.target.value })
+                    }
+                    placeholder="e.g. 50200012345678"
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-mono focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    IFSC Code
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.ifsc}
+                    onChange={(e) =>
+                      setBankDetails({ ...bankDetails, ifsc: e.target.value.toUpperCase() })
+                    }
+                    placeholder="e.g. HDFC0000060"
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-mono uppercase focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    Branch Name
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.bankBranch}
+                    onChange={(e) =>
+                      setBankDetails({ ...bankDetails, bankBranch: e.target.value })
+                    }
+                    placeholder="e.g. BKC Branch, Mumbai"
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    Account Type
+                  </label>
+                  <select
+                    value={bankDetails.accountType}
+                    onChange={(e) =>
+                      setBankDetails({ ...bankDetails, accountType: e.target.value })
+                    }
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs focus:outline-none focus:border-[#31719B]"
+                  >
+                    <option value="Current">Current</option>
+                    <option value="Savings">Savings</option>
+                    <option value="OD">Overdraft (OD)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    UPI ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.upi || ""}
+                    onChange={(e) => setBankDetails({ ...bankDetails, upi: e.target.value })}
+                    placeholder="e.g. org@hdfcbank"
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs focus:outline-none focus:border-[#31719B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                    Currency
+                  </label>
+                  <input
+                    type="text"
+                    value={bankDetails.currencyCode}
+                    disabled
+                    className="w-full h-8 px-2.5 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 text-xs font-semibold"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Services Table */}
           <div className="space-y-3">
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="rounded-sm border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr
@@ -496,7 +787,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                   {items.map((item, idx) => (
                     <React.Fragment key={item.id || idx}>
                       <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                        {/* Service Name Dropdown / Input */}
+                        {/* Service Name Dropdown / Input from dynamic DB services */}
                         <td className="p-2">
                           <input
                             type="text"
@@ -507,8 +798,10 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                             className="w-full h-8 px-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
                           />
                           <datalist id={`services-list-${idx}`}>
-                            {PREDEFINED_SERVICES.map((s) => (
-                              <option key={s.name} value={s.name} />
+                            {orgServices.map((s) => (
+                              <option key={s.id || s.name} value={s.name}>
+                                {s.name} (₹{s.price})
+                              </option>
                             ))}
                           </datalist>
                         </td>
