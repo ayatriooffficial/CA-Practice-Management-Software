@@ -64,6 +64,16 @@ export interface TaskComplianceStatus {
   attachmentsCount?: number;
 }
 
+export interface LinkedEmail {
+  messageId: string;
+  threadId: string;
+  subject: string;
+  snippet: string;
+  sender: string;
+  date: string | Date;
+  linkedAt: string | Date;
+}
+
 export interface TaskItem {
   id: string;
   taskId: string;
@@ -104,6 +114,7 @@ export interface TaskItem {
   checklist: TaskChecklistItem[];
   documentRequests: TaskDocumentRequestItem[];
   comments: TaskComment[];
+  linkedEmails?: LinkedEmail[];
   complianceStatus?: TaskComplianceStatus;
   isTimerRunning?: boolean;
   timeSpentSeconds?: number;

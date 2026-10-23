@@ -3,6 +3,7 @@ import {
   TaskItem,
   TaskStats,
   TaskSummaryRow,
+  LinkedEmail,
 } from '@/data/taskData';
 
 export interface TaskQueryParams {
@@ -453,6 +454,28 @@ export const taskApi = {
       {
         method: 'POST',
         body: formData,
+      }
+    );
+  },
+
+  linkEmailToTask: async (
+    taskId: string,
+    email: LinkedEmail
+  ): Promise<ApiResponse<TaskItem>> => {
+    return request<TaskItem>(`/tasks/${encodeURIComponent(taskId)}/emails`, {
+      method: 'POST',
+      body: JSON.stringify(email),
+    });
+  },
+
+  unlinkEmailFromTask: async (
+    taskId: string,
+    messageId: string
+  ): Promise<ApiResponse<TaskItem>> => {
+    return request<TaskItem>(
+      `/tasks/${encodeURIComponent(taskId)}/emails/${encodeURIComponent(messageId)}`,
+      {
+        method: 'DELETE',
       }
     );
   },

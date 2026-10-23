@@ -1,26 +1,34 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Paperclip, Loader2 } from "lucide-react";
+import { X, Paperclip, Loader2, Mail } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
 import { taskApi } from "@/services/taskApi";
 import { TeamMember } from "@/data/teamData";
 import { teamStore } from "@/components/team/teamStore";
-import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS } from "@/data/taskData";
+import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail } from "@/data/taskData";
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
+
+export interface AddTaskInitialData {
+  taskName?: string;
+  description?: string;
+  linkedEmail?: LinkedEmail;
+}
 
 interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTaskCreated: (task: TaskItem) => void;
+  initialData?: AddTaskInitialData;
 }
 
 export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   isOpen,
   onClose,
   onTaskCreated,
+  initialData,
 }) => {
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -49,6 +57,17 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [isSprintPlanner, setIsSprintPlanner] = useState(false);
   const [description, setDescription] = useState("");
   const [createProformaInvoice, setCreateProformaInvoice] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && initialData) {
+      if (initialData.taskName) {
+        setTaskName(initialData.taskName);
+      }
+      if (initialData.description) {
+        setDescription(initialData.description);
+      }
+    }
+  }, [isOpen, initialData]);
 
   // Fetch clients and services from DB
   useEffect(() => {
@@ -292,6 +311,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         subTasks,
         checklist,
         documentRequests,
+        linkedEmails: initialData?.linkedEmail ? [initialData.linkedEmail] : [],
       };
 
       const res = await taskApi.createTask(payload);
@@ -335,6 +355,23 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Linked Email Banner */}
+        {initialData?.linkedEmail && (
+          <div className="mx-6 mt-4 p-3 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-xs rounded-md border border-blue-200 dark:border-blue-900 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <Mail className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+              <div className="truncate">
+                <span className="font-semibold">Converting Email to Task: </span>
+                <span className="font-medium text-[var(--text-main)]">{initialData.linkedEmail.subject || "(No Subject)"}</span>
+                <span className="text-xs text-[var(--text-muted)] ml-2">— From {initialData.linkedEmail.sender}</span>
+              </div>
+            </div>
+            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
+              Auto-Linking Email
+            </span>
+          </div>
+        )}
 
         {/* Error Banner */}
         {errorMessage && (
