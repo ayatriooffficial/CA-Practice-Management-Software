@@ -17,6 +17,7 @@ import { AppError } from '../../shared/utils/apiError';
 import { HTTP_STATUS } from '../../constants/httpStatus';
 import { logger } from '../../config/logger';
 import { AttendanceService } from '../attendance/attendance.service';
+import { MailService } from '../../shared/utils/mailService';
 
 function computeInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -107,14 +108,14 @@ export class AuthService {
       lastLoginAt: new Date(),
     });
 
-    // Create session & tokens
+    // Create session & tokens (60 days persistent)
     const session = await RefreshSessionModel.create({
       userId: user._id,
       orgId: org._id,
       tokenHash: 'temp_hash',
       userAgent: data.userAgent || '',
       ipAddress: data.ipAddress || '',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days persistent session
     });
 
     const jwtPayload = this.buildJwtPayload(user, org.name);
@@ -149,8 +150,28 @@ export class AuthService {
 
     const cleanTarget = type === 'email' ? target.trim().toLowerCase() : target.replace(/\D/g, '').slice(-10);
 
-    // Fixed demo OTP '123456' for predictable dev & testing
-    const otpCode = '123456';
+    // Verify whether account exists in DB first
+    const existingUser = await UserModel.findOne(
+      type === 'email' ? { email: cleanTarget } : { mobile: cleanTarget }
+    ).select('name email status');
+
+    if (!existingUser) {
+      throw AppError.notFound(
+        type === 'email'
+          ? 'No account found with this email. Please check your email or contact your administrator.'
+          : 'No account found with this mobile number.'
+      );
+    }
+
+    if (existingUser.status && String(existingUser.status).toLowerCase() !== 'active') {
+      throw new AppError(
+        'Your account has been deactivated. Please contact your firm administrator.',
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    // Generate real 6-digit random code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const codeHash = JwtService.hashToken(otpCode);
 
     await OtpVerificationModel.deleteMany({ target: cleanTarget });
@@ -162,11 +183,15 @@ export class AuthService {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
-    logger.info(`📱 Generated OTP for ${cleanTarget}: ${otpCode}`);
+    if (type === 'email') {
+      await MailService.sendOtpEmail(cleanTarget, otpCode, existingUser.name);
+    } else {
+      logger.info(`📱 Generated OTP for ${cleanTarget}: ${otpCode}`);
+    }
 
     return {
       success: true,
-      message: `OTP sent successfully to ${target}`,
+      message: `Verification code sent to ${target}`,
     };
   }
 
@@ -184,63 +209,25 @@ export class AuthService {
     const cleanEmail = isEmail ? target.trim().toLowerCase() : '';
     const cleanNum = !isEmail ? target.replace(/\D/g, '').slice(-10) : '';
 
-    // Support dev demo codes: 123456, 1234, 000000, 999999
-    const isDemoCode = code === '123456' || code === '1234' || code === '000000' || code === '999999';
+    const codeHash = JwtService.hashToken(code);
+    const record = await OtpVerificationModel.findOne({
+      target: isEmail ? cleanEmail : cleanNum,
+      codeHash,
+    });
 
-    if (!isDemoCode) {
-      const codeHash = JwtService.hashToken(code);
-      const record = await OtpVerificationModel.findOne({
-        target: isEmail ? cleanEmail : cleanNum,
-        codeHash,
-      });
-
-      if (!record) {
-        throw AppError.badRequest('Invalid or expired OTP code');
-      }
+    if (!record) {
+      throw AppError.badRequest('Invalid or expired OTP code');
     }
 
-    // Find the user or auto-provision on demo code verification
+    // Delete single-use OTP record
+    await OtpVerificationModel.deleteOne({ _id: record._id });
+
+    // Find the user
     const query = isEmail ? { email: cleanEmail } : { mobile: cleanNum };
-    let user = await UserModel.findOne(query).populate('orgId', 'name');
+    const user = await UserModel.findOne(query).populate('orgId', 'name');
 
     if (!user) {
-      if (isDemoCode) {
-        let org = await OrganizationModel.findOne();
-        if (!org) {
-          org = await OrganizationModel.create({
-            name: 'Ayatrio Practice',
-            code: 'ayatrio-practice',
-            totalSeats: 10,
-            isActive: true,
-          });
-        }
-
-        const defaultName = isEmail
-          ? cleanEmail.split('@')[0]
-          : `User ${cleanNum.slice(-4) || '9999'}`;
-        const formattedName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
-
-        // Generate guaranteed unique 10-digit mobile for email users
-        const randomDigits = Math.floor(1000 + Math.random() * 9000).toString();
-        const generatedMobile = '9' + Date.now().toString().slice(-5) + randomDigits;
-
-        const resolvedEmail = isEmail ? cleanEmail : `user_${cleanNum}@ayatrio.local`;
-        const resolvedMobile = isEmail ? generatedMobile : cleanNum;
-
-        user = await UserModel.create({
-          orgId: org._id,
-          name: formattedName,
-          email: resolvedEmail,
-          mobile: resolvedMobile,
-          role: 'employee',
-          status: 'active',
-          firmName: org.name,
-          initials: computeInitials(formattedName),
-          isEmailVerified: true,
-        });
-      } else {
-        throw AppError.notFound('No account found with this identifier');
-      }
+      throw AppError.notFound('Account not found. Please contact your administrator.');
     }
 
     const userStatusStr = String(user.status || 'active').toLowerCase();
@@ -266,14 +253,19 @@ export class AuthService {
     user.isEmailVerified = true;
     await user.save();
 
-    // Create persistent session (30 days across browser restarts)
+    // Single active persistent session per device (userAgent)
+    if (options?.userAgent) {
+      await RefreshSessionModel.deleteMany({ userId: user._id, userAgent: options.userAgent });
+    }
+
+    // Create persistent session (60 days across browser restarts and day changes)
     const session = await RefreshSessionModel.create({
       userId: user._id,
       orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days persistent
     });
 
     const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';

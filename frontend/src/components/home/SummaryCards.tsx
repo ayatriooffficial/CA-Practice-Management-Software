@@ -65,11 +65,10 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
         {cards.map((c) => (
           <div
             key={c.id}
-            className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all duration-200 hover:border-emerald-500 dark:hover:border-emerald-500 hover:ring-1 hover:ring-emerald-500/50 flex flex-col justify-between"
+            className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all duration-200 hover:border-emerald-500 dark:hover:border-emerald-500/70 hover:ring-1 hover:ring-emerald-500/40 flex flex-col justify-between shadow-2xs"
             style={{
               padding: '20px 24px',
               minHeight: '140px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
             }}
           >
             {/* Title */}
@@ -83,24 +82,15 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
                 {isLoading ? '--' : c.value}
               </span>
               <span
-                className="px-2 py-0.5 rounded-full text-[11px] font-bold"
-                style={{
-                  backgroundColor: '#ecfdf5',
-                  color: '#10b981',
-                }}
+                className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#ecfdf5] dark:bg-emerald-950/50 text-[#10b981] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40"
               >
                 {c.badge}
               </span>
             </div>
 
-            {/* Full-width Light Green Bar */}
+            {/* Full-width Metric Bar */}
             <div
-              className="w-full rounded-lg text-center font-medium text-xs truncate"
-              style={{
-                backgroundColor: '#ecfdf5',
-                color: '#10b981',
-                padding: '6px 12px',
-              }}
+              className="w-full rounded-lg text-center font-medium text-xs truncate py-1.5 px-3 bg-[#ecfdf5] dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40"
             >
               {isLoading ? 'Loading...' : c.bar}
             </div>

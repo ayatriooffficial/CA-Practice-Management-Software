@@ -11,7 +11,7 @@ function setRefreshCookie(res: Response, token: string): void {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 60 * 24 * 60 * 60 * 1000, // 60 days
     path: '/',
   });
 }

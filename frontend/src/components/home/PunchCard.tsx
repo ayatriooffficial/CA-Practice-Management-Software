@@ -165,10 +165,9 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
 
   return (
     <div
-      className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all flex flex-col justify-between"
+      className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-2xs"
       style={{
         padding: '24px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
       }}
     >
       {/* Title */}
@@ -191,7 +190,7 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
             {/* Hours */}
             <div className="flex flex-col items-center">
               <div
-                className="w-12 h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex items-center justify-center text-lg font-bold text-gray-900 dark:text-white"
+                className="w-12 h-11 rounded-lg border border-gray-200 dark:border-[#334155] bg-gray-50/50 dark:bg-[#0f172a] flex items-center justify-center text-lg font-bold text-gray-900 dark:text-white"
               >
                 {hoursStr}
               </div>
@@ -205,7 +204,7 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
             {/* Minutes */}
             <div className="flex flex-col items-center">
               <div
-                className="w-12 h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex items-center justify-center text-lg font-bold text-gray-900 dark:text-white"
+                className="w-12 h-11 rounded-lg border border-gray-200 dark:border-[#334155] bg-gray-50/50 dark:bg-[#0f172a] flex items-center justify-center text-lg font-bold text-gray-900 dark:text-white"
               >
                 {minsStr}
               </div>
@@ -219,7 +218,7 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
             {/* Seconds */}
             <div className="flex flex-col items-center">
               <div
-                className="w-12 h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex items-center justify-center text-lg font-bold text-gray-900 dark:text-white"
+                className="w-12 h-11 rounded-lg border border-gray-200 dark:border-[#334155] bg-gray-50/50 dark:bg-[#0f172a] flex items-center justify-center text-lg font-bold text-gray-900 dark:text-white"
               >
                 {secsStr}
               </div>

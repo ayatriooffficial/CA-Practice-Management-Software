@@ -8,8 +8,8 @@ import {
   removeDeviceCredential,
 } from "../../services/deviceCredential";
 
-export const DEMO_OTP = "123456";
-export const SHOW_DEMO_HINT = true;
+export const DEMO_OTP = "";
+export const SHOW_DEMO_HINT = false;
 
 // Real-data mode: No seeded demo users
 const INITIAL_DEMO_USERS: User[] = [];
@@ -208,22 +208,14 @@ export const authService = {
    * Send an OTP to email or mobile via Backend.
    */
   async sendOtp(target: string, type: "email" | "mobile"): Promise<{ success: boolean; message: string }> {
-    try {
-      const res = await request<{ success: boolean; message: string }>("/auth/send-otp", {
-        method: "POST",
-        body: JSON.stringify({ target, type }),
-      });
-      return {
-        success: true,
-        message: res.message || `OTP sent to ${target}`,
-      };
-    } catch {
-      await delay(200);
-      return {
-        success: true,
-        message: `OTP sent to ${target}`,
-      };
-    }
+    const res = await request<{ success: boolean; message: string }>("/auth/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ target, type }),
+    });
+    return {
+      success: true,
+      message: res.message || `OTP sent to ${target}`,
+    };
   },
 
   /**

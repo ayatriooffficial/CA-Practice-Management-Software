@@ -64,25 +64,31 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
   return (
     <>
       <div
-        className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all flex flex-col"
+        className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-xs"
         style={{
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          padding: '20px 24px',
           minHeight: '220px',
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-            Notice Board
-          </h3>
+        <div className="flex items-center justify-between mb-3.5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">
+              Notice Board
+            </h3>
+            {notices.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                {notices.length}
+              </span>
+            )}
+          </div>
 
           {/* Plus Button (Admin Only) */}
           {isAdmin && (
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="w-6 h-6 rounded border border-purple-300 dark:border-purple-700 flex items-center justify-center text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/50 transition-colors"
+              className="w-7 h-7 rounded-lg border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/30 flex items-center justify-center text-purple-600 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors cursor-pointer"
               title="Add Notice"
             >
               <Plus size={14} />
@@ -90,54 +96,52 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
           )}
         </div>
 
-        {/* Lavender Container */}
+        {/* Notices Scrollable Container */}
         <div
-          className="flex-1 rounded-xl flex flex-col justify-center transition-all overflow-y-auto"
-          style={{
-            backgroundColor: '#f3effc', // Sampled lavender from screenshot
-            padding: notices.length > 0 ? '16px' : '32px',
-            minHeight: '130px',
-            maxHeight: '180px',
-            gap: '12px',
-          }}
+          className="flex-1 rounded-xl bg-slate-50/80 dark:bg-[#0f172a] border border-slate-200/80 dark:border-[#334155]/60 p-3 flex flex-col gap-2.5 overflow-y-auto max-h-[185px] scrollbar-thin transition-colors"
+          style={{ scrollBehavior: 'smooth' }}
         >
           {isLoading ? (
-            <div className="flex items-center justify-center text-xs text-gray-400">
+            <div className="flex items-center justify-center py-8 text-xs text-gray-400 dark:text-gray-500">
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
               Loading notices...
             </div>
           ) : notices.length === 0 ? (
-            <div className="flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-medium">
-              No notices available
+            <div className="flex items-center justify-center py-8 text-xs text-gray-400 dark:text-gray-500 font-medium">
+              No active announcements posted yet
             </div>
           ) : (
             notices.map((n) => (
               <div
                 key={n.id}
-                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg p-3 border border-purple-100 dark:border-purple-900/40 flex items-start justify-between group transition-all"
-                style={{ gap: '12px' }}
+                className="bg-white dark:bg-[#162032] rounded-lg p-3.5 border border-slate-200/90 dark:border-[#334155] shadow-2xs hover:border-[#31719B]/40 dark:hover:border-[#31719B]/50 flex items-start justify-between gap-3 group transition-all"
               >
-                <div className="flex flex-col" style={{ gap: '2px' }}>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
                     {n.title}
                   </h4>
-                  <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <p className="text-[12px] text-gray-600 dark:text-gray-300 leading-relaxed mt-1 break-words line-clamp-3">
                     {n.body}
                   </p>
-                  <span className="text-[10px] text-gray-400 mt-1">
-                    Posted by {n.createdBy?.name || 'Admin'} •{' '}
-                    {new Date(n.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
+                  <div className="flex items-center gap-1.5 text-[10.5px] text-gray-400 dark:text-gray-400 mt-2 pt-1.5 border-t border-gray-100 dark:border-[#334155]/50">
+                    <span>
+                      Posted by <strong className="font-medium text-gray-500 dark:text-gray-300">{n.createdBy?.name || 'Admin'}</strong>
+                    </span>
+                    <span>&bull;</span>
+                    <span>
+                      {new Date(n.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
                 </div>
 
                 {isAdmin && (
                   <button
                     type="button"
                     onClick={() => handleDeleteNotice(n.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 transition-opacity p-1"
+                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer shrink-0"
                     title="Delete notice"
                   >
                     <Trash2 size={13} />

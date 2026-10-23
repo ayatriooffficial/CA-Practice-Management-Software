@@ -43,7 +43,7 @@ export const TeamModule: React.FC = () => {
   const resignedCount = employees.filter((e) => e.status === 'Resigned').length;
 
   return (
-    <div className="min-h-full bg-gray-50/50 pb-12">
+    <div className="min-h-full bg-gray-50/50 dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] pb-12 transition-colors">
       {/* Top Level Tabs Header */}
       <TeamTabsHeader
         activeTab={currentTab}

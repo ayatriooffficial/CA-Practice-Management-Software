@@ -81,14 +81,23 @@ export class TaskService {
           { assigneeId: userId },
           { assigneeId: String(userId) },
           { reviewerId: userId },
-          { userId }
+          { reviewerId: String(userId) },
+          { userId },
+          { userId: String(userId) }
         );
       }
       if (userName && userName.trim()) {
-        const nameRegex = new RegExp(`^${userName.trim()}$`, 'i');
+        const escaped = userName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         assignedConditions.push(
-          { assigneeName: nameRegex },
-          { reviewerName: nameRegex }
+          { assigneeName: new RegExp(`^${escaped}$`, 'i') },
+          { reviewerName: new RegExp(`^${escaped}$`, 'i') }
+        );
+      }
+      if (userCtx.email && userCtx.email.trim()) {
+        const escapedEmail = userCtx.email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        assignedConditions.push(
+          { assigneeName: new RegExp(`^${escapedEmail}$`, 'i') },
+          { assigneeId: userCtx.email.trim().toLowerCase() }
         );
       }
       if (assignedConditions.length) {
@@ -187,9 +196,15 @@ export class TaskService {
       }
     }
 
-    // Assignee filter
-    if (queryOptions.assigneeName && queryOptions.assigneeName !== 'All Assignees') {
-      filter.assigneeName = queryOptions.assigneeName;
+    // Assignee filter (when admin/partner/manager filters by assignee)
+    if (queryOptions.assigneeName && queryOptions.assigneeName !== 'All Assignees' && !isEmployeeRole) {
+      const escaped = queryOptions.assigneeName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      andClauses.push({
+        $or: [
+          { assigneeName: new RegExp(`^${escaped}$`, 'i') },
+          { assigneeId: queryOptions.assigneeName.trim() },
+        ],
+      });
     }
 
     // Department filter

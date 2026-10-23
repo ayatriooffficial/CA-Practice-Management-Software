@@ -14,14 +14,11 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
 }) => {
   return (
     <div
-      className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all flex flex-col"
-      style={{
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-      }}
+      className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
     >
       {/* Header */}
       <div
-        className="border-b border-gray-100 dark:border-gray-800"
+        className="border-b border-gray-100 dark:border-[#334155]"
         style={{ padding: '16px 20px' }}
       >
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -33,7 +30,7 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
       <div className="w-full overflow-x-auto" style={{ minHeight: '160px' }}>
         <table className="w-full border-collapse text-left whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <tr className="border-b border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032]">
               <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '10px 16px' }}>
                 Date
               </th>
@@ -54,7 +51,7 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
             {isLoading ? (
               <tr>
                 <td colSpan={6} className="text-center py-12 text-xs text-gray-400">
@@ -71,7 +68,7 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
               leaves.map((l) => (
                 <tr
                   key={l.id}
-                  className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors"
+                  className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors"
                 >
                   <td className="text-xs text-gray-700 dark:text-gray-300 font-medium" style={{ padding: '10px 16px' }}>
                     {l.date}
@@ -87,11 +84,7 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
                   </td>
                   <td style={{ padding: '10px 16px' }}>
                     <span
-                      className="px-2 py-0.5 rounded text-[11px] font-semibold"
-                      style={{
-                        backgroundColor: '#ecfdf5',
-                        color: '#059669',
-                      }}
+                      className="px-2 py-0.5 rounded text-[11px] font-semibold border bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40"
                     >
                       {l.status}
                     </span>

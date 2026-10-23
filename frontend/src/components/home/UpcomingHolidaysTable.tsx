@@ -14,14 +14,11 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
 }) => {
   return (
     <div
-      className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all flex flex-col"
-      style={{
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-      }}
+      className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
     >
       {/* Header */}
       <div
-        className="border-b border-gray-100 dark:border-gray-800"
+        className="border-b border-gray-100 dark:border-[#334155]"
         style={{ padding: '16px 20px' }}
       >
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -33,7 +30,7 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
       <div className="w-full overflow-x-auto" style={{ minHeight: '160px' }}>
         <table className="w-full border-collapse text-left whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <tr className="border-b border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032]">
               <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '10px 16px' }}>
                 Date
               </th>
@@ -48,7 +45,7 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
             {isLoading ? (
               <tr>
                 <td colSpan={4} className="text-center py-12 text-xs text-gray-400">
@@ -58,14 +55,14 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
             ) : holidays.length === 0 ? (
               <tr>
                 <td colSpan={4} className="text-center py-14 text-xs text-gray-400">
-                  No rows
+                  No upcoming holidays scheduled
                 </td>
               </tr>
             ) : (
               holidays.map((h) => (
                 <tr
                   key={h.id}
-                  className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors"
+                  className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors"
                 >
                   <td className="text-xs text-gray-700 dark:text-gray-300 font-medium" style={{ padding: '10px 16px' }}>
                     {h.date}
