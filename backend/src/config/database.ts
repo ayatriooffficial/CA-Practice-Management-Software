@@ -26,6 +26,11 @@ function describeMongoFailure(error: unknown): { category: MongoFailureCategory;
 
 export const connectDatabase = async (): Promise<typeof mongoose> => {
   try {
+    if (env.MONGODB_URI.startsWith('mongodb+srv://')) {
+      const dns = await import('dns');
+      dns.setServers(['8.8.8.8', '1.1.1.1']);
+    }
+
     mongoose.set('strictQuery', true);
 
     const connection = await mongoose.connect(env.MONGODB_URI, {
