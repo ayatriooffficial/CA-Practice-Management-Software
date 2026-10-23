@@ -1,14 +1,17 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { OrganizationModel } from './organization.model';
 import { UserModel } from './user.model';
 import { RefreshSessionModel } from './session.model';
 import { OtpVerificationModel } from './otp.model';
+import { TrustedDeviceModel } from './trustedDevice.model';
 import { JwtService } from './jwt.service';
 import {
   IJwtUserPayload,
   IAuthTokens,
   IUserDocument,
+  IDeviceCredential,
 } from './auth.interface';
 import { AppError } from '../../shared/utils/apiError';
 import { HTTP_STATUS } from '../../constants/httpStatus';
@@ -172,12 +175,13 @@ export class AuthService {
   public static async verifyOtp(
     target: string,
     code: string,
-    options?: { userAgent?: string; ipAddress?: string }
-  ): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
+    options?: { userAgent?: string; ipAddress?: string; deviceId?: string }
+  ): Promise<{ user: IUserDocument; tokens: IAuthTokens; deviceCredential?: IDeviceCredential }> {
     await this.ensureSeedData();
 
-    const cleanEmail = target.trim().toLowerCase();
-    const cleanNum = target.replace(/\D/g, '').slice(-10);
+    const isEmail = target.includes('@');
+    const cleanEmail = isEmail ? target.trim().toLowerCase() : '';
+    const cleanNum = !isEmail ? target.replace(/\D/g, '').slice(-10) : '';
 
     // Support dev demo codes: 123456, 1234, 000000, 999999
     const isDemoCode = code === '123456' || code === '1234' || code === '000000' || code === '999999';
@@ -185,7 +189,7 @@ export class AuthService {
     if (!isDemoCode) {
       const codeHash = JwtService.hashToken(code);
       const record = await OtpVerificationModel.findOne({
-        target: { $in: [cleanEmail, cleanNum] },
+        target: isEmail ? cleanEmail : cleanNum,
         codeHash,
       });
 
@@ -195,9 +199,8 @@ export class AuthService {
     }
 
     // Find the user or auto-provision on demo code verification
-    let user = await UserModel.findOne({
-      $or: [{ email: cleanEmail }, { mobile: cleanNum }],
-    }).populate('orgId', 'name');
+    const query = isEmail ? { email: cleanEmail } : { mobile: cleanNum };
+    let user = await UserModel.findOne(query).populate('orgId', 'name');
 
     if (!user) {
       if (isDemoCode) {
@@ -211,14 +214,17 @@ export class AuthService {
           });
         }
 
-        const defaultName = cleanEmail.includes('@')
+        const defaultName = isEmail
           ? cleanEmail.split('@')[0]
           : `User ${cleanNum.slice(-4) || '9999'}`;
         const formattedName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
 
-        const uniqueSuffix = Date.now().toString().slice(-9);
-        const resolvedEmail = cleanEmail.includes('@') ? cleanEmail : `user_${cleanNum || uniqueSuffix}@ayatrio.local`;
-        const resolvedMobile = cleanNum && cleanNum.length >= 10 ? cleanNum : `9${uniqueSuffix}`;
+        // Generate guaranteed unique 10-digit mobile for email users
+        const randomDigits = Math.floor(1000 + Math.random() * 9000).toString();
+        const generatedMobile = '9' + Date.now().toString().slice(-5) + randomDigits;
+
+        const resolvedEmail = isEmail ? cleanEmail : `user_${cleanNum}@ayatrio.local`;
+        const resolvedMobile = isEmail ? generatedMobile : cleanNum;
 
         user = await UserModel.create({
           orgId: org._id,
@@ -229,6 +235,7 @@ export class AuthService {
           status: 'active',
           firmName: org.name,
           initials: computeInitials(formattedName),
+          isEmailVerified: true,
         });
       } else {
         throw AppError.notFound('No account found with this identifier');
@@ -255,16 +262,17 @@ export class AuthService {
     }
 
     user.lastLoginAt = new Date();
+    user.isEmailVerified = true;
     await user.save();
 
-    // Create session
+    // Create persistent session (30 days across browser restarts)
     const session = await RefreshSessionModel.create({
       userId: user._id,
       orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
     const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
@@ -277,7 +285,168 @@ export class AuthService {
     // Cleanup OTP
     await OtpVerificationModel.deleteMany({ target: { $in: [cleanEmail, cleanNum] } });
 
-    return { user, tokens };
+    // Generate and persist cryptographically secure device credential
+    const resolvedDeviceId = (options?.deviceId || `dev_${crypto.randomBytes(12).toString('hex')}`).trim();
+    const deviceToken = crypto.randomBytes(32).toString('hex');
+    const deviceTokenHash = JwtService.hashToken(deviceToken);
+    const userEmail = (user.email || cleanEmail).toLowerCase();
+
+    await TrustedDeviceModel.findOneAndUpdate(
+      { email: userEmail, deviceId: resolvedDeviceId },
+      {
+        userId: user._id,
+        email: userEmail,
+        deviceId: resolvedDeviceId,
+        tokenHash: deviceTokenHash,
+        isVerified: true,
+        verifiedAt: new Date(),
+        lastUsedAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+        userAgent: options?.userAgent || '',
+        ipAddress: options?.ipAddress || '',
+      },
+      { upsert: true, new: true }
+    );
+
+    const deviceCredential: IDeviceCredential = {
+      email: userEmail,
+      deviceId: resolvedDeviceId,
+      deviceToken,
+    };
+
+    return { user, tokens, deviceCredential };
+  }
+
+  /**
+   * Returning User Login: Authenticate using verified trusted device token without OTP
+   */
+  public static async loginWithDevice(
+    email: string,
+    deviceId: string,
+    deviceToken: string,
+    options?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ user: IUserDocument; tokens: IAuthTokens; deviceCredential: IDeviceCredential }> {
+    await this.ensureSeedData();
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !deviceId || !deviceToken) {
+      throw AppError.badRequest('Email, device identifier, and device token are required');
+    }
+
+    const user = await UserModel.findOne({ email: cleanEmail }).populate('orgId', 'name');
+    if (!user) {
+      throw AppError.notFound('No account found with this email');
+    }
+
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
+      throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    // Lookup trusted device record
+    const trustedRecord = await TrustedDeviceModel.findOne({
+      email: cleanEmail,
+      deviceId: deviceId.trim(),
+    });
+
+    if (!trustedRecord || !trustedRecord.isVerified) {
+      throw AppError.unauthorized('Device is not verified for this account. Please verify with OTP.');
+    }
+
+    if (trustedRecord.expiresAt && trustedRecord.expiresAt < new Date()) {
+      throw AppError.unauthorized('Device verification has expired. Please verify with OTP again.');
+    }
+
+    // Verify token hash
+    const incomingHash = JwtService.hashToken(deviceToken);
+    if (trustedRecord.tokenHash !== incomingHash) {
+      throw AppError.unauthorized('Invalid device credential. Please verify with OTP.');
+    }
+
+    // Rotate device token for continuous freshness and security
+    const newDeviceToken = crypto.randomBytes(32).toString('hex');
+    trustedRecord.tokenHash = JwtService.hashToken(newDeviceToken);
+    trustedRecord.lastUsedAt = new Date();
+    trustedRecord.expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+    if (options?.userAgent) trustedRecord.userAgent = options.userAgent;
+    if (options?.ipAddress) trustedRecord.ipAddress = options.ipAddress;
+    await trustedRecord.save();
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Create session (30-day persistent session across page refreshes and browser restarts)
+    const session = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: (user.orgId as any)?._id || user.orgId,
+      tokenHash: 'temp_hash',
+      userAgent: options?.userAgent || '',
+      ipAddress: options?.ipAddress || '',
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
+    const jwtPayload = this.buildJwtPayload(user, firmName);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
+
+    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await session.save();
+
+    return {
+      user,
+      tokens,
+      deviceCredential: {
+        email: cleanEmail,
+        deviceId,
+        deviceToken: newDeviceToken,
+      },
+    };
+  }
+
+  /**
+   * Check if a device credential is valid and verified for an email
+   */
+  public static async checkDeviceStatus(
+    email: string,
+    deviceId: string,
+    deviceToken?: string
+  ): Promise<{ isVerified: boolean; user?: any }> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !deviceId) {
+      return { isVerified: false };
+    }
+
+    const user = await UserModel.findOne({ email: cleanEmail }).populate('orgId', 'name');
+    if (!user) {
+      return { isVerified: false };
+    }
+
+    const record = await TrustedDeviceModel.findOne({
+      email: cleanEmail,
+      deviceId: deviceId.trim(),
+    });
+
+    if (!record || !record.isVerified || (record.expiresAt && record.expiresAt < new Date())) {
+      return { isVerified: false };
+    }
+
+    if (deviceToken) {
+      const incomingHash = JwtService.hashToken(deviceToken);
+      if (record.tokenHash !== incomingHash) {
+        return { isVerified: false };
+      }
+    }
+
+    return {
+      isVerified: true,
+      user: {
+        id: String(user._id),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        firmName: (user.orgId as any)?.name || user.firmName,
+      },
+    };
   }
 
   /**

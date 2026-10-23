@@ -11,7 +11,7 @@ function setRefreshCookie(res: Response, token: string): void {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     path: '/',
   });
 }
@@ -76,8 +76,34 @@ export class AuthController {
 
   public static async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { target, code } = req.body;
+      const { target, code, deviceId } = req.body;
       const result = await AuthService.verifyOtp(target, code, {
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+        deviceId,
+      });
+
+      setRefreshCookie(res, result.tokens.refreshToken);
+
+      ApiResponse.success(
+        res,
+        {
+          user: result.user,
+          accessToken: result.tokens.accessToken,
+          expiresIn: result.tokens.expiresIn,
+          deviceCredential: result.deviceCredential,
+        },
+        'Logged in successfully via OTP'
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async deviceLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, deviceId, deviceToken } = req.body;
+      const result = await AuthService.loginWithDevice(email, deviceId, deviceToken, {
         userAgent: req.headers['user-agent'],
         ipAddress: req.ip,
       });
@@ -90,9 +116,20 @@ export class AuthController {
           user: result.user,
           accessToken: result.tokens.accessToken,
           expiresIn: result.tokens.expiresIn,
+          deviceCredential: result.deviceCredential,
         },
-        'Logged in successfully via OTP'
+        'Logged in successfully via persistent device credential'
       );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async checkDeviceStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, deviceId, deviceToken } = req.body;
+      const result = await AuthService.checkDeviceStatus(email, deviceId, deviceToken);
+      ApiResponse.success(res, result, 'Device verification status checked');
     } catch (error) {
       next(error);
     }

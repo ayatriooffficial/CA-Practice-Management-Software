@@ -89,6 +89,11 @@ const userSchema = new Schema<IUserDocument>(
       type: Date,
       default: null,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     addressDetails: {
       type: addressSchema,
       default: () => ({}),

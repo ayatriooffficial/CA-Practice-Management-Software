@@ -64,32 +64,81 @@ async function refreshAccessToken(): Promise<string | null> {
         credentials: 'include',
       });
 
-      if (!res.ok) {
-        throw new Error('Refresh failed');
+      if (res.ok) {
+        const json = await res.json();
+        const newAccessToken = json.data?.accessToken;
+
+        if (newAccessToken && typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem('turia_current_user');
+            if (stored) {
+              const user = JSON.parse(stored);
+              user.token = newAccessToken;
+              localStorage.setItem('turia_current_user', JSON.stringify(user));
+            }
+          } catch {}
+        }
+
+        return newAccessToken || null;
       }
-
-      const json = await res.json();
-      const newAccessToken = json.data?.accessToken;
-
-      if (newAccessToken && typeof window !== 'undefined') {
-        try {
-          const stored = localStorage.getItem('turia_current_user');
-          if (stored) {
-            const user = JSON.parse(stored);
-            user.token = newAccessToken;
-            localStorage.setItem('turia_current_user', JSON.stringify(user));
-          }
-        } catch {}
-      }
-
-      return newAccessToken || null;
     } catch {
-      // Do not wipe local user session in dev/demo mode when refresh fails
-      return null;
-    } finally {
-      activeRefreshPromise = null;
+      // Proceed to device credential fallback
     }
-  })();
+
+    // Secondary resilient recovery: try silent device authentication using verified device credentials
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('turia_current_user');
+        if (stored) {
+          const user = JSON.parse(stored);
+          const rawCreds = localStorage.getItem('turia_device_credentials');
+          if (rawCreds && user.email) {
+            const map = JSON.parse(rawCreds);
+            const cred = map[user.email.trim().toLowerCase()];
+            if (cred && cred.deviceId && cred.deviceToken) {
+              const devRes = await fetch(`${API_BASE_URL}/auth/device-login`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Accept: 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                  email: cred.email,
+                  deviceId: cred.deviceId,
+                  deviceToken: cred.deviceToken,
+                }),
+              });
+
+              if (devRes.ok) {
+                const devJson = await devRes.json();
+                const newAccessToken = devJson.data?.accessToken;
+                if (devJson.data?.deviceCredential) {
+                  const rotated = devJson.data.deviceCredential;
+                  map[user.email.trim().toLowerCase()] = {
+                    ...cred,
+                    deviceId: rotated.deviceId,
+                    deviceToken: rotated.deviceToken,
+                    lastUsedAt: new Date().toISOString(),
+                  };
+                  localStorage.setItem('turia_device_credentials', JSON.stringify(map));
+                }
+                if (newAccessToken) {
+                  user.token = newAccessToken;
+                  localStorage.setItem('turia_current_user', JSON.stringify(user));
+                  return newAccessToken;
+                }
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    return null;
+  })().finally(() => {
+    activeRefreshPromise = null;
+  });
 
   return activeRefreshPromise;
 }

@@ -59,6 +59,7 @@ export interface IUser {
   lastLoginAt?: Date;
   addressDetails?: IAddress;
   paymentDetails?: IPaymentDetails;
+  isEmailVerified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -115,3 +116,30 @@ export interface IAuthTokens {
   refreshToken: string;
   expiresIn: number; // in seconds
 }
+
+export interface ITrustedDevice {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  email: string;
+  deviceId: string;
+  tokenHash: string;
+  isVerified: boolean;
+  verifiedAt: Date;
+  lastUsedAt: Date;
+  expiresAt: Date;
+  userAgent?: string;
+  ipAddress?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ITrustedDeviceDocument extends ITrustedDevice, Document {
+  _id: Types.ObjectId;
+}
+
+export interface IDeviceCredential {
+  email: string;
+  deviceId: string;
+  deviceToken: string;
+}
+
