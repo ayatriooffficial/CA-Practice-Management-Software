@@ -64,7 +64,7 @@ export const ClientNotesTab: React.FC<ClientNotesTabProps> = ({
                   {note.content}
                 </p>
                 <span className="text-[10px] text-gray-400 font-medium block">
-                  Logged by {note.author || "Dipak Sahani"}
+                  Logged by {note.author || "Staff"}
                 </span>
               </div>
               {canDelete("clients") && (

@@ -149,4 +149,17 @@ export class TaskController {
     const result = await TaskService.uploadGeneralTaskDocument(id, file, title, category, description);
     return ApiResponse.success(res, result, 'Task document uploaded to Google Drive successfully');
   });
+
+  static linkEmail = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const task = await TaskService.linkEmail(id, req.body);
+    return ApiResponse.success(res, task, 'Email linked to task successfully');
+  });
+
+  static unlinkEmail = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const messageId = String(req.params.messageId);
+    const task = await TaskService.unlinkEmail(id, messageId);
+    return ApiResponse.success(res, task, 'Email unlinked from task successfully');
+  });
 }

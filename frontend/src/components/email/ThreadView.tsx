@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { CheckSquare, CheckCircle2 } from 'lucide-react';
 import type { ParsedMessage } from '@/lib/integrations/gmail';
+import { AddTaskModal } from '@/components/tasks/AddTaskModal';
 
 interface ThreadViewProps {
   messages: ParsedMessage[];
@@ -28,6 +30,8 @@ export function ThreadView({
 }: ThreadViewProps) {
   const [replyBody, setReplyBody] = useState('');
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [convertSuccessMessage, setConvertSuccessMessage] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -181,7 +185,56 @@ export function ThreadView({
             </p>
           </div>
         </div>
+
+        {/* Action Button: Convert to Task */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setIsAddTaskOpen(true)}
+            id="convert-email-to-task-btn"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--primary)',
+              color: 'var(--text-inverse)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:opacity-90 active:scale-95 shadow-xs"
+          >
+            <CheckSquare style={{ width: 14, height: 14 }} />
+            <span>Convert to Task</span>
+          </button>
+        </div>
       </div>
+
+      {/* Convert to Task Success Notification */}
+      {convertSuccessMessage && (
+        <div
+          style={{
+            margin: '0.75rem 1.25rem 0',
+            padding: '0.625rem 1rem',
+            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+            color: '#10B981',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: '0.8125rem',
+            fontWeight: 500,
+          }}
+        >
+          <CheckCircle2 style={{ width: 16, height: 16 }} />
+          <span>{convertSuccessMessage}</span>
+        </div>
+      )}
 
       {/* Messages Stream in Chronological Order */}
       <div
@@ -409,6 +462,31 @@ export function ThreadView({
           </form>
         </section>
       </div>
+
+      {isAddTaskOpen && (
+        <AddTaskModal
+          isOpen={isAddTaskOpen}
+          onClose={() => setIsAddTaskOpen(false)}
+          onTaskCreated={(newTask) => {
+            setIsAddTaskOpen(false);
+            setConvertSuccessMessage(`Task ${newTask.taskId} created and email linked!`);
+            setTimeout(() => setConvertSuccessMessage(null), 5000);
+          }}
+          initialData={{
+            taskName: firstMessage.subject || '',
+            description: (firstMessage.bodyText || '').slice(0, 300).replace(/\s+/g, ' ').trim(),
+            linkedEmail: {
+              messageId: firstMessage.id,
+              threadId: firstMessage.threadId,
+              subject: firstMessage.subject || '(No Subject)',
+              snippet: (firstMessage.bodyText || '').slice(0, 250).replace(/\s+/g, ' ').trim(),
+              sender: firstMessage.from || '',
+              date: firstMessage.date || new Date().toISOString(),
+              linkedAt: new Date().toISOString(),
+            },
+          }}
+        />
+      )}
     </div>
   );
 }

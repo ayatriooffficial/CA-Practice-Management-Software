@@ -157,5 +157,72 @@ export class LeadController {
       'Lead document verified and uploaded to Google Drive'
     );
   });
+
+  /**
+   * Get all tasks for a lead
+   * GET /api/v1/leads/:id/tasks
+   */
+  static getLeadTasks = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const tasks = await LeadService.getLeadTasks(id);
+    return ApiResponse.success(res, tasks, 'Lead tasks fetched successfully');
+  });
+
+  /**
+   * Create a new follow-up task for a lead
+   * POST /api/v1/leads/:id/tasks
+   */
+  static createLeadTask = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const userCtx = getUserContextFromRequest(req);
+    const task = await LeadService.createLeadTask(id, req.body, userCtx);
+    return ApiResponse.created(res, task, 'Lead follow-up task created successfully');
+  });
+
+  /**
+   * Update a lead task
+   * PATCH /api/v1/leads/:id/tasks/:taskId
+   */
+  static updateLeadTask = asyncHandler(async (req: Request, res: Response) => {
+    const taskId = req.params.taskId as string;
+    const task = await LeadService.updateLeadTask(taskId, req.body);
+    return ApiResponse.success(res, task, 'Lead task updated successfully');
+  });
+
+  /**
+   * Delete a lead task
+   * DELETE /api/v1/leads/:id/tasks/:taskId
+   */
+  static deleteLeadTask = asyncHandler(async (req: Request, res: Response) => {
+    const taskId = req.params.taskId as string;
+    const result = await LeadService.deleteLeadTask(taskId);
+    return ApiResponse.success(res, result, 'Lead task deleted successfully');
+  });
+
+  /**
+   * Add a detail note to a lead
+   * POST /api/v1/leads/:id/notes
+   */
+  static addLeadNote = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const { note, author } = req.body;
+    if (!note || !note.trim()) {
+      throw AppError.badRequest('Note text is required');
+    }
+    const lead = await LeadService.addLeadNote(id, note.trim(), author);
+    return ApiResponse.created(res, lead, 'Lead note added successfully');
+  });
+
+  /**
+   * Delete a detail note from a lead
+   * DELETE /api/v1/leads/:id/notes/:noteId
+   */
+  static deleteLeadNote = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const noteId = req.params.noteId as string;
+    const lead = await LeadService.deleteLeadNote(id, noteId);
+    return ApiResponse.success(res, lead, 'Lead note removed successfully');
+  });
 }
+
 

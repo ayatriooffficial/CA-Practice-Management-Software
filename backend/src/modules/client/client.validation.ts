@@ -99,6 +99,38 @@ export const createClientSchema = z.object({
   city: z.string().max(100).optional().default(''),
   state: z.string().max(100).optional().default(''),
   pincode: z.string().max(10).optional().default(''),
+  addressDetails: z
+    .object({
+      addressLine1: z.string().optional(),
+      addressLine2: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      stateCode: z.string().optional(),
+      pincode: z.string().optional(),
+      country: z.string().optional(),
+      landmark: z.string().optional(),
+    })
+    .optional(),
+  paymentDetails: z
+    .object({
+      bankDetails: z
+        .object({
+          bankName: z.string().optional(),
+          accountNumber: z.string().optional(),
+          accountHolderName: z.string().optional(),
+          ifscCode: z.string().optional(),
+          branchName: z.string().optional(),
+          accountType: z.string().optional(),
+          upiId: z.string().optional(),
+          qrCodeUrl: z.string().optional(),
+        })
+        .optional(),
+      paymentMode: z.string().optional(),
+      currency: z.string().optional(),
+      terms: z.string().optional(),
+      isDefault: z.boolean().optional(),
+    })
+    .optional(),
   group: z.string().min(1, 'Client practice group is required'),
   tags: z.array(z.string()).optional().default([]),
   active: z.boolean().optional().default(true),

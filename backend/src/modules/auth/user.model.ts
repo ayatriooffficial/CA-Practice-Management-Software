@@ -1,5 +1,7 @@
 import { Schema, model } from 'mongoose';
 import { IUserDocument } from './auth.interface';
+import { addressSchema } from '../../shared/schemas/address.schema';
+import { paymentDetailsSchema } from '../../shared/schemas/payment.schema';
 
 const userSchema = new Schema<IUserDocument>(
   {
@@ -41,7 +43,8 @@ const userSchema = new Schema<IUserDocument>(
     },
     role: {
       type: String,
-      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff', 'Admin', 'Partner', 'Manager', 'Employee'],
+      set: (v: string) => (v ? v.toLowerCase() : 'admin'),
+      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff'],
       default: 'admin',
       index: true,
     },
@@ -69,7 +72,8 @@ const userSchema = new Schema<IUserDocument>(
     },
     status: {
       type: String,
-      enum: ['active', 'suspended', 'invited', 'Active', 'Deactivated', 'Resigned', 'Inactive'],
+      set: (v: string) => (v ? v.toLowerCase() : 'active'),
+      enum: ['active', 'suspended', 'invited', 'deactivated', 'resigned', 'inactive'],
       default: 'active',
       index: true,
     },
@@ -85,12 +89,27 @@ const userSchema = new Schema<IUserDocument>(
       type: Date,
       default: null,
     },
+    addressDetails: {
+      type: addressSchema,
+      default: () => ({}),
+    },
+    paymentDetails: {
+      type: paymentDetailsSchema,
+      default: () => ({}),
+    },
   },
   {
     timestamps: true,
     toJSON: {
       transform(_doc, ret: Record<string, any>) {
         ret.id = String(ret._id);
+        if (ret.orgId && typeof ret.orgId === 'object') {
+          ret.firmName = ret.firmName || ret.orgId.name || '';
+          ret.orgId = String(ret.orgId._id || ret.orgId);
+        } else if (ret.orgId) {
+          ret.orgId = String(ret.orgId);
+        }
+        delete ret._id;
         delete ret.__v;
         delete ret.passwordHash;
         return ret;

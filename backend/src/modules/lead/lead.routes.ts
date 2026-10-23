@@ -105,4 +105,15 @@ router.post(
   LeadController.uploadDocument
 );
 
+// Lead Follow-Up Tasks
+router.get('/:id/tasks', LeadController.getLeadTasks);
+router.post('/:id/tasks', mutationRateLimiter, LeadController.createLeadTask);
+router.patch('/:id/tasks/:taskId', mutationRateLimiter, LeadController.updateLeadTask);
+router.delete('/:id/tasks/:taskId', mutationRateLimiter, LeadController.deleteLeadTask);
+
+// Lead Detail Notes
+router.post('/:id/notes', mutationRateLimiter, LeadController.addLeadNote);
+router.delete('/:id/notes/:noteId', mutationRateLimiter, LeadController.deleteLeadNote);
+
 export const leadRoutes = router;
+

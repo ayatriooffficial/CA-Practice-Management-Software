@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { X, Loader2, StickyNote } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
+import { useAuth } from "@/components/auth/AuthContext";
 
 interface AddNoteModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const AddNoteModal: React.FC<AddNoteModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { currentUser } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,7 +41,7 @@ export const AddNoteModal: React.FC<AddNoteModalProps> = ({
       const payload = {
         title: title.trim() || "Client Observation",
         content: content.trim(),
-        author: "Dipak Sahani",
+        author: currentUser?.name || "Staff",
         createdAt: new Date().toISOString(),
       };
 

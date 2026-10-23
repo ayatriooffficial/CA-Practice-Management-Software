@@ -68,6 +68,16 @@ export interface ITaskCompliance {
 }
 
 
+export interface ILinkedEmail {
+  messageId: string;
+  threadId: string;
+  subject: string;
+  snippet: string;
+  sender: string;
+  date: Date;
+  linkedAt: Date;
+}
+
 export interface ITask {
   taskId: string;
   taskName: string;
@@ -107,6 +117,7 @@ export interface ITask {
   checklist: ITaskChecklistItem[];
   documentRequests: ITaskDocumentRequestItem[];
   comments: ITaskComment[];
+  linkedEmails?: ILinkedEmail[];
   complianceStatus?: ITaskCompliance;
   isTimerRunning?: boolean;
   timerStartedAt?: Date | null;

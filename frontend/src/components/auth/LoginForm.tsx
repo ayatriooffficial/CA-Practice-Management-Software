@@ -51,23 +51,18 @@ export const LoginForm: React.FC = () => {
 
     setIsSendingOtp(true);
     try {
-      // Look up user in database or use provisional user for demo testing
+      // Look up user in database
       const existing = await authService.lookupUser(target, mode);
-      const userToUse = existing || {
-        id: `usr_${Date.now()}`,
-        name: mode === "email" ? target.split("@")[0] : `User ${cleanMobile.slice(-4)}`,
-        email: mode === "email" ? target : `${cleanMobile}@ayatrio.local`,
-        mobile: mode === "mobile" ? cleanMobile : "9876543210",
-        role: "employee" as const,
-        firmName: "Ayatrio Practice",
-        initials: "AP",
-      };
+      if (!existing) {
+        setErrorMessage("Account not found. Please register first or verify your email/mobile.");
+        return;
+      }
 
-      setPendingUser(userToUse);
+      setPendingUser(existing);
       await authService.sendOtp(target, mode);
       setIsOtpStep(true);
-    } catch {
-      setErrorMessage("Unable to send OTP. Please try again.");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Unable to send OTP. Please try again.");
     } finally {
       setIsSendingOtp(false);
     }
@@ -77,8 +72,8 @@ export const LoginForm: React.FC = () => {
     const target = mode === "email" ? email.trim() : cleanMobile;
     const res = await authService.verifyOtp(target, code);
 
-    if (res.success && (res.user || pendingUser)) {
-      login(res.user || pendingUser!);
+    if (res.success && res.user) {
+      login(res.user);
       setTimeout(() => {
         router.push("/");
       }, 700);

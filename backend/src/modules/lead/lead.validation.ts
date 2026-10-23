@@ -47,6 +47,65 @@ export const createLeadSchema = z.object({
   photo: z.string().nullable().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'converted', 'dropped']).optional().default('new'),
   notes: z.string().max(1000).optional().default(''),
+  pipelineStage: z.string().optional().default('new_lead'),
+  leadScore: z
+    .object({
+      score: z.number().nullable().optional(),
+      businessSize: z.number().nullable().optional(),
+      responseTime: z.number().nullable().optional(),
+      engagement: z.number().nullable().optional(),
+      sourceQuality: z.number().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  dealValue: z.number().optional().default(0),
+  daysInStage: z.number().optional().default(0),
+  businessName: z.string().optional().default(''),
+  businessType: z.string().optional().default('Individual'),
+  servicesInterested: z.array(z.string()).optional().default([]),
+  gstin: z.string().optional().default(''),
+  detailNotes: z
+    .array(
+      z.object({
+        id: z.string(),
+        note: z.string(),
+        author: z.string().optional().default('Staff'),
+        createdAt: z.coerce.date().optional(),
+      })
+    )
+    .optional(),
+  addressDetails: z
+    .object({
+      addressLine1: z.string().optional(),
+      addressLine2: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      stateCode: z.string().optional(),
+      pincode: z.string().optional(),
+      country: z.string().optional(),
+      landmark: z.string().optional(),
+    })
+    .optional(),
+  paymentDetails: z
+    .object({
+      bankDetails: z
+        .object({
+          bankName: z.string().optional(),
+          accountNumber: z.string().optional(),
+          accountHolderName: z.string().optional(),
+          ifscCode: z.string().optional(),
+          branchName: z.string().optional(),
+          accountType: z.string().optional(),
+          upiId: z.string().optional(),
+          qrCodeUrl: z.string().optional(),
+        })
+        .optional(),
+      paymentMode: z.string().optional(),
+      currency: z.string().optional(),
+      terms: z.string().optional(),
+      isDefault: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const updateLeadSchema = createLeadSchema.partial();

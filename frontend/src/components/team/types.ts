@@ -73,6 +73,7 @@ export interface EmployeeRecord {
   reportingTo?: string;
   shift: string;
   employeeId?: string;
+  orgId?: string;
   joiningDate?: string;
   resignationDate?: string;
   salary?: number | string;

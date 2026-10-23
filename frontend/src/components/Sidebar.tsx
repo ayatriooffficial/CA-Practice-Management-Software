@@ -246,20 +246,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     color: "var(--text-inverse)",
                   }}
                 >
-                  <span suppressHydrationWarning>{currentUser?.initials || (currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "DS")}</span>
+                  {currentUser?.initials ? (
+                    <span className="text-xs font-bold" suppressHydrationWarning>{currentUser.initials}</span>
+                  ) : (
+                    <Building className="w-4 h-4" />
+                  )}
                 </div>
-                <div>
-                  <div
-                    suppressHydrationWarning
-                    className="text-[13.5px] font-semibold tracking-tight"
-                    style={{ color: "var(--text-main)" }}
-                  >
-                    {currentUser?.name || "Deepak Sahani"}
+                {currentUser ? (
+                  <div>
+                    <div
+                      suppressHydrationWarning
+                      className="text-[13.5px] font-semibold tracking-tight"
+                      style={{ color: "var(--text-main)" }}
+                    >
+                      {currentUser.name}
+                    </div>
+                    <div suppressHydrationWarning className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                      {currentUser.firmName || (currentUser.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : "Practice Management")}
+                    </div>
                   </div>
-                  <div suppressHydrationWarning className="text-[10.5px] text-gray-500 dark:text-gray-400">
-                    {currentUser?.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : "Practice Management"}
+                ) : (
+                  <div>
+                    <div
+                      className="text-[13.5px] font-semibold tracking-tight text-gray-500 dark:text-gray-400"
+                    >
+                      Not Logged In
+                    </div>
+                    <Link
+                      href="/login"
+                      onClick={onCloseMobile}
+                      className="text-[10.5px] text-[#31719B] dark:text-[#60a5fa] hover:underline font-medium"
+                    >
+                      Sign In →
+                    </Link>
                   </div>
-                </div>
+                )}
               </div>
 
               <button

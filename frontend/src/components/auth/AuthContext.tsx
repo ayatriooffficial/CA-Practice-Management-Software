@@ -29,6 +29,7 @@ const STORAGE_KEY = "turia_current_user";
 
 export const DEMO_EMPLOYEE_USER: User = {
   id: "6ad9f7c459ba9327d3d347ae",
+  orgId: "6ad9e0000000000000000001",
   name: "Vikram Singhania",
   email: "vikram@ayatrio.com",
   mobile: "8080014896",
@@ -43,6 +44,7 @@ export const DEMO_EMPLOYEE_USER: User = {
 
 export const DEFAULT_USER: User = {
   id: "6ad9e23bf460aa2e6102c0c8",
+  orgId: "6ad9e0000000000000000001",
   name: "Deepak Sahani",
   email: "deepak.sahani@krishnaassociates.example",
   mobile: "9876543210",
@@ -92,6 +94,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const u = res.data;
         const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
         const existingToken = stored ? JSON.parse(stored).token : undefined;
+        const resolvedOrgId = String(
+          u.orgId?._id || u.orgId || (stored ? JSON.parse(stored).orgId : "") || ""
+        );
 
         const roleLower = (u.role || "employee").toLowerCase();
         let resolvedPerms = u.permissions;
@@ -107,17 +112,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
           role: roleLower,
           initials: u.initials || computeInitials(u.name),
-          orgId: u.orgId?._id || u.orgId,
+          orgId: resolvedOrgId,
+          createdAt: u.createdAt,
           department: u.department,
           designation: u.designation,
           status: u.status,
-          permissions: resolvedPerms,
+          employeeId: u.employeeId,
+          permissions: resolvedPerms || u.permissions || {},
           token: existingToken,
         };
 
         setCurrentUser(updatedUser);
         if (typeof window !== "undefined") {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+          if (resolvedOrgId) {
+            localStorage.setItem("x-org-id", resolvedOrgId);
+          }
         }
       }
     } catch {
@@ -142,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       localStorage.removeItem("turia_user_logged_out");
       localStorage.setItem(STORAGE_KEY, JSON.stringify(enrichedUser));
+      if (enrichedUser.orgId) localStorage.setItem("x-org-id", enrichedUser.orgId);
     } catch {
       // Ignore storage errors
     }
@@ -167,13 +178,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed: User = JSON.parse(stored);
-        if (parsed && parsed.name) {
+        const isLegacyFake =
+          parsed.id?.startsWith("usr_") ||
+          parsed.orgId === "org_ayatrio_practice" ||
+          parsed.token === "demo_access_token_verified";
+
+        if (isLegacyFake) {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem("x-org-id");
+          setCurrentUser(null);
+        } else if (parsed && parsed.name && parsed.orgId) {
           const roleLower = (parsed.role || "employee").toLowerCase();
           if (!parsed.permissions || Object.keys(parsed.permissions).length === 0) {
             parsed.permissions = getPresetPermissions(roleLower === "admin" ? "Admin" : "Employee");
           }
           parsed.initials = computeInitials(parsed.name);
           setCurrentUser(parsed);
+          localStorage.setItem("x-org-id", parsed.orgId);
 
           if (parsed.token) {
             refreshProfile().catch(() => {});
@@ -196,8 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       window.removeEventListener("auth:session-expired", handleSessionExpired);
     };
-  }, [logout, refreshProfile]);
-
+  }, [logout, refreshProfile]);
   return (
     <AuthContext.Provider value={{ currentUser, isLoading, login, logout, refreshProfile, switchToUser }}>
       {children}

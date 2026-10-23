@@ -35,10 +35,7 @@ export class AuthService {
    * Helper to build JWT payload from a User document
    */
   private static buildJwtPayload(user: IUserDocument, firmName: string): IJwtUserPayload {
-    const resolvedOrgId = user.orgId && (user.orgId as any)._id
-      ? String((user.orgId as any)._id)
-      : String(user.orgId);
-
+    const resolvedOrgId = String((user.orgId as any)?._id || user.orgId || '');
     return {
       userId: String(user._id),
       orgId: resolvedOrgId,
@@ -238,9 +235,23 @@ export class AuthService {
       }
     }
 
-    const statusLower = (user.status || '').toLowerCase();
-    if (statusLower !== 'active') {
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
       throw new AppError('Your account has been deactivated. Please contact your administrator.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    if (!user.orgId) {
+      let org = await OrganizationModel.findOne();
+      if (!org) {
+        org = await OrganizationModel.create({
+          name: 'Ayatrio Practice',
+          code: 'ayatrio-practice',
+          totalSeats: 10,
+          isActive: true,
+        });
+      }
+      user.orgId = org._id as any;
+      user.firmName = user.firmName || org.name;
     }
 
     user.lastLoginAt = new Date();
@@ -249,7 +260,7 @@ export class AuthService {
     // Create session
     const session = await RefreshSessionModel.create({
       userId: user._id,
-      orgId: user.orgId,
+      orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
@@ -293,9 +304,23 @@ export class AuthService {
       throw AppError.unauthorized('Invalid email or password');
     }
 
-    const statusLower = (user.status || '').toLowerCase();
-    if (statusLower !== 'active') {
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
       throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    if (!user.orgId) {
+      let org = await OrganizationModel.findOne();
+      if (!org) {
+        org = await OrganizationModel.create({
+          name: 'Ayatrio Practice',
+          code: 'ayatrio-practice',
+          totalSeats: 10,
+          isActive: true,
+        });
+      }
+      user.orgId = org._id as any;
+      user.firmName = user.firmName || org.name;
     }
 
     user.lastLoginAt = new Date();
@@ -303,7 +328,7 @@ export class AuthService {
 
     const session = await RefreshSessionModel.create({
       userId: user._id,
-      orgId: user.orgId,
+      orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
@@ -354,8 +379,8 @@ export class AuthService {
     }
 
     const user = await UserModel.findById(decoded.userId).populate('orgId', 'name');
-    const userStatusLower = (user?.status || '').toLowerCase();
-    if (!user || userStatusLower !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
+    const userStatusStr = String(user?.status || 'active').toLowerCase();
+    if (!user || userStatusStr !== 'active' || user.tokenVersion !== decoded.tokenVersion) {
       session.isRevoked = true;
       await session.save();
       throw AppError.unauthorized('User not found, deactivated, or sessions invalidated');
@@ -367,7 +392,7 @@ export class AuthService {
 
     const newSession = await RefreshSessionModel.create({
       userId: user._id,
-      orgId: user.orgId,
+      orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || session.userAgent,
       ipAddress: options?.ipAddress || session.ipAddress,
@@ -511,5 +536,122 @@ export class AuthService {
    */
   public static async deleteTeamMember(id: string): Promise<void> {
     await UserModel.findByIdAndDelete(id);
+  }
+
+  /**
+   * Get organization details (address, bank details, GSTIN, PAN, LUT, etc.)
+   */
+  public static async getOrganization(orgId?: string): Promise<any> {
+    let org: any = null;
+    if (orgId && mongoose.Types.ObjectId.isValid(orgId)) {
+      org = await OrganizationModel.findById(orgId).lean();
+    }
+    if (!org) {
+      org = await OrganizationModel.findOne().lean();
+    }
+
+    if (!org) {
+      // Auto-provision initial organization
+      const createdOrg = await OrganizationModel.create({
+        name: 'Ayatrio Practice Management Firm',
+        email: 'contact@ayatrio.com',
+        mobile: '9876543210',
+        pan: 'AAACA0000A',
+        gstin: '27AAACA0000A1Z5',
+        website: 'https://ayatrio.com',
+        lutNumber: 'AD270324000123M',
+        lutDisabled: false,
+        address: 'Unit 402, Signature Tower, Bandra Kurla Complex',
+        addressDetails: {
+          addressLine1: 'Unit 402, Signature Tower',
+          addressLine2: 'Bandra Kurla Complex',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          stateCode: '27',
+          pincode: '400051',
+          country: 'India',
+          landmark: 'Near Diamond Bourse',
+        },
+        paymentDetails: {
+          bankDetails: {
+            bankName: 'HDFC Bank Ltd.',
+            accountNumber: '50200012345678',
+            accountHolderName: 'AYATRIO PRACTICE MANAGEMENT FIRM',
+            ifscCode: 'HDFC0000060',
+            branchName: 'BKC Branch, Mumbai',
+            accountType: 'Current',
+            upiId: 'ayatrio@hdfcbank',
+            qrCodeUrl: '',
+          },
+          paymentMode: 'Bank Transfer',
+          currency: 'INR',
+          terms: 'Payment due within 15 days of invoice date. 18% p.a. interest applicable after due date.',
+          isDefault: true,
+        },
+        totalSeats: 999999,
+        isActive: true,
+      });
+      return createdOrg.toJSON();
+    }
+
+    // Ensure fallback fields exist if saved without them in older DB documents
+    const orgObj = { ...org, id: String(org._id) };
+    if (!orgObj.addressDetails || !orgObj.addressDetails.state) {
+      orgObj.addressDetails = {
+        addressLine1: orgObj.address || 'Unit 402, Signature Tower',
+        addressLine2: 'Bandra Kurla Complex',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        stateCode: '27',
+        pincode: '400051',
+        country: 'India',
+        landmark: 'Near Diamond Bourse',
+        ...(orgObj.addressDetails || {}),
+      };
+    }
+    if (!orgObj.paymentDetails || !orgObj.paymentDetails.bankDetails?.bankName) {
+      orgObj.paymentDetails = {
+        bankDetails: {
+          bankName: 'HDFC Bank Ltd.',
+          accountNumber: '50200012345678',
+          accountHolderName: orgObj.name || 'AYATRIO PRACTICE MANAGEMENT FIRM',
+          ifscCode: 'HDFC0000060',
+          branchName: 'BKC Branch, Mumbai',
+          accountType: 'Current',
+          upiId: 'ayatrio@hdfcbank',
+          qrCodeUrl: '',
+          ...(orgObj.paymentDetails?.bankDetails || {}),
+        },
+        paymentMode: orgObj.paymentDetails?.paymentMode || 'Bank Transfer',
+        currency: orgObj.paymentDetails?.currency || 'INR',
+        terms: orgObj.paymentDetails?.terms || 'Payment due within 15 days of invoice date.',
+        isDefault: true,
+      };
+    }
+    if (!orgObj.gstin) orgObj.gstin = '27AAACA0000A1Z5';
+    if (!orgObj.pan) orgObj.pan = 'AAACA0000A';
+    if (!orgObj.lutNumber) orgObj.lutNumber = 'AD270324000123M';
+
+    return orgObj;
+  }
+
+  /**
+   * Update organization details
+   */
+  public static async updateOrganization(orgId: string, updates: Record<string, any>): Promise<any> {
+    let org = null;
+    if (orgId && mongoose.Types.ObjectId.isValid(orgId)) {
+      org = await OrganizationModel.findByIdAndUpdate(orgId, { $set: updates }, { new: true });
+    }
+    if (!org) {
+      const anyOrg = await OrganizationModel.findOne();
+      if (anyOrg) {
+        org = await OrganizationModel.findByIdAndUpdate(anyOrg._id, { $set: updates }, { new: true });
+      }
+    }
+    if (!org) {
+      org = await OrganizationModel.create(updates);
+    }
+    return org;
   }
 }

@@ -235,7 +235,7 @@ export function createSeedData(): SeedData {
     {
       id: 'act-log-1',
       at: daysAgoIso(0),
-      userId: 'user-dipak',
+      userId: 'user-admin',
       clientId: 'client-karnataka-stores',
       noticeId: 'notice-gst-1',
       action: 'status_changed',
@@ -245,7 +245,7 @@ export function createSeedData(): SeedData {
     {
       id: 'act-log-2',
       at: daysAgoIso(1),
-      userId: 'user-dipak',
+      userId: 'user-admin',
       clientId: 'client-miracle-coro',
       noticeId: 'notice-gst-28',
       action: 'file_downloaded',
@@ -261,7 +261,7 @@ export function createSeedData(): SeedData {
     {
       id: 'act-log-4',
       at: daysAgoIso(2),
-      userId: 'user-dipak',
+      userId: 'user-admin',
       clientId: 'client-trustgrid',
       noticeId: 'notice-gst-50',
       action: 'status_changed',
@@ -289,7 +289,7 @@ export function createSeedData(): SeedData {
     {
       id: 'act-log-7',
       at: daysAgoIso(7),
-      userId: 'user-dipak',
+      userId: 'user-admin',
       clientId: 'client-miracle-coro',
       noticeId: 'notice-gst-30',
       action: 'file_downloaded',
@@ -315,7 +315,7 @@ export function createSeedData(): SeedData {
     {
       id: 'act-log-10',
       at: daysAgoIso(21),
-      userId: 'user-dipak',
+      userId: 'user-admin',
       clientId: 'client-karnataka-stores',
       noticeId: 'notice-gst-12',
       action: 'status_changed',

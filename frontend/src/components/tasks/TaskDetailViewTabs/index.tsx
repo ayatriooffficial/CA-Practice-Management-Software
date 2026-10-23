@@ -9,6 +9,7 @@ import { TaskSummaryTab } from "./TaskSummaryTab";
 import { TaskSubTasksList } from "./TaskSubTasksList";
 import { TaskInfoPanel } from "./TaskInfoPanel";
 import { TaskNavigationMenu } from "./TaskNavigationMenu";
+import { TaskLinkedEmailsTab } from "./TaskLinkedEmailsTab";
 
 export {
   TaskChecklistTab,
@@ -18,6 +19,7 @@ export {
   TaskSubTasksList,
   TaskInfoPanel,
   TaskNavigationMenu,
+  TaskLinkedEmailsTab,
 };
 
 export interface TaskDetailViewTabsProps {
@@ -48,6 +50,7 @@ export interface TaskDetailViewTabsProps {
   setCommentText: (val: string) => void;
   isSendingComment: boolean;
   handleSendComment: (e: React.FormEvent) => Promise<void>;
+  onTaskUpdated?: (updatedTask: TaskItem) => void;
 }
 
 export const TaskDetailViewTabs: React.FC<TaskDetailViewTabsProps> = ({
@@ -75,7 +78,17 @@ export const TaskDetailViewTabs: React.FC<TaskDetailViewTabsProps> = ({
   setCommentText,
   isSendingComment,
   handleSendComment,
+  onTaskUpdated,
 }) => {
+  if (activeSubTab === "Linked Emails") {
+    return (
+      <TaskLinkedEmailsTab
+        task={task}
+        onTaskUpdated={onTaskUpdated}
+      />
+    );
+  }
+
   if (activeSubTab === "Checklist") {
     return (
       <TaskChecklistTab

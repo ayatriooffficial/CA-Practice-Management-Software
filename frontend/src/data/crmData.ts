@@ -1,3 +1,70 @@
+export interface LeadScore {
+  score: number;
+  businessSize: number;
+  responseTime: number;
+  engagement: number;
+  sourceQuality: number;
+}
+
+export interface LeadNoteItem {
+  id: string;
+  note: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface LeadFollowUpTask {
+  id: string;
+  leadId: string;
+  title: string;
+  taskDate: string;
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Overdue';
+  assigneeId?: string;
+  assigneeName: string;
+  assigneeInitials?: string;
+  startTime?: string;
+  endTime?: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  contactMethod: 'Call' | 'Email' | 'WhatsApp' | 'Meeting';
+  outcome?: string;
+  author: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AddressDetails {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  stateCode?: string;
+  pincode?: string;
+  country?: string;
+  landmark?: string;
+}
+
+export interface BankDetails {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  ifscCode?: string;
+  branchName?: string;
+  accountType?: string;
+  upiId?: string;
+  qrCodeUrl?: string;
+}
+
+export interface PaymentDetails {
+  bankDetails?: BankDetails;
+  paymentMode?: string;
+  currency?: string;
+  terms?: string;
+  isDefault?: boolean;
+}
+
 export interface Lead {
   id: string;
   fullName: string;
@@ -29,6 +96,18 @@ export interface Lead {
   photo?: string | null;
   createdAt: string;
   updatedAt: string;
+  status?: string;
+  pipelineStage?: string;
+  leadScore?: LeadScore;
+  dealValue?: number;
+  daysInStage?: number;
+  businessName?: string;
+  businessType?: string;
+  servicesInterested?: string[];
+  gstin?: string;
+  detailNotes?: LeadNoteItem[];
+  addressDetails?: AddressDetails;
+  paymentDetails?: PaymentDetails;
 }
 
 export interface ClientLicense {
@@ -138,6 +217,8 @@ export interface Client {
   serviceSettings?: ClientServiceSetting[];
   passwords?: ClientPassword[];
   notes?: ClientNote[];
+  addressDetails?: AddressDetails;
+  paymentDetails?: PaymentDetails;
 }
 
 export const STATES = [

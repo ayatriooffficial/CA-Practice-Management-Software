@@ -238,16 +238,6 @@ export const teamStore = {
           costPerHour: u.internalCostRatePaisePerHour == null ? undefined : Number(u.internalCostRatePaisePerHour) / 100,
         }));
         if (backendEmps.length > 0) {
-          try {
-            const rates = await financialApi.listInternalCostRates();
-            const rateByEmployee = new Map(rates.map((rate) => [rate.id, rate.ratePaisePerHour]));
-            backendEmps.forEach((employee) => {
-              const rate = rateByEmployee.get(employee.id);
-              employee.costPerHour = rate == null ? undefined : rate / 100;
-            });
-          } catch {
-            // Team list remains available when the current user cannot view compensation.
-          }
           this.saveEmployees(backendEmps);
           return backendEmps;
         }
@@ -420,6 +410,7 @@ export const teamStore = {
         createdAt?: string;
         status?: 'Active' | 'Deactivated' | 'Resigned';
         permissions?: RolePermissionsMap;
+        orgId?: string;
       }> = rawUsers ? JSON.parse(rawUsers) : [];
 
       authUsers = authUsers.filter(
@@ -445,16 +436,17 @@ export const teamStore = {
           };
         } else {
           authUsers.push({
-            id: `usr_${emp.id}`,
+            id: emp.id,
             name: emp.name,
             email: emp.email,
             mobile: emp.mobile,
-            firmName: 'Krishna Associates',
+            firmName: (emp as any).firmName || 'Ayatrio Practice',
             role: authRole,
             initials: emp.initials,
             status: emp.status,
             permissions: emp.permissions,
             createdAt: emp.createdAt,
+            orgId: emp.orgId || '',
           });
         }
       });

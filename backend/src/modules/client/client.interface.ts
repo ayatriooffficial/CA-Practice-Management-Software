@@ -1,5 +1,7 @@
 import { Types } from 'mongoose';
 import { ISoftDeleteDocument } from '../../shared/plugins/softDelete.plugin';
+import { IAddress } from '../../shared/schemas/address.schema';
+import { IPaymentDetails } from '../../shared/schemas/payment.schema';
 
 export interface IPromoterFile {
   key?: number;
@@ -115,6 +117,8 @@ export interface IClient {
   city?: string;
   state?: string;
   pincode?: string;
+  addressDetails?: IAddress;
+  paymentDetails?: IPaymentDetails;
   group: string;
   tags: string[];
   active: boolean;

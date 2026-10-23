@@ -64,6 +64,16 @@ export interface TaskComplianceStatus {
   attachmentsCount?: number;
 }
 
+export interface LinkedEmail {
+  messageId: string;
+  threadId: string;
+  subject: string;
+  snippet: string;
+  sender: string;
+  date: string | Date;
+  linkedAt: string | Date;
+}
+
 export interface TaskItem {
   id: string;
   taskId: string;
@@ -104,6 +114,7 @@ export interface TaskItem {
   checklist: TaskChecklistItem[];
   documentRequests: TaskDocumentRequestItem[];
   comments: TaskComment[];
+  linkedEmails?: LinkedEmail[];
   complianceStatus?: TaskComplianceStatus;
   isTimerRunning?: boolean;
   timeSpentSeconds?: number;
@@ -213,8 +224,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'One-Time Task',
     status: 'Pending',
     description: 'Prepare invoice data for IFF under QRMP scheme. Perform reconciliation with GSTR-2B before filing.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1 - Collect Invoices', completed: false, timeSpent: '00:00:00' },
       { id: '2', title: 'Step 2 - Reconcile GSTR-2B', completed: false, timeSpent: '00:00:00' },
@@ -268,8 +279,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'One-Time Task',
     status: 'Pending',
     description: 'Monthly GSTR-3B return compilation and liability setoff.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: false, timeSpent: '00:00:00' },
       { id: '2', title: 'Step 2', completed: false, timeSpent: '00:00:00' },
@@ -313,8 +324,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'One-Time Task',
     status: 'Overdue',
     description: 'GST DRC-01 show-cause notice defense reply drafting and document submission.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: false, timeSpent: '00:00:00' },
       { id: '2', title: 'Step 2', completed: false, timeSpent: '00:00:00' },
@@ -352,8 +363,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'One-Time Task',
     status: 'Pending',
     description: 'Bank reconciliation, sales voucher entry and journal reconciliation.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: false, timeSpent: '00:00:00' },
       { id: '2', title: 'Step 2', completed: false, timeSpent: '00:00:00' },
@@ -391,8 +402,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'One-Time Task',
     status: 'In Progress',
     description: 'Reconcile ITC with 2B and verify supplier outward supplies.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: true, timeSpent: '00:15:00' },
       { id: '2', title: 'Step 2', completed: false, timeSpent: '00:00:00' },
@@ -430,8 +441,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'Recurring Task',
     status: 'Pending',
     description: 'Initial advisory and stage 1 document collection.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: false, timeSpent: '00:00:00' },
     ],
@@ -468,8 +479,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'Recurring Task',
     status: 'Completed',
     description: 'Salary and other sources individual return filed with Form 16 verification.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: true, timeSpent: '00:30:00' },
       { id: '2', title: 'Step 2', completed: true, timeSpent: '00:20:00' },
@@ -507,8 +518,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'Recurring Task',
     status: 'Ready to Bill',
     description: 'Individual return ready for invoice generation.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: true, timeSpent: '00:25:00' },
     ],
@@ -545,8 +556,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'Recurring Task',
     status: 'Completed',
     description: 'LLP business ITR filed under Section 44AD presumptive scheme.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: true, timeSpent: '00:40:00' },
       { id: '2', title: 'Step 2', completed: true, timeSpent: '00:15:00' },
@@ -584,8 +595,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     taskType: 'Recurring Task',
     status: 'Completed',
     description: 'Income tax individual verification.',
-    creatorName: 'Dipak Sahani',
-    adminId: 'admin-dipak-sahani',
+    creatorName: '',
+    adminId: '',
     subTasks: [
       { id: '1', title: 'Step 1', completed: true, timeSpent: '00:10:00' },
     ],

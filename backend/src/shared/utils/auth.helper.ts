@@ -47,16 +47,11 @@ export function getUserContextFromRequest(req: Request): IUserContext {
   const userId = getUserIdFromRequest(req);
   let orgId = getOrgIdFromRequest(req);
 
-  // Default to primary organization if not explicitly supplied
-  if (!orgId) {
-    orgId = '6ad9e23bf460aa2e6102c0c6';
-  }
-
   return {
     userId,
-    orgId,
+    orgId: orgId || null,
     email: req.user?.email || undefined,
-    name: req.user?.name || (userId === '6ad9e23bf460aa2e6102c0c8' ? 'Dipak Sahani' : undefined),
+    name: req.user?.name || undefined,
     role: req.user?.role || (req.headers['x-user-role'] as string) || undefined,
   };
 }

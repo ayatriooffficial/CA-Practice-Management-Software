@@ -6,6 +6,7 @@ import {
   ITaskDocument,
   ITaskSummaryRow,
   ITaskStats,
+  ILinkedEmail,
 } from './task.interface';
 import { QueryOptions } from '../../shared/utils/queryBuilder';
 import { AppError } from '../../shared/utils/apiError';
@@ -788,8 +789,8 @@ export class TaskService {
 
     const orgId = userCtx?.orgId || data.orgId || null;
     const userId = userCtx?.userId || data.userId || null;
-    const creatorName = data.creatorName || userCtx?.name || 'Dipak Sahani';
-    const adminId = data.adminId || userId || 'admin-dipak-sahani';
+    const creatorName = data.creatorName || userCtx?.name || '';
+    const adminId = data.adminId || userId || '';
 
     const task = new Task({
       ...data,
@@ -811,6 +812,7 @@ export class TaskService {
       subTasks,
       checklist,
       documentRequests,
+      linkedEmails: data.linkedEmails || [],
       complianceStatus: {
         period: data.period || 'Jun 2026',
         dueDate: data.targetDueDate || '27 Jul, 2026',
@@ -1032,5 +1034,49 @@ export class TaskService {
 
     return { task, document: uploaded };
   }
+
+  /**
+   * Link an email metadata pointer to a task
+   */
+  static async linkEmail(id: string, emailData: ILinkedEmail): Promise<ITaskDocument> {
+    const task = await this.getTaskById(id);
+    if (!task.linkedEmails) {
+      task.linkedEmails = [];
+    }
+
+    const alreadyLinked = task.linkedEmails.some((e) => e.messageId === emailData.messageId);
+    if (!alreadyLinked) {
+      task.linkedEmails.push({
+        messageId: emailData.messageId,
+        threadId: emailData.threadId,
+        subject: emailData.subject || '',
+        snippet: emailData.snippet || '',
+        sender: emailData.sender || '',
+        date: emailData.date ? new Date(emailData.date) : new Date(),
+        linkedAt: emailData.linkedAt ? new Date(emailData.linkedAt) : new Date(),
+      });
+      task.markModified('linkedEmails');
+      await task.save();
+    }
+
+    return task;
+  }
+
+  /**
+   * Unlink an email from a task by messageId
+   */
+  static async unlinkEmail(id: string, messageId: string): Promise<ITaskDocument> {
+    const task = await this.getTaskById(id);
+    if (!task.linkedEmails || task.linkedEmails.length === 0) {
+      return task;
+    }
+
+    task.linkedEmails = task.linkedEmails.filter((e) => e.messageId !== messageId);
+    task.markModified('linkedEmails');
+    await task.save();
+
+    return task;
+  }
 }
+
 

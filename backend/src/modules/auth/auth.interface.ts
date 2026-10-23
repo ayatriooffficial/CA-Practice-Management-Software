@@ -1,4 +1,6 @@
 import { Document, Types } from 'mongoose';
+import { IAddress } from '../../shared/schemas/address.schema';
+import { IPaymentDetails } from '../../shared/schemas/payment.schema';
 
 export type UserRole = 'admin' | 'partner' | 'manager' | 'employee' | 'associate' | 'staff';
 export type UserStatus = 'active' | 'suspended' | 'invited';
@@ -18,9 +20,15 @@ export interface IOrganization {
   name: string;
   code?: string;
   pan?: string;
+  gstin?: string;
   email?: string;
   mobile?: string;
+  website?: string;
+  lutNumber?: string;
+  lutDisabled?: boolean;
   address?: string;
+  addressDetails?: IAddress;
+  paymentDetails?: IPaymentDetails;
   totalSeats: number;
   isActive: boolean;
   createdAt: Date;
@@ -49,6 +57,8 @@ export interface IUser {
   permissions?: RolePermissionsMap;
   tokenVersion: number;
   lastLoginAt?: Date;
+  addressDetails?: IAddress;
+  paymentDetails?: IPaymentDetails;
   createdAt: Date;
   updatedAt: Date;
 }

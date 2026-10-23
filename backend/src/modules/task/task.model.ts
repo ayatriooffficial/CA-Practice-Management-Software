@@ -7,7 +7,7 @@ const commentSchema = new Schema(
   {
     id: { type: String, required: true },
     author: { type: String, required: true },
-    authorInitials: { type: String, default: 'US' },
+    authorInitials: { type: String, default: '' },
     avatarColor: { type: String, default: '#6366F1' },
     text: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
@@ -17,8 +17,8 @@ const commentSchema = new Schema(
 
 const complianceStatusSchema = new Schema(
   {
-    period: { type: String, default: 'Jun 2026' },
-    dueDate: { type: String, default: '27 Jul, 2026' },
+    period: { type: String, default: '' },
+    dueDate: { type: String, default: '' },
     status: {
       type: String,
       enum: ['Overdue', 'Compliant', 'Pending', 'Filed'],
@@ -31,7 +31,20 @@ const complianceStatusSchema = new Schema(
   { _id: false }
 );
 
-const taskSchema = new Schema<ITaskDocument>(
+export const linkedEmailSchema = new Schema(
+  {
+    messageId: { type: String, required: true },
+    threadId: { type: String, required: true },
+    subject: { type: String, default: '' },
+    snippet: { type: String, default: '' },
+    sender: { type: String, default: '' },
+    date: { type: Date, default: Date.now },
+    linkedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+export const taskSchema = new Schema<ITaskDocument>(
   {
     taskId: {
       type: String,
@@ -87,17 +100,17 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     frequency: {
       type: String,
-      default: 'Monthly',
+      default: '',
       trim: true,
     },
     period: {
       type: String,
-      default: 'Jun 2026',
+      default: ' ',
       trim: true,
     },
     financialYear: {
       type: String,
-      default: 'FY 2026 - 2027',
+      default: '',
       trim: true,
       index: true,
     },
@@ -120,7 +133,7 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     assigneeInitials: {
       type: String,
-      default: 'MI',
+      default: '',
     },
     assigneeColor: {
       type: String,
@@ -143,16 +156,16 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     startDate: {
       type: String,
-      default: '27/07/2026',
+      default: '',
     },
     targetDueDate: {
       type: String,
-      default: '27/07/2026',
+      default: '',
       index: true,
     },
     endDate: {
       type: String,
-      default: '27/07/2026',
+      default: '',
     },
     billingType: {
       type: String,
@@ -208,12 +221,12 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     creatorName: {
       type: String,
-      default: 'Dipak Sahani',
+      default: '',
       trim: true,
     },
     adminId: {
       type: String,
-      default: 'admin-dipak-sahani',
+      default: '',
       trim: true,
       index: true,
     },
@@ -250,6 +263,10 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     comments: {
       type: [commentSchema],
+      default: [],
+    },
+    linkedEmails: {
+      type: [linkedEmailSchema],
       default: [],
     },
     complianceStatus: {

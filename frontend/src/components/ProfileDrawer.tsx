@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "./auth/AuthContext";
 import {
   X,
   User,
@@ -15,7 +16,6 @@ import {
   LogOut,
   Smartphone,
 } from "lucide-react";
-import { useAuth } from "./auth/AuthContext";
 
 interface ProfileDrawerProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ interface ProfileDrawerProps {
 
 export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose }) => {
   const router = useRouter();
-  const { logout, currentUser, switchToUser } = useAuth();
+  const { currentUser, logout, switchToUser } = useAuth();
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,74 +89,104 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
             {/* Overlapping Avatar Circle */}
             <div className="absolute -bottom-9 left-1/2 -translate-x-1/2">
               <div
-                className="w-18 h-18 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900 relative transition-transform hover:scale-105"
+                className="w-18 h-18 rounded-full flex items-center justify-center text-xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900 relative transition-transform hover:scale-105"
                 style={{
-                  backgroundColor: "#3D88BF",
+                  backgroundColor: currentUser ? "#3D88BF" : "var(--bg-muted)",
+                  color: currentUser ? "#ffffff" : "var(--text-muted)",
                 }}
               >
-                <span suppressHydrationWarning>{currentUser?.initials || (currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "DS")}</span>
-                {/* Green Online Dot */}
-                <span
-                  className="w-3.5 h-3.5 rounded-full absolute bottom-0.5 right-0.5 border-2 border-white dark:border-gray-900"
-                  style={{ backgroundColor: "var(--status-online)" }}
-                />
+                {currentUser ? (
+                  <span suppressHydrationWarning>{currentUser.initials || currentUser.name.slice(0, 2).toUpperCase()}</span>
+                ) : (
+                  <User className="w-8 h-8 text-gray-400" />
+                )}
+                {currentUser && (
+                  <span
+                    className="w-3.5 h-3.5 rounded-full absolute bottom-0.5 right-0.5 border-2 border-white dark:border-gray-900"
+                    style={{ backgroundColor: "var(--status-online)" }}
+                  />
+                )}
               </div>
             </div>
           </div>
 
-          {/* User Name, Role & Email */}
-          <div className="pt-11 pb-3 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>
-            <h2
-              suppressHydrationWarning
-              className="text-base font-bold tracking-tight"
-              style={{ color: "var(--text-main)" }}
-            >
-              {currentUser?.name || "Deepak Sahani"}
-            </h2>
-            <div className="mt-1 flex items-center justify-center gap-1.5">
-              <span
+          {/* User Name & Role Header */}
+          {currentUser ? (
+            <div className="pt-11 pb-3 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <h2
                 suppressHydrationWarning
-                className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${
-                  (currentUser?.role || "").toLowerCase() === "employee"
-                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
-                    : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300"
-                }`}
+                className="text-base font-bold tracking-tight"
+                style={{ color: "var(--text-main)" }}
               >
-                {currentUser?.role ? currentUser.role.toUpperCase() : "ADMIN"}
-              </span>
-            </div>
-            <p suppressHydrationWarning className="text-xs text-gray-500 mt-1 font-normal">
-              {currentUser?.email || "deepak.sahani@krishnaassociates.example"}
-            </p>
+                {currentUser.name}
+              </h2>
+              <div className="mt-1 flex items-center justify-center gap-1.5">
+                <span
+                  suppressHydrationWarning
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${
+                    (currentUser.role || "").toLowerCase() === "employee"
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
+                      : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300"
+                  }`}
+                >
+                  {(currentUser.role || "ADMIN").toUpperCase()}
+                </span>
+                {currentUser.firmName && (
+                  <span className="text-[11px] font-medium text-gray-500">
+                    · {currentUser.firmName}
+                  </span>
+                )}
+              </div>
+              <p suppressHydrationWarning className="text-xs text-gray-500 mt-1 font-normal">
+                {currentUser.email || currentUser.mobile || "Logged In"}
+              </p>
 
-            {/* Quick One-Click Switcher for Instant Testing */}
-            <div className="mt-3 p-2 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
-              <span className="text-[11px] font-medium text-gray-500">Switch Session:</span>
-              {(currentUser?.role || "").toLowerCase() === "employee" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    switchToUser("admin");
-                    onClose();
-                  }}
-                  className="px-2.5 py-1 rounded bg-[#31719B] text-white font-semibold text-[11px] hover:bg-[#285c7d] transition-all cursor-pointer shadow-2xs"
-                >
-                  Switch to Admin View
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    switchToUser("employee");
-                    onClose();
-                  }}
-                  className="px-2.5 py-1 rounded bg-amber-600 text-white font-semibold text-[11px] hover:bg-amber-700 transition-all cursor-pointer shadow-2xs"
-                >
-                  Switch to Employee View
-                </button>
-              )}
+              {/* Quick One-Click Switcher for Instant Role Verification */}
+              <div className="mt-3 p-2 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
+                <span className="text-[11px] font-medium text-gray-500">Switch Session:</span>
+                {(currentUser.role || "").toLowerCase() === "employee" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchToUser("admin");
+                      onClose();
+                    }}
+                    className="px-2.5 py-1 rounded bg-[#31719B] text-white font-semibold text-[11px] hover:bg-[#285c7d] transition-all cursor-pointer shadow-2xs"
+                  >
+                    Switch to Admin View
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchToUser("employee");
+                      onClose();
+                    }}
+                    className="px-2.5 py-1 rounded bg-amber-600 text-white font-semibold text-[11px] hover:bg-amber-700 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Switch to Employee View
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="pt-11 pb-2 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <h2 className="text-base font-bold tracking-tight text-gray-500 dark:text-gray-400">
+                Not Logged In
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5 font-normal">
+                Sign in to access your organization workspace
+              </p>
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="inline-block mt-2.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "var(--primary)" }}
+              >
+                Sign In
+              </Link>
+            </div>
+          )}
 
           {/* Scrollable Navigation Items */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
@@ -346,20 +376,34 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
 
             <div className="my-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />
 
-            <button
-              type="button"
-              onClick={async () => {
-                onClose();
-                await logout();
-                router.push("/login");
-              }}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <LogOut className="w-4 h-4 text-red-600 group-hover:scale-105 transition-transform" />
-                <span>Logout</span>
-              </div>
-            </button>
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  onClose();
+                  await logout();
+                  router.push("/login");
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <LogOut className="w-4 h-4 text-red-600 group-hover:scale-105 transition-transform" />
+                  <span>Logout</span>
+                </div>
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#31719B] dark:text-[#60a5fa] cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <User className="w-4 h-4 text-[#31719B] dark:text-[#60a5fa] group-hover:scale-105 transition-transform" />
+                  <span>Sign In</span>
+                </div>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
         </aside>
       </div>

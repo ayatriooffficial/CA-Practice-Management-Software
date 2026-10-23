@@ -100,6 +100,7 @@ interface LeadTableRowProps {
   columnWidths?: Record<string, number>;
   formatDate?: (iso: string) => string;
   onToggleSelect: (id: string) => void;
+  onSelectLead?: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (id: string, name: string) => void;
   onRestore?: (id: string, name: string) => void;
@@ -115,6 +116,7 @@ export const LeadTableRow = memo(
     columnWidths,
     formatDate,
     onToggleSelect,
+    onSelectLead,
     onEdit,
     onDelete,
     onRestore,
@@ -170,7 +172,7 @@ export const LeadTableRow = memo(
           <div className="flex items-center gap-2.5 text-left truncate">
             <button
               type="button"
-              onClick={() => onEdit(lead)}
+              onClick={() => (onSelectLead ? onSelectLead(lead) : onEdit(lead))}
               className="flex items-center gap-2.5 text-left cursor-pointer group/name hover:opacity-80 transition-opacity truncate max-w-full"
             >
               {lead.photo ? (

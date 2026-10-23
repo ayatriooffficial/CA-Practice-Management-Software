@@ -11,7 +11,7 @@ export interface User {
   designation?: string;
   status?: 'Active' | 'Deactivated' | 'Resigned';
   employeeId?: string;
-  orgId?: string;
+  orgId: string;
   token?: string;
   permissions?: Record<string, {
     view: boolean;

@@ -12,6 +12,7 @@ import { syncRoutes } from './modules/sync/sync.routes';
 import { complianceRoutes } from './modules/compliance/compliance.routes';
 import { financialRoutes } from './modules/financials/financial.routes';
 import { attendanceRoutes } from './modules/attendance/attendance.routes';
+import { quotationRoutes } from './modules/quotation/quotation.routes';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 
@@ -50,5 +51,6 @@ router.use('/notices', optionalAuthenticate, noticeRoutes);
 router.use('/sync', optionalAuthenticate, syncRoutes);
 router.use('/compliance', optionalAuthenticate, complianceRoutes);
 router.use('/financials', financialRoutes);
+router.use('/quotations', optionalAuthenticate, quotationRoutes);
 
 export const appRouter = router;
