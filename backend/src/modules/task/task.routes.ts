@@ -9,6 +9,8 @@ import {
   updateTaskSchema,
   addCommentSchema,
   profitabilityReportQuerySchema,
+  linkedEmailSchema,
+  emailMessageIdParamSchema,
 } from './task.validation';
 
 const router = Router();
@@ -34,6 +36,16 @@ router.post(
   '/:id/comments',
   validateRequest({ params: taskIdParamSchema, body: addCommentSchema }),
   TaskController.addComment
+);
+router.post(
+  '/:id/emails',
+  validateRequest({ params: taskIdParamSchema, body: linkedEmailSchema }),
+  TaskController.linkEmail
+);
+router.delete(
+  '/:id/emails/:messageId',
+  validateRequest({ params: emailMessageIdParamSchema }),
+  TaskController.unlinkEmail
 );
 
 router.patch('/:id/subtasks/:subTaskId/toggle', TaskController.toggleSubTask);

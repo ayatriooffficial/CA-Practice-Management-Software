@@ -109,6 +109,7 @@ export const createTaskSchema = z.object({
   subTasks: z.array(taskSubTaskSchema).optional(),
   checklist: z.array(taskChecklistItemSchema).optional(),
   documentRequests: z.array(taskDocumentRequestItemSchema).optional(),
+  linkedEmails: z.array(z.lazy(() => linkedEmailSchema)).optional(),
   complianceStatus: taskComplianceSchema.optional(),
 });
 
@@ -132,6 +133,7 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   subTasks: z.array(taskSubTaskSchema).optional(),
   checklist: z.array(taskChecklistItemSchema).optional(),
   documentRequests: z.array(taskDocumentRequestItemSchema).optional(),
+  linkedEmails: z.array(z.lazy(() => linkedEmailSchema)).optional(),
   complianceStatus: taskComplianceSchema.optional(),
 }).passthrough();
 
@@ -140,4 +142,19 @@ export const addCommentSchema = z.object({
   author: z.string().optional().default('Team Member'),
   authorInitials: z.string().optional().default('TM'),
   avatarColor: z.string().optional().default('#3B82F6'),
+});
+
+export const linkedEmailSchema = z.object({
+  messageId: z.string().min(1, 'Message ID is required'),
+  threadId: z.string().min(1, 'Thread ID is required'),
+  subject: z.string().optional().default(''),
+  snippet: z.string().optional().default(''),
+  sender: z.string().optional().default(''),
+  date: z.union([z.string(), z.date()]).transform((val) => new Date(val)),
+  linkedAt: z.union([z.string(), z.date()]).optional().default(() => new Date()).transform((val) => new Date(val)),
+});
+
+export const emailMessageIdParamSchema = z.object({
+  id: z.string().min(1, 'Task identifier is required'),
+  messageId: z.string().min(1, 'Message identifier is required'),
 });

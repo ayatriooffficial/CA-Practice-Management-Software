@@ -1,8 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as gmail from '@/lib/integrations/gmail';
 import type { ParsedMessage, ThreadListItem } from '@/lib/integrations/gmail';
+
+export const GMAIL_QUERY_KEYS = {
+  all: ['gmail'] as const,
+  status: () => [...GMAIL_QUERY_KEYS.all, 'status'] as const,
+  threads: (q?: string) => [...GMAIL_QUERY_KEYS.all, 'threads', q || ''] as const,
+  thread: (id: string) => [...GMAIL_QUERY_KEYS.all, 'thread', id] as const,
+};
 
 export type GmailStatus = 'loading' | 'disconnected' | 'connected';
 
@@ -37,7 +45,36 @@ export interface UseGmailReturn {
   refresh: () => Promise<void>;
 }
 
+/**
+ * Hook to fetch inbox threads with TanStack Query (1 minute staleTime)
+ */
+export function useGmailThreads(query = '') {
+  return useQuery({
+    queryKey: GMAIL_QUERY_KEYS.threads(query),
+    queryFn: async () => {
+      return await gmail.listThreads(query || undefined);
+    },
+    staleTime: 60000, // 1 minute
+  });
+}
+
+/**
+ * Hook to fetch a single thread body with TanStack Query (cached forever)
+ */
+export function useGmailThread(threadId: string | null | undefined) {
+  return useQuery({
+    queryKey: GMAIL_QUERY_KEYS.thread(threadId || ''),
+    queryFn: async () => {
+      if (!threadId) return [];
+      return await gmail.getThread(threadId);
+    },
+    enabled: Boolean(threadId),
+    staleTime: Infinity, // Cache forever
+  });
+}
+
 export function useGmail(): UseGmailReturn {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<GmailStatus>('loading');
   const [email, setEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +97,11 @@ export function useGmail(): UseGmailReturn {
   /* Check Gmail profile / connection status */
   const checkStatus = useCallback(async () => {
     try {
-      const data = await gmail.getStatus();
+      const data = await queryClient.fetchQuery({
+        queryKey: GMAIL_QUERY_KEYS.status(),
+        queryFn: () => gmail.getStatus(),
+        staleTime: 60000,
+      });
       if (!mountedRef.current) return;
       if (data.connected && data.email) {
         setStatus('connected');
@@ -76,23 +117,33 @@ export function useGmail(): UseGmailReturn {
       setEmail(null);
       setError(err instanceof Error ? err.message : 'Failed to connect');
     }
-  }, []);
+  }, [queryClient]);
 
-  /* Fetch threads */
-  const fetchThreads = useCallback(async (query = '') => {
-    setLoadingThreads(true);
-    try {
-      const res = await gmail.listThreads(query || undefined);
-      if (!mountedRef.current) return;
-      setThreads(res.threads);
-      setNextPageToken(res.nextPageToken);
-    } catch (err: unknown) {
-      if (!mountedRef.current) return;
-      console.error('Error fetching threads:', err);
-    } finally {
-      if (mountedRef.current) setLoadingThreads(false);
-    }
-  }, []);
+  /* Fetch threads using TanStack Query cache */
+  const fetchThreads = useCallback(
+    async (query = '', forceRefresh = false) => {
+      setLoadingThreads(true);
+      try {
+        if (forceRefresh) {
+          await queryClient.invalidateQueries({ queryKey: GMAIL_QUERY_KEYS.threads(query) });
+        }
+        const res = await queryClient.fetchQuery({
+          queryKey: GMAIL_QUERY_KEYS.threads(query),
+          queryFn: () => gmail.listThreads(query || undefined),
+          staleTime: 60000, // 1 minute
+        });
+        if (!mountedRef.current) return;
+        setThreads(res.threads);
+        setNextPageToken(res.nextPageToken);
+      } catch (err: unknown) {
+        if (!mountedRef.current) return;
+        console.error('Error fetching threads:', err);
+      } finally {
+        if (mountedRef.current) setLoadingThreads(false);
+      }
+    },
+    [queryClient],
+  );
 
   /* Load more threads */
   const loadMore = useCallback(async () => {
@@ -111,21 +162,28 @@ export function useGmail(): UseGmailReturn {
     }
   }, [nextPageToken, loadingMore, searchQuery]);
 
-  /* Fetch messages for selected thread */
-  const fetchThreadMessages = useCallback(async (threadId: string) => {
-    setLoadingMessages(true);
-    try {
-      const msgs = await gmail.getThread(threadId);
-      if (!mountedRef.current) return;
-      setMessages(msgs);
-    } catch (err: unknown) {
-      if (!mountedRef.current) return;
-      console.error('Error fetching thread:', err);
-      setMessages([]);
-    } finally {
-      if (mountedRef.current) setLoadingMessages(false);
-    }
-  }, []);
+  /* Fetch messages for selected thread using TanStack Query cache (staleTime: Infinity) */
+  const fetchThreadMessages = useCallback(
+    async (threadId: string) => {
+      setLoadingMessages(true);
+      try {
+        const msgs = await queryClient.fetchQuery({
+          queryKey: GMAIL_QUERY_KEYS.thread(threadId),
+          queryFn: () => gmail.getThread(threadId),
+          staleTime: Infinity, // Cache forever
+        });
+        if (!mountedRef.current) return;
+        setMessages(msgs);
+      } catch (err: unknown) {
+        if (!mountedRef.current) return;
+        console.error('Error fetching thread:', err);
+        setMessages([]);
+      } finally {
+        if (mountedRef.current) setLoadingMessages(false);
+      }
+    },
+    [queryClient],
+  );
 
   /* Select a thread */
   const selectThread = useCallback(
@@ -155,9 +213,11 @@ export function useGmail(): UseGmailReturn {
       try {
         await gmail.send(params);
         if (params.threadId) {
+          await queryClient.invalidateQueries({ queryKey: GMAIL_QUERY_KEYS.thread(params.threadId) });
           await fetchThreadMessages(params.threadId);
         }
-        await fetchThreads(searchQuery);
+        await queryClient.invalidateQueries({ queryKey: GMAIL_QUERY_KEYS.threads() });
+        await fetchThreads(searchQuery, true);
         return { success: true };
       } catch (err: unknown) {
         return { success: false, error: err instanceof Error ? err.message : 'Send failed' };
@@ -165,13 +225,14 @@ export function useGmail(): UseGmailReturn {
         if (mountedRef.current) setSending(false);
       }
     },
-    [fetchThreadMessages, fetchThreads, searchQuery],
+    [fetchThreadMessages, fetchThreads, queryClient, searchQuery],
   );
 
   /* Disconnect */
   const disconnect = useCallback(async () => {
     try {
       await gmail.disconnect();
+      queryClient.removeQueries({ queryKey: GMAIL_QUERY_KEYS.all });
       if (!mountedRef.current) return;
       setStatus('disconnected');
       setEmail(null);
@@ -181,7 +242,7 @@ export function useGmail(): UseGmailReturn {
     } catch (err: unknown) {
       console.error('Error disconnecting:', err);
     }
-  }, []);
+  }, [queryClient]);
 
   /* Mount effect */
   useEffect(() => {
@@ -233,7 +294,7 @@ export function useGmail(): UseGmailReturn {
     sending,
     loadMore,
     selectThread,
-    refreshThreads: () => fetchThreads(searchQuery),
+    refreshThreads: () => fetchThreads(searchQuery, true),
     sendEmail,
     startAuth: gmail.startAuth,
     disconnect,

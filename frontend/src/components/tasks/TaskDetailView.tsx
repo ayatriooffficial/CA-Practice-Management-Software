@@ -414,6 +414,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
             setCommentText={setCommentText}
             isSendingComment={isSendingComment}
             handleSendComment={handleSendComment}
+            onTaskUpdated={(updated) => setTask(updated)}
           />
         </div>
 

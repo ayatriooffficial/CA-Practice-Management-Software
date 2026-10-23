@@ -31,7 +31,20 @@ const complianceStatusSchema = new Schema(
   { _id: false }
 );
 
-const taskSchema = new Schema<ITaskDocument>(
+export const linkedEmailSchema = new Schema(
+  {
+    messageId: { type: String, required: true },
+    threadId: { type: String, required: true },
+    subject: { type: String, default: '' },
+    snippet: { type: String, default: '' },
+    sender: { type: String, default: '' },
+    date: { type: Date, default: Date.now },
+    linkedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+export const taskSchema = new Schema<ITaskDocument>(
   {
     taskId: {
       type: String,
@@ -250,6 +263,10 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     comments: {
       type: [commentSchema],
+      default: [],
+    },
+    linkedEmails: {
+      type: [linkedEmailSchema],
       default: [],
     },
     complianceStatus: {

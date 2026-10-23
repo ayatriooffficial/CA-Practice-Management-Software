@@ -133,7 +133,9 @@ export const TaskNavigationMenu: React.FC<TaskNavigationMenuProps> = ({
           <Mail className="w-4 h-4" />
           <span>Linked Emails</span>
         </div>
-        <span className="text-[10px] text-[var(--text-subtle)] font-mono">0</span>
+        <span className="text-[10px] text-[var(--text-subtle)] font-mono">
+          {task.linkedEmails?.length || 0}
+        </span>
       </button>
 
       {/* Linked WhatsApp */}
