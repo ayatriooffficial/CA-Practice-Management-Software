@@ -3,11 +3,12 @@ import { IAgentRun } from './agent.interface';
 
 const agentRunSchema = new Schema<IAgentRun>(
   {
+    orgId: { type: String, required: true, index: true },
     agentId: { type: Schema.Types.ObjectId, ref: 'AgentCenterAgent', required: true, index: true },
     agentName: { type: String, required: true },
     agentModule: { type: String, enum: ['Task', 'DSC', 'License'], required: true },
     runType: { type: String, enum: ['test', 'actual'], default: 'test', required: true },
-    status: { type: String, enum: ['success', 'failed'], required: true, index: true },
+    status: { type: String, enum: ['success', 'partial-failed', 'failed', 'skipped'], required: true, index: true },
     triggerData: { type: Schema.Types.Mixed, default: null },
     result: { type: Schema.Types.Mixed, default: null },
     errorMessage: { type: String, default: null },
@@ -23,13 +24,15 @@ const agentRunSchema = new Schema<IAgentRun>(
         ret.id = String(ret._id);
         ret.agentId = ret.agentId ? String(ret.agentId) : ret.agentId;
         delete ret._id;
+        delete ret.orgId;
         return ret;
       },
     },
   }
 );
 
-agentRunSchema.index({ agentId: 1, createdAt: -1, _id: -1 });
-agentRunSchema.index({ createdAt: -1, _id: -1 });
+agentRunSchema.index({ orgId: 1, agentId: 1, createdAt: -1, _id: -1 });
+agentRunSchema.index({ orgId: 1, createdAt: -1, _id: -1 });
+agentRunSchema.index({ orgId: 1, agentId: 1, runKey: 1 }, { unique: true, partialFilterExpression: { orgId: { $type: 'string' } } });
 
 export const AgentRun: Model<IAgentRun> = (models.AgentCenterRun as Model<IAgentRun>) || model<IAgentRun>('AgentCenterRun', agentRunSchema);

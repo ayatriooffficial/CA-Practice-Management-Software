@@ -70,7 +70,7 @@ export default function AgentList() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] p-4 md:p-6 lg:p-8">
-      <AgentPageTitle eyebrow="Automation" title="Agent Center" description="Configure event-based workflow notifications for Task, DSC and License modules." action={titleAction} />
+      <AgentPageTitle eyebrow="Automation" title="Agent Center" description="Build Task event workflows with connected conditions and simulated message actions. Unsupported triggers are marked unavailable." action={titleAction} />
 
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 text-xs" style={{ backgroundColor: 'var(--bg-muted)', borderColor: 'var(--border-main)', color: 'var(--text-muted)' }}>
         <ShieldCheck className="h-4 w-4 shrink-0" style={{ color: 'var(--primary)' }} />
