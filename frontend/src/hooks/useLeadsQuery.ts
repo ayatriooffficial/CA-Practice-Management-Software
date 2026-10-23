@@ -145,3 +145,113 @@ export function useConvertLead() {
     },
   });
 }
+
+/**
+ * Fetch single lead details
+ */
+export function useLeadById(id: string | null | undefined) {
+  return useQuery({
+    queryKey: LEAD_QUERY_KEYS.detail(id || ''),
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await leadApi.getLeadById(id);
+      return res.data;
+    },
+    enabled: Boolean(id),
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Fetch lead follow-up tasks
+ */
+export function useLeadTasks(leadId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['lead-tasks', leadId],
+    queryFn: async () => {
+      if (!leadId) return [];
+      const res = await leadApi.getLeadTasks(leadId);
+      return res.data || [];
+    },
+    enabled: Boolean(leadId),
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Mutation: Create lead follow-up task
+ */
+export function useCreateLeadTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, data }: { leadId: string; data: any }) =>
+      leadApi.createLeadTask(leadId, data),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['lead-tasks', vars.leadId] });
+    },
+  });
+}
+
+/**
+ * Mutation: Update lead follow-up task
+ */
+export function useUpdateLeadTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, taskId, data }: { leadId: string; taskId: string; data: any }) =>
+      leadApi.updateLeadTask(leadId, taskId, data),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['lead-tasks', vars.leadId] });
+    },
+  });
+}
+
+/**
+ * Mutation: Delete lead follow-up task
+ */
+export function useDeleteLeadTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, taskId }: { leadId: string; taskId: string }) =>
+      leadApi.deleteLeadTask(leadId, taskId),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['lead-tasks', vars.leadId] });
+    },
+  });
+}
+
+/**
+ * Mutation: Add detail note to lead
+ */
+export function useAddLeadNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, note, author }: { leadId: string; note: string; author?: string }) =>
+      leadApi.addLeadNote(leadId, note, author),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.detail(vars.leadId) });
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
+    },
+  });
+}
+
+/**
+ * Mutation: Delete detail note from lead
+ */
+export function useDeleteLeadNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, noteId }: { leadId: string; noteId: string }) =>
+      leadApi.deleteLeadNote(leadId, noteId),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.detail(vars.leadId) });
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
+    },
+  });
+}
+

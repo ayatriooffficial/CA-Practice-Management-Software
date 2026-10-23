@@ -385,6 +385,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         name="firstName"
                         aria-label="First Name"
                         type="text"
+                        required
                         value={formData.firstName || ""}
                         onChange={(e) => handleChange("firstName", e.target.value)}
                         placeholder="First Name"
@@ -413,13 +414,14 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
                     <div>
                       <label htmlFor="lead-last-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
-                        Last Name
+                        Last Name <span className="text-[#e8655a]">*</span>
                       </label>
                       <input
                         id="lead-last-name"
                         name="lastName"
                         aria-label="Last Name"
                         type="text"
+                        required
                         value={formData.lastName || ""}
                         onChange={(e) => handleChange("lastName", e.target.value)}
                         placeholder="Last Name"
@@ -529,7 +531,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
                 <div>
                   <label htmlFor="lead-comm-mobile" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
-                    Communication Mobile
+                    Communication Mobile <span className="text-[#e8655a]">*</span>
                   </label>
                   <input
                     id="lead-comm-mobile"
@@ -541,6 +543,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     onChange={(e) =>
                       handleChange("mobile", e.target.value.replace(/\D/g, ""))
                     }
+                    required
                     placeholder="Communication Mobile"
                     className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
                   />

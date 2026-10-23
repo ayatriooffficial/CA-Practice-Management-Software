@@ -178,7 +178,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
-              (item.href === "/notices" && pathname === "/") ||
               pathname.startsWith(item.href + "/");
 
             return (

@@ -4,6 +4,21 @@ import { ISoftDeleteDocument } from '../../shared/plugins/softDelete.plugin';
 export type LeadGender = 'Male' | 'Female' | 'Others' | 'Transgender' | '';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'dropped';
 
+export interface ILeadScore {
+  score: number;
+  businessSize: number;
+  responseTime: number;
+  engagement: number;
+  sourceQuality: number;
+}
+
+export interface ILeadNoteItem {
+  id: string;
+  note: string;
+  author: string;
+  createdAt: Date;
+}
+
 export interface ILead {
   firstName: string;
   middleName?: string;
@@ -34,6 +49,15 @@ export interface ILead {
   photo?: string | null;
   status: LeadStatus;
   notes?: string;
+  pipelineStage?: string;
+  leadScore?: ILeadScore;
+  dealValue?: number;
+  daysInStage?: number;
+  businessName?: string;
+  businessType?: string;
+  servicesInterested?: string[];
+  gstin?: string;
+  detailNotes?: ILeadNoteItem[];
   orgId?: string | Types.ObjectId | null;
   userId?: string | null;
   createdBy?: string | null;

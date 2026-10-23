@@ -7,6 +7,7 @@ import { driveRoutes } from './modules/drive/drive.routes';
 import { taskRoutes } from './modules/task/task.routes';
 import { agentCenterRoutes } from './modules/agentCenter/agent.routes';
 import { counterRoutes } from './modules/counter/counter.routes';
+import { quotationRoutes } from './modules/quotation/quotation.routes';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 
@@ -37,6 +38,7 @@ router.use('/drive', optionalAuthenticate, driveRoutes);
 router.use('/tasks', optionalAuthenticate, taskRoutes);
 router.use('/agent-center', optionalAuthenticate, agentCenterRoutes);
 router.use('/counters', optionalAuthenticate, counterRoutes);
+router.use('/quotations', optionalAuthenticate, quotationRoutes);
 
 export const appRouter = router;
 

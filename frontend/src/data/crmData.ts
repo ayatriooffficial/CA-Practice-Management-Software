@@ -1,3 +1,40 @@
+export interface LeadScore {
+  score: number;
+  businessSize: number;
+  responseTime: number;
+  engagement: number;
+  sourceQuality: number;
+}
+
+export interface LeadNoteItem {
+  id: string;
+  note: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface LeadFollowUpTask {
+  id: string;
+  leadId: string;
+  title: string;
+  taskDate: string;
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Overdue';
+  assigneeId?: string;
+  assigneeName: string;
+  assigneeInitials?: string;
+  startTime?: string;
+  endTime?: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  contactMethod: 'Call' | 'Email' | 'WhatsApp' | 'Meeting';
+  outcome?: string;
+  author: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Lead {
   id: string;
   fullName: string;
@@ -29,6 +66,16 @@ export interface Lead {
   photo?: string | null;
   createdAt: string;
   updatedAt: string;
+  status?: string;
+  pipelineStage?: string;
+  leadScore?: LeadScore;
+  dealValue?: number;
+  daysInStage?: number;
+  businessName?: string;
+  businessType?: string;
+  servicesInterested?: string[];
+  gstin?: string;
+  detailNotes?: LeadNoteItem[];
 }
 
 export interface ClientLicense {
