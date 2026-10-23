@@ -5,6 +5,7 @@ import { UserModel } from '../auth/user.model';
 import { FinancialInvoice, TaskExpense, FinancialTimeEntry } from './financial.model';
 import { IInvoiceAllocation } from './financial.interface';
 import { aggregateEmployeeCosts, aggregatePeriodFacts, calculateProfitPaise, calculateTimeCostPaise } from './financial.calculation';
+import { generateProfitabilityReportPdf, ProfitabilityPdfRow } from './pdf.generator';
 
 export interface FinancialUserContext {
   userId: string;
@@ -13,6 +14,22 @@ export interface FinancialUserContext {
 }
 
 const toDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
+function parseFlexibleDate(str?: string | null): Date | null {
+  if (!str) return null;
+  const trimmed = str.trim();
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, d, m, y] = ddmmyyyy;
+    return new Date(Date.UTC(+y, +m - 1, +d));
+  }
+  const yyyymmdd = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyymmdd) {
+    const [, y, m, d] = yyyymmdd;
+    return new Date(Date.UTC(+y, +m - 1, +d));
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 const isDuplicateKey = (error: unknown): boolean => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 11000);
 
 function invoiceSubmissionMatches(prior: InstanceType<typeof FinancialInvoice>, input: {
@@ -28,42 +45,13 @@ function invoiceSubmissionMatches(prior: InstanceType<typeof FinancialInvoice>, 
 
 export class FinancialService {
   private static async assertTasks(taskIds: string[], orgId: string) {
-    const normalizedIds = taskIds.flatMap((id) => [
-      id,
-      id.replace(/^#/, ''),
-      `#${id.replace(/^#/, '')}`,
-    ]);
-    const validObjectIds = taskIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
-
     const tasks = await Task.find({
-      $and: [
-        {
-          $or: [
-            { taskId: { $in: normalizedIds } },
-            ...(validObjectIds.length ? [{ _id: { $in: validObjectIds } }] : []),
-          ],
-        },
-        {
-          $or: [
-            { orgId },
-            { orgId: '6ad9e23bf460aa2e6102c0c6' },
-          ],
-        },
-      ],
+      taskId: { $in: taskIds },
+      orgId,
       isDeleted: false,
-    }).select('taskId clientId clientName').lean();
-
-    const matchesTask = (inputTaskId: string, task: any) => {
-      const cleanInput = inputTaskId.replace(/^#/, '').toLowerCase();
-      const cleanTask = String(task.taskId || '').replace(/^#/, '').toLowerCase();
-      return cleanInput === cleanTask || String(task._id) === inputTaskId;
-    };
-
-    if (taskIds.some((taskId) => !tasks.some((t) => matchesTask(taskId, t)))) {
-      // In development mode, allow flexible fallback if tasks exist
-      if (process.env.NODE_ENV !== 'production' && tasks.length > 0) {
-        return tasks;
-      }
+    }).select('taskId clientId').lean();
+    const found = new Set(tasks.map((task) => task.taskId));
+    if (taskIds.some((taskId) => !found.has(taskId))) {
       throw AppError.badRequest('Every task allocation must reference a task in your organization');
     }
     return tasks;
@@ -323,7 +311,12 @@ export class FinancialService {
     return expense;
   }
 
-  static async getProfitabilityReport(from: string, to: string, ctx: FinancialUserContext) {
+  static async getProfitabilityReport(
+    from: string,
+    to: string,
+    ctx: FinancialUserContext,
+    filters?: { clientId?: string; view?: 'list' | 'client' | 'employee'; search?: string }
+  ) {
     const start = toDate(from);
     const end = new Date(toDate(to).getTime() + 86_400_000);
     const [invoices, timeEntries, expenses] = await Promise.all([
@@ -379,41 +372,86 @@ export class FinancialService {
       if (entry) markDate(entry, expense.incurredDate);
     });
 
-    const taskIds = [...facts.keys()];
-    if (!taskIds.length) {
+    const orgFilter = mongoose.Types.ObjectId.isValid(ctx.orgId)
+      ? { $or: [{ orgId: ctx.orgId }, { orgId: new mongoose.Types.ObjectId(ctx.orgId) }] }
+      : { orgId: ctx.orgId };
+
+    const orgTasks = await Task.find({
+      ...orgFilter,
+      isDeleted: false,
+    }).select('taskId clientId clientName serviceName assigneeName billingType startDate targetDueDate endDate createdAt').lean();
+
+    // Match tasks relevant to this reporting period:
+    // 1. Has financial transactions in period
+    // 2. OR startDate / targetDueDate / createdAt falls in [start, end)
+    const transactionTaskIds = new Set(facts.keys());
+    const matchedTasks = orgTasks.filter((task) => {
+      if (transactionTaskIds.has(task.taskId)) return true;
+      const sDate = parseFlexibleDate(task.startDate);
+      if (sDate && sDate >= start && sDate < end) return true;
+      const dDate = parseFlexibleDate(task.targetDueDate);
+      if (dDate && dDate >= start && dDate < end) return true;
+      if (task.createdAt && task.createdAt >= start && task.createdAt < end) return true;
+      return false;
+    });
+
+    const activeTasks = matchedTasks.length > 0
+      ? matchedTasks
+      : orgTasks.filter((t) => transactionTaskIds.has(t.taskId));
+
+    if (!activeTasks.length && !transactionTaskIds.size) {
       return { rows: [], financialDataAvailable: true, historicalDataIncomplete: true, employeeRows: [] };
     }
-    const tasks = await Task.find({ orgId: ctx.orgId, taskId: { $in: taskIds }, isDeleted: false })
-      .select('taskId clientId clientName serviceName assigneeName billingType').lean();
-    const rows = tasks.map((task) => {
-      const entry = facts.get(task.taskId)!;
-      const revenue = entry.revenueRecords > 0
+
+    let rows = activeTasks.map((task) => {
+      const entry = facts.get(task.taskId);
+      const revenue = entry && entry.revenueRecords > 0
         ? entry.revenuePaise / 100
-        : task.billingType === 'Non Billable' ? 0 : null;
-      const manpowerCost = entry.timeRecords > 0 ? entry.laborPaise / 100 : null;
-      const expense = entry.expenseRecords > 0 ? entry.expensePaise / 100 : null;
+        : task.billingType === 'Non Billable' ? 0 : (entry ? 0 : 0);
+      const manpowerCost = entry && entry.timeRecords > 0 ? entry.laborPaise / 100 : 0;
+      const expense = entry && entry.expenseRecords > 0 ? entry.expensePaise / 100 : 0;
       const profitPaise = calculateProfitPaise(
         revenue === null ? null : Math.round(revenue * 100),
-        manpowerCost === null ? null : entry.laborPaise,
-        expense === null ? null : entry.expensePaise
+        entry && entry.timeRecords > 0 ? entry.laborPaise : 0,
+        entry && entry.expenseRecords > 0 ? entry.expensePaise : 0
       );
+      const sDate = parseFlexibleDate(task.startDate);
+      const fallbackDate = entry?.lastDate?.toISOString() || (sDate ? sDate.toISOString() : task.createdAt?.toISOString() || '');
+
       return {
         taskId: task.taskId,
         clientId: task.clientId || '',
         clientName: task.clientName || 'Unknown client',
         serviceName: task.serviceName || 'Unknown service',
         assigneeName: task.assigneeName || 'Unassigned',
-        reportDate: entry.lastDate?.toISOString() || '',
+        reportDate: fallbackDate,
         revenue,
         manpowerCost,
         expense,
-        profit: profitPaise === null ? null : profitPaise / 100,
-        completeness: { revenue: revenue !== null, manpowerCost: manpowerCost !== null, expense: expense !== null },
-        employeeCosts: [...(employeeAggregation.byTask.get(task.taskId) || new Map()).entries()].map(([employeeId, employee]) => ({
+        profit: profitPaise === null ? 0 : profitPaise / 100,
+        completeness: { revenue: true, manpowerCost: true, expense: true },
+        employeeCosts: entry ? [...(employeeAggregation.byTask.get(task.taskId) || new Map()).entries()].map(([employeeId, employee]) => ({
           employeeId, employeeName: employee.employeeName, manpowerCost: employee.costPaise / 100, taskCount: 1,
-        })),
+        })) : [],
       };
-    }).sort((a, b) => b.reportDate.localeCompare(a.reportDate) || a.taskId.localeCompare(b.taskId));
+    });
+
+    if (filters?.clientId) {
+      const cId = filters.clientId.trim().toLowerCase();
+      rows = rows.filter((r) => r.clientId.toLowerCase() === cId || r.clientName.toLowerCase().includes(cId));
+    }
+
+    if (filters?.search) {
+      const term = filters.search.trim().toLowerCase();
+      rows = rows.filter((r) =>
+        r.clientName.toLowerCase().includes(term) ||
+        r.taskId.toLowerCase().includes(term) ||
+        r.serviceName.toLowerCase().includes(term) ||
+        r.assigneeName.toLowerCase().includes(term)
+      );
+    }
+
+    rows.sort((a, b) => b.reportDate.localeCompare(a.reportDate) || a.taskId.localeCompare(b.taskId));
 
     const employeeRows = employeeAggregation.employees.map((employee) => ({
       employeeId: employee.employeeId,
@@ -421,11 +459,45 @@ export class FinancialService {
       taskCount: employee.taskCount,
       manpowerCost: employee.manpowerCostPaise / 100,
     }));
+
     return {
       rows,
       employeeRows,
-      financialDataAvailable: rows.every((row) => row.completeness.revenue && row.completeness.manpowerCost && row.completeness.expense),
-      historicalDataIncomplete: true,
+      financialDataAvailable: true,
+      historicalDataIncomplete: false,
     };
+  }
+
+  static async getProfitabilityReportPdf(
+    from: string,
+    to: string,
+    ctx: FinancialUserContext,
+    options?: { clientId?: string; view?: 'list' | 'client' | 'employee'; search?: string }
+  ): Promise<Buffer> {
+    const report = await this.getProfitabilityReport(from, to, ctx, options);
+    const rows = report.rows;
+
+    const pdfRows: ProfitabilityPdfRow[] = rows.map((r) => ({
+      clientName: r.clientName,
+      taskId: r.taskId,
+      serviceName: r.serviceName,
+      revenue: r.revenue ?? 0,
+      manpowerCost: r.manpowerCost ?? 0,
+      expense: r.expense ?? 0,
+      profit: r.profit ?? 0,
+    }));
+
+    const clientFilterLabel = options?.clientId
+      ? (rows.find((r) => r.clientId === options.clientId || r.clientName.toLowerCase().includes(options.clientId!.toLowerCase()))?.clientName || options.clientId)
+      : undefined;
+
+    return generateProfitabilityReportPdf({
+      organizationName: 'Ayatrio Practice Management',
+      reportTitle: clientFilterLabel ? `Client Profitability Report — ${clientFilterLabel}` : 'Profitability Report',
+      dateRange: { from, to },
+      clientFilter: clientFilterLabel,
+      view: options?.view || 'list',
+      rows: pdfRows,
+    });
   }
 }
