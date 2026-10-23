@@ -10,7 +10,7 @@ interface AuthAnimationPanelProps {
 
 export const AuthAnimationPanel: React.FC<AuthAnimationPanelProps> = ({
   showWelcomeText = true,
-  welcomeText = "Welcome to CA Practice",
+  welcomeText = "Welcome to Afaq CA Practice",
 }) => {
   return (
     <div
