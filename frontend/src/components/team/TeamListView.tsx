@@ -74,7 +74,10 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
   };
 
   const handleEdit = (emp: EmployeeRecord) => {
-    setEditingEmp(emp);
+    const fresh = teamStore.getEmployees().find(
+      (e) => e.id === emp.id || (e.email && emp.email && e.email.toLowerCase() === emp.email.toLowerCase())
+    ) || emp;
+    setEditingEmp({ ...emp, password: fresh.password || emp.password || '' });
     setIsWizardOpen(true);
     setActiveMenuId(null);
   };

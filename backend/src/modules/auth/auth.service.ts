@@ -761,7 +761,7 @@ export class AuthService {
         filter.orgId = user.orgId;
       }
     }
-    return UserModel.find(filter).sort({ createdAt: -1 });
+    return UserModel.find(filter).select('+password').sort({ createdAt: -1 });
   }
 
   /**
@@ -791,8 +791,10 @@ export class AuthService {
       // If user exists with this email, update details and set password
       if (exists.email.toLowerCase() === cleanEmail) {
         if (data.password && String(data.password).trim()) {
+          exists.password = String(data.password).trim();
           exists.passwordHash = await bcrypt.hash(String(data.password).trim(), 10);
         } else if (!exists.passwordHash) {
+          exists.password = '123456';
           exists.passwordHash = await bcrypt.hash('123456', 10);
         }
         if (data.name) exists.name = data.name.trim();
@@ -839,6 +841,7 @@ export class AuthService {
       name: data.name.trim(),
       email: cleanEmail,
       mobile: cleanMobile,
+      password: rawPassword,
       passwordHash,
       role: (data.role || 'employee').toLowerCase() as any,
       department: data.department || 'Audit & Taxation',
@@ -859,12 +862,16 @@ export class AuthService {
   public static async updateTeamMember(id: string, updates: Partial<any>): Promise<IUserDocument> {
     const updateData: any = { ...updates };
 
-    // 1. Password hashing
-    if (updateData.password && String(updateData.password).trim()) {
-      updateData.passwordHash = await bcrypt.hash(String(updateData.password).trim(), 10);
-      delete updateData.password;
-    } else {
-      delete updateData.password;
+    // 1. Password hashing & saving
+    if (updateData.password !== undefined) {
+      const trimmed = String(updateData.password).trim();
+      if (trimmed) {
+        updateData.password = trimmed;
+        updateData.passwordHash = await bcrypt.hash(trimmed, 10);
+      } else {
+        updateData.password = '';
+        updateData.passwordHash = '';
+      }
     }
 
     // 2. Normalize fields

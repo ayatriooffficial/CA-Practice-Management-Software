@@ -269,6 +269,9 @@ export const teamStore = {
     try {
       const res = await request<any[]>('/auth/team');
       if (res?.data && Array.isArray(res.data)) {
+        const localEmps = this.getEmployees();
+        const localPassMap = new Map(localEmps.map((e) => [e.email.toLowerCase(), e.password]));
+
         const backendEmps: EmployeeRecord[] = res.data.map((u: any) => ({
           id: u.id || u._id,
           name: u.name,
@@ -276,6 +279,9 @@ export const teamStore = {
           lastName: u.name?.split(' ').slice(1).join(' ') || '',
           email: u.email,
           mobile: u.mobile,
+          password: u.password !== undefined && u.password !== null && u.password !== ''
+            ? u.password
+            : (localPassMap.get((u.email || '').toLowerCase()) || ''),
           role: (u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Employee') as TeamRole,
           department: u.department || 'Audit & Taxation',
           designation: u.designation || 'Staff',

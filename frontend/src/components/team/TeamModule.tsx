@@ -19,13 +19,21 @@ export const TeamModule: React.FC = () => {
   const { currentUser } = useAuth();
   const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
 
-  const loadData = () => {
+  const loadData = async () => {
     setEmployees(teamStore.getEmployees());
     setIsLoaded(true);
+    try {
+      const fresh = await teamStore.loadEmployeesFromBackend();
+      if (fresh && fresh.length > 0) {
+        setEmployees(fresh);
+      }
+    } catch {
+      // ignore
+    }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const currentTab: TeamTab = isEmployee ? 'team' : activeTab;

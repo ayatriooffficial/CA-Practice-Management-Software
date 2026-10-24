@@ -43,7 +43,7 @@ const userSchema = new Schema<IUserDocument>(
     },
     password: {
       type: String,
-      select: false,
+      default: '',
     },
     role: {
       type: String,
@@ -121,7 +121,6 @@ const userSchema = new Schema<IUserDocument>(
         delete ret._id;
         delete ret.__v;
         delete ret.passwordHash;
-        delete ret.password;
         return ret;
       },
     },
