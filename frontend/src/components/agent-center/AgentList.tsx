@@ -12,6 +12,9 @@ import {
   Check,
   CheckCircle2,
   CheckSquare,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   HelpCircle,
   KeyRound,
@@ -230,68 +233,58 @@ export default function AgentList() {
   };
 
   return (
-    <div className="w-full px-6 py-6 md:px-8 select-none">
+    <div className="w-full px-6 pt-5 pb-6 select-none bg-white min-h-[calc(100vh-56px)]">
       {/* 1. TOP HEADER & TABS (When on Overview or History) */}
       {!selectedModule && (
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7C3AED] text-white shadow-sm">
-              <Zap className="h-5 w-5 fill-white stroke-[2.5]" />
+        <div>
+          {/* Header row: Icon + Title/Subtitle on Left, Search on Right */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 shrink-0">
+                <Zap className="h-5 w-5 fill-purple-600 stroke-[2.5]" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Agent Center</h1>
+                <p className="text-xs text-slate-500 mt-1">Set up automated notifications for your team</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Agent Center</h1>
-              <p className="text-xs md:text-sm text-slate-500">Set up automated notifications for your team</p>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={activeTab === 'modules' ? search : historySearch}
+                onChange={(e) => (activeTab === 'modules' ? setSearch(e.target.value) : setHistorySearch(e.target.value))}
+                className="w-64 md:w-72 rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs md:text-sm outline-none focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED]"
+              />
             </div>
           </div>
 
-          {/* Tab Navigation & Search */}
-          <div className="flex flex-wrap items-center justify-between border-b border-slate-200 gap-4">
-            <div className="flex gap-6">
-              <button
-                type="button"
-                onClick={() => handleTabChange('modules')}
-                className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-[1px] ${
-                  activeTab === 'modules'
-                    ? 'border-[#7C3AED] text-[#7C3AED]'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Modules
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTabChange('history')}
-                className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-[1px] ${
-                  activeTab === 'history'
-                    ? 'border-[#7C3AED] text-[#7C3AED]'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Agent History
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 pb-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by module, trigger or channel..."
-                  value={activeTab === 'modules' ? search : historySearch}
-                  onChange={(e) => (activeTab === 'modules' ? setSearch(e.target.value) : setHistorySearch(e.target.value))}
-                  className="w-64 md:w-80 rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs md:text-sm outline-none focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED]"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => (activeTab === 'modules' ? void refetchAgents() : void refetchHistory())}
-                disabled={agentsFetching || historyFetching}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
-                title="Refresh data"
-              >
-                <RefreshCw className={`h-4 w-4 ${agentsFetching || historyFetching ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
+          {/* Full-width Tab Row */}
+          <div className="flex border-b border-slate-200 mt-5 w-full">
+            <button
+              type="button"
+              onClick={() => handleTabChange('modules')}
+              className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-[1px] ${
+                activeTab === 'modules'
+                  ? 'border-[#7C3AED] text-[#7C3AED]'
+                  : 'border-transparent text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              Modules
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('history')}
+              className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-[1px] ml-6 ${
+                activeTab === 'history'
+                  ? 'border-[#7C3AED] text-[#7C3AED]'
+                  : 'border-transparent text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              Agent History
+            </button>
           </div>
         </div>
       )}
@@ -299,7 +292,7 @@ export default function AgentList() {
       {/* Notice Banner */}
       {notice && (
         <div
-          className={`mb-5 p-3 rounded-lg text-xs md:text-sm flex items-center justify-between border ${
+          className={`mt-4 mb-2 p-3 rounded-lg text-xs md:text-sm flex items-center justify-between border ${
             notice.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : notice.type === 'error'
@@ -316,82 +309,81 @@ export default function AgentList() {
 
       {/* 2. VIEW: MODULES OVERVIEW TABLE (Matching Agents page opening.png) */}
       {!selectedModule && activeTab === 'modules' && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              <tr>
-                <th className="py-3.5 px-6 w-[22%]">MODULE</th>
-                <th className="py-3.5 px-6 w-[48%]">DESCRIPTION</th>
-                <th className="py-3.5 px-6 w-[18%]">ACTIVE AGENTS</th>
-                <th className="py-3.5 px-6 text-right w-[12%]">ACTION</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {MODULE_DEFINITIONS.filter(
-                (m) =>
-                  !search.trim() ||
-                  m.name.toLowerCase().includes(search.toLowerCase()) ||
-                  m.description.toLowerCase().includes(search.toLowerCase())
-              ).map((mod) => {
-                const count = countsByModule[mod.name]?.active || 0;
-                return (
-                  <tr
-                    key={mod.name}
-                    onClick={() => navigateToModule(mod.name)}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                  >
-                    <td className="py-4 px-6 align-middle">
-                      <div className="flex items-center gap-3.5">
-                        <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                            mod.name === 'Task'
-                              ? 'bg-indigo-50 border border-indigo-100'
-                              : mod.name === 'DSC'
-                                ? 'bg-rose-50 border border-rose-100'
-                                : 'bg-cyan-50 border border-cyan-100'
+        <div className="mt-6">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
+                <tr>
+                  <th className="py-3.5 px-6 w-[22%]">Module</th>
+                  <th className="py-3.5 px-6 w-[48%]">Description</th>
+                  <th className="py-3.5 px-6 w-[18%]">Active Agents</th>
+                  <th className="py-3.5 px-6 text-right w-[12%]">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {MODULE_DEFINITIONS.filter(
+                  (m) =>
+                    !search.trim() ||
+                    m.name.toLowerCase().includes(search.toLowerCase()) ||
+                    m.description.toLowerCase().includes(search.toLowerCase())
+                ).map((mod) => {
+                  const count = countsByModule[mod.name]?.active || 0;
+                  return (
+                    <tr
+                      key={mod.name}
+                      onClick={() => navigateToModule(mod.name)}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                    >
+                      <td className="py-4 px-6 align-middle">
+                        <div className="flex items-center gap-3.5">
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                              mod.name === 'Task'
+                                ? 'bg-indigo-50 border border-indigo-100'
+                                : mod.name === 'DSC'
+                                  ? 'bg-rose-50 border border-rose-100'
+                                  : 'bg-cyan-50 border border-cyan-100'
+                            }`}
+                          >
+                            {mod.icon}
+                          </div>
+                          <p className="font-semibold text-slate-900 group-hover:text-[#7C3AED] transition-colors">
+                            {mod.name}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-xs text-slate-500 align-middle max-w-md">
+                        {mod.description}
+                      </td>
+                      <td className="py-4 px-6 align-middle">
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${
+                            count > 0
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : 'bg-[#FEF2F2] text-[#EF4444]'
                           }`}
                         >
-                          {mod.icon}
-                        </div>
-                        <p className="font-bold text-slate-900 group-hover:text-[#7C3AED] transition-colors">
-                          {mod.name}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-slate-600 align-middle max-w-md">
-                      {mod.description}
-                    </td>
-                    <td className="py-4 px-6 align-middle">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                          count > 0
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}
-                      >
-                        {count} Active Agents
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-right align-middle">
-                      <Link
-                        href={`/agents/new?module=${mod.name}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center text-sm font-semibold text-[#7C3AED] hover:text-[#6D28D9] hover:underline transition-colors"
-                      >
-                        Add Agents +
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {/* Table Footer matching Turia 1-3 of 3 */}
-          <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
-            <span>1-3 of 3</span>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400">Rows per page: 10</span>
-            </div>
+                          {count} Active Agents
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right align-middle">
+                        <Link
+                          href={`/agents/new?module=${mod.name}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center text-sm font-medium text-[#7C3AED] hover:underline transition-colors"
+                        >
+                          Add Agents +
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {/* Below table on the right */}
+          <div className="mt-2 text-right text-xs text-slate-400">
+            1-3 of 3
           </div>
         </div>
       )}
@@ -405,19 +397,19 @@ export default function AgentList() {
               <button
                 type="button"
                 onClick={navigateBackToModules}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
+                className="text-slate-600 hover:text-slate-900 cursor-pointer p-1 transition-colors"
                 title="Back to all modules"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-5 w-5" />
               </button>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 border border-purple-100">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
                 {MODULE_DEFINITIONS.find((m) => m.name === selectedModule)?.icon}
               </div>
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">
                   {selectedModule} Agents
                 </h1>
-                <p className="text-xs md:text-sm text-slate-500">
+                <p className="text-xs text-slate-500 mt-1">
                   Existing {selectedModule.toLowerCase()} agents.
                 </p>
               </div>
@@ -428,7 +420,7 @@ export default function AgentList() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search agents..."
+                  placeholder="Search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-56 md:w-64 rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs md:text-sm outline-none focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED]"
@@ -448,30 +440,22 @@ export default function AgentList() {
           {/* Table Container matching Turia Opening Pages */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
                 <tr>
-                  <th className="py-3.5 px-5">NAME</th>
-                  <th className="py-3.5 px-5">TRIGGER</th>
-                  <th className="py-3.5 px-5">CHANNEL</th>
-                  <th className="py-3.5 px-5">RECIPIENTS</th>
-                  <th className="py-3.5 px-5">LAST TRIGGERED</th>
-                  <th className="py-3.5 px-5">STATUS</th>
-                  <th className="py-3.5 px-5 text-right">ACTIONS</th>
+                  <th className="py-3.5 px-5">Name</th>
+                  <th className="py-3.5 px-5">Trigger</th>
+                  <th className="py-3.5 px-5">Channel</th>
+                  <th className="py-3.5 px-5">Recipients</th>
+                  <th className="py-3.5 px-5">Last Triggered</th>
+                  <th className="py-3.5 px-5">Status</th>
+                  <th className="py-3.5 px-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {moduleAgents.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 px-6 text-center text-slate-500">
-                      <div className="flex flex-col items-center justify-center py-4">
-                        <Bot className="h-8 w-8 text-slate-300 mb-2" />
-                        <p className="text-sm font-medium text-slate-600">
-                          No {selectedModule.toLowerCase()} agents yet.
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Click "+ New Agent" above to create an automated notification workflow.
-                        </p>
-                      </div>
+                    <td colSpan={7} className="py-16 text-center text-xs text-slate-400">
+                      No {selectedModule.toLowerCase()} agents yet.
                     </td>
                   </tr>
                 ) : (
@@ -488,7 +472,7 @@ export default function AgentList() {
                         <td className="py-4 px-5">
                           <Link
                             href={`/agents/detail?id=${encodeURIComponent(agent.id)}`}
-                            className="font-bold text-slate-900 hover:text-[#7C3AED] transition-colors"
+                            className="font-semibold text-slate-900 hover:text-[#7C3AED] transition-colors"
                           >
                             {agent.name}
                           </Link>
@@ -497,7 +481,7 @@ export default function AgentList() {
                           )}
                         </td>
                         <td className="py-4 px-5">
-                          <span className="inline-block px-2.5 py-1 rounded-md bg-purple-50 text-[#7C3AED] border border-purple-100 text-xs font-semibold">
+                          <span className="inline-block px-2.5 py-1 rounded-md bg-purple-50 text-[#7C3AED] border border-purple-100 text-xs font-medium">
                             {trigger}
                           </span>
                         </td>
@@ -575,110 +559,90 @@ export default function AgentList() {
                 )}
               </tbody>
             </table>
-            {/* Table Footer with moduleAgents pagination */}
-            <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
-              <span>{moduleAgents.length > 0 ? `1-${moduleAgents.length} of ${moduleAgents.length}` : '0-0 of 0'}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">Rows per page: 10</span>
-              </div>
-            </div>
+          </div>
+          {/* Below table on the right */}
+          <div className="mt-2 text-right text-xs text-slate-400">
+            {moduleAgents.length > 0 ? `1-${moduleAgents.length} of ${moduleAgents.length}` : '0-0 of 0'}
           </div>
         </div>
       )}
 
       {/* 4. VIEW: AGENT HISTORY (Matching Agent History Page.png) */}
       {activeTab === 'history' && (
-        <div className="space-y-6">
-          {/* 5 Summary Metric Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <p className="text-xs font-semibold text-slate-500">Total Executions</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{historyMetrics.total}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-emerald-700">Successful</p>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <div className="mt-5 space-y-4">
+          {/* 5 Summary Metric Cards in 1 Row */}
+          <div className="grid grid-cols-5 gap-3.5">
+            {/* Card 1: Total Executions (Active purple border) */}
+            <div className="rounded-xl border-2 border-purple-500 bg-white p-3 flex items-center gap-3.5 shadow-xs">
+              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 font-bold text-sm flex items-center justify-center shrink-0">
+                {historyMetrics.total}
               </div>
-              <p className="mt-1 text-2xl font-bold text-emerald-700">{historyMetrics.successful}</p>
+              <p className="text-xs font-semibold text-slate-800">Total Executions</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-amber-700">Partial</p>
-                <AlertCircle className="h-4 w-4 text-amber-500" />
+
+            {/* Card 2: Successful */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-3.5 shadow-xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 font-bold text-sm flex items-center justify-center shrink-0">
+                {historyMetrics.successful}
               </div>
-              <p className="mt-1 text-2xl font-bold text-amber-700">{historyMetrics.partial}</p>
+              <p className="text-xs font-semibold text-slate-800">Successful</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-rose-700">Failed</p>
-                <XCircle className="h-4 w-4 text-rose-500" />
+
+            {/* Card 3: Partial */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-3.5 shadow-xs">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 font-bold text-sm flex items-center justify-center shrink-0">
+                {historyMetrics.partial}
               </div>
-              <p className="mt-1 text-2xl font-bold text-rose-700">{historyMetrics.failed}</p>
+              <p className="text-xs font-semibold text-slate-800">Partial</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-500">Skipped</p>
-                <MinusCircle className="h-4 w-4 text-slate-400" />
+
+            {/* Card 4: Failed */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-3.5 shadow-xs">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 font-bold text-sm flex items-center justify-center shrink-0">
+                {historyMetrics.failed}
               </div>
-              <p className="mt-1 text-2xl font-bold text-slate-600">{historyMetrics.skipped}</p>
+              <p className="text-xs font-semibold text-slate-800">Failed</p>
+            </div>
+
+            {/* Card 5: Skipped */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-3.5 shadow-xs">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 font-bold text-sm flex items-center justify-center shrink-0">
+                {historyMetrics.skipped}
+              </div>
+              <p className="text-xs font-semibold text-slate-800">Skipped</p>
             </div>
           </div>
 
-          {/* Filters Bar */}
-          <div className="flex flex-wrap items-center gap-3">
-            <select
-              aria-label="Filter by module"
-              value={historyModuleFilter}
-              onChange={(e) => setHistoryModuleFilter(e.target.value as 'All' | AgentModule)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[#7C3AED]"
-            >
-              <option value="All">All modules</option>
-              <option value="Task">Task</option>
-              <option value="DSC">DSC</option>
-              <option value="License">License</option>
-            </select>
-            <select
-              aria-label="Filter by status"
-              value={historyStatusFilter}
-              onChange={(e) => setHistoryStatusFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[#7C3AED]"
-            >
-              <option value="All">All statuses</option>
-              <option value="success">Success</option>
-              <option value="partial-failed">Partial</option>
-              <option value="failed">Failed</option>
-              <option value="skipped">Skipped</option>
-            </select>
+          {/* Record Count above Table */}
+          <div className="text-right text-xs text-slate-400">
+            {filteredHistory.length > 0 ? `1-${filteredHistory.length} of ${filteredHistory.length} records` : '0-0 of 0 records'}
           </div>
 
           {/* History Execution Table */}
-          {filteredHistory.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-xs">
-              <Clock className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-              <p className="text-sm font-semibold text-slate-700">No executions recorded yet.</p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Real background triggers and manual test-runs will appear here in chronological order.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
+                <tr>
+                  <th className="py-3 px-5">Status</th>
+                  <th className="py-3 px-5">Agent</th>
+                  <th className="py-3 px-5">Client</th>
+                  <th className="py-3 px-5">Module</th>
+                  <th className="py-3 px-5">Trigger Event</th>
+                  <th className="py-3 px-5">Channel</th>
+                  <th className="py-3 px-5">Recipients</th>
+                  <th className="py-3 px-5">Details</th>
+                  <th className="py-3 px-5 text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredHistory.length === 0 ? (
                   <tr>
-                    <th className="py-3 px-5">STATUS</th>
-                    <th className="py-3 px-5">AGENT</th>
-                    <th className="py-3 px-5">CLIENT</th>
-                    <th className="py-3 px-5">MODULE</th>
-                    <th className="py-3 px-5">TRIGGER EVENT</th>
-                    <th className="py-3 px-5">CHANNEL</th>
-                    <th className="py-3 px-5">RECIPIENTS</th>
-                    <th className="py-3 px-5">DETAILS</th>
-                    <th className="py-3 px-5 text-right">TIME</th>
+                    <td colSpan={9} className="py-16 text-center text-xs text-slate-400">
+                      No execution records found.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredHistory.map((item) => {
+                ) : (
+                  filteredHistory.map((item) => {
                     const client = String(item.triggerData?.clientName || '—');
                     const trigger = String(item.triggerData?.trigger || item.result?.trigger || 'Trigger event');
                     const channel = String(item.result?.channel || item.triggerData?.channel || 'Email');
@@ -734,20 +698,31 @@ export default function AgentList() {
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
+                  })
+                )}
+              </tbody>
             </table>
-            {/* Table Footer with filteredHistory pagination */}
+            {/* Table Footer matching Turia */}
             <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
-              <span>{filteredHistory.length > 0 ? `1-${filteredHistory.length} of ${filteredHistory.length}` : '0-0 of 0'}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">Rows per page: 10</span>
+              <div className="flex items-center gap-1.5 text-slate-600">
+                <span>Rows per page: 15</span>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+              <div className="flex items-center gap-3 text-slate-500">
+                <span>{filteredHistory.length > 0 ? `1-${filteredHistory.length} of ${filteredHistory.length}` : '0-0 of 0'}</span>
+                <div className="flex items-center gap-1">
+                  <button type="button" disabled className="p-1 rounded border border-slate-200 text-slate-400 cursor-not-allowed">
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" disabled className="p-1 rounded border border-slate-200 text-slate-400 cursor-not-allowed">
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
-    )}
-  </div>
-);
+        </div>
+      )}
+    </div>
+  );
 }

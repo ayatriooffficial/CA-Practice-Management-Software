@@ -1415,12 +1415,12 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                   <React.Fragment key={step.key}>
                     {/* The Card Wrapper */}
                     <div className="relative flex flex-col items-center shrink-0">
-                      {/* Uniform 248px x 104px Workflow Card */}
+                      {/* Uniform 220px x 92px Workflow Card */}
                       <div
                         onClick={() => {
                           if (isUnlocked) handleCardClick(step.key);
                         }}
-                        className={`relative w-[248px] h-[104px] bg-white rounded-2xl border-2 p-4 shadow-xs transition-all flex flex-col justify-between shrink-0 ${
+                        className={`relative w-[220px] h-[92px] bg-white rounded-xl border-2 p-3.5 shadow-xs transition-all flex flex-col justify-between shrink-0 ${
                           isUnlocked
                             ? 'cursor-pointer hover:shadow-md'
                             : 'opacity-40 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50/50 shadow-none'
@@ -1479,7 +1479,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                       {/* Card-Anchored Configuration Panel */}
                       {isActive && (
                         <div
-                          className={`absolute top-[calc(100%+16px)] z-30 w-[440px] md:w-[480px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 text-left ${
+                          className={`absolute top-[calc(100%+16px)] z-30 w-[320px] md:w-[340px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 text-left ${
                             step.key === 'event'
                               ? 'left-0'
                               : step.key === 'recipient'
@@ -1632,6 +1632,23 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           >
             <Maximize2 className="h-4 w-4" />
           </button>
+        </div>
+
+        {/* 4. BOTTOM-RIGHT MINIMAP THUMBNAIL */}
+        <div className="fixed bottom-6 right-6 z-40 w-44 h-28 bg-white rounded-lg border-2 border-slate-800 shadow-md p-2 flex flex-col justify-between overflow-hidden pointer-events-none">
+          <div className="w-full flex items-center justify-between gap-1 pt-2">
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.event || activeStep === 'event' ? 'border-orange-500 bg-orange-50' : 'border-slate-300 bg-slate-100'}`} />
+            <div className="w-2 h-0 border-t border-dashed border-slate-400" />
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.recipient || activeStep === 'recipient' ? 'border-purple-500 bg-purple-50' : 'border-slate-300 bg-slate-100'}`} />
+            <div className="w-2 h-0 border-t border-dashed border-slate-400" />
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.channel || activeStep === 'channel' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-100'}`} />
+            <div className="w-2 h-0 border-t border-dashed border-slate-400" />
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.action || activeStep === 'action' ? 'border-cyan-500 bg-cyan-50' : 'border-slate-300 bg-slate-100'}`} />
+          </div>
+          {activePanelOpen && (
+            <div className="w-10 h-10 border border-slate-300 bg-slate-50 rounded-xs self-start ml-0.5 mb-1" />
+          )}
+          <div className="absolute right-1 bottom-1 border border-slate-400/40 bg-slate-200/30 w-16 h-12 rounded-xs" />
         </div>
       </main>
     </div>
