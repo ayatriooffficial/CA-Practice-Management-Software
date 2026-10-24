@@ -137,7 +137,8 @@ function getCondition(config: AgentConfigDraft, trigger?: TriggerDefinition): nu
 }
 
 function previewText(message: string, module: AgentModule, recipient: AgentRecipient, selectedTask?: TaskItem) {
-  const roleName = recipient === 'Assigned user' ? 'Milton' : recipient === 'Task owner' ? 'Manager' : 'Client';
+  if (!message) return '';
+  const roleName = recipient === 'Assigned user' ? 'Milton' : recipient === 'Task owner' ? 'Manager' : recipient === 'Client' ? 'Ayatrio Practice' : recipient;
   const task = selectedTask || {
     id: 'TASK-1001',
     taskId: 'TASK-1001',
@@ -150,39 +151,61 @@ function previewText(message: string, module: AgentModule, recipient: AgentRecip
     reviewerName: 'Sample Reviewer',
     creatorName: 'Likith S',
   };
-  const sampleEvent: Record<string, unknown> = module === 'Task'
-    ? {
-        task: {
-          id: task.taskId || task.id,
-          taskName: task.taskName,
-          clientName: task.clientName,
-          priority: task.priority,
-          status: task.status,
-          targetDueDate: task.targetDueDate,
-          assigneeName: task.assigneeName,
-          reviewerName: task.reviewerName,
-          creatorName: task.creatorName,
-        },
-      }
-    : module === 'DSC'
-      ? { dsc: { id: 'DSC-2001', holder: 'Sample User', expiryDate: '2026-02-01' } }
-      : { license: { id: 'LIC-3001', name: 'Sample Trade License', expiryDate: '2026-02-01' } };
 
-  const recipientData: Record<AgentRecipient, { name: string; address: string }> = {
-    Client: { name: 'Ayatrio Practice', address: 'client@example.test' },
-    'Assigned user': { name: roleName, address: 'milton@example.test' },
-    'Task owner': { name: 'Manager', address: 'manager@example.test' },
-    'Account administrator': { name: 'Account Administrator', address: 'admin@example.test' },
-    'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test' },
+  const recipientData: Record<AgentRecipient, { name: string; address: string; email: string; mobile: string }> = {
+    Client: { name: 'Ayatrio Practice', address: 'client@example.test', email: 'client@example.test', mobile: '+91 98765 43210' },
+    'Assigned user': { name: roleName, address: 'milton@example.test', email: 'milton@example.test', mobile: '+91 98765 43211' },
+    'Task owner': { name: 'Manager', address: 'manager@example.test', email: 'manager@example.test', mobile: '+91 98765 43212' },
+    'Account administrator': { name: 'Account Administrator', address: 'admin@example.test', email: 'admin@example.test', mobile: '+91 98765 43213' },
+    'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+91 98765 43214' },
   };
 
-  const client = module === 'Task' ? { name: task.clientName, email: selectedTask ? undefined : 'client@example.test' } : undefined;
-  const variables = {
-    ...sampleEvent,
-    event: sampleEvent[module.toLowerCase()] || {},
-    recipient: recipientData[recipient],
+  const client = {
+    name: task.clientName || 'Ayatrio Practice',
+    email: 'client@example.test',
+    mobile: '+91 98765 43210',
+  };
+
+  const taskObj = {
+    id: task.taskId || task.id,
+    taskId: task.taskId || task.id,
+    taskName: task.taskName,
+    clientName: task.clientName,
+    priority: task.priority,
+    status: task.status,
+    targetDueDate: task.targetDueDate,
+    assigneeName: task.assigneeName,
+    reviewerName: task.reviewerName,
+    creatorName: task.creatorName,
+  };
+
+  const dscObj = {
+    id: 'DSC-2001',
+    dscId: '#S00184',
+    holder: 'Sample User',
+    name: 'Sample User DSC',
+    vendor: 'eMudhra',
+    certificateClass: 'Class 3',
+    expiryDate: '2026-02-01',
+  };
+
+  const licenseObj = {
+    id: 'LIC-3001',
+    licenseNo: 'LIC-78902',
+    name: 'Sample Trade License',
+    owner: client.name,
+    expiryDate: '2026-02-01',
+  };
+
+  const variables: Record<string, unknown> = {
+    task: taskObj,
+    dsc: dscObj,
+    license: licenseObj,
+    event: module === 'DSC' ? dscObj : module === 'License' ? licenseObj : taskObj,
+    recipient: recipientData[recipient] || recipientData['Assigned user'],
     client,
-    agent: { name: 'Task Agent' },
+    agent: { name: `${module} Agent` },
+    trigger: `${module} Event`,
     your_firm_name: 'Ayatrio Practice',
     expense_name: 'Design Assets',
     expense_amount: '₹ 15,000',
@@ -215,7 +238,7 @@ function graphIsValid(graph: WorkflowGraph, module: AgentModule, definitions: Ag
     if (node.type === 'condition') {
       if (!outputs.some((item) => item.sourceHandle === 'true') || !outputs.some((item) => item.sourceHandle === 'false') || outputs.length !== 2) return false;
       if (!node.config.field || !node.config.operator || (node.config.operator !== 'exists' && String(node.config.value ?? '').trim() === '')) return false;
-    } else if (!node.config.message || !node.config.recipient || !definitions.recipients.includes(node.config.recipient as AgentRecipient) || !definitions.channels.includes(node.config.channel as AgentChannel) || !definitions.actions.includes(node.config.action as AgentAction) || String(node.config.message).trim().length > 1000 || (node.config.channel === 'Email' && (!String(node.config.subject || '').trim() || String(node.config.subject).length > 200)) || unsupportedVariables(`${String(node.config.subject || node.config.action || '')}\n${String(node.config.message || '')}`, definitions.templateVariables).length > 0 || (node.config.recipient === 'Client' && module !== 'Task')) return false;
+    } else if (!node.config.message || !node.config.recipient || !definitions.recipients.includes(node.config.recipient as AgentRecipient) || !definitions.channels.includes(node.config.channel as AgentChannel) || !definitions.actions.includes(node.config.action as AgentAction) || String(node.config.message).trim().length > 1000 || (node.config.channel === 'Email' && (!String(node.config.subject || '').trim() || String(node.config.subject).length > 200)) || unsupportedVariables(`${String(node.config.subject || node.config.action || '')}\n${String(node.config.message || '')}`, definitions.templateVariables).length > 0) return false;
     if (node.type === 'action' && outputs.length > 1) return false;
   }
   if (nodes.length && !nodes.some((node) => node.type === 'action')) return false;
@@ -497,7 +520,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   );
 
   const showRecipientResultCards = Boolean(
-    (previewOpen && hasValidPreviewConfig) || isWorkflowCompleted
+    previewOpen || isWorkflowCompleted
   );
 
   const lifecycleStatus: AgentStatus | undefined = agentQuery.data?.status;
@@ -904,7 +927,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                 {definitions.recipients.map((recipient) => {
                   const selected = selectedRecipients.includes(recipient);
                   const isClient = recipient === 'Client';
-                  const unavailable = isClient && module !== 'Task';
+                  const unavailable = false;
                   const displayLabel = formatRecipientLabel(recipient);
 
                   return (
@@ -934,7 +957,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                         <p className="text-sm font-semibold text-slate-800">{displayLabel}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {isClient
-                            ? 'Resolves from the triggering Task’s linked client in this practice.'
+                            ? `Resolves from the triggering ${module}’s linked client in this practice.`
                             : recipient === 'Assigned user'
                               ? 'Assigned team member or staff on this task.'
                               : recipient === 'Task owner'
@@ -1085,11 +1108,18 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-cyan-500"
                   >
                     <option value="custom">Custom Email Template</option>
-                    {(module === 'Task' ? definitions.emailTemplates : []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
+                    {definitions.emailTemplates
+                      .filter((t) => {
+                        if (module === 'Task') return !t.id.startsWith('dsc-') && !t.id.startsWith('license-');
+                        if (module === 'DSC') return t.id.startsWith('dsc-');
+                        if (module === 'License') return t.id.startsWith('license-');
+                        return true;
+                      })
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}
@@ -1106,7 +1136,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                     maxLength={200}
                     disabled={readOnly || busy}
                     onChange={(e) => patchConfig({ subject: e.target.value })}
-                    placeholder="e.g. Reminder: {{task.taskName}} is due"
+                    placeholder={
+                      module === 'DSC'
+                        ? 'e.g. Urgent: DSC for {{dsc.holder}} is expiring'
+                        : module === 'License'
+                          ? 'e.g. Reminder: License {{license.name}} is expiring'
+                          : 'e.g. Reminder: {{task.taskName}} is due'
+                    }
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-cyan-500"
                   />
                 </div>
@@ -1150,20 +1186,31 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                       maxLength={1000}
                       disabled={readOnly || busy}
                       onChange={(e) => patchConfig({ message: e.target.value })}
-                      placeholder="Dear {{recipient.name}},&#10;&#10;Task {{task.taskName}} is approaching its due date..."
+                      placeholder={
+                        module === 'DSC'
+                          ? 'Dear {{recipient.name}},&#10;&#10;DSC for {{dsc.holder}} (ID: {{dsc.dscId}}) expires on {{dsc.expiryDate}}...'
+                          : module === 'License'
+                            ? 'Dear {{recipient.name}},&#10;&#10;License {{license.name}} (No: {{license.licenseNo}}) for {{client.name}} expires on {{license.expiryDate}}...'
+                            : 'Dear {{recipient.name}},&#10;&#10;Task {{task.taskName}} is approaching its due date...'
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs md:text-sm text-slate-800 outline-none focus:border-cyan-500 font-sans"
                     />
                     {/* Template variable pills */}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-slate-400 mr-1">Insert:</span>
-                      {[
-                        'task.taskName',
-                        'task.targetDueDate',
-                        'task.priority',
-                        'task.status',
-                        'client.name',
-                        'recipient.name',
-                      ].map((tag) => (
+                      {(module === 'DSC'
+                        ? ['dsc.holder', 'dsc.expiryDate', 'dsc.dscId', 'dsc.vendor', 'recipient.name', 'agent.name']
+                        : module === 'License'
+                          ? ['license.name', 'license.owner', 'license.expiryDate', 'license.licenseNo', 'client.name', 'recipient.name']
+                          : [
+                              'task.taskName',
+                              'task.targetDueDate',
+                              'task.priority',
+                              'task.status',
+                              'client.name',
+                              'recipient.name',
+                            ]
+                      ).map((tag) => (
                         <button
                           key={tag}
                           type="button"
@@ -1292,13 +1339,6 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           <button
             type="button"
             onClick={() => {
-              if (!hasValidPreviewConfig && !previewOpen) {
-                setNotice({
-                  type: 'info',
-                  text: 'Configure a trigger, recipients, channel, and message to preview notification cards.',
-                });
-                return;
-              }
               setPreviewOpen((open) => !open);
             }}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 text-xs md:text-sm font-medium transition-colors"
@@ -1508,8 +1548,11 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           </div>
 
           {/* C. RECIPIENT PREVIEW CARDS BELOW CARD 4 (ACTION) */}
-          {showRecipientResultCards && selectedRecipients.length > 0 && (() => {
-            const count = selectedRecipients.length;
+          {showRecipientResultCards && (() => {
+            const previewRecipients = (selectedRecipients.length > 0
+              ? selectedRecipients
+              : ['Assigned user']) as AgentRecipient[];
+            const count = previewRecipients.length;
             const cardWidth = 350;
             const gap = 24;
             const totalWidth = count * cardWidth + (count - 1) * gap;
@@ -1517,6 +1560,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             const marginRightCalc = count === 1
               ? 'max(16px, calc(50% - 638px))'
               : 'max(16px, calc(50% - 596px))';
+
+            const defaultSampleMessage =
+              module === 'DSC'
+                ? 'Hello {{recipient.name}},\n\nThis is a notification that the Digital Signature Certificate for {{dsc.holder}} (ID: {{dsc.dscId}}) will expire on {{dsc.expiryDate}}. Please arrange for renewal.\n\nRegards,\n{{agent.name}}'
+                : module === 'License'
+                  ? 'Hello {{recipient.name}},\n\nThis is a reminder that the license {{license.name}} (No: {{license.licenseNo}}) for {{client.name}} will expire on {{license.expiryDate}}.\n\nRegards,\n{{agent.name}}'
+                  : 'Hello {{recipient.name}},\n\n{{task.taskName}} for {{client.name}} is due on {{task.targetDueDate}}. Please review the task in your portal.\n\nRegards,\n{{agent.name}}';
 
             return (
               <div className="relative mt-2 flex flex-col items-center z-10 transition-all duration-300 w-full">
@@ -1534,7 +1584,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
                   {/* Recipient Cards Row */}
                   <div className="flex flex-nowrap items-start justify-end gap-6 w-full">
-                    {selectedRecipients.map((recipient) => {
+                    {previewRecipients.map((recipient) => {
                       const roleLabel = formatRecipientLabel(recipient);
                       const channelLabel = selectedChannel || 'EMAIL';
                       const renderedSubject = previewText(
@@ -1544,7 +1594,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                         selectedPreviewTask
                       );
                       const renderedBody = previewText(
-                        message,
+                        message || defaultSampleMessage,
                         module,
                         recipient,
                         selectedPreviewTask

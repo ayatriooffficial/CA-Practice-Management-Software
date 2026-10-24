@@ -11,6 +11,7 @@ import { UserModel } from '../auth/user.model';
 import { MailService } from '../../shared/utils/mailService';
 import { WhatsAppService, isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
 import { env } from '../../config/env';
+import { IntegrationModel } from '../integration/integration.model';
 
 const DEMO_RECIPIENTS: Record<string, { name: string; address?: string; email?: string; mobile?: string; id?: string }> = {
   Client: { name: 'Sample Company', address: 'sample.client@example.test', email: 'sample.client@example.test', mobile: '+10000000000', id: 'sample-client' },
@@ -23,6 +24,50 @@ const DEMO_RECIPIENTS: Record<string, { name: string; address?: string; email?: 
   'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+10000000004', id: 'sample-reviewer' },
   Reviewer: { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+10000000004', id: 'sample-reviewer' },
 };
+
+/**
+ * 5-point recipient email resolution priority:
+ * 1. Check database record for recipient's real email.
+ * 2. If valid real email found, use that email directly.
+ * 3. If no real email exists, fall back to demo recipient email for testing.
+ * 4. Never overwrite real email with demo or send to both.
+ * 5. Accurately record status for each recipient (delivered or failed).
+ */
+export function resolveRecipientWithFallback(
+  role: string,
+  dbRecord?: { name: string; email?: string; mobile?: string; id?: string } | null,
+  fallbackToDemo = true
+): { name: string; email: string; mobile: string; id: string; isRealEmail: boolean } {
+  const dbEmail = dbRecord?.email?.trim();
+  const isValidDbEmail = Boolean(dbEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dbEmail));
+
+  if (isValidDbEmail && dbEmail) {
+    // Priority 1 & 2: Valid real email from database
+    return {
+      name: dbRecord?.name || role,
+      email: dbEmail,
+      mobile: dbRecord?.mobile || '',
+      id: dbRecord?.id || '',
+      isRealEmail: true,
+    };
+  }
+
+  // Priority 3 & 4: Fallback to demo recipient if real email absent
+  const demo = DEMO_RECIPIENTS[role] || {
+    name: role,
+    email: 'demo@example.test',
+    mobile: '+91 98765 43210',
+    id: `demo-${role.toLowerCase().replace(/\s+/g, '-')}`,
+  };
+
+  return {
+    name: dbRecord?.name || demo.name || role,
+    email: fallbackToDemo ? (demo.email || '') : (dbEmail || ''),
+    mobile: dbRecord?.mobile || demo.mobile || '',
+    id: dbRecord?.id || demo.id || '',
+    isRealEmail: false,
+  };
+}
 
 function readPath(source: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((value, part) => {
@@ -103,6 +148,32 @@ export interface ProviderExecutionOutput {
   recipient?: string;
   subject?: string | null;
   renderedMessage?: string;
+}
+
+export async function isEmailConfiguredAsync(): Promise<boolean> {
+  const hasSmtp = Boolean(
+    (process.env.SMTP_USER || env.SMTP_USER) &&
+    (process.env.SMTP_PASS || env.SMTP_PASS)
+  );
+  if (hasSmtp) return true;
+
+  const hasGmailEnv = Boolean(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    (process.env.GMAIL_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN)
+  );
+  if (hasGmailEnv) return true;
+
+  try {
+    const googleIntegration = await IntegrationModel.findOne({ provider: 'google' }).lean().exec();
+    if (googleIntegration?.email && (googleIntegration?.refreshToken || googleIntegration?.accessToken)) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+
+  return false;
 }
 
 export function isEmailConfigured(): boolean {
@@ -200,7 +271,8 @@ export async function executeProvider(
   }
 
   if (channel === 'Email') {
-    if (!isEmailConfigured()) {
+    const emailConfigured = await isEmailConfiguredAsync();
+    if (!emailConfigured) {
       return {
         provider: 'email',
         mode: 'real',
@@ -224,7 +296,7 @@ export async function executeProvider(
         mode: 'real',
         status: 'failed',
         simulated: false,
-        error: mailResult.error || 'SMTP delivery transmission failure.',
+        error: mailResult.error || 'Email delivery transmission failure.',
         timestamp: new Date().toISOString(),
         executionId,
       };
@@ -388,9 +460,62 @@ export class AgentExecutionService {
       email: String(event.clientEmail || triggerData.clientEmail || 'sample.client@example.test'),
       mobile: String(event.clientMobile || triggerData.clientMobile || '+91 98765 43210'),
     };
+    const isRealRun = Boolean(context.event && context.runType === 'actual');
     const taskContext = (triggerData['task'] || (agent.module === 'Task' ? event : undefined)) as Record<string, unknown> | undefined;
     const dscContext = (triggerData['dsc'] || (agent.module === 'DSC' ? event : undefined)) as Record<string, unknown> | undefined;
     const licenseContext = (triggerData['license'] || (agent.module === 'License' ? event : undefined)) as Record<string, unknown> | undefined;
+
+    const defaultTask = {
+      id: 'TASK-1001',
+      taskId: 'TASK-1001',
+      taskName: 'Prepare monthly compliance report',
+      title: 'Prepare monthly compliance report',
+      name: 'Prepare monthly compliance report',
+      clientName: clientRecord.name,
+      clientEmail: clientRecord.email,
+      priority: 'High',
+      status: 'In Progress',
+      targetDueDate: '2026-01-15',
+      dueDate: '2026-01-15',
+      createdBy: 'Sample Manager',
+      creatorName: 'Sample Manager',
+      assignee: 'Sample User',
+      assigneeName: 'Sample User',
+      reviewer_name: 'Sample Reviewer',
+      reviewerName: 'Sample Reviewer',
+      expense_name: 'Design Assets',
+      expense_amount: '₹ 15,000',
+      your_firm_name: 'Ayatrio Practice',
+      task_status: 'In Progress',
+    };
+
+    const defaultDsc = {
+      id: 'DSC-2001',
+      dscId: '#S00184',
+      holder: 'Sample User',
+      name: 'Sample User DSC',
+      certificateClass: 'Class 3',
+      expiryDate: '2026-02-01',
+      vendor: 'eMudhra',
+      clientName: clientRecord.name,
+      clientEmail: clientRecord.email,
+      your_firm_name: 'Ayatrio Practice',
+    };
+
+    const defaultLicense = {
+      id: 'LIC-3001',
+      licenseNo: 'LIC-78902',
+      name: 'Sample Trade License',
+      owner: clientRecord.name,
+      expiryDate: '2026-02-01',
+      clientName: clientRecord.name,
+      clientEmail: clientRecord.email,
+      your_firm_name: 'Ayatrio Practice',
+    };
+
+    const mergedTask = { ...defaultTask, ...(taskContext || (agent.module === 'Task' ? event : {})) };
+    const mergedDsc = { ...defaultDsc, ...(dscContext || (agent.module === 'DSC' ? event : {})) };
+    const mergedLicense = { ...defaultLicense, ...(licenseContext || (agent.module === 'License' ? event : {})) };
 
     const variables: Record<string, unknown> = {
       agent: { name: agent.name },
@@ -398,11 +523,11 @@ export class AgentExecutionService {
       ...triggerData,
       ...event,
       trigger: config.trigger,
-      previewOnly: !context.event,
+      previewOnly: !isRealRun,
       resolvedRecipients,
-      task: taskContext || event,
-      dsc: dscContext || event,
-      license: licenseContext || event,
+      task: mergedTask,
+      dsc: mergedDsc,
+      license: mergedLicense,
       client: {
         name: clientRecord.name,
         email: clientRecord.email,
@@ -411,36 +536,46 @@ export class AgentExecutionService {
       clientName: clientRecord.name,
       clientEmail: clientRecord.email,
       clientMobile: clientRecord.mobile,
-      your_firm_name: String(event.your_firm_name || triggerData.your_firm_name || 'Ayatrio Practice'),
-      expense_name: String(event.expense_name || triggerData.expense_name || 'Design Assets'),
-      expense_amount: String(event.expense_amount || triggerData.expense_amount || '₹ 15,000'),
-      reviewer_name: String(event.reviewer_name || triggerData.reviewer_name || 'Sample Reviewer'),
-      task_status: String(event.task_status || triggerData.task_status || event.status || 'In Progress'),
+      your_firm_name: String(event.your_firm_name || triggerData.your_firm_name || mergedTask.your_firm_name || 'Ayatrio Practice'),
+      expense_name: String(event.expense_name || triggerData.expense_name || mergedTask.expense_name || 'Design Assets'),
+      expense_amount: String(event.expense_amount || triggerData.expense_amount || mergedTask.expense_amount || '₹ 15,000'),
+      reviewer_name: String(event.reviewer_name || triggerData.reviewer_name || mergedTask.reviewer_name || 'Sample Reviewer'),
+      task_status: String(event.task_status || triggerData.task_status || event.status || mergedTask.status || 'In Progress'),
     };
     // The strict validator guarantees this list is normalized and valid.
     const graphRun = graph?.nodes.length ? await runGraph(graph, variables, context.failRecipient) : null;
     const results = graphRun ? graphRun.results : await Promise.all(recipients.map(async (recipient) => {
-      const recipientData: { name: string; address?: string; email?: string; mobile?: string; id?: string } = context.event ? resolvedRecipients?.[recipient] || { name: recipient, address: '' } : DEMO_RECIPIENTS[recipient] || { name: recipient, address: '' };
+      const dbRecipient = resolvedRecipients?.[recipient];
+      const resolved = resolveRecipientWithFallback(recipient, dbRecipient, !isRealRun);
+      const recipientAddress = config.channel === 'Email' ? (resolved.email || '')
+        : config.channel === 'WhatsApp' ? (resolved.mobile || '')
+          : (resolved.id || '');
+      const recipientData = {
+        name: resolved.name,
+        address: recipientAddress,
+        email: resolved.email,
+        mobile: resolved.mobile,
+        id: resolved.id,
+      };
       const renderedMessage = renderAgentTemplate(String(config.message), {
         ...variables,
         recipient: recipientData,
       });
-      const renderedSubject = renderAgentTemplate(String(config.subject || config.action), { ...variables, recipient: recipientData });
-      const recipientAddress = config.channel === 'Email' ? recipientData.email || recipientData.address || ''
-        : config.channel === 'WhatsApp' ? recipientData.mobile || ''
-          : recipientData.id || '';
+      const renderedSubject = renderAgentTemplate(String(config.subject || config.action), {
+        ...variables,
+        recipient: recipientData,
+      });
       const output = await mockProvider(String(config.channel), {
         recipient: recipientAddress,
         recipientLabel: recipient,
         message: renderedMessage,
         subject: renderedSubject,
-        previewOnly: !context.event,
+        previewOnly: !isRealRun,
         simulateFailure: context.failRecipient === recipient,
       });
       return { recipient, ...output };
     }));
 
-    const isRealRun = Boolean(context.event && context.runType === 'actual');
     const executionMode: 'real' | 'mock' = isRealRun ? 'real' : 'mock';
     const failed = results.filter((result) => result.status === 'failed');
     const status = graphRun && results.length === 0 ? 'skipped' : failed.length === results.length ? 'failed' : failed.length > 0 ? 'partial-failed' : 'success';

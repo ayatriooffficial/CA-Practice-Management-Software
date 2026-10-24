@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AgentCenterService } from './agent.service';
-import { AgentExecutionService, isEmailConfigured } from './execution.service';
+import { AgentExecutionService, isEmailConfiguredAsync } from './execution.service';
 import { isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
 import { AgentSchedulerService } from './scheduler.service';
 import { getPublicDefinitions } from './definitions';
@@ -16,16 +16,18 @@ function organizationId(req: Request): string {
 export class AgentCenterController {
   static definitions = asyncHandler(async (_req: Request, res: Response) => {
     const defs = getPublicDefinitions();
+    const emailConfigured = await isEmailConfiguredAsync();
+    const whatsappConfigured = isWhatsAppConfigured();
     const withIntegrations = {
       ...defs,
       integrations: {
         email: {
-          configured: isEmailConfigured(),
-          statusText: isEmailConfigured() ? 'Connected' : 'Kindly integrate email',
+          configured: emailConfigured,
+          statusText: emailConfigured ? 'Connected' : 'Kindly integrate email',
         },
         whatsapp: {
-          configured: isWhatsAppConfigured(),
-          statusText: isWhatsAppConfigured() ? 'Connected' : 'Kindly integrate WhatsApp',
+          configured: whatsappConfigured,
+          statusText: whatsappConfigured ? 'Connected' : 'Kindly integrate WhatsApp',
         },
       },
     };
@@ -33,7 +35,7 @@ export class AgentCenterController {
   });
 
   static integrationsStatus = asyncHandler(async (_req: Request, res: Response) => {
-    const emailConfigured = isEmailConfigured();
+    const emailConfigured = await isEmailConfiguredAsync();
     const whatsappConfigured = isWhatsAppConfigured();
     return ApiResponse.success(res, {
       email: {
