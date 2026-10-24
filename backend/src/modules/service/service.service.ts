@@ -351,6 +351,17 @@ export class ServiceService {
 
     Object.assign(service, data);
 
+    if (data.sopDetails) {
+      service.sopDetails = {
+        ...(service.sopDetails || {}),
+        ...data.sopDetails,
+        lastUpdated: new Date(),
+      };
+      service.markModified('sopDetails');
+    }
+    if (data.comments) {
+      service.markModified('comments');
+    }
     if (data.checklist) {
       service.markModified('checklist');
     }
@@ -362,6 +373,82 @@ export class ServiceService {
     }
 
     return await service.save();
+  }
+
+  /**
+   * Update SOP document and structured steps
+   */
+  static async updateSop(
+    id: string,
+    sopData: {
+      sop?: string;
+      sopDetails?: import('./service.interface').IServiceSop;
+      purpose?: string;
+      applicability?: string;
+      steps?: string[];
+    }
+  ): Promise<IServiceDocument> {
+    const service = await this.getServiceById(id);
+    if (sopData.sop !== undefined) {
+      service.sop = sopData.sop;
+    }
+    const currentSop = service.sopDetails || {
+      purpose: '',
+      applicability: '',
+      steps: [],
+    };
+    service.sopDetails = {
+      purpose: sopData.sopDetails?.purpose ?? sopData.purpose ?? currentSop.purpose ?? '',
+      applicability: sopData.sopDetails?.applicability ?? sopData.applicability ?? currentSop.applicability ?? '',
+      steps: sopData.sopDetails?.steps ?? sopData.steps ?? currentSop.steps ?? [],
+      lastUpdated: new Date(),
+    };
+    service.markModified('sopDetails');
+    return await service.save();
+  }
+
+  /**
+   * Add a comment to service SOP review thread
+   */
+  static async addComment(
+    id: string,
+    comment: { text: string; author?: string; authorInitials?: string; avatarColor?: string }
+  ): Promise<IServiceDocument> {
+    const service = await this.getServiceById(id);
+    if (!service.comments) {
+      service.comments = [];
+    }
+    const initials =
+      comment.authorInitials ||
+      (comment.author
+        ? comment.author
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase()
+        : 'AU');
+
+    const newComment = {
+      id: `sc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      author: comment.author || 'Team Member',
+      authorInitials: initials,
+      avatarColor: comment.avatarColor || '#6366F1',
+      text: comment.text,
+      createdAt: new Date(),
+    };
+
+    service.comments.push(newComment);
+    service.markModified('comments');
+    return await service.save();
+  }
+
+  /**
+   * Retrieve comments for a service
+   */
+  static async getComments(id: string): Promise<import('./service.interface').IServiceComment[]> {
+    const service = await this.getServiceById(id);
+    return service.comments || [];
   }
 
   /**

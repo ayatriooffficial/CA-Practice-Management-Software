@@ -11,7 +11,7 @@ export const clientIdParamSchema = z.object({
 export const promoterItemSchema = z.object({
   key: z.number().optional(),
   name: z.string().min(1, 'Promoter name is required'),
-  pan: z.string().toUpperCase().regex(PAN_REGEX, 'Invalid PAN').optional().or(z.literal('')),
+  pan: z.string().toUpperCase().regex(PAN_REGEX, 'Invalid PAN format').optional().or(z.literal('')).nullable(),
   share: z.string().optional().default(''),
   designation: z.string().optional().default(''),
   mcaId: z.string().optional().default(''),
@@ -93,8 +93,8 @@ export const createClientSchema = z.object({
   fileNo: z.string().max(50).optional(), // Can be auto-generated if omitted
   type: z.string().min(1, 'Client constitution type is required'),
   mobile: z.string().min(7, 'Valid mobile number is required').regex(MOBILE_REGEX, 'Invalid mobile number format'),
-  secondaryMobile: z.string().regex(MOBILE_REGEX, 'Invalid secondary mobile').optional().or(z.literal('')),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  secondaryMobile: z.string().regex(MOBILE_REGEX, 'Invalid secondary mobile').optional().or(z.literal('')).nullable(),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')).nullable(),
   address: z.string().max(250).optional().default(''),
   city: z.string().max(100).optional().default(''),
   state: z.string().max(100).optional().default(''),
@@ -143,11 +143,12 @@ export const createClientSchema = z.object({
     .toUpperCase()
     .regex(PAN_REGEX, 'Invalid PAN format')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .nullable(),
   dob: z.string().optional().default(''),
   referredBy: z.string().max(100).optional().default(''),
   photo: z.string().nullable().optional(),
-  leadId: z.string().regex(OBJECT_ID_REGEX, 'Invalid Lead ID').optional(),
+  leadId: z.string().regex(OBJECT_ID_REGEX, 'Invalid Lead ID').optional().or(z.literal('')).nullable(),
   customerFiles: z
     .object({
       promoter: z.array(promoterItemSchema).optional().default([]),

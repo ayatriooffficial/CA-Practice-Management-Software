@@ -49,6 +49,28 @@ export const documentRequestSchema = new Schema(
   { _id: false }
 );
 
+export const serviceSopSchema = new Schema(
+  {
+    purpose: { type: String, default: '' },
+    applicability: { type: String, default: '' },
+    steps: { type: [String], default: [] },
+    lastUpdated: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+export const serviceCommentSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    author: { type: String, required: true },
+    authorInitials: { type: String, default: 'AU' },
+    avatarColor: { type: String, default: '#6366F1' },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const serviceSchema = new Schema<IServiceDocument>(
   {
     serviceId: {
@@ -150,6 +172,24 @@ const serviceSchema = new Schema<IServiceDocument>(
       type: String,
       trim: true,
       default: 'Standard SOP v1.0',
+    },
+    sopDetails: {
+      type: serviceSopSchema,
+      default: () => ({
+        purpose: 'Standard operating procedure for service execution, quality compliance, and client delivery.',
+        applicability: 'All active clients with recurring or on-demand engagements under this category.',
+        steps: [
+          'Initiate intake checklist and collect mandatory records',
+          'Perform statutory verification and preliminary ledger analysis',
+          'Execute regulatory computation and quality review',
+          'Final sign-off, client confirmation, and portal submission',
+        ],
+        lastUpdated: new Date(),
+      }),
+    },
+    comments: {
+      type: [serviceCommentSchema],
+      default: [],
     },
     subTasks: {
       type: [subTaskSchema],

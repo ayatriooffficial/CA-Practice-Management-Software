@@ -236,13 +236,21 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
           await updateMutation.mutateAsync({ id: client.id, data: client });
           showToast(`Client "${client.name}" updated successfully.`);
         } else {
-          await createMutation.mutateAsync(client);
+          const payload: any = { ...client };
+          if (!payload.id || payload.id.startsWith("client-") || payload.id.startsWith("CL-")) {
+            delete payload.id;
+          }
+          if (!payload.fileNo) {
+            delete payload.fileNo;
+          }
+          await createMutation.mutateAsync(payload);
           showToast(`Client "${client.name}" registered successfully.`);
         }
         setViewMode("list");
         setEditingClient(null);
       } catch (err: any) {
         showToast(err.message || "Failed to save client.");
+        throw err;
       }
     },
     [clients, updateMutation, createMutation, showToast]

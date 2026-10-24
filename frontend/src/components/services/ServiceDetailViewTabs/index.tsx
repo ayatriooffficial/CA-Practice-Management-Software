@@ -70,7 +70,7 @@ export interface ServiceDetailViewTabsProps {
   // SOP props
   sopContent: string;
   setSopContent: (val: string) => void;
-  handleSaveSop: () => Promise<void>;
+  handleSaveSop: (structured?: any) => Promise<void>;
   isSavingSop: boolean;
   // Common Toast
   showToast: (msg: string) => void;
@@ -181,6 +181,7 @@ export const ServiceDetailViewTabs: React.FC<ServiceDetailViewTabsProps> = ({
     case "SOP":
       return (
         <ServiceSopTab
+          service={service}
           sopContent={sopContent}
           setSopContent={setSopContent}
           handleSaveSop={handleSaveSop}

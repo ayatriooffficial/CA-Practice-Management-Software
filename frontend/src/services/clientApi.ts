@@ -1,4 +1,4 @@
-import { request, ApiResponse } from './apiClient';
+import { request, ApiResponse, ApiError } from './apiClient';
 import { Client } from '@/data/crmData';
 
 export interface ClientQueryParams {
@@ -140,8 +140,11 @@ export const clientApi = {
         appSyncService.saveClient(res.data);
         return res;
       }
-    } catch {
-      // Offline fallback
+    } catch (err: any) {
+      if ((err instanceof ApiError && err.statusCode > 0) || (err?.statusCode && err.statusCode > 0)) {
+        throw err;
+      }
+      console.warn('Backend server unreachable, falling back to local storage:', err);
     }
     const { appSyncService } = await import('./appSyncService');
     const newClient: Client = {

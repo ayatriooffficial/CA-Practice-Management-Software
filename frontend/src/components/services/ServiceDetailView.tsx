@@ -55,7 +55,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
   const [service, setService] = useState<Service>(initialService);
   const [activeTab, setActiveTab] = useState<
     "Overview" | "SOP" | "Sub Tasks" | "Checklist" | "Document Request" | "Clients"
-  >("Sub Tasks");
+  >("Overview");
 
   // Toggle Client Service Mutation
   const toggleClientServiceMutation = useToggleClientServiceMutation();
@@ -321,15 +321,26 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
   };
 
   // Save SOP
-  const handleSaveSop = async () => {
+  const handleSaveSop = async (structuredSop?: import("@/data/serviceData").ServiceSop) => {
     setIsSavingSop(true);
     try {
-      const updatedService = { ...service, sop: sopContent };
+      const updatedService = {
+        ...service,
+        sop: sopContent,
+        ...(structuredSop ? { sopDetails: structuredSop } : {}),
+      };
       setService(updatedService);
       onServiceUpdated?.(updatedService);
 
       if (service.id) {
-        await serviceApi.updateService(service.id, { sop: sopContent });
+        if (structuredSop) {
+          await serviceApi.updateSop(service.id, {
+            sop: sopContent,
+            sopDetails: structuredSop,
+          });
+        } else {
+          await serviceApi.updateService(service.id, { sop: sopContent });
+        }
       }
       showToast("Standard Operating Procedure saved");
     } finally {
@@ -474,29 +485,28 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
         </div>
 
-        {/* 6 Summary Metric Cards matching Screenshot 1 */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-1 pt-2  ">
+        {/* 6 Summary Metric Cards matching Screenshot 1 & 2 */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
           {/* Category */}
-          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
-            <div className="w-8 h-8 rounded-sm bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+          <div className="p-3.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] flex items-center gap-3 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <Briefcase className="w-4 h-4" />
             </div>
-            <div>
-              <span className="block text-[10.5px] text-[var(--text-subtle)] font-medium">Category</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] text-[var(--text-subtle)] font-medium">Category</span>
               <span className="text-xs font-bold text-[var(--text-main)] truncate block">
                 {service.category || "Retainer"}
               </span>
             </div>
           </div>
 
-
           {/* Frequency */}
-          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
-            <div className="w-8 h-8 rounded-sm bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+          <div className="p-3.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] flex items-center gap-3 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
               <Calendar className="w-4 h-4" />
             </div>
-            <div>
-              <span className="block text-[10.5px] text-[var(--text-subtle)] font-medium">Frequency</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] text-[var(--text-subtle)] font-medium">Frequency</span>
               <span className="text-xs font-bold text-[var(--text-main)] truncate block">
                 {service.frequency || "Monthly"}
               </span>
@@ -504,12 +514,12 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* Recurring */}
-          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
-            <div className="w-8 h-8 rounded-sm bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+          <div className="p-3.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] flex items-center gap-3 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Repeat className="w-4 h-4" />
             </div>
-            <div>
-              <span className="block text-[10.5px] text-[var(--text-subtle)] font-medium">Recurring</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] text-[var(--text-subtle)] font-medium">Recurring</span>
               <span className="text-xs font-bold text-[var(--text-main)]">
                 {service.isRecurring ? "Yes" : "No"}
               </span>
@@ -517,12 +527,12 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* Amount */}
-          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
-            <div className="w-8 h-8 rounded-sm bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+          <div className="p-3.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] flex items-center gap-3 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
             </div>
-            <div>
-              <span className="block text-[10.5px] text-[var(--text-subtle)] font-medium">Amount</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] text-[var(--text-subtle)] font-medium">Amount</span>
               <span className="text-xs font-bold text-[var(--text-main)]">
                 {service.professionalFee ? `₹ ${service.professionalFee.toLocaleString()}` : "—"}
               </span>
@@ -530,27 +540,27 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           </div>
 
           {/* TAT Days */}
-          <div className="p-3 border-r-2 border-[var(--border-main)]  flex items-center gap-x-3">
-            <div className="w-8 h-8 rounded-sm bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <div className="p-3.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] flex items-center gap-3 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
               <Clock className="w-4 h-4" />
             </div>
-            <div>
-              <span className="block text-[10.5px] text-[var(--text-subtle)] font-medium">TAT Days</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] text-[var(--text-subtle)] font-medium">TAT Days</span>
               <span className="text-xs font-bold text-[var(--text-main)]">
-                {service.tatDays ? `${service.tatDays} Days` : "—"}
+                {service.tatDays ? `${service.tatDays}` : "—"}
               </span>
             </div>
           </div>
 
           {/* Sub Tasks Count */}
-          <div className="p-3   flex items-center gap-x-3">
-            <div className="w-8 h-8 rounded-sm bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+          <div className="p-3.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] flex items-center gap-3 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
               <ListTodo className="w-4 h-4" />
             </div>
-            <div>
-              <span className="block text-[10.5px] text-[var(--text-subtle)] font-medium">Sub Tasks</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] text-[var(--text-subtle)] font-medium">Sub Tasks</span>
               <span className="text-xs font-bold text-[var(--text-main)]">
-                {subTasks.length}
+                {subTasks.length > 0 ? `${subTasks.length}` : "—"}
               </span>
             </div>
           </div>

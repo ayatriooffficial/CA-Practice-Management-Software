@@ -8,6 +8,8 @@ import {
   serviceIdParamSchema,
   toggleClientServiceParamSchema,
   toggleClientServiceBodySchema,
+  updateSopSchema,
+  addServiceCommentSchema,
 } from './service.validation';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
 
@@ -87,6 +89,29 @@ router.patch(
     body: toggleClientServiceBodySchema,
   }),
   ServiceController.toggleClientService
+);
+
+// Update Service SOP
+router.patch(
+  '/:id/sop',
+  mutationRateLimiter,
+  validateRequest({ params: serviceIdParamSchema, body: updateSopSchema }),
+  ServiceController.updateSop
+);
+
+// Get Comments for Service SOP
+router.get(
+  '/:id/comments',
+  validateRequest({ params: serviceIdParamSchema }),
+  ServiceController.getComments
+);
+
+// Add Comment to Service SOP
+router.post(
+  '/:id/comments',
+  mutationRateLimiter,
+  validateRequest({ params: serviceIdParamSchema, body: addServiceCommentSchema }),
+  ServiceController.addComment
 );
 
 export const serviceRoutes = router;

@@ -49,6 +49,22 @@ export interface IServiceDocumentRequestItem {
   serviceId?: string | null;
 }
 
+export interface IServiceSop {
+  purpose?: string;
+  applicability?: string;
+  steps?: string[];
+  lastUpdated?: Date | string;
+}
+
+export interface IServiceComment {
+  id: string;
+  author: string;
+  authorInitials?: string;
+  avatarColor?: string;
+  text: string;
+  createdAt?: Date;
+}
+
 export interface IService {
   serviceId?: string;
   name: string;
@@ -66,6 +82,8 @@ export interface IService {
   tatHours?: string;
   note?: string;
   sop?: string;
+  sopDetails?: IServiceSop;
+  comments?: IServiceComment[];
   subTasks?: (string | IServiceSubTask)[];
   checklist?: (string | IServiceChecklistItem)[];
   documentRequests?: (string | IServiceDocumentRequestItem)[];

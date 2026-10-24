@@ -191,4 +191,36 @@ export const serviceApi = {
       body: JSON.stringify({ enabled }),
     });
   },
+
+  updateSop: async (
+    id: string,
+    sopData: {
+      sop?: string;
+      sopDetails?: import('@/data/serviceData').ServiceSop;
+      purpose?: string;
+      applicability?: string;
+      steps?: string[];
+    }
+  ): Promise<ApiResponse<Service>> => {
+    return request<Service>(`/services/${id}/sop`, {
+      method: 'PATCH',
+      body: JSON.stringify(sopData),
+    });
+  },
+
+  getComments: async (
+    id: string
+  ): Promise<ApiResponse<import('@/data/serviceData').ServiceComment[]>> => {
+    return request<import('@/data/serviceData').ServiceComment[]>(`/services/${id}/comments`);
+  },
+
+  addComment: async (
+    id: string,
+    comment: { text: string; author?: string; authorInitials?: string; avatarColor?: string }
+  ): Promise<ApiResponse<Service>> => {
+    return request<Service>(`/services/${id}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(comment),
+    });
+  },
 };

@@ -38,7 +38,7 @@ import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface ClientFormProps {
   initialClient?: Client | null;
-  onSave: (client: Client) => void;
+  onSave: (client: Client) => Promise<void> | void;
   onCancel: () => void;
 }
 
@@ -245,6 +245,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [gstinError, setGstinError] = useState("");
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fileInputId = useId();
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -496,54 +498,200 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
   };
 
-  const validate = () => {
+  const validate = (): boolean => {
     const errs: Record<string, string> = {};
+
+    // 1. Client Name (Required, min 2 chars)
     if (!clientName.trim()) {
       errs.clientName = "Client Name is required";
+    } else if (clientName.trim().length < 2) {
+      errs.clientName = "Client Name must be at least 2 characters";
     }
-    if (!type) {
-      errs.type = "Type is required";
+
+    // 2. Constitution Type (Required)
+    if (!type || !type.trim()) {
+      errs.type = "Constitution Type is required (e.g. Private Limited, Individual, LLP)";
     }
+
+    // 3. Mobile Number (Required, at least 7 digits)
+    const cleanMobile = mobile.trim();
+    if (!cleanMobile) {
+      errs.mobile = "Mobile Number is required";
+    } else if (cleanMobile.length < 7) {
+      errs.mobile = "Valid mobile number is required (at least 7 digits, e.g. 9876543210)";
+    } else if (!/^[0-9+\s\-()]{7,16}$/.test(cleanMobile)) {
+      errs.mobile = "Invalid mobile number format";
+    }
+
+    // 4. Practice Group (Required)
+    if (!group || !group.trim()) {
+      errs.group = "Practice Group is required (e.g. Accounting, Tax & Regulatory)";
+    }
+
+    // 5. PAN (Optional, but if entered must match 10-char PAN format)
+    if (pan.trim()) {
+      const cleanPan = pan.trim().toUpperCase();
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanPan)) {
+        errs.pan = "Invalid PAN format. Must be 10 characters (e.g. ABCDE1234F)";
+      }
+    }
+
+    // 6. Email (Optional, but if entered must be valid email format)
+    if (email.trim()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        errs.email = "Invalid email address format (e.g. name@domain.com)";
+      }
+    }
+
+    // 7. Secondary Mobile (Optional, but if entered must be valid)
+    if (secondaryMobile.trim()) {
+      if (!/^[0-9+\s\-()]{7,16}$/.test(secondaryMobile.trim())) {
+        errs.secondaryMobile = "Invalid secondary mobile number format";
+      }
+    }
+
+    // 8. Promoter Rows Validation
+    promoterRows.forEach((r, idx) => {
+      const hasAnyField = Boolean(r.pan || r.share || r.designation || r.mcaId);
+      if (hasAnyField && !r.name.trim()) {
+        errs[`promoter_${idx}`] = `Promoter #${idx + 1}: Name is required when details are entered`;
+      }
+      if (r.pan.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(r.pan.trim().toUpperCase())) {
+        errs[`promoter_pan_${idx}`] = `Promoter #${idx + 1}: Invalid PAN format (e.g. ABCDE1234F)`;
+      }
+    });
+
+    // 9. Statutory Rows Validation
+    statutoryRows.forEach((s, idx) => {
+      if (s.type.trim() && !s.idNo.trim()) {
+        errs[`statutory_${idx}`] = `Statutory #${idx + 1}: ID Number is required for selected type "${s.type}"`;
+      } else if (!s.type.trim() && s.idNo.trim()) {
+        errs[`statutory_${idx}`] = `Statutory #${idx + 1}: Statutory Type is required for ID "${s.idNo}"`;
+      }
+    });
+
+    // 10. Recurring Rows Validation
+    recurringRows.forEach((rec, idx) => {
+      if (rec.category.trim() && !rec.service.trim()) {
+        errs[`recurring_${idx}`] = `Recurring #${idx + 1}: Service name is required for category "${rec.category}"`;
+      } else if (!rec.category.trim() && rec.service.trim()) {
+        errs[`recurring_${idx}`] = `Recurring #${idx + 1}: Category is required for service "${rec.service}"`;
+      }
+    });
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+
     if (!validate()) {
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(".border-rose-500, .border-\\[\\#e8655a\\]");
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
       return;
     }
 
-    const finalClient: Client = {
-      id: initialClient?.id || `client-${Date.now()}`,
-      name: clientName.trim(),
-      fileNo: initialClient?.fileNo || String(Math.floor(Math.random() * 899) + 100),
-      type: type || "individual",
-      mobile: mobile.trim(),
-      secondaryMobile: secondaryMobile.trim(),
-      email: email.trim(),
-      address: address.trim(),
-      city: city.trim(),
-      state: "Maharashtra",
-      pincode: pincode.trim(),
-      group: group || "Accounting",
-      tags: initialClient?.tags || ["new-client"],
-      active: isActive,
-      services: initialClient?.services || [],
-      users: initialClient?.users || ["Aarav"],
-      pan: pan.trim().toUpperCase(),
-      dob,
-      referredBy: referredBy.trim(),
-      photo,
-      createdAt: initialClient?.createdAt || new Date().toISOString(),
-      customerFiles: {
-        promoter: promoterRows.filter((r) => r.name || r.pan),
-        statutory: statutoryRows.filter((r) => r.type || r.idNo),
-        recurring: recurringRows.filter((r) => r.category || r.service),
-      },
-    };
+    setIsSubmitting(true);
+    try {
+      // Clean Customer Files: filter out unpopulated rows
+      const cleanPromoters = promoterRows
+        .filter((r) => r.name.trim() !== "")
+        .map((r, i) => ({
+          ...r,
+          key: r.key || i + 1,
+          name: r.name.trim(),
+          pan: r.pan.trim().toUpperCase() || undefined,
+          share: r.share.trim() || undefined,
+          designation: r.designation.trim() || undefined,
+          mcaId: r.mcaId.trim() || undefined,
+          mcaPassword: r.mcaPassword?.trim() || undefined,
+        }));
 
-    onSave(finalClient);
+      const cleanStatutory = statutoryRows
+        .filter((s) => s.type.trim() !== "" && s.idNo.trim() !== "")
+        .map((s, i) => ({
+          ...s,
+          key: s.key || i + 1,
+          type: s.type.trim(),
+          idNo: s.idNo.trim(),
+          userId: s.userId.trim() || undefined,
+          password: s.password?.trim() || undefined,
+          attachment: s.attachment || null,
+        }));
+
+      const cleanRecurring = recurringRows
+        .filter((r) => r.category.trim() !== "" && r.service.trim() !== "")
+        .map((r, i) => ({
+          ...r,
+          key: r.key || i + 1,
+          category: r.category.trim(),
+          service: r.service.trim(),
+          tariff: r.tariff.trim() || "0.00",
+        }));
+
+      const finalClient: Client = {
+        id: initialClient?.id || "",
+        name: clientName.trim(),
+        fileNo: initialClient?.fileNo || "",
+        type: type.trim(),
+        mobile: mobile.trim(),
+        secondaryMobile: secondaryMobile.trim() || undefined,
+        email: email.trim() || undefined,
+        address: address.trim() || undefined,
+        city: city.trim() || undefined,
+        state: "Maharashtra",
+        pincode: pincode.trim() || undefined,
+        group: group.trim() || "Accounting",
+        tags: initialClient?.tags || ["new-client"],
+        active: isActive,
+        services: initialClient?.services || [],
+        users: initialClient?.users || ["Aarav"],
+        pan: pan.trim().toUpperCase() || undefined,
+        dob: dob || undefined,
+        referredBy: referredBy.trim() || undefined,
+        photo: photo || undefined,
+        createdAt: initialClient?.createdAt || new Date().toISOString(),
+        customerFiles: {
+          promoter: cleanPromoters,
+          statutory: cleanStatutory,
+          recurring: cleanRecurring,
+        },
+      };
+
+      await onSave(finalClient);
+    } catch (err: any) {
+      console.error("Failed to register/update client:", err);
+      const msg = err.message || "Failed to save client. Please review the highlighted requirements.";
+      setSubmitError(msg);
+
+      // Map backend validation field errors if available
+      if (err.errors && Array.isArray(err.errors)) {
+        const backendErrs: Record<string, string> = {};
+        err.errors.forEach((e: any) => {
+          if (e.field) {
+            backendErrs[e.field] = e.message;
+          }
+        });
+        if (Object.keys(backendErrs).length > 0) {
+          setErrors((prev) => ({ ...prev, ...backendErrs }));
+        }
+      }
+
+      setTimeout(() => {
+        const banner = document.getElementById("client-form-error-banner");
+        if (banner) {
+          banner.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isDirty = useMemo(() => {
@@ -661,6 +809,46 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 py-2">
+        {/* Requirement Warning & Validation Banner */}
+        {(submitError || Object.keys(errors).length > 0) && (
+          <div
+            id="client-form-error-banner"
+            className="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                    <span>Required Fields & Validation Warnings</span>
+                    {Object.keys(errors).length > 0 && (
+                      <span className="text-xs bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full font-semibold">
+                        {Object.keys(errors).length} requirement{Object.keys(errors).length > 1 ? "s" : ""} need attention
+                      </span>
+                    )}
+                  </h4>
+                </div>
+
+                {submitError && (
+                  <p className="text-xs font-semibold text-rose-800 dark:text-rose-200">
+                    {submitError}
+                  </p>
+                )}
+
+                {Object.keys(errors).length > 0 && (
+                  <ul className="list-disc list-inside text-xs space-y-1 text-rose-700 dark:text-rose-300 pt-1">
+                    {Object.entries(errors).map(([key, msg]) => (
+                      <li key={key} className="font-medium">
+                        {msg}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 2. CARD: Client Info */}
         <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-4">
           <h2 className="text-lg font-bold text-[#000000] dark:text-white">
@@ -737,7 +925,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               {/* Client Name * */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
                 <label htmlFor="cf-client-name" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Client Name <span className="text-[#e8655a]">*</span>
+                  Client Name <span className="text-[#e8655a] font-bold">*</span>
                 </label>
                 <div>
                   <input
@@ -746,7 +934,16 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     aria-label="Client Name"
                     type="text"
                     value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
+                    onChange={(e) => {
+                      setClientName(e.target.value);
+                      if (errors.clientName) {
+                        setErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.clientName;
+                          return n;
+                        });
+                      }
+                    }}
                     placeholder="Client Name"
                     className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none transition-all bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.clientName
                       ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
@@ -754,7 +951,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }`}
                   />
                   {errors.clientName && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.clientName}</p>
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.clientName}
+                    </p>
                   )}
                 </div>
               </div>
@@ -762,7 +962,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               {/* Type * */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
                 <label htmlFor="cf-type" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Type <span className="text-[#e8655a]">*</span>
+                  Type <span className="text-[#e8655a] font-bold">*</span>
                 </label>
                 <div>
                   <Select
@@ -780,12 +980,15 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     options={CLIENT_TYPES}
-                    placeholder="Select..."
+                    placeholder="Select Type..."
                     separator={true}
                     error={errors.type}
                   />
                   {errors.type && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.type}</p>
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.type}
+                    </p>
                   )}
                 </div>
               </div>
@@ -795,35 +998,77 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <label htmlFor="cf-pan" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   PAN
                 </label>
-                <input
-                  id="cf-pan"
-                  name="pan"
-                  aria-label="PAN"
-                  type="text"
-                  maxLength={10}
-                  value={pan}
-                  onChange={(e) => setPan(e.target.value.toUpperCase())}
-                  placeholder="PAN"
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm uppercase font-mono text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                />
+                <div>
+                  <input
+                    id="cf-pan"
+                    name="pan"
+                    aria-label="PAN"
+                    type="text"
+                    maxLength={10}
+                    value={pan}
+                    onChange={(e) => {
+                      setPan(e.target.value.toUpperCase());
+                      if (errors.pan) {
+                        setErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.pan;
+                          return n;
+                        });
+                      }
+                    }}
+                    placeholder="PAN (e.g. ABCDE1234F)"
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm uppercase font-mono text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
+                      errors.pan
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    }`}
+                  />
+                  {errors.pan && (
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.pan}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {/* Mobile No. */}
+              {/* Mobile No. * */}
               <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-center gap-4 py-2">
                 <label htmlFor="cf-mobile" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Mobile No.
+                  Mobile No. <span className="text-[#e8655a] font-bold">*</span>
                 </label>
-                <input
-                  id="cf-mobile"
-                  name="mobile"
-                  aria-label="Mobile No."
-                  type="tel"
-                  maxLength={10}
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Mobile No."
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                />
+                <div>
+                  <input
+                    id="cf-mobile"
+                    name="mobile"
+                    aria-label="Mobile No."
+                    type="tel"
+                    maxLength={15}
+                    value={mobile}
+                    onChange={(e) => {
+                      setMobile(e.target.value.replace(/[^\d+ -]/g, ""));
+                      if (errors.mobile) {
+                        setErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.mobile;
+                          return n;
+                        });
+                      }
+                    }}
+                    placeholder="Mobile No. (e.g. 9876543210)"
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
+                      errors.mobile
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    }`}
+                  />
+                  {errors.mobile && (
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.mobile}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Email */}
@@ -831,16 +1076,37 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <label htmlFor="cf-email" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Email
                 </label>
-                <input
-                  id="cf-email"
-                  name="email"
-                  aria-label="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email"
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                />
+                <div>
+                  <input
+                    id="cf-email"
+                    name="email"
+                    aria-label="Email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errors.email) {
+                        setErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.email;
+                          return n;
+                        });
+                      }
+                    }}
+                    placeholder="Email (e.g. name@domain.com)"
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
+                      errors.email
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    }`}
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* City */}
@@ -908,21 +1174,39 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 </div>
               </div>
 
-              {/* Select Group */}
+              {/* Select Group * */}
               <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] items-center gap-4 py-2">
                 <label htmlFor="cf-group" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Select Group
+                  Select Group <span className="text-[#e8655a] font-bold">*</span>
                 </label>
-                <Select
-                  id="cf-group"
-                  aria-label="Select Group"
-                  value={group}
-                  onChange={(val) => setGroup(val)}
-                  options={CLIENT_GROUPS.map((g) => ({ value: g, label: g }))}
-                  placeholder="Select..."
-                  separator={true}
-                  searchable={true}
-                />
+                <div>
+                  <Select
+                    id="cf-group"
+                    aria-label="Select Group"
+                    value={group}
+                    onChange={(val) => {
+                      setGroup(val);
+                      if (errors.group) {
+                        setErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.group;
+                          return n;
+                        });
+                      }
+                    }}
+                    options={CLIENT_GROUPS.map((g) => ({ value: g, label: g }))}
+                    placeholder="Select Group..."
+                    separator={true}
+                    searchable={true}
+                    error={errors.group}
+                  />
+                  {errors.group && (
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.group}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Referred By */}
@@ -947,19 +1231,38 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <label htmlFor="cf-sec-mobile" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Secondary Mobile No.
                 </label>
-                <input
-                  id="cf-sec-mobile"
-                  name="secondaryMobile"
-                  aria-label="Secondary Mobile No."
-                  type="tel"
-                  maxLength={10}
-                  value={secondaryMobile}
-                  onChange={(e) =>
-                    setSecondaryMobile(e.target.value.replace(/\D/g, ""))
-                  }
-                  placeholder="Secondary Mobile No."
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                />
+                <div>
+                  <input
+                    id="cf-sec-mobile"
+                    name="secondaryMobile"
+                    aria-label="Secondary Mobile No."
+                    type="tel"
+                    maxLength={15}
+                    value={secondaryMobile}
+                    onChange={(e) => {
+                      setSecondaryMobile(e.target.value.replace(/[^\d+ -]/g, ""));
+                      if (errors.secondaryMobile) {
+                        setErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.secondaryMobile;
+                          return n;
+                        });
+                      }
+                    }}
+                    placeholder="Secondary Mobile No."
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
+                      errors.secondaryMobile
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    }`}
+                  />
+                  {errors.secondaryMobile && (
+                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.secondaryMobile}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Address */}
@@ -1369,27 +1672,51 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           </div>
 
           {/* Form Actions (Cancel / Save) */}
-          <div className="mt-8 flex items-center justify-end gap-3 pt-3">
-            <button
-              type="button"
-              onClick={handleCancelAttempt}
-              className="h-11 rounded-md border border-[#31719B] bg-white dark:bg-[#1e293b] px-6 text-sm font-semibold text-[#31719B] transition-colors hover:bg-[#31719B]/5 cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="h-11 rounded-md px-7 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
-              }
-            >
-              Save
-            </button>
+          <div className="mt-8 pt-4 border-t border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row items-center justify-between gap-4">
+            {Object.keys(errors).length > 0 ? (
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>
+                  Please address the {Object.keys(errors).length} required field error{Object.keys(errors).length > 1 ? "s" : ""} above before saving.
+                </span>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Fields marked with <span className="text-[#e8655a] font-bold">*</span> are required.
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={handleCancelAttempt}
+                disabled={isSubmitting}
+                className="h-11 rounded-md border border-[#31719B] bg-white dark:bg-[#1e293b] px-6 text-sm font-semibold text-[#31719B] transition-colors hover:bg-[#31719B]/5 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-11 rounded-md px-7 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-60 flex items-center gap-2"
+                style={{ backgroundColor: "var(--premium-blue-dark)" }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
+                }
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving Client...</span>
+                  </>
+                ) : (
+                  <span>{isEditing ? "Save Changes" : "Save Client"}</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </form>

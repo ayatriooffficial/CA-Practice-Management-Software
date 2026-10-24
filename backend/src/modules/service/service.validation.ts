@@ -42,6 +42,28 @@ export const serviceSubTaskSchema = z.union([
   }),
 ]);
 
+export const serviceSopSchema = z.object({
+  purpose: z.string().optional().default(''),
+  applicability: z.string().optional().default(''),
+  steps: z.array(z.string()).optional().default([]),
+  lastUpdated: z.union([z.string(), z.date()]).optional(),
+});
+
+export const addServiceCommentSchema = z.object({
+  text: z.string().min(1, 'Comment text cannot be empty'),
+  author: z.string().optional().default('Team Member'),
+  authorInitials: z.string().optional().default('TM'),
+  avatarColor: z.string().optional().default('#6366F1'),
+});
+
+export const updateSopSchema = z.object({
+  sop: z.string().optional(),
+  sopDetails: serviceSopSchema.optional(),
+  purpose: z.string().optional(),
+  applicability: z.string().optional(),
+  steps: z.array(z.string()).optional(),
+});
+
 export const createServiceSchema = z.object({
   name: z.string().min(2, 'Service name must be at least 2 characters').max(150),
   category: z.string().min(1, 'Category is required'),
@@ -69,6 +91,8 @@ export const createServiceSchema = z.object({
   tatHours: z.string().max(10).optional().default('00:00'),
   note: z.string().max(500).optional().default(''),
   sop: z.string().optional().default('Standard SOP v1.0'),
+  sopDetails: serviceSopSchema.optional(),
+  comments: z.array(z.any()).optional().default([]),
   subTasks: z.array(serviceSubTaskSchema).optional().default([]),
   checklist: z.array(serviceChecklistItemSchema).optional().default([]),
   documentRequests: z.array(serviceDocumentRequestItemSchema).optional().default([]),
@@ -76,6 +100,8 @@ export const createServiceSchema = z.object({
 });
 
 export const updateServiceSchema = createServiceSchema.partial().extend({
+  sopDetails: serviceSopSchema.optional(),
+  comments: z.array(z.any()).optional(),
   subTasks: z.array(serviceSubTaskSchema).optional(),
   checklist: z.array(serviceChecklistItemSchema).optional(),
   documentRequests: z.array(serviceDocumentRequestItemSchema).optional(),

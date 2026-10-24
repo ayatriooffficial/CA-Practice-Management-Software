@@ -20,6 +20,22 @@ export interface ServiceDocumentRequestItem {
   isMandatory?: boolean;
 }
 
+export interface ServiceSop {
+  purpose?: string;
+  applicability?: string;
+  steps?: string[];
+  lastUpdated?: string | Date;
+}
+
+export interface ServiceComment {
+  id: string;
+  author: string;
+  authorInitials?: string;
+  avatarColor?: string;
+  text: string;
+  createdAt?: string | Date;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -37,6 +53,8 @@ export interface Service {
   tatHours?: string;
   note?: string;
   sop?: string;
+  sopDetails?: ServiceSop;
+  comments?: ServiceComment[];
   subTasks?: (string | ServiceSubTask)[];
   checklist?: (string | ServiceChecklistItem)[];
   documentRequests?: (string | ServiceDocumentRequestItem)[];

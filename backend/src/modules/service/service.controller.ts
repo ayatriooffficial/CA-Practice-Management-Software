@@ -115,4 +115,34 @@ export class ServiceController {
       `Client service compliance status updated to ${enabled}`
     );
   });
+
+  /**
+   * Update SOP structured content
+   * PATCH /api/v1/services/:id/sop
+   */
+  static updateSop = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const updated = await ServiceService.updateSop(id, req.body);
+    return ApiResponse.success(res, updated, 'Service SOP updated successfully');
+  });
+
+  /**
+   * Add comment to service SOP discussion thread
+   * POST /api/v1/services/:id/comments
+   */
+  static addComment = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const updated = await ServiceService.addComment(id, req.body);
+    return ApiResponse.created(res, updated, 'Comment added successfully');
+  });
+
+  /**
+   * Get all comments for a service
+   * GET /api/v1/services/:id/comments
+   */
+  static getComments = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const comments = await ServiceService.getComments(id);
+    return ApiResponse.success(res, comments, 'Service comments retrieved successfully');
+  });
 }
