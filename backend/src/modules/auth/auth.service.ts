@@ -1092,7 +1092,7 @@ export class AuthService {
     name: string;
     email: string;
     password: string;
-  }): Promise<{ success: boolean; message: string }> {
+  }): Promise<{ success: boolean; message: string; request?: any }> {
     const cleanEmail = (data.email || '').trim().toLowerCase();
     const cleanName = (data.name || '').trim();
     const cleanPassword = String(data.password || '').trim();
