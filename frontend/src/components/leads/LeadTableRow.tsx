@@ -258,7 +258,7 @@ export const LeadTableRow = memo(
             {!isDeleted ? (
               <>
                 {/* Convert to Client Button */}
-                {onConvert && !isConverted && (
+                {/* {onConvert && !isConverted && (
                   <button
                     type="button"
                     onClick={() => onConvert(lead)}
@@ -267,7 +267,7 @@ export const LeadTableRow = memo(
                   >
                     <UserCheck className="w-4 h-4" />
                   </button>
-                )}
+                )} */}
 
                 {/* Edit Button */}
                 {canAddEdit("leads") && (

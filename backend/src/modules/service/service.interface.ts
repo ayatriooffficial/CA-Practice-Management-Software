@@ -65,6 +65,27 @@ export interface IServiceComment {
   createdAt?: Date;
 }
 
+export interface IServiceRecurringPeriod {
+  period: string; // e.g. "Apr 2026"
+  subPeriod?: string; // e.g. "Filing for Apr 2026"
+  dueIn: string; // e.g. "May 2026"
+  dueInType?: 'after_period' | 'within_period';
+  startDay: number;
+  targetDay: number;
+  dueDay: number;
+  isOverride?: boolean;
+  startDate?: string;
+  targetDate?: string;
+  dueDate?: string;
+}
+
+export interface IServiceRecurringSchedule {
+  timingType: 'after_period' | 'within_period';
+  periods: IServiceRecurringPeriod[];
+  generatedForYear?: string;
+  lastGeneratedAt?: Date | string;
+}
+
 export interface IService {
   serviceId?: string;
   name: string;
@@ -73,6 +94,7 @@ export interface IService {
   difficulty: ServiceDifficulty;
   description?: string;
   isRecurring: boolean;
+  recurringSchedule?: IServiceRecurringSchedule;
   professionalFee: number;
   taxRate?: string;
   sacCode?: string;

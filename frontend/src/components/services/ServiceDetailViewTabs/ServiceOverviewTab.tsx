@@ -14,6 +14,23 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
   const isQuarterly = (service.frequency || "").toLowerCase() === "quarterly";
 
   const scheduleRows = React.useMemo(() => {
+    if (service.recurringSchedule?.periods && service.recurringSchedule.periods.length > 0) {
+      const currentMonthStr = new Date().toLocaleString("en-US", { month: "short", year: "numeric" });
+      return service.recurringSchedule.periods.map((p) => ({
+        period: p.period,
+        subPeriod: p.subPeriod || `Filing for ${p.period}`,
+        dueIn: p.dueIn,
+        dueInSub: p.dueInType === "within_period" ? "within period" : "after period",
+        startDay: `${p.startDay} Day`,
+        startDaySub: p.startDate || "—",
+        targetDay: `${p.targetDay} Day`,
+        targetDaySub: p.targetDate || "—",
+        endDay: `${p.dueDay} Day`,
+        endDaySub: p.dueDate || "—",
+        isCurrent: p.period.toLowerCase().includes(currentMonthStr.toLowerCase()),
+      }));
+    }
+
     if (isQuarterly) {
       return [
         {
@@ -159,7 +176,9 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
                 DUE TIMING
               </span>
               <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-                After period ends
+                {service.recurringSchedule?.timingType === "within_period"
+                  ? "Within filing period"
+                  : "After period ends"}
               </span>
             </div>
 
@@ -257,7 +276,7 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
             {isMonthly ? "Monthly • 12 periods" : isQuarterly ? "Quarterly • 4 periods" : `${service.frequency || "Monthly"} schedule`}
           </span>
           <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-            after period
+            {service.recurringSchedule?.timingType === "within_period" ? "within period" : "after period"}
           </span>
         </div>
 

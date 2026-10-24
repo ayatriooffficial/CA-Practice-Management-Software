@@ -49,7 +49,7 @@ export interface ClientDetailViewTabsProps {
   isLoadingServices: boolean;
   handleToggleServiceCompliance: (serviceName: string, currentVal: boolean) => Promise<void>;
   handleToggleCategoryCompliance: (catName: string, items: ClientServiceSetting[]) => Promise<void>;
-  handleSaveServiceOptions: (srv: ClientServiceSetting) => Promise<void>;
+  handleSaveServiceOptions: (srv: ClientServiceSetting, keepDrawerOpen?: boolean) => Promise<void>;
   // License tab props
   setIsAddLicenseOpen: (v: boolean) => void;
   handleDeleteLicense: (id: string, name: string) => Promise<void>;
@@ -72,6 +72,9 @@ export interface ClientDetailViewTabsProps {
   // Notes props
   setIsAddNoteOpen: (v: boolean) => void;
   handleDeleteNote: (id: string) => Promise<void> | void;
+  // Contact props
+  handleDeleteContact?: (id: string, name: string) => Promise<void>;
+  onClientUpdated?: (client: Client) => void;
   // Helpers
   getAvatarBadge?: (text: string, index: number) => React.ReactNode;
 }
@@ -113,6 +116,8 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
   showToast,
   setIsAddNoteOpen,
   handleDeleteNote,
+  handleDeleteContact,
+  onClientUpdated,
   getAvatarBadge,
 }) => {
   switch (activeTab) {
@@ -157,6 +162,7 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
           setIsAddDocInOutOpen={setIsAddDocInOutOpen}
           handleDeleteDocMovement={handleDeleteDocMovement}
           clientTasks={clientTasks}
+          isLoadingTasks={isLoadingTasks}
           clientName={client.name}
           clientId={client.id}
           onRefreshTasks={onRefreshTasks}
@@ -200,7 +206,14 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
       );
 
     case "Contacts":
-      return <ClientContactsTab client={client} getAvatarBadge={getAvatarBadge} />;
+      return (
+        <ClientContactsTab
+          client={client}
+          onClientUpdated={onClientUpdated}
+          showToast={showToast}
+          handleDeleteContact={handleDeleteContact}
+        />
+      );
 
     default:
       return (

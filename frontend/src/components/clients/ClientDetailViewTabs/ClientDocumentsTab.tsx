@@ -31,6 +31,7 @@ export interface ClientDocumentsTabProps {
   setIsAddDocInOutOpen: (open: boolean) => void;
   handleDeleteDocMovement: (docId: string, docName: string) => Promise<void>;
   clientTasks?: TaskItem[];
+  isLoadingTasks?: boolean;
   clientName?: string;
   clientId?: string;
   onRefreshTasks?: () => void;
@@ -42,6 +43,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   setIsAddDocInOutOpen,
   handleDeleteDocMovement,
   clientTasks = [],
+  isLoadingTasks = false,
   clientName = "",
   clientId = "",
   onRefreshTasks,
@@ -56,16 +58,12 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Services catalog from DB / cache
-  const [servicesCatalog, setServicesCatalog] = useState<Service[]>(() => {
-    try {
-      return appSyncService.getServices();
-    } catch {
-      return [];
-    }
-  });
+  const [servicesCatalog, setServicesCatalog] = useState<Service[]>([]);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
   // Client Drive documents from DB
   const [driveDocs, setDriveDocs] = useState<IDocumentItem[]>([]);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(true);
 
   // Custom user-added required documents
   const [customReqDocs, setCustomReqDocs] = useState<
@@ -93,6 +91,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   // Fetch services and client drive documents on mount
   useEffect(() => {
     let isMounted = true;
+    setIsLoadingCatalog(true);
     serviceApi
       .getServices({ limit: 100 })
       .then((res) => {
@@ -100,10 +99,14 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
           setServicesCatalog(res.data);
         }
       })
-      .catch(() => {});
+      .catch(() => { })
+      .finally(() => {
+        if (isMounted) setIsLoadingCatalog(false);
+      });
 
     const targetClientId = clientId || client?.id;
     if (targetClientId) {
+      setIsLoadingDrive(true);
       driveApi
         .getDocuments({ clientId: targetClientId, limit: 100 })
         .then((res) => {
@@ -111,13 +114,20 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
             setDriveDocs(res.data);
           }
         })
-        .catch(() => {});
+        .catch(() => { })
+        .finally(() => {
+          if (isMounted) setIsLoadingDrive(false);
+        });
+    } else {
+      setIsLoadingDrive(false);
     }
 
     return () => {
       isMounted = false;
     };
   }, [clientId, client?.id]);
+
+  const isLoadingRequired = Boolean(isLoadingTasks || isLoadingCatalog || isLoadingDrive);
 
   // Determine all active services for this client
   const activeServices = useMemo(() => {
@@ -425,7 +435,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
 
       // If linked to a task, sync the task document request as well
       if (taskDbId) {
-        await taskApi.uploadDocumentRequestFile(taskDbId, docId, file, docTitle).catch(() => {});
+        await taskApi.uploadDocumentRequestFile(taskDbId, docId, file, docTitle).catch(() => { });
         if (onRefreshTasks) {
           onRefreshTasks();
         }
@@ -469,7 +479,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
+    <div className="bg-white dark:bg-[#1e293b] rounded-sm border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
       {/* Top Section Switcher & Search Bar */}
       <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
@@ -481,11 +491,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                 setActiveSection("Required");
                 setSearch("");
               }}
-              className={`h-7 px-3 rounded-md text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 ${
-                activeSection === "Required"
+              className={`h-7 px-3 rounded-md text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 ${activeSection === "Required"
                   ? "bg-white dark:bg-[#1e293b] text-[#31719B] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-              }`}
+                }`}
             >
               <FolderOpen className="w-3.5 h-3.5" />
               <span>Required Documents ({requiredDocuments.length})</span>
@@ -496,11 +505,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                 setActiveSection("Movements");
                 setSearch("");
               }}
-              className={`h-7 px-3 rounded-md text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 ${
-                activeSection === "Movements"
+              className={`h-7 px-3 rounded-md text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 ${activeSection === "Movements"
                   ? "bg-white dark:bg-[#1e293b] text-[#31719B] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-              }`}
+                }`}
             >
               <FileText className="w-3.5 h-3.5" />
               <span>Document Movements ({documents.length})</span>
@@ -531,11 +539,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                   key={filter}
                   type="button"
                   onClick={() => setReqStatusFilter(filter)}
-                  className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
-                    reqStatusFilter === filter
+                  className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${reqStatusFilter === filter
                       ? "bg-blue-100 text-[#31719B] dark:bg-blue-950/60 dark:text-blue-300 shadow-xs"
                       : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   {filter}
                 </button>
@@ -548,11 +555,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                   key={filter}
                   type="button"
                   onClick={() => setStatusFilter(filter)}
-                  className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
-                    statusFilter === filter
+                  className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${statusFilter === filter
                       ? "bg-purple-100 text-[#7c3aed] dark:bg-purple-950/60 dark:text-purple-300 shadow-xs"
                       : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   {filter}
                 </button>
@@ -637,7 +643,16 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredRequiredDocs.length === 0 ? (
+              {isLoadingRequired ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#31719B]" />
+                    <span className="text-xs text-gray-500 mt-2 block font-medium">
+                      Loading compliance documents...
+                    </span>
+                  </td>
+                </tr>
+              ) : filteredRequiredDocs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-400 font-medium">
                     {activeServices.length === 0
@@ -686,11 +701,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                       {/* Type: Mandatory or Optional */}
                       <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                            doc.isMandatory
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${doc.isMandatory
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
                               : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                          }`}
+                            }`}
                         >
                           {doc.isMandatory ? "Mandatory" : "Optional"}
                         </span>
@@ -699,11 +713,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                       {/* Status: Uploaded / Received vs Not Uploaded / Pending */}
                       <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                         <span
-                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10.5px] font-semibold ${
-                            isReceived
+                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10.5px] font-semibold ${isReceived
                               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                               : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                          }`}
+                            }`}
                         >
                           {isReceived ? (
                             <>
@@ -723,10 +736,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                       <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
                         {doc.receivedAt
                           ? new Date(doc.receivedAt).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
                           : "—"}
                       </td>
 
@@ -855,11 +868,10 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
 
                     <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          doc.status === "In"
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${doc.status === "In"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                             : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
-                        }`}
+                          }`}
                       >
                         {doc.status}
                       </span>

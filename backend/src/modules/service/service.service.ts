@@ -206,6 +206,96 @@ export class ServiceService {
   }
 
   /**
+   * Helper to generate 1 year of recurring periods from current date
+   */
+  static generateDefaultRecurringSchedule(
+    frequency: string = 'Monthly',
+    timingType: 'after_period' | 'within_period' = 'after_period'
+  ): any {
+    const periods: any[] = [];
+    const currentDate = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const getSuffix = (n: number) => {
+      if (n > 3 && n < 21) return `${n}th`;
+      switch (n % 10) {
+        case 1: return `${n}st`;
+        case 2: return `${n}nd`;
+        case 3: return `${n}rd`;
+        default: return `${n}th`;
+      }
+    };
+
+    const isQuarterly = frequency === 'Quarterly';
+    const count = isQuarterly ? 4 : 12;
+
+    for (let i = 0; i < count; i++) {
+      if (isQuarterly) {
+        const qIndex = (Math.floor(currentDate.getMonth() / 3) + i) % 4;
+        const qYear = currentDate.getFullYear() + Math.floor((Math.floor(currentDate.getMonth() / 3) + i) / 4);
+        const qNumber = qIndex + 1;
+        const qStartMonth = months[qIndex * 3];
+        const qEndMonth = months[qIndex * 3 + 2];
+        const periodName = `Q${qNumber} (${qStartMonth} - ${qEndMonth} ${qYear})`;
+        const dueMonthIndex = timingType === 'after_period' ? (qIndex * 3 + 3) % 12 : qIndex * 3 + 2;
+        const dueYear = timingType === 'after_period' && dueMonthIndex < (qIndex * 3 + 2) ? qYear + 1 : qYear;
+        const dueIn = `${months[dueMonthIndex]} ${dueYear}`;
+
+        periods.push({
+          period: periodName,
+          subPeriod: `Filing for Q${qNumber} FY ${qYear}`,
+          dueIn,
+          dueInType: timingType,
+          startDay: 5,
+          targetDay: 25,
+          dueDay: 30,
+          isOverride: false,
+          startDate: `${months[dueMonthIndex]} ${getSuffix(5)}, ${dueYear}`,
+          targetDate: `${months[dueMonthIndex]} ${getSuffix(25)}, ${dueYear}`,
+          dueDate: `${months[dueMonthIndex]} ${getSuffix(30)}, ${dueYear}`,
+        });
+      } else {
+        const d = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+        const pMonth = months[d.getMonth()];
+        const pYear = d.getFullYear();
+        const periodName = `${pMonth} ${pYear}`;
+
+        const dueD = timingType === 'after_period'
+          ? new Date(d.getFullYear(), d.getMonth() + 1, 1)
+          : new Date(d.getFullYear(), d.getMonth(), 1);
+        const dueMonth = months[dueD.getMonth()];
+        const dueYear = dueD.getFullYear();
+        const dueIn = `${dueMonth} ${dueYear}`;
+
+        const startDay = i === 0 ? 2 : 1;
+        const targetDay = i === 0 ? 6 : 5;
+        const dueDay = i === 0 ? 8 : 7;
+
+        periods.push({
+          period: periodName,
+          subPeriod: `Filing for ${periodName}`,
+          dueIn,
+          dueInType: timingType,
+          startDay,
+          targetDay,
+          dueDay,
+          isOverride: i > 0,
+          startDate: `${dueMonth} ${getSuffix(startDay)}, ${dueYear}`,
+          targetDate: `${dueMonth} ${getSuffix(targetDay)}, ${dueYear}`,
+          dueDate: `${dueMonth} ${getSuffix(dueDay)}, ${dueYear}`,
+        });
+      }
+    }
+
+    const currentYear = currentDate.getFullYear();
+    return {
+      timingType,
+      periods,
+      generatedForYear: `${currentYear}-${currentYear + 1}`,
+      lastGeneratedAt: new Date(),
+    };
+  }
+
+  /**
    * Create a new service master entry
    */
   static async createService(
@@ -234,6 +324,13 @@ export class ServiceService {
     if (userId) {
       data.userId = userId;
       data.createdBy = userId;
+    }
+
+    if (data.isRecurring && (!data.recurringSchedule || !data.recurringSchedule.periods?.length)) {
+      data.recurringSchedule = this.generateDefaultRecurringSchedule(
+        data.frequency || 'Monthly',
+        data.recurringSchedule?.timingType || 'after_period'
+      );
     }
 
     const service = new Service({
@@ -370,6 +467,10 @@ export class ServiceService {
     }
     if (data.subTasks) {
       service.markModified('subTasks');
+    }
+    if (data.recurringSchedule) {
+      service.recurringSchedule = data.recurringSchedule;
+      service.markModified('recurringSchedule');
     }
 
     return await service.save();

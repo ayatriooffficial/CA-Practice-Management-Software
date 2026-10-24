@@ -175,6 +175,10 @@ const clientSchema = new Schema<IClientDocument>(
       trim: true,
       default: '',
     },
+    contacts: {
+      type: [Schema.Types.Mixed],
+      default: [],
+    },
     licenses: {
       type: [Schema.Types.Mixed],
       default: [],

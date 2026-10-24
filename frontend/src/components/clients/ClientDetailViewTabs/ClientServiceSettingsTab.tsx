@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Search,
   MoreVertical,
@@ -6,9 +6,13 @@ import {
   ChevronUp,
   Loader2,
   CheckCircle2,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { ClientServiceSetting } from "@/data/crmData";
 import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
+import { ClientRecurringTaskDrawer } from "./ClientRecurringTaskDrawer";
 
 export interface ClientServiceSettingsTabProps {
   serviceSearch: string;
@@ -28,7 +32,7 @@ export interface ClientServiceSettingsTabProps {
   isLoadingServices: boolean;
   handleToggleServiceCompliance: (serviceName: string, currentVal: boolean) => Promise<void>;
   handleToggleCategoryCompliance: (catName: string, items: ClientServiceSetting[]) => Promise<void>;
-  handleSaveServiceOptions: (updatedSetting: ClientServiceSetting) => Promise<void>;
+  handleSaveServiceOptions: (updatedSetting: ClientServiceSetting, keepDrawerOpen?: boolean) => Promise<void>;
 }
 
 export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> = ({
@@ -51,6 +55,10 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
   handleToggleCategoryCompliance,
   handleSaveServiceOptions,
 }) => {
+  const [inlineEditingService, setInlineEditingService] = useState<string | null>(null);
+  const [inlineRateVal, setInlineRateVal] = useState<string>("");
+  const [isSavingInlineRate, setIsSavingInlineRate] = useState(false);
+
   return (
     <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden">
       {/* Toolbar */}
@@ -310,12 +318,95 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
 
                               {/* Amount */}
                               <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-right text-gray-900 dark:text-white">
-                                {svc.amount > 0
-                                  ? `₹${svc.amount.toLocaleString("en-IN", {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })}`
-                                  : "—"}
+                                {inlineEditingService === svc.serviceName ? (
+                                  <div
+                                    className="flex items-center justify-end gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span className="text-xs text-gray-400 font-bold">₹</span>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={inlineRateVal}
+                                      onChange={(e) => setInlineRateVal(e.target.value)}
+                                      onKeyDown={async (e) => {
+                                        if (e.key === "Enter") {
+                                          const parsed = parseFloat(inlineRateVal);
+                                          setIsSavingInlineRate(true);
+                                          await handleSaveServiceOptions(
+                                            { ...svc, amount: isNaN(parsed) ? 0 : parsed },
+                                            true
+                                          );
+                                          setIsSavingInlineRate(false);
+                                          setInlineEditingService(null);
+                                        } else if (e.key === "Escape") {
+                                          setInlineEditingService(null);
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="w-20 h-7 px-1.5 text-right rounded border border-[#31719B] dark:border-[#6db0db] bg-white dark:bg-gray-800 text-xs font-bold outline-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={isSavingInlineRate}
+                                      onClick={async () => {
+                                        const parsed = parseFloat(inlineRateVal);
+                                        setIsSavingInlineRate(true);
+                                        await handleSaveServiceOptions(
+                                          { ...svc, amount: isNaN(parsed) ? 0 : parsed },
+                                          true
+                                        );
+                                        setIsSavingInlineRate(false);
+                                        setInlineEditingService(null);
+                                      }}
+                                      className="p-1 rounded text-emerald-600 hover:bg-emerald-50 cursor-pointer"
+                                      title="Save rate for this client"
+                                    >
+                                      {isSavingInlineRate ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <Check className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setInlineEditingService(null)}
+                                      className="p-1 rounded text-gray-400 hover:bg-gray-100 cursor-pointer"
+                                      title="Cancel"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="group flex items-center justify-end gap-1.5">
+                                    <span
+                                      onClick={() => {
+                                        setInlineEditingService(svc.serviceName);
+                                        setInlineRateVal(String(svc.amount ?? 0));
+                                      }}
+                                      className="cursor-pointer hover:text-[#31719B] dark:hover:text-[#6db0db] transition-colors"
+                                      title="Click to edit rate for this client"
+                                    >
+                                      {svc.amount > 0
+                                        ? `₹${svc.amount.toLocaleString("en-IN", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}`
+                                        : "—"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setInlineEditingService(svc.serviceName);
+                                        setInlineRateVal(String(svc.amount ?? 0));
+                                      }}
+                                      title="Edit rate for this client"
+                                      className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-[#31719B] cursor-pointer transition-all"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
                               </td>
 
                               {/* Row expand button */}
@@ -346,239 +437,17 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                             {/* Expanded Options Editor Drawer */}
                             {isExpanded && editingService && (
                               <tr className="bg-purple-50/40 dark:bg-purple-950/20 border-b border-[#dde2e8] dark:border-[#334155]">
-                                <td colSpan={12} className="px-6 py-4">
-                                  <div className="flex flex-col gap-3.5 bg-white dark:bg-[#0f172a] rounded-lg p-4 border border-purple-200 dark:border-purple-900/60 shadow-xs">
-                                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2.5">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-bold text-xs text-gray-900 dark:text-white">
-                                          Edit Service Settings: {svc.serviceName}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                                          {svc.category}
-                                        </span>
-                                      </div>
-
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setExpandedServiceId(null);
-                                            setEditingService(null);
-                                          }}
-                                          className="h-7 px-3 text-xs text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                                        >
-                                          Cancel
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={isSavingServiceOptions}
-                                          onClick={() => handleSaveServiceOptions(editingService)}
-                                          className="h-7 px-3.5 text-xs font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
-                                        >
-                                          {isSavingServiceOptions ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                          ) : (
-                                            <CheckCircle2 className="w-3 h-3" />
-                                          )}
-                                          <span>Save Changes</span>
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Options Grid */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs">
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Compliance
-                                        </label>
-                                        <div className="flex items-center gap-2 h-8">
-                                          <IosToggleSwitch
-                                            checked={Boolean(editingService.compliance)}
-                                            onChange={(val) =>
-                                              setEditingService({ ...editingService, compliance: val })
-                                            }
-                                          />
-                                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                            {editingService.compliance ? "Enabled" : "Disabled"}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Rec. Task
-                                        </label>
-                                        <select
-                                          value={editingService.recTask || "Disabled"}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              recTask: e.target.value as any,
-                                            })
-                                          }
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        >
-                                          <option value="Enabled">Enabled</option>
-                                          <option value="Disabled">Disabled</option>
-                                        </select>
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Rec. Invoice
-                                        </label>
-                                        <select
-                                          value={editingService.recInvoice || "Disabled"}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              recInvoice: e.target.value as any,
-                                            })
-                                          }
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        >
-                                          <option value="Enabled">Enabled</option>
-                                          <option value="Disabled">Disabled</option>
-                                        </select>
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Frequency
-                                        </label>
-                                        <select
-                                          value={editingService.frequency || "Monthly"}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              frequency: e.target.value,
-                                            })
-                                          }
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        >
-                                          <option value="Monthly">Monthly</option>
-                                          <option value="Quarterly">Quarterly</option>
-                                          <option value="Half-Yearly">Half-Yearly</option>
-                                          <option value="Annually">Annually</option>
-                                          <option value="One-Time">One-Time</option>
-                                        </select>
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Start Day
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={editingService.start || ""}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              start: e.target.value,
-                                            })
-                                          }
-                                          placeholder="e.g. Day 1"
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Target Day
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={editingService.target || ""}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              target: e.target.value,
-                                            })
-                                          }
-                                          placeholder="e.g. Day 19"
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          End Day
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={editingService.end || ""}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              end: e.target.value,
-                                            })
-                                          }
-                                          placeholder="e.g. Day 19"
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Invoice Frequency
-                                        </label>
-                                        <select
-                                          value={editingService.invFreq || ""}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              invFreq: e.target.value,
-                                            })
-                                          }
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        >
-                                          <option value="">None (—)</option>
-                                          <option value="Monthly">Monthly</option>
-                                          <option value="Quarterly">Quarterly</option>
-                                          <option value="Annually">Annually</option>
-                                        </select>
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Invoice Day
-                                        </label>
-                                        <input
-                                          type="number"
-                                          min={1}
-                                          max={31}
-                                          value={editingService.invDay ?? ""}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              invDay: e.target.value ? Number(e.target.value) : undefined,
-                                            })
-                                          }
-                                          placeholder="e.g. 1"
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                          Tariff Amount (₹)
-                                        </label>
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          step="any"
-                                          value={editingService.amount ?? 0}
-                                          onChange={(e) =>
-                                            setEditingService({
-                                              ...editingService,
-                                              amount: Number(e.target.value) || 0,
-                                            })
-                                          }
-                                          className="w-full h-8 px-2.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-[#7c3aed]"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
+                                <td colSpan={12} className="px-5 py-4">
+                                  <ClientRecurringTaskDrawer
+                                    editingService={editingService}
+                                    setEditingService={setEditingService}
+                                    onSave={handleSaveServiceOptions}
+                                    onCancel={() => {
+                                      setExpandedServiceId(null);
+                                      setEditingService(null);
+                                    }}
+                                    isSaving={isSavingServiceOptions}
+                                  />
                                 </td>
                               </tr>
                             )}

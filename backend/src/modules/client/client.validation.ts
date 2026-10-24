@@ -71,6 +71,20 @@ export const documentInOutItemSchema = z.object({
   file: z.string().nullable().optional(),
 });
 
+export const clientRecurringTaskConfigSchema = z.object({
+  taskName: z.string().optional(),
+  frequency: z.string().optional(),
+  priority: z.string().optional().default('Low'),
+  startDay: z.union([z.number(), z.string()]).optional().default('Day 1'),
+  startDate: z.string().optional().default(''),
+  targetDay: z.union([z.number(), z.string()]).optional().default('Day 15'),
+  targetDate: z.string().optional().default(''),
+  endDay: z.union([z.number(), z.string()]).optional().default('Day 20'),
+  endDate: z.string().optional().default(''),
+  assignee: z.string().optional().default(''),
+  reviewer: z.string().optional().default(''),
+});
+
 export const serviceSettingItemSchema = z.object({
   id: z.string().optional(),
   serviceId: z.string().optional(),
@@ -85,8 +99,17 @@ export const serviceSettingItemSchema = z.object({
   end: z.string().optional().default('Day 20'),
   invFreq: z.string().optional().default('Monthly'),
   invDay: z.union([z.number(), z.string()]).optional().default(1),
-  amount: z.number().optional().default(0),
-});
+  amount: z.coerce.number().optional().default(0),
+  // Recurring Task Fields
+  taskName: z.string().optional(),
+  priority: z.string().optional(),
+  assignee: z.string().optional(),
+  reviewer: z.string().optional(),
+  startDate: z.string().optional(),
+  targetDate: z.string().optional(),
+  endDate: z.string().optional(),
+  recurringTask: clientRecurringTaskConfigSchema.optional(),
+}).passthrough();
 
 export const createClientSchema = z.object({
   name: z.string().min(2, 'Client name must be at least 2 characters').max(150),

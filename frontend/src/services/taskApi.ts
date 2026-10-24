@@ -6,6 +6,7 @@ import {
   INITIAL_TASKS,
   LinkedEmail,
 } from '@/data/taskData';
+import { localSyncManager, SYNC_KEYS } from './localSyncManager';
 
 export interface TaskQueryParams {
   page?: number;
@@ -25,34 +26,16 @@ export interface TaskQueryParams {
   clientName?: string;
 }
 
-const STORAGE_KEY_TASKS = 'turia_tasks_demo_cache_v1';
-
 function getStoredTasks(): TaskItem[] {
-  if (typeof window === 'undefined') return [...INITIAL_TASKS];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_TASKS);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(INITIAL_TASKS));
-      return [...INITIAL_TASKS];
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...INITIAL_TASKS];
-  } catch {
-    return [...INITIAL_TASKS];
-  }
+  return localSyncManager.getCached<TaskItem>(SYNC_KEYS.TASKS);
 }
+
+let fallbackTasks: TaskItem[] = getStoredTasks();
 
 function saveStoredTasks(tasks: TaskItem[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
-  } catch {
-    // ignore
-  }
+  fallbackTasks = tasks;
+  localSyncManager.setCached(SYNC_KEYS.TASKS, tasks);
 }
-
-// In-memory fallback cache initialized with demo data
-let fallbackTasks: TaskItem[] = getStoredTasks();
 
 export const taskApi = {
   getTasks: async (params: TaskQueryParams = {}): Promise<ApiResponse<TaskItem[]>> => {
@@ -77,6 +60,9 @@ export const taskApi = {
       const query = searchParams.toString();
       const res = await request<TaskItem[]>(`/tasks${query ? `?${query}` : ''}`);
       if (res && res.data !== undefined) {
+        if (Array.isArray(res.data)) {
+          saveStoredTasks(res.data);
+        }
         return res;
       }
     } catch {
@@ -262,6 +248,7 @@ export const taskApi = {
       });
       if (res.data) {
         fallbackTasks.unshift(res.data);
+        saveStoredTasks(fallbackTasks);
         return res;
       }
     } catch {

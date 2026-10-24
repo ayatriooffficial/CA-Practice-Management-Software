@@ -290,5 +290,37 @@ export class ClientController {
     const client = await ClientService.deleteNote(id, subId);
     return ApiResponse.success(res, client, 'Client note removed successfully');
   });
+
+  /**
+   * Add a Contact to client
+   * POST /api/v1/clients/:id/contacts
+   */
+  static addContact = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const client = await ClientService.addContact(id, req.body);
+    return ApiResponse.created(res, client, 'Client contact added successfully');
+  });
+
+  /**
+   * Update a Contact on client
+   * PATCH /api/v1/clients/:id/contacts/:subId
+   */
+  static updateContact = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const subId = req.params.subId as string;
+    const client = await ClientService.updateContact(id, subId, req.body);
+    return ApiResponse.success(res, client, 'Client contact updated successfully');
+  });
+
+  /**
+   * Delete a Contact from client
+   * DELETE /api/v1/clients/:id/contacts/:subId
+   */
+  static deleteContact = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const subId = req.params.subId as string;
+    const client = await ClientService.deleteContact(id, subId);
+    return ApiResponse.success(res, client, 'Client contact removed successfully');
+  });
 }
 

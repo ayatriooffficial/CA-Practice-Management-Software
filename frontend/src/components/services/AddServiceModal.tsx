@@ -175,11 +175,10 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                           if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
                         }}
                         placeholder="e.g. TDS Payment (Monthly)"
-                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none transition-colors bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white ${
-                          errors.name
-                            ? "border-red-500 focus:ring-1 focus:ring-red-500"
-                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                        }`}
+                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none transition-colors bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white ${errors.name
+                          ? "border-red-500 focus:ring-1 focus:ring-red-500"
+                          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                          }`}
                       />
                       {errors.name && (
                         <p className="mt-1 text-[11px] text-red-500">{errors.name}</p>
@@ -279,22 +278,20 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setIsRecurring(true)}
-                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          isRecurring
-                            ? "bg-[#6366f1] text-white shadow-xs"
-                            : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-                        }`}
+                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${isRecurring
+                          ? "bg-[#6366f1] text-white shadow-xs"
+                          : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                          }`}
                       >
                         Yes
                       </button>
                       <button
                         type="button"
                         onClick={() => setIsRecurring(false)}
-                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          !isRecurring
-                            ? "bg-[#6366f1] text-white shadow-xs"
-                            : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-                        }`}
+                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${!isRecurring
+                          ? "bg-[#6366f1] text-white shadow-xs"
+                          : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                          }`}
                       >
                         No
                       </button>

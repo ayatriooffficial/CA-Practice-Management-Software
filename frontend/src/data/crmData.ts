@@ -163,6 +163,13 @@ export interface ClientServiceSetting {
   invFreq?: string;
   invDay?: number | string;
   amount: number;
+  taskName?: string;
+  priority?: string;
+  assignee?: string;
+  reviewer?: string;
+  startDate?: string;
+  targetDate?: string;
+  endDate?: string;
 }
 
 export interface ClientPassword {
@@ -180,6 +187,25 @@ export interface ClientNote {
   content: string;
   createdAt: string;
   author?: string;
+}
+
+export interface ClientContact {
+  id?: string;
+  name: string;
+  isPrimary?: boolean;
+  designation?: string;
+  din?: string;
+  dinStatus?: string;
+  appointmentDate?: string;
+  dob?: string;
+  email?: string;
+  mobile?: string;
+  pan?: string;
+  aadhar?: string;
+  passport?: string;
+  fatherName?: string;
+  address?: string;
+  createdAt?: string;
 }
 
 export interface Client {
@@ -212,6 +238,7 @@ export interface Client {
     recurring: any[];
   };
   promoters?: any[];
+  contacts?: ClientContact[];
   licenses?: ClientLicense[];
   dscs?: ClientDsc[];
   documentsInOut?: ClientDocumentInOut[];
@@ -335,9 +362,6 @@ export const CLIENT_TAGS: Record<string, { label: string; bg: string; text: stri
 /* Customer Files Master Data & Promoters */
 export const PROMOTERS = [
   { name: 'MD TAUSEF AHMED', pan: 'APNPA2652N', mcaId: 'sabmiswb@gmail.com', mcaPassword: '••••••••' },
-  { name: 'MD AZIZUL MIDDYA', pan: 'BPNPB2655N', mcaId: 'afaque_27@yahoo.co.in', mcaPassword: '••••••••' },
-  { name: 'RAJESH KUMAR VERMA', pan: 'ABCDE1234F', mcaId: 'rajesh_mca_v3', mcaPassword: '••••••••' },
-  { name: 'POOJA SINGHANIA', pan: 'BPMSP5432K', mcaId: 'pooja_singh_dir', mcaPassword: '••••••••' },
 ];
 
 export const STATUTORY_TYPES = [
@@ -364,168 +388,7 @@ export const SERVICE_CATEGORIES = [
   'Trade License',
 ];
 
-export const INITIAL_LEADS: Lead[] = [
-  {
-    id: 'lead-1',
-    fullName: 'Rajesh Kumar Verma',
-    firstName: 'Rajesh',
-    middleName: 'Kumar',
-    lastName: 'Verma',
-    abbreviation: 'RKV',
-    dob: '1984-05-14',
-    aadhaarMobile: '9876543210',
-    mobile: '9876543210',
-    email: 'rajesh.verma@example.com',
-    pan: 'ABCDE1234F',
-    panAttachment: 'pan_rajesh_card.pdf',
-    aadhaar: '453218907654',
-    aadhaarAttachment: 'aadhaar_rajesh.pdf',
-    gender: 'Male',
-    address: '42/B, Civil Lines, Near High Court',
-    country: 'India',
-    state: 'Uttar Pradesh',
-    pincode: '211001',
-    nationality: 'Indian',
-    policeStation: 'Civil Lines PS',
-    postOffice: 'Allahabad H.O.',
-    din: '08432190',
-    dinAttachment: null,
-    mcaId: 'rajesh_mca_v3',
-    mcaPassword: '••••••••',
-    referredBy: 'Adv. Suresh Sharma',
-    photo: null,
-    createdAt: '2026-03-12T09:30:00Z',
-    updatedAt: '2026-04-02T14:15:00Z',
-  },
-  {
-    id: 'lead-2',
-    fullName: 'Pooja Sanjay Singhania',
-    firstName: 'Pooja',
-    middleName: 'Sanjay',
-    lastName: 'Singhania',
-    abbreviation: 'PSS',
-    dob: '1990-11-20',
-    aadhaarMobile: '9823012345',
-    mobile: '9823012345',
-    email: 'pooja.singhania@apexholding.in',
-    pan: 'BPMSP5432K',
-    panAttachment: 'pooja_pan.jpg',
-    aadhaar: '674321908765',
-    aadhaarAttachment: 'pooja_aadhaar_scan.pdf',
-    gender: 'Female',
-    address: 'Flat 904, Marvel Heights, Koregaon Park',
-    country: 'India',
-    state: 'Maharashtra',
-    pincode: '411001',
-    nationality: 'Indian',
-    policeStation: 'Koregaon Park PS',
-    postOffice: 'Pune H.O.',
-    din: '09124567',
-    dinAttachment: 'din_letter_pooja.pdf',
-    mcaId: 'pooja_singh_dir',
-    mcaPassword: '••••••••',
-    referredBy: 'Direct Website Inquiry',
-    photo: null,
-    createdAt: '2026-03-20T11:20:00Z',
-    updatedAt: '2026-04-08T16:45:00Z',
-  },
-  {
-    id: 'lead-3',
-    fullName: 'Amitabh Chandra Bose',
-    firstName: 'Amitabh',
-    middleName: 'Chandra',
-    lastName: 'Bose',
-    abbreviation: 'ACB',
-    dob: '1976-08-04',
-    aadhaarMobile: '9748011223',
-    mobile: '9748011223',
-    email: 'acbose@boseenterprises.com',
-    pan: 'AACFB9876Q',
-    panAttachment: null,
-    aadhaar: '782390145612',
-    aadhaarAttachment: 'aadhaar_acbose.pdf',
-    gender: 'Male',
-    address: '15/2, Ballygunge Circular Road',
-    country: 'India',
-    state: 'West Bengal',
-    pincode: '700019',
-    nationality: 'Indian',
-    policeStation: 'Ballygunge',
-    postOffice: 'Ballygunge P.O.',
-    din: '01894562',
-    dinAttachment: null,
-    mcaId: 'acbose_v3_dir',
-    mcaPassword: '••••••••',
-    referredBy: 'CA Mohit Agarwal',
-    photo: null,
-    createdAt: '2026-03-25T14:10:00Z',
-    updatedAt: '2026-04-10T10:00:00Z',
-  },
-  {
-    id: 'lead-4',
-    fullName: 'Sunita Ramanathan',
-    firstName: 'Sunita',
-    middleName: '',
-    lastName: 'Ramanathan',
-    abbreviation: 'SR',
-    dob: '1988-02-17',
-    aadhaarMobile: '9444055667',
-    mobile: '9444055667',
-    email: 'sunita.ram@chennaitrust.org',
-    pan: 'CLKPR4321M',
-    panAttachment: 'sunita_pan_doc.pdf',
-    aadhaar: '321456789012',
-    aadhaarAttachment: null,
-    gender: 'Female',
-    address: '24, TTK Road, Alwarpet',
-    country: 'India',
-    state: 'Tamil Nadu',
-    pincode: '600018',
-    nationality: 'Indian',
-    policeStation: 'Alwarpet PS',
-    postOffice: 'Teynampet S.O.',
-    din: '',
-    dinAttachment: null,
-    mcaId: '',
-    mcaPassword: '',
-    referredBy: 'Trustee Board',
-    photo: null,
-    createdAt: '2026-04-01T08:45:00Z',
-    updatedAt: '2026-04-12T12:30:00Z',
-  },
-  {
-    id: 'lead-5',
-    fullName: 'Harpreet Singh Gill',
-    firstName: 'Harpreet',
-    middleName: 'Singh',
-    lastName: 'Gill',
-    abbreviation: 'HSG',
-    dob: '1992-09-28',
-    aadhaarMobile: '9815099887',
-    mobile: '9815099887',
-    email: 'harpreet@gilllogistics.in',
-    pan: 'DFGPG7890L',
-    panAttachment: null,
-    aadhaar: '541298763421',
-    aadhaarAttachment: 'aadhaar_harpreet.pdf',
-    gender: 'Male',
-    address: 'SCO 112-113, Sector 34A',
-    country: 'India',
-    state: 'Chandigarh',
-    pincode: '160022',
-    nationality: 'Indian',
-    policeStation: 'Sector 34 PS',
-    postOffice: 'Sector 34 S.O.',
-    din: '09781234',
-    dinAttachment: 'din_copy_gill.pdf',
-    mcaId: 'gill_mca_portal',
-    mcaPassword: '••••••••',
-    referredBy: 'HDFC Bank Manager',
-    photo: null,
-    createdAt: '2026-04-05T15:20:00Z',
-    updatedAt: '2026-04-14T11:10:00Z',
-  },
-];
+export const INITIAL_LEADS: Lead[] = [];
 
 export const INITIAL_CLIENTS: Client[] = [];
 

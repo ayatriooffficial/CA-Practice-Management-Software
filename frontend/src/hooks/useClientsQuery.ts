@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { clientApi, ClientQueryParams } from '@/services/clientApi';
-import { Client, INITIAL_CLIENTS } from '@/data/crmData';
+import { Client } from '@/data/crmData';
+import { localSyncManager, SYNC_KEYS } from '@/services/localSyncManager';
 
 export const CLIENT_QUERY_KEYS = {
   all: ['clients'] as const,
@@ -12,7 +13,7 @@ export const CLIENT_QUERY_KEYS = {
 };
 
 /**
- * Fetch paginated, filtered, and searched clients
+ * Fetch paginated, filtered, and searched clients with local-first cache
  */
 export function useClients(params: ClientQueryParams = {}) {
   return useQuery({
@@ -20,26 +21,30 @@ export function useClients(params: ClientQueryParams = {}) {
     queryFn: async () => {
       try {
         const response = await clientApi.getClients(params);
+        if (response.data && Array.isArray(response.data)) {
+          localSyncManager.setCached(SYNC_KEYS.CLIENTS, response.data);
+        }
         return {
           clients: response.data || [],
           pagination: response.pagination || {
             page: params.page || 1,
             limit: params.limit || 10,
             totalDocs: response.data?.length || 0,
-            totalPages: Math.ceil((response.data?.length || 0) / (params.limit || 10)) || 1,
+            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / (params.limit || 10))),
             hasNextPage: false,
             hasPrevPage: false,
           },
         };
       } catch (error) {
-        console.warn('Backend API unavailable, falling back to local dataset:', error);
+        // Fallback to real local cache (zero dummy data)
+        const cached = localSyncManager.getCached<Client>(SYNC_KEYS.CLIENTS);
         return {
-          clients: INITIAL_CLIENTS,
+          clients: cached,
           pagination: {
             page: 1,
             limit: params.limit || 10,
-            totalDocs: INITIAL_CLIENTS.length,
-            totalPages: Math.ceil(INITIAL_CLIENTS.length / (params.limit || 10)),
+            totalDocs: cached.length,
+            totalPages: Math.max(1, Math.ceil(cached.length / (params.limit || 10))),
             hasNextPage: false,
             hasPrevPage: false,
           },
@@ -66,14 +71,17 @@ export function useClientStats() {
 }
 
 /**
- * Mutation: Register new client
+ * Mutation: Register new client (with local cache update)
  */
 export function useCreateClient() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (newClient: Partial<Client>) => clientApi.createClient(newClient),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (res?.data) {
+        localSyncManager.upsertItem(SYNC_KEYS.CLIENTS, res.data);
+      }
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
     },
@@ -81,7 +89,7 @@ export function useCreateClient() {
 }
 
 /**
- * Mutation: Update client details
+ * Mutation: Update client details (with local cache update)
  */
 export function useUpdateClient() {
   const queryClient = useQueryClient();
@@ -89,7 +97,10 @@ export function useUpdateClient() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Client> }) =>
       clientApi.updateClient(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
+      if (res?.data) {
+        localSyncManager.upsertItem(SYNC_KEYS.CLIENTS, res.data);
+      }
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
@@ -98,14 +109,15 @@ export function useUpdateClient() {
 }
 
 /**
- * Mutation: Soft delete client
+ * Mutation: Soft delete client (with local cache update)
  */
 export function useDeleteClient() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => clientApi.softDeleteClient(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      localSyncManager.removeItem(SYNC_KEYS.CLIENTS, id);
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
     },

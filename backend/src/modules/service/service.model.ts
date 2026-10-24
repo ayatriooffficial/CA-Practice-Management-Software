@@ -71,6 +71,41 @@ export const serviceCommentSchema = new Schema(
   { _id: false }
 );
 
+export const recurringPeriodSchema = new Schema(
+  {
+    period: { type: String, required: true },
+    subPeriod: { type: String, default: '' },
+    dueIn: { type: String, required: true },
+    dueInType: {
+      type: String,
+      enum: ['after_period', 'within_period'],
+      default: 'after_period',
+    },
+    startDay: { type: Number, default: 1 },
+    targetDay: { type: Number, default: 5 },
+    dueDay: { type: Number, default: 7 },
+    isOverride: { type: Boolean, default: false },
+    startDate: { type: String, default: '' },
+    targetDate: { type: String, default: '' },
+    dueDate: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+export const recurringScheduleSchema = new Schema(
+  {
+    timingType: {
+      type: String,
+      enum: ['after_period', 'within_period'],
+      default: 'after_period',
+    },
+    periods: { type: [recurringPeriodSchema], default: [] },
+    generatedForYear: { type: String, default: '' },
+    lastGeneratedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const serviceSchema = new Schema<IServiceDocument>(
   {
     serviceId: {
@@ -124,6 +159,10 @@ const serviceSchema = new Schema<IServiceDocument>(
       type: Boolean,
       default: false,
       index: true,
+    },
+    recurringSchedule: {
+      type: recurringScheduleSchema,
+      default: null,
     },
     professionalFee: {
       type: Number,

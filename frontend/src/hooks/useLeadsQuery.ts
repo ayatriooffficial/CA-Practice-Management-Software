@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { leadApi, LeadQueryParams, ConvertLeadPayload } from '@/services/leadApi';
-import { Lead, INITIAL_LEADS } from '@/data/crmData';
+import { Lead } from '@/data/crmData';
+import { localSyncManager, SYNC_KEYS } from '@/services/localSyncManager';
 
 export const LEAD_QUERY_KEYS = {
   all: ['leads'] as const,
@@ -12,7 +13,7 @@ export const LEAD_QUERY_KEYS = {
 };
 
 /**
- * Fetch paginated, filtered, and searched leads
+ * Fetch paginated, filtered, and searched leads with local-first cache
  */
 export function useLeads(params: LeadQueryParams = {}) {
   return useQuery({
@@ -20,35 +21,39 @@ export function useLeads(params: LeadQueryParams = {}) {
     queryFn: async () => {
       try {
         const response = await leadApi.getLeads(params);
+        if (response.data && Array.isArray(response.data)) {
+          // Sync server response directly to local storage cache
+          localSyncManager.setCached(SYNC_KEYS.LEADS, response.data);
+        }
         return {
           leads: response.data || [],
           pagination: response.pagination || {
             page: params.page || 1,
             limit: params.limit || 15,
             totalDocs: response.data?.length || 0,
-            totalPages: Math.ceil((response.data?.length || 0) / (params.limit || 15)) || 1,
+            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / (params.limit || 15))),
             hasNextPage: false,
             hasPrevPage: false,
           },
         };
       } catch (error) {
-        // Fallback to local data gracefully if backend is offline or starting
-        console.warn('Backend API unavailable, falling back to local dataset:', error);
+        // Fallback to real local cache (zero dummy data)
+        const cached = localSyncManager.getCached<Lead>(SYNC_KEYS.LEADS);
         return {
-          leads: INITIAL_LEADS,
+          leads: cached,
           pagination: {
             page: 1,
             limit: params.limit || 15,
-            totalDocs: INITIAL_LEADS.length,
-            totalPages: Math.ceil(INITIAL_LEADS.length / (params.limit || 15)),
+            totalDocs: cached.length,
+            totalPages: Math.max(1, Math.ceil(cached.length / (params.limit || 15))),
             hasNextPage: false,
             hasPrevPage: false,
           },
         };
       }
     },
-    placeholderData: keepPreviousData, // Keeps previous page data while loading new page to prevent layout shifts
-    staleTime: 60 * 1000, // 1 min cache
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -67,14 +72,17 @@ export function useLeadStats() {
 }
 
 /**
- * Mutation: Create new lead
+ * Mutation: Create new lead (with local cache update)
  */
 export function useCreateLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (newLead: Partial<Lead>) => leadApi.createLead(newLead),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (res?.data) {
+        localSyncManager.upsertItem(SYNC_KEYS.LEADS, res.data);
+      }
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
     },
@@ -82,7 +90,7 @@ export function useCreateLead() {
 }
 
 /**
- * Mutation: Update existing lead
+ * Mutation: Update existing lead (with local cache update)
  */
 export function useUpdateLead() {
   const queryClient = useQueryClient();
@@ -90,7 +98,10 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Lead> }) =>
       leadApi.updateLead(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
+      if (res?.data) {
+        localSyncManager.upsertItem(SYNC_KEYS.LEADS, res.data);
+      }
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
@@ -99,14 +110,15 @@ export function useUpdateLead() {
 }
 
 /**
- * Mutation: Soft delete lead
+ * Mutation: Soft delete lead (with local cache update)
  */
 export function useDeleteLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => leadApi.softDeleteLead(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      localSyncManager.removeItem(SYNC_KEYS.LEADS, id);
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
     },

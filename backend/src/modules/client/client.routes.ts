@@ -156,4 +156,9 @@ router.delete('/:id/passwords/:subId', ClientController.deletePassword);
 router.post('/:id/notes', ClientController.addNote);
 router.delete('/:id/notes/:subId', ClientController.deleteNote);
 
+// Promoters & Key Contacts
+router.post('/:id/contacts', ClientController.addContact);
+router.patch('/:id/contacts/:subId', ClientController.updateContact);
+router.delete('/:id/contacts/:subId', ClientController.deleteContact);
+
 export const clientRoutes = router;

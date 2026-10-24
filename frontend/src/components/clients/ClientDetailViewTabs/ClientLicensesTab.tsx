@@ -29,7 +29,7 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
   }, [licenses, search]);
 
   return (
-    <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
+    <div className="bg-white dark:bg-[#1e293b] rounded-sm border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

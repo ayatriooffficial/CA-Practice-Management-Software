@@ -64,6 +64,27 @@ export const updateSopSchema = z.object({
   steps: z.array(z.string()).optional(),
 });
 
+export const serviceRecurringPeriodSchema = z.object({
+  period: z.string(),
+  subPeriod: z.string().optional().default(''),
+  dueIn: z.string(),
+  dueInType: z.enum(['after_period', 'within_period']).optional().default('after_period'),
+  startDay: z.coerce.number().min(1).max(31).default(1),
+  targetDay: z.coerce.number().min(1).max(31).default(5),
+  dueDay: z.coerce.number().min(1).max(31).default(7),
+  isOverride: z.boolean().optional().default(false),
+  startDate: z.string().optional().default(''),
+  targetDate: z.string().optional().default(''),
+  dueDate: z.string().optional().default(''),
+});
+
+export const serviceRecurringScheduleSchema = z.object({
+  timingType: z.enum(['after_period', 'within_period']).default('after_period'),
+  periods: z.array(serviceRecurringPeriodSchema).default([]),
+  generatedForYear: z.string().optional().default(''),
+  lastGeneratedAt: z.union([z.string(), z.date()]).optional(),
+});
+
 export const createServiceSchema = z.object({
   name: z.string().min(2, 'Service name must be at least 2 characters').max(150),
   category: z.string().min(1, 'Category is required'),
@@ -82,6 +103,7 @@ export const createServiceSchema = z.object({
   difficulty: z.enum(['Easy', 'Medium', 'Hard', 'Complex']).default('Medium'),
   description: z.string().max(300).optional().default(''),
   isRecurring: z.boolean().default(false),
+  recurringSchedule: serviceRecurringScheduleSchema.optional().nullable(),
   professionalFee: z.coerce.number().min(0, 'Professional fee cannot be negative').default(0),
   taxRate: z.string().optional().default('18%'),
   sacCode: z.string().max(20).optional().default(''),
@@ -105,6 +127,7 @@ export const updateServiceSchema = createServiceSchema.partial().extend({
   subTasks: z.array(serviceSubTaskSchema).optional(),
   checklist: z.array(serviceChecklistItemSchema).optional(),
   documentRequests: z.array(serviceDocumentRequestItemSchema).optional(),
+  recurringSchedule: serviceRecurringScheduleSchema.optional().nullable(),
 }).passthrough();
 
 export const queryServiceSchema = z.object({

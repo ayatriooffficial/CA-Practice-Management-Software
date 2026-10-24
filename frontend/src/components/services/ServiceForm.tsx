@@ -9,9 +9,14 @@ import {
   SERVICE_DIFFICULTIES,
   TAX_RATES,
   EXEMPTION_REASONS,
+  ServiceRecurringSchedule,
 } from "@/data/serviceData";
 import { Select } from "@/components/ui/Select";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import {
+  RecurringScheduleSection,
+  generateYearlyRecurringPeriods,
+} from "./RecurringScheduleSection";
 
 interface ServiceFormProps {
   initialService?: Service | null;
@@ -35,6 +40,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   );
   const [description, setDescription] = useState(initialService?.description || "");
   const [isRecurring, setIsRecurring] = useState(initialService?.isRecurring ?? true);
+
+  // Recurring Schedule (Next 1 Year from current date)
+  const [recurringSchedule, setRecurringSchedule] = useState<ServiceRecurringSchedule>(() => {
+    if (initialService?.recurringSchedule?.periods?.length) {
+      return initialService.recurringSchedule;
+    }
+    return {
+      timingType: "after_period",
+      periods: generateYearlyRecurringPeriods(
+        initialService?.frequency || "Monthly",
+        "after_period"
+      ),
+      generatedForYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+      lastGeneratedAt: new Date().toISOString(),
+    };
+  });
 
   // Commercial & Tax
   const [professionalFee, setProfessionalFee] = useState<string>(
@@ -138,6 +159,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         difficulty,
         description: description.trim(),
         isRecurring,
+        recurringSchedule: isRecurring ? recurringSchedule : undefined,
         professionalFee: Number(professionalFee) || 0,
         taxRate,
         sacCode: sacCode.trim(),
@@ -157,9 +179,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   };
 
   return (
-    <div className="w-full space-y-5 animate-in fade-in duration-150">
+    <div className="w-full space-y-4 animate-in fade-in duration-150">
       {/* 1. Breadcrumb Bar (Matching Client second page) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1 pt-4">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-base md:text-lg">
           <button
             type="button"
@@ -249,11 +271,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                       if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
                     }}
                     placeholder="e.g. TDS Payment (Monthly)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none transition-all bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white ${
-                      errors.name
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                    }`}
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none transition-all bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white ${errors.name
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                      }`}
                   />
                   {errors.name && (
                     <p className="mt-1 text-xs text-[#e8655a]">{errors.name}</p>
@@ -296,7 +317,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                   <Select
                     id="sf-frequency"
                     value={frequency}
-                    onChange={(val) => setFrequency(val)}
+                    onChange={(val) => {
+                      setFrequency(val);
+                      setRecurringSchedule((prev) => ({
+                        ...prev,
+                        periods: generateYearlyRecurringPeriods(val, prev.timingType),
+                      }));
+                    }}
                     options={SERVICE_FREQUENCIES}
                     placeholder="Frequency"
                   />
@@ -353,28 +380,46 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsRecurring(true)}
-                    className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      isRecurring
-                        ? "bg-[#6366f1] text-white shadow-xs"
-                        : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-                    }`}
+                    className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${isRecurring
+                      ? "bg-[#6366f1] text-white shadow-xs"
+                      : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                      }`}
                   >
                     Yes
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsRecurring(false)}
-                    className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      !isRecurring
-                        ? "bg-[#6366f1] text-white shadow-xs"
-                        : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-                    }`}
+                    className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${!isRecurring
+                      ? "bg-[#6366f1] text-white shadow-xs"
+                      : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                      }`}
                   >
                     No
                   </button>
                 </div>
               </div>
             </div>
+
+            {/* CARD 1.5: RECURRING SCHEDULE (Matching Screenshot 1-Year Periods) */}
+            {isRecurring && (
+              <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-4">
+                <div className="border-b border-[#dde2e8] dark:border-[#334155] pb-3">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    Recurring Schedule
+                  </h2>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    Configure execution timing, start day, target day, and due date for the upcoming 1 year ({recurringSchedule.periods.length} periods).
+                  </p>
+                </div>
+
+                <RecurringScheduleSection
+                  frequency={frequency}
+                  schedule={recurringSchedule}
+                  onChange={setRecurringSchedule}
+                />
+              </div>
+            )}
 
             {/* CARD 2: COMMERCIAL & TAX */}
             <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-4">

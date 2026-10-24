@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  UserCheck,
   Eye,
   EyeOff,
   Filter,
@@ -312,7 +313,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         ? {
           ...s,
           compliance: nextVal,
-          recTask: nextVal ? (s.recTask === "Disabled" ? "Enabled" : s.recTask) : "Disabled",
+          recTask: nextVal ? "Enabled" : "Disabled",
         }
         : s
     );
@@ -331,30 +332,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         onClientUpdated?.(res.data);
       }
       showToast(`Service "${serviceName}" ${nextVal ? "enabled" : "disabled"}.`);
-
-      if (nextVal) {
-        const srvSetting = allServices.find(
-          (s) => s.serviceName.toLowerCase() === serviceName.toLowerCase()
-        );
-        taskApi.createTask({
-          clientName: client.name,
-          legalName: client.legalName || client.name,
-          clientId: client.id,
-          clientFileNo: client.fileNo,
-          clientPan: client.pan,
-          serviceName,
-          category: srvSetting?.category || "Compliance",
-          status: "Pending",
-          priority: "Medium",
-          frequency: "Monthly",
-          billingType: "Billable",
-          financialYear: "FY 2026 - 2027",
-          period: "Jul 2026",
-          department: "Audit & Taxation",
-        }).then(() => {
-          fetchClientTasks();
-        }).catch(() => {});
-      }
     } catch (err: any) {
       showToast(err.message || "Failed to update service compliance.");
       reloadClientData();
@@ -370,7 +347,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         ? {
           ...s,
           compliance: targetState,
-          recTask: targetState ? (s.recTask === "Disabled" ? "Enabled" : s.recTask) : "Disabled",
+          recTask: targetState ? "Enabled" : "Disabled",
         }
         : s
     );
@@ -396,7 +373,10 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   };
 
   // Save edited options for an expanded service
-  const handleSaveServiceOptions = async (updatedSetting: ClientServiceSetting) => {
+  const handleSaveServiceOptions = async (
+    updatedSetting: ClientServiceSetting,
+    keepDrawerOpen = false
+  ) => {
     setIsSavingServiceOptions(true);
     const updated = allServices.map((s) =>
       s.serviceName.trim().toLowerCase() === updatedSetting.serviceName.trim().toLowerCase()
@@ -417,9 +397,17 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         setClient(res.data);
         onClientUpdated?.(res.data);
       }
-      setExpandedServiceId(null);
-      setEditingService(null);
-      showToast(`Settings for "${updatedSetting.serviceName}" saved successfully.`);
+      if (!keepDrawerOpen) {
+        setExpandedServiceId(null);
+        setEditingService(null);
+      } else {
+        setEditingService(updatedSetting);
+      }
+      showToast(
+        `Service "${updatedSetting.serviceName}" rate (₹${Number(
+          updatedSetting.amount || 0
+        ).toLocaleString()}) updated for ${client.name || "client"}.`
+      );
     } catch (err: any) {
       showToast(err.message || "Failed to save service settings.");
       reloadClientData();
@@ -461,6 +449,21 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       showToast(`Digital signature removed.`);
     } catch (err: any) {
       showToast(err.message || "Failed to delete DSC.");
+    }
+  };
+
+  // Delete Contact
+  const handleDeleteContact = async (contactId: string, name: string) => {
+    if (!window.confirm(`Delete contact "${name}"?`)) return;
+    try {
+      const res = await clientApi.deleteContact(client.id, contactId);
+      if (res.data) {
+        setClient(res.data);
+        onClientUpdated?.(res.data);
+      }
+      showToast(`Contact "${name}" deleted.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete contact.");
     }
   };
 
@@ -649,6 +652,17 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                   <StickyNote className="w-4 h-4 text-rose-600" />
                   <span>Add Client Note</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddMenuOpen(false);
+                    setActiveTab("Contacts");
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <UserCheck className="w-4 h-4 text-purple-600" />
+                  <span>Add Key Contact</span>
+                </button>
               </div>
             )}
           </div>
@@ -767,6 +781,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             showToast={showToast}
             setIsAddNoteOpen={setIsAddNoteOpen}
             handleDeleteNote={handleDeleteNote}
+            handleDeleteContact={handleDeleteContact}
+            onClientUpdated={onClientUpdated || ((c) => setClient(c))}
             getAvatarBadge={getAvatarBadge}
           />
         )}

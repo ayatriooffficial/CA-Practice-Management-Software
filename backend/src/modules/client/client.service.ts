@@ -902,4 +902,87 @@ export class ClientService {
     client.markModified('notes');
     return await client.save();
   }
+
+  /**
+   * Add a Contact to Client
+   */
+  static async addContact(id: string, data: any): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    const newContact = {
+      id: data.id || `cnt-${Date.now()}`,
+      name: data.name || '',
+      isPrimary: Boolean(data.isPrimary),
+      designation: data.designation || 'Director',
+      din: data.din || '',
+      dinStatus: data.dinStatus || 'Active',
+      appointmentDate: data.appointmentDate || '',
+      dob: data.dob || '',
+      email: data.email || '',
+      mobile: data.mobile || '',
+      pan: data.pan || '',
+      aadhar: data.aadhar || '',
+      passport: data.passport || '',
+      fatherName: data.fatherName || '',
+      address: data.address || '',
+      createdAt: data.createdAt || new Date().toISOString(),
+    };
+    client.contacts = client.contacts || [];
+    // If marked as primary, unmark previous primaries
+    if (newContact.isPrimary) {
+      client.contacts.forEach((c: any) => (c.isPrimary = false));
+    }
+    client.contacts.unshift(newContact);
+    client.markModified('contacts');
+    return await client.save();
+  }
+
+  /**
+   * Update a Contact on Client
+   */
+  static async updateContact(id: string, contactId: string, data: any): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    if (!client.contacts) {
+      client.contacts = [];
+    }
+
+    const contacts = client.contacts;
+    const idx = contacts.findIndex((c: any) => c.id === contactId || c._id?.toString() === contactId);
+    if (idx === -1) {
+      throw AppError.notFound('Contact not found');
+    }
+
+    if (data.isPrimary) {
+      contacts.forEach((c: any) => (c.isPrimary = false));
+    }
+
+    contacts[idx] = {
+      ...contacts[idx],
+      ...data,
+      id: contacts[idx].id || contactId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    client.markModified('contacts');
+    return await client.save();
+  }
+
+  /**
+   * Delete a Contact from Client
+   */
+  static async deleteContact(id: string, contactId: string): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    if (!client.contacts) {
+      client.contacts = [];
+    }
+
+    client.contacts = client.contacts.filter(
+      (c: any) => c.id !== contactId && c._id?.toString() !== contactId
+    );
+
+    client.markModified('contacts');
+    return await client.save();
+  }
 }

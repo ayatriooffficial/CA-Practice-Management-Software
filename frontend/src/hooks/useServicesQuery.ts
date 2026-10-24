@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { serviceApi, ServiceQueryParams } from '@/services/serviceApi';
-import { Service, INITIAL_SERVICES } from '@/data/serviceData';
+import { Service } from '@/data/serviceData';
+import { localSyncManager, SYNC_KEYS } from '@/services/localSyncManager';
 
 export const SERVICE_QUERY_KEYS = {
   all: ['services'] as const,
@@ -12,7 +13,7 @@ export const SERVICE_QUERY_KEYS = {
 };
 
 /**
- * Fetch paginated, filtered, and searched services
+ * Fetch paginated, filtered, and searched services with local-first cache
  */
 export function useServices(params: ServiceQueryParams = {}) {
   return useQuery({
@@ -20,22 +21,23 @@ export function useServices(params: ServiceQueryParams = {}) {
     queryFn: async () => {
       try {
         const response = await serviceApi.getServices(params);
+        if (response.data && Array.isArray(response.data)) {
+          localSyncManager.setCached(SYNC_KEYS.SERVICES, response.data);
+        }
         return {
           services: response.data || [],
           pagination: response.pagination || {
             page: params.page || 1,
             limit: params.limit || 10,
             totalDocs: response.data?.length || 0,
-            totalPages: Math.ceil((response.data?.length || 0) / (params.limit || 10)) || 1,
+            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / (params.limit || 10))),
             hasNextPage: false,
             hasPrevPage: false,
           },
         };
       } catch (error) {
-        // Fallback to local data if backend is starting or offline
-        console.warn('Backend API unavailable, falling back to local service dataset:', error);
-        
-        let filtered = [...INITIAL_SERVICES];
+        // Fallback to real local cache (zero dummy data)
+        let filtered = localSyncManager.getCached<Service>(SYNC_KEYS.SERVICES);
         if (params.search?.trim()) {
           const q = params.search.toLowerCase().trim();
           filtered = filtered.filter(
@@ -72,7 +74,7 @@ export function useServices(params: ServiceQueryParams = {}) {
             page,
             limit,
             totalDocs: filtered.length,
-            totalPages: Math.ceil(filtered.length / limit) || 1,
+            totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
             hasNextPage: start + limit < filtered.length,
             hasPrevPage: page > 1,
           },
@@ -99,14 +101,17 @@ export function useServiceStats() {
 }
 
 /**
- * Mutation: Create new service
+ * Mutation: Create new service (with local cache update)
  */
 export function useCreateService() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (newService: Partial<Service>) => serviceApi.createService(newService),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (res?.data) {
+        localSyncManager.upsertItem(SYNC_KEYS.SERVICES, res.data);
+      }
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
     },
@@ -114,7 +119,7 @@ export function useCreateService() {
 }
 
 /**
- * Mutation: Update existing service
+ * Mutation: Update existing service (with local cache update)
  */
 export function useUpdateService() {
   const queryClient = useQueryClient();
@@ -122,7 +127,10 @@ export function useUpdateService() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Service> }) =>
       serviceApi.updateService(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
+      if (res?.data) {
+        localSyncManager.upsertItem(SYNC_KEYS.SERVICES, res.data);
+      }
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
@@ -131,14 +139,15 @@ export function useUpdateService() {
 }
 
 /**
- * Mutation: Soft delete service
+ * Mutation: Soft delete service (with local cache update)
  */
 export function useDeleteService() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => serviceApi.softDeleteService(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      localSyncManager.removeItem(SYNC_KEYS.SERVICES, id);
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
     },

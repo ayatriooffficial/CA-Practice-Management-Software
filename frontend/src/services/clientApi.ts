@@ -285,4 +285,24 @@ export const clientApi = {
       method: 'DELETE',
     });
   },
+
+  addContact: async (id: string, payload: any): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/clients/${id}/contacts`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateContact: async (id: string, contactId: string, payload: any): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/clients/${id}/contacts/${contactId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteContact: async (id: string, contactId: string): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/clients/${id}/contacts/${contactId}`, {
+      method: 'DELETE',
+    });
+  },
 };

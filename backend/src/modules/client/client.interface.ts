@@ -72,6 +72,20 @@ export interface IClientDocumentInOut {
   file?: string | null;
 }
 
+export interface IClientRecurringTaskConfig {
+  taskName?: string;
+  frequency?: string;
+  priority?: string;
+  startDay?: string | number;
+  startDate?: string;
+  targetDay?: string | number;
+  targetDate?: string;
+  endDay?: string | number;
+  endDate?: string;
+  assignee?: string;
+  reviewer?: string;
+}
+
 export interface IClientServiceSetting {
   id?: string;
   serviceId?: string;
@@ -87,6 +101,15 @@ export interface IClientServiceSetting {
   invFreq?: string;
   invDay?: number | string;
   amount: number;
+  // Recurring Task Fields matching UI
+  taskName?: string;
+  priority?: string;
+  assignee?: string;
+  reviewer?: string;
+  startDate?: string;
+  targetDate?: string;
+  endDate?: string;
+  recurringTask?: IClientRecurringTaskConfig;
 }
 
 export interface IClientPassword {
@@ -104,6 +127,25 @@ export interface IClientNote {
   content: string;
   createdAt: string;
   author?: string;
+}
+
+export interface IClientContact {
+  id?: string;
+  name: string;
+  isPrimary?: boolean;
+  designation?: string;
+  din?: string;
+  dinStatus?: string;
+  appointmentDate?: string;
+  dob?: string;
+  email?: string;
+  mobile?: string;
+  pan?: string;
+  aadhar?: string;
+  passport?: string;
+  fatherName?: string;
+  address?: string;
+  createdAt?: string;
 }
 
 export interface IClient {
@@ -132,6 +174,8 @@ export interface IClient {
   photo?: string | null;
   leadId?: Types.ObjectId | null;
   customerFiles: ICustomerFiles;
+  promoters?: any[];
+  contacts?: IClientContact[];
   licenses?: IClientLicense[];
   dscs?: IClientDsc[];
   documentsInOut?: IClientDocumentInOut[];
