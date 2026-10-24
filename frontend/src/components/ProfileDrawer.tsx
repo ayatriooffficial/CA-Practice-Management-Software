@@ -15,6 +15,7 @@ import {
   Bot,
   LogOut,
   Smartphone,
+  Building2,
 } from "lucide-react";
 
 interface ProfileDrawerProps {
@@ -191,6 +192,18 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
           {/* Scrollable Navigation Items */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
             {/* Group 1: My Profile & Settings */}
+            <Link
+              href="/onboarding"
+              onClick={onClose}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 bg-purple-50/70 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 hover:bg-purple-100 cursor-pointer group mb-1"
+            >
+              <div className="flex items-center gap-3">
+                <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform" />
+                <span className="font-semibold text-xs">Firm Profile Setup (Onboarding)</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+
             <Link
               href="/team"
               onClick={onClose}

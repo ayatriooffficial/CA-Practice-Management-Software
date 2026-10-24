@@ -121,10 +121,17 @@ export class QueryBuilder {
       countQuery.exec(),
     ]);
 
+    const normalizedItems = (items || []).map((doc: any) => {
+      if (doc && doc._id && !doc.id) {
+        doc.id = doc._id.toString();
+      }
+      return doc;
+    });
+
     const totalPages = Math.ceil(totalDocs / limit) || 1;
 
     return {
-      items,
+      items: normalizedItems,
       pagination: {
         page,
         limit,

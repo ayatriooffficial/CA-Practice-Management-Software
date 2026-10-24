@@ -31,20 +31,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onTaskCreated,
   initialData,
 }) => {
-  const [clients, setClients] = useState<Client[]>(() => {
-    try {
-      return appSyncService.getClients();
-    } catch {
-      return [];
-    }
-  });
-  const [services, setServices] = useState<Service[]>(() => {
-    try {
-      return appSyncService.getServices();
-    } catch {
-      return [];
-    }
-  });
+  const [clients, setClients] = useState<Client[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
@@ -53,19 +41,19 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [errorMessage, setErrorMessage] = useState("");
 
   // Form Fields matching Screenshot 1
-  const [clientId, setClientId] = useState(() => (clients.length > 0 ? (clients[0].id || clients[0].fileNo || "") : ""));
-  const [serviceId, setServiceId] = useState(() => (services.length > 0 ? (services[0].id || services[0].name || "") : ""));
+  const [clientId, setClientId] = useState<string>("");
+  const [serviceId, setServiceId] = useState<string>("");
   const [frequency, setFrequency] = useState("Monthly");
-  const [period, setPeriod] = useState("Jun 2026");
+  const [period, setPeriod] = useState("");
   const [taskName, setTaskName] = useState("");
-  const [financialYear, setFinancialYear] = useState("FY 2026 - 2027");
+  const [financialYear, setFinancialYear] = useState("");
   const [department, setDepartment] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [reviewerId, setReviewerId] = useState("");
   const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Urgent">("Low");
-  const [startDate, setStartDate] = useState("2026-07-27");
-  const [targetDueDate, setTargetDueDate] = useState("2026-07-27");
-  const [endDate, setEndDate] = useState("2026-07-27");
+  const [startDate, setStartDate] = useState("");
+  const [targetDueDate, setTargetDueDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [billingType, setBillingType] = useState<"Billable" | "Non Billable">("Billable");
   const [isSprintPlanner, setIsSprintPlanner] = useState(false);
   const [description, setDescription] = useState("");
@@ -94,9 +82,20 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       .getClients({ limit: 100 })
       .then((res) => {
         if (isMounted && res.data) {
-          setClients(res.data);
-          if (res.data.length > 0 && !clientId) {
-            setClientId(res.data[0].id || res.data[0].fileNo);
+          const realClients = res.data.filter((c: any) => c.fileNo !== 'CLT-2026-MOCK');
+          setClients(realClients);
+          if (realClients.length > 0) {
+            setClientId((prev) => {
+              const exists = realClients.some(
+                (c: any) =>
+                  (c.id && c.id === prev) ||
+                  (c._id && c._id === prev) ||
+                  (c.fileNo && c.fileNo === prev)
+              );
+              return exists && prev
+                ? prev
+                : (realClients[0].id || (realClients[0] as any)._id || realClients[0].fileNo || "");
+            });
           }
         }
       })
@@ -146,7 +145,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           }
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (isMounted) setIsLoadingTeam(false);
       });
@@ -205,20 +204,27 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     e.preventDefault();
     setErrorMessage("");
 
-    const selectedClient = clients.find((c) => c.id === clientId || c.fileNo === clientId);
+    const selectedClient = clients.find(
+      (c) =>
+        (c.id && c.id === clientId) ||
+        ((c as any)._id && (c as any)._id === clientId) ||
+        (c.fileNo && c.fileNo === clientId) ||
+        (c.name && c.name.toLowerCase() === clientId.toLowerCase())
+    );
     const selectedService = services.find((s) => s.id === serviceId || s.name === serviceId);
     const selectedAssignee = teamMembers.find((m) => m.id === assigneeId || m.name === assigneeId);
     const selectedReviewer = teamMembers.find((m) => m.id === reviewerId || m.name === reviewerId);
 
-    if (!selectedClient && !clientId) {
+    if (!selectedClient) {
       setErrorMessage("Please select a client from the database.");
       return;
     }
 
-    const clientName = selectedClient ? selectedClient.name : clientId;
-    const clientFileNo = selectedClient?.fileNo || "";
-    const clientPan = selectedClient?.pan || "";
-    const legalName = selectedClient?.legalName || selectedClient?.name || clientName;
+    const clientName = selectedClient.name;
+    const clientFileNo = selectedClient.fileNo || "";
+    const clientPan = selectedClient.pan || "";
+    const legalName = selectedClient.legalName || selectedClient.name || clientName;
+    const storedClientId = selectedClient.id || (selectedClient as any)._id;
 
     const serviceName = selectedService ? selectedService.name : serviceId;
     const assigneeName = selectedAssignee ? selectedAssignee.name : (assigneeId || "");
@@ -291,7 +297,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
       const payload: Partial<TaskItem> = {
         taskName: taskName.trim() || "-",
-        clientId: selectedClient?.id || clientId,
+        clientId: storedClientId,
         clientName,
         clientFileNo,
         clientPan,
@@ -299,8 +305,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         serviceId: selectedService?.id || serviceId,
         serviceName,
         frequency,
-        period,
-        financialYear,
+        period: period || getPeriodOptions()[0] || "Current Period",
+        financialYear: financialYear || FINANCIAL_YEARS[0] || "FY 2026 - 2027",
         department: department || "GST",
         assigneeId: selectedAssignee?.id || assigneeId,
         assigneeName,
@@ -326,6 +332,9 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         documentRequests,
         linkedEmails: initialData?.linkedEmail ? [initialData.linkedEmail] : [],
       };
+
+      // console.log(payload);
+
 
       const res = await taskApi.createTask(payload);
       if (res.data) {
@@ -415,11 +424,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 {isLoadingClients ? (
                   <option value="">Loading clients...</option>
                 ) : clients.length > 0 ? (
-                  clients.map((c) => (
-                    <option key={c.id || c.fileNo} value={c.id || c.fileNo}>
-                      {c.name} {c.fileNo ? `(${c.fileNo})` : ""}
-                    </option>
-                  ))
+                  clients.map((c) => {
+                    const cVal = c.id || (c as any)._id || c.fileNo;
+                    return (
+                      <option key={cVal} value={cVal}>
+                        {c.name} {c.fileNo ? `(${c.fileNo})` : ""}
+                      </option>
+                    );
+                  })
                 ) : (
                   <option value="" disabled>No clients found in database</option>
                 )}
@@ -506,7 +518,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               </label>
               <select
                 id="task-period"
-                value={period}
+                value={period || getPeriodOptions()[0] || ""}
                 onChange={(e) => setPeriod(e.target.value)}
                 required
                 className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
@@ -550,7 +562,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               </label>
               <select
                 id="task-fy"
-                value={financialYear}
+                value={financialYear || FINANCIAL_YEARS[0] || ""}
                 onChange={(e) => setFinancialYear(e.target.value)}
                 required
                 className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"

@@ -759,9 +759,14 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
               ) : (
                 displayTasks.map((task) => {
                   const isChecked = selectedTaskIds.includes(task.id);
-                  const clientInitials = task.clientName
-                    ? task.clientName.substring(0, 2).toUpperCase()
-                    : "CL";
+                  const isHexId = (val?: string) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(val));
+                  const properClientName =
+                    task.clientName && !isHexId(task.clientName)
+                      ? task.clientName
+                      : (task.legalName && !isHexId(task.legalName)
+                          ? task.legalName
+                          : (task.clientFileNo ? `Client #${task.clientFileNo}` : "Client"));
+                  const clientInitials = properClientName.substring(0, 2).toUpperCase();
 
                   return (
                     <tr
@@ -810,7 +815,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
                           </span>
                           <div className="truncate">
                             <span className="font-medium text-[var(--text-main)] block truncate">
-                              {task.clientName}
+                              {properClientName}
                             </span>
                             {task.clientFileNo && (
                               <span className="text-[10px] text-[var(--text-subtle)] font-mono block">

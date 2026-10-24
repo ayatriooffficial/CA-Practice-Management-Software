@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Loader2, Award, Calendar, Link as LinkIcon, FileText } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { X, Loader2, Award, Calendar, Link as LinkIcon, FileText, Upload, CheckCircle2, FileUp } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
+import { driveApi } from "@/services/driveApi";
 import { Client } from "@/data/crmData";
 
 interface AddLicenseModalProps {
@@ -24,9 +25,11 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
   const [expiryDate, setExpiryDate] = useState("");
   const [url, setUrl] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [fileName, setFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingDrive, setIsUploadingDrive] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -41,14 +44,48 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
     setErrorMessage("");
 
     try {
+      let uploadedFileUrl = "";
+      let attachedFileName = "";
+
+      if (selectedFile) {
+        setIsUploadingDrive(true);
+        try {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          formData.append("category", "COMPLIANCE_MCA");
+          formData.append(
+            "description",
+            `License Document: ${name.trim()} (${licenseNo.trim() || "No Lic No"})`
+          );
+          formData.append("clientName", client.name);
+          if (client.id) formData.append("clientId", client.id);
+          formData.append("uploadedBy", "Staff");
+
+          const driveRes = await driveApi.uploadDocument(formData);
+          if (driveRes.data) {
+            uploadedFileUrl =
+              driveRes.data.webViewLink ||
+              driveRes.data.previewUrl ||
+              (driveRes.data.driveFileId ? driveApi.getDownloadUrl(driveRes.data.driveFileId) : "");
+            attachedFileName = selectedFile.name;
+          }
+        } catch (uploadErr: any) {
+          console.warn("Drive upload fallback:", uploadErr);
+          attachedFileName = selectedFile.name;
+        } finally {
+          setIsUploadingDrive(false);
+        }
+      }
+
       const payload = {
         name: name.trim(),
         licenseNo: licenseNo.trim() || "-",
         issuedDate: issuedDate ? formatDateDisplay(issuedDate) : "-",
         expiryDate: expiryDate ? formatDateDisplay(expiryDate) : "-",
-        url: url.trim() || "-",
+        url: url.trim() || uploadedFileUrl || "-",
         remarks: remarks.trim() || "-",
-        file: fileName || (name.toLowerCase().includes("shop") ? "xls" : "pdf"),
+        file: attachedFileName || (name.toLowerCase().includes("shop") ? "xls" : "pdf"),
+        fileUrl: uploadedFileUrl || undefined,
       };
 
       const res = await clientApi.addLicense(client.id, payload);
@@ -204,21 +241,62 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
             />
           </div>
 
-          {/* Document File / Type */}
+          {/* Document File / Drive Upload */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Document Format / Attachment
+              Upload License Document (Google Drive)
             </label>
-            <select
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className="w-full h-9 px-3 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-md text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B]"
-            >
-              <option value="pdf">PDF Document (.pdf)</option>
-              <option value="xls">Spreadsheet (.xls, .xlsx)</option>
-              <option value="doc">Word Document (.docx)</option>
-              <option value="img">Scanned Image (.jpg, .png)</option>
-            </select>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setSelectedFile(e.target.files[0]);
+                }
+              }}
+              className="hidden"
+            />
+            {selectedFile ? (
+              <div className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-xs">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div className="truncate">
+                    <p className="font-semibold text-emerald-800 dark:text-emerald-300 truncate">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-[10px] text-emerald-600">
+                      {(selectedFile.size / 1024).toFixed(1)} KB • Ready for Drive Upload
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="text-xs text-gray-400 hover:text-red-500 p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-[#31719B] dark:hover:border-[#31719B] rounded-lg p-3 text-center cursor-pointer transition-colors bg-gray-50/50 dark:bg-gray-800/20"
+              >
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <Upload className="w-5 h-5 text-gray-400" />
+                  <span className="text-xs font-semibold text-[#31719B]">
+                    Click to browse and upload file
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    PDF, DOC, XLSX, or Images up to 25MB (Auto-syncs to Google Drive)
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer Actions */}

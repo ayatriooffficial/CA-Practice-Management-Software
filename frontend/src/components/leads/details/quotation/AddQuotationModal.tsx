@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { X, Plus, Trash2, Calendar, ChevronDown, Check, CreditCard, ChevronUp } from "lucide-react";
 import { Lead, STATES } from "@/data/crmData";
 import { useCreateQuotation } from "@/hooks/useQuotationsQuery";
 import { QuotationItem, QuotationBankDetails } from "@/services/quotationApi";
 import { organizationApi } from "@/services/organizationApi";
 import { serviceApi } from "@/services/serviceApi";
+import { appSyncService } from "@/services/appSyncService";
 
 interface AddQuotationModalProps {
   lead: Lead;
@@ -54,13 +55,13 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   // Quotation To (Lead) State
   const initialLeadAddress = lead.addressDetails
     ? [
-        lead.addressDetails.addressLine1,
-        lead.addressDetails.addressLine2,
-        lead.addressDetails.city,
-        lead.addressDetails.pincode,
-      ]
-        .filter(Boolean)
-        .join(", ")
+      lead.addressDetails.addressLine1,
+      lead.addressDetails.addressLine2,
+      lead.addressDetails.city,
+      lead.addressDetails.pincode,
+    ]
+      .filter(Boolean)
+      .join(", ")
     : (lead.address || "");
 
   const initialLeadState = lead.addressDetails?.state || lead.state || "Maharashtra";
@@ -75,38 +76,103 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   const [leadStateCode, setLeadStateCode] = useState(initialLeadStateCode);
   const [leadGstin, setLeadGstin] = useState(lead.gstin || "");
 
-  // Dynamic Services fetched from Organization's services in DB
+  // Dynamic Services fetched from Organization's services in DB (synchronized with backend)
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [customMode, setCustomMode] = useState<Record<string, boolean>>({});
+
   const [orgServices, setOrgServices] = useState<
     Array<{
-      id?: string;
+      id: string;
       name: string;
+      category: string;
       hsn: string;
       price: number;
       taxRate: number;
       description?: string;
     }>
-  >([]);
+  >(() => {
+    try {
+      const initial = appSyncService.getServices();
+      return (initial || []).map((s) => {
+        const rawTax = String(s.taxRate || "18").replace("%", "").trim();
+        return {
+          id: s.id || (s as any)._id || s.name,
+          name: s.name,
+          category: s.category || "General",
+          hsn: s.sacCode || "998311",
+          price: Number(s.professionalFee) || 0,
+          taxRate: Number(rawTax) || 18,
+          description: s.description || "",
+        };
+      });
+    } catch {
+      return [];
+    }
+  });
+
+  // Group backend services by category for clean optgroups in dropdown
+  const servicesByCategory = useMemo(() => {
+    const map: Record<string, typeof orgServices> = {};
+    for (const svc of orgServices) {
+      const cat = svc.category || "General Services";
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(svc);
+    }
+    return map;
+  }, [orgServices]);
 
   // Line Items State
-  const [items, setItems] = useState<QuotationItem[]>([
-    {
-      id: "item-1",
-      serviceName: "",
-      hsnSac: "998311",
-      quantity: 1,
-      price: 0,
-      discountType: "percentage",
-      discountValue: 0,
-      taxRate: 18,
-      sgst: 0,
-      cgst: 0,
-      igst: 0,
-      amount: 0,
-      total: 0,
-      description: "",
-      isReimbursement: false,
-    },
-  ]);
+  const [items, setItems] = useState<QuotationItem[]>(() => {
+    try {
+      const initial = appSyncService.getServices();
+      if (initial && initial.length > 0) {
+        const first = initial[0];
+        const rawTax = String(first.taxRate || "18").replace("%", "").trim();
+        const taxRate = Number(rawTax) || 18;
+        const price = Number(first.professionalFee) || 0;
+        const tax = (price * taxRate) / 100;
+        return [
+          {
+            id: "item-1",
+            serviceId: first.id || (first as any)._id,
+            serviceName: first.name,
+            hsnSac: first.sacCode || "998311",
+            quantity: 1,
+            price: price,
+            discountType: "percentage",
+            discountValue: 0,
+            taxRate: taxRate,
+            sgst: tax / 2,
+            cgst: tax / 2,
+            igst: 0,
+            amount: price,
+            total: price + tax,
+            description: first.description || "",
+            isReimbursement: false,
+          },
+        ];
+      }
+    } catch {}
+    return [
+      {
+        id: "item-1",
+        serviceName: "",
+        hsnSac: "998311",
+        quantity: 1,
+        price: 0,
+        discountType: "percentage",
+        discountValue: 0,
+        taxRate: 18,
+        sgst: 0,
+        cgst: 0,
+        igst: 0,
+        amount: 0,
+        total: 0,
+        description: "",
+        isReimbursement: false,
+      },
+    ];
+  });
 
   // Calculations
   const calculateItem = (item: QuotationItem): QuotationItem => {
@@ -197,17 +263,19 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         console.warn("Failed to fetch organization billing details:", err);
       });
 
-    // 2. Fetch organization services from DB
+    // 2. Fetch organization services from backend DB (matching Task Section)
+    setIsLoadingServices(true);
     serviceApi
       .getServices({ limit: 100 })
       .then((res) => {
-        if (!isMounted || !res.success || !res.data) return;
+        if (!isMounted || !res.data) return;
         const fetched = res.data.map((s) => {
           const rawTax = String(s.taxRate || "18").replace("%", "").trim();
           const numericTax = Number(rawTax) || 18;
           return {
-            id: s.id,
+            id: s.id || (s as any)._id || s.name,
             name: s.name,
+            category: s.category || "General",
             hsn: s.sacCode || "998311",
             price: Number(s.professionalFee) || 0,
             taxRate: numericTax,
@@ -239,7 +307,10 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         }
       })
       .catch((err) => {
-        console.warn("Failed to fetch organization services:", err);
+        console.warn("Failed to fetch organization services from backend:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingServices(false);
       });
 
     return () => {
@@ -255,8 +326,10 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
     });
   };
 
-  const handleSelectServicePreset = (index: number, serviceName: string) => {
-    const found = orgServices.find((s) => s.name.toLowerCase() === serviceName.toLowerCase());
+  const handleSelectServicePreset = (index: number, serviceNameOrId: string) => {
+    const found = orgServices.find(
+      (s) => s.id === serviceNameOrId || s.name.toLowerCase() === serviceNameOrId.toLowerCase()
+    );
     if (found) {
       handleItemChange(index, {
         serviceId: found.id,
@@ -267,28 +340,36 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         description: found.description || "",
       });
     } else {
-      handleItemChange(index, { serviceName });
+      handleItemChange(index, { serviceName: serviceNameOrId });
     }
   };
 
   const handleAddService = () => {
-    const defaultSvc = orgServices[0];
+    // Pick next backend service from orgServices that isn't already added
+    const usedServiceIds = new Set(
+      items.map((it) => it.serviceId || it.serviceName.toLowerCase())
+    );
+    const nextSvc =
+      orgServices.find(
+        (s) => !usedServiceIds.has(s.id) && !usedServiceIds.has(s.name.toLowerCase())
+      ) || orgServices[0];
+
     const newItem: QuotationItem = {
       id: `item-${Date.now()}`,
-      serviceId: defaultSvc?.id,
-      serviceName: defaultSvc?.name || "",
-      hsnSac: defaultSvc?.hsn || "998311",
+      serviceId: nextSvc?.id,
+      serviceName: nextSvc?.name || "",
+      hsnSac: nextSvc?.hsn || "998311",
       quantity: 1,
-      price: defaultSvc?.price || 0,
+      price: nextSvc?.price || 0,
       discountType: "percentage",
       discountValue: 0,
-      taxRate: defaultSvc?.taxRate || 18,
+      taxRate: nextSvc?.taxRate || 18,
       sgst: 0,
       cgst: 0,
       igst: 0,
       amount: 0,
       total: 0,
-      description: defaultSvc?.description || "",
+      description: nextSvc?.description || "",
       isReimbursement: false,
     };
     setItems((prev) => [...prev, calculateItem(newItem)]);
@@ -498,7 +579,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                 <div className="flex justify-between items-start gap-2">
                   <span className="text-gray-500">Business Name</span>
                   <span className="font-semibold text-gray-800 dark:text-gray-200 text-right">
-                    {billingOrgName || "Ayatrio Practice"}
+                    {billingOrgName}
                   </span>
                 </div>
                 <div className="flex justify-between items-start gap-2">
@@ -769,7 +850,9 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                     className="text-white font-semibold"
                     style={{ backgroundColor: "var(--premium-blue-dark)" }}
                   >
-                    <th className="px-3 py-3 w-[240px]">Services</th>
+                    <th className="px-3 py-3 w-[260px]">
+                      Services {isLoadingServices && <span className="text-[10px] font-normal opacity-80">(loading...)</span>}
+                    </th>
                     <th className="px-2 py-3 w-[100px]">HSN/SAC</th>
                     <th className="px-2 py-3 w-[70px] text-center">Quantity</th>
                     <th className="px-2 py-3 w-[100px] text-right">Price</th>
@@ -787,23 +870,91 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                   {items.map((item, idx) => (
                     <React.Fragment key={item.id || idx}>
                       <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                        {/* Service Name Dropdown / Input from dynamic DB services */}
-                        <td className="p-2">
-                          <input
-                            type="text"
-                            list={`services-list-${idx}`}
-                            value={item.serviceName}
-                            onChange={(e) => handleSelectServicePreset(idx, e.target.value)}
-                            placeholder="Select or enter service name"
-                            className="w-full h-8 px-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
-                          />
-                          <datalist id={`services-list-${idx}`}>
-                            {orgServices.map((s) => (
-                              <option key={s.id || s.name} value={s.name}>
-                                {s.name} (₹{s.price})
-                              </option>
-                            ))}
-                          </datalist>
+                        {/* Service Selection from backend DB */}
+                        <td className="p-2 min-w-[220px]">
+                          {item.isReimbursement ? (
+                            <input
+                              type="text"
+                              value={item.serviceName}
+                              onChange={(e) => handleItemChange(idx, { serviceName: e.target.value })}
+                              placeholder="Reimbursement fee name"
+                              className="w-full h-8 px-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
+                            />
+                          ) : customMode[item.id || String(idx)] ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={item.serviceName}
+                                onChange={(e) => handleItemChange(idx, { serviceName: e.target.value })}
+                                placeholder="Enter custom service name"
+                                className="w-full h-8 px-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B]"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCustomMode((prev) => ({ ...prev, [item.id || String(idx)]: false }))
+                                }
+                                title="Switch back to backend services catalog"
+                                className="px-2 h-8 text-[10px] font-semibold text-[#31719B] bg-blue-50 dark:bg-blue-950/40 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-100 dark:hover:bg-blue-900/60 shrink-0 cursor-pointer"
+                              >
+                                Catalog
+                              </button>
+                            </div>
+                          ) : (
+                            <select
+                              value={
+                                item.serviceId ||
+                                orgServices.find(
+                                  (s) => s.name.toLowerCase() === item.serviceName?.toLowerCase()
+                                )?.id ||
+                                (item.serviceName ? "__custom__" : "")
+                              }
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "__custom__") {
+                                  setCustomMode((prev) => ({ ...prev, [item.id || String(idx)]: true }));
+                                } else {
+                                  const found = orgServices.find((s) => s.id === val || s.name === val);
+                                  if (found) {
+                                    handleItemChange(idx, {
+                                      serviceId: found.id,
+                                      serviceName: found.name,
+                                      hsnSac: found.hsn,
+                                      price: found.price,
+                                      taxRate: found.taxRate,
+                                      description: found.description || "",
+                                    });
+                                  }
+                                }
+                              }}
+                              className="w-full h-8 px-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e293b] text-xs font-medium text-gray-800 dark:text-white focus:outline-none focus:border-[#31719B] truncate cursor-pointer"
+                            >
+                              {isLoadingServices && orgServices.length === 0 ? (
+                                <option value="">Loading services from database...</option>
+                              ) : orgServices.length > 0 ? (
+                                <>
+                                  <option value="" disabled>
+                                    Select service from database...
+                                  </option>
+                                  {Object.entries(servicesByCategory).map(([cat, list]) => (
+                                    <optgroup key={cat} label={cat}>
+                                      {list.map((s) => (
+                                        <option key={s.id || s.name} value={s.id}>
+                                          {s.name} {s.price ? `(₹${s.price.toLocaleString("en-IN")})` : ""}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  ))}
+                                  <option value="__custom__">+ Custom Service (Type manually)...</option>
+                                </>
+                              ) : (
+                                <option value="" disabled>
+                                  No services found in database
+                                </option>
+                              )}
+                            </select>
+                          )}
                         </td>
 
                         {/* HSN/SAC */}

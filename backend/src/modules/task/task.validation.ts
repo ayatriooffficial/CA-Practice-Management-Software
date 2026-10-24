@@ -69,19 +69,43 @@ export const createTaskSchema = z.object({
   serviceId: z.string().optional().nullable(),
   serviceName: z.string().min(1, 'Service is required'),
   frequency: z.string().optional().default('Monthly'),
-  period: z.string().min(1, 'Period is required'),
-  financialYear: z.string().min(1, 'Financial Year is required'),
+  period: z
+    .string()
+    .optional()
+    .default('Current Period')
+    .transform((v) => (v && v.trim() ? v.trim() : 'Current Period')),
+  financialYear: z
+    .string()
+    .optional()
+    .default('FY 2026 - 2027')
+    .transform((v) => (v && v.trim() ? v.trim() : 'FY 2026 - 2027')),
   department: z.string().optional().default('GST'),
   assigneeId: z.string().optional().nullable(),
-  assigneeName: z.string().min(1, 'Assignee is required'),
+  assigneeName: z
+    .string()
+    .optional()
+    .default('Unassigned')
+    .transform((v) => (v && v.trim() ? v.trim() : 'Unassigned')),
   assigneeInitials: z.string().optional().default(''),
   assigneeColor: z.string().optional().default('#8B5CF6'),
   reviewerId: z.string().optional().nullable(),
   reviewerName: z.string().optional().default(''),
   priority: z.enum(['Low', 'Medium', 'High', 'Urgent']).default('Low'),
-  startDate: z.string().min(1, 'Start date is required'),
-  targetDueDate: z.string().min(1, 'Target due date is required'),
-  endDate: z.string().min(1, 'End date is required'),
+  startDate: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) => (v && v.trim() ? v.trim() : '')),
+  targetDueDate: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) => (v && v.trim() ? v.trim() : '')),
+  endDate: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) => (v && v.trim() ? v.trim() : '')),
   billingType: z.enum(['Billable', 'Non Billable']).default('Billable'),
   billingStatus: z.enum(['Pending', 'Ready to Bill', 'Billed']).optional().default('Pending'),
   isSprintPlanner: z.boolean().optional().default(false),

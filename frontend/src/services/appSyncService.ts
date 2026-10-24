@@ -106,18 +106,23 @@ class AppSyncService {
   // ==========================================
   public getClients(): Client[] {
     if (typeof window === "undefined") {
-      return INITIAL_CLIENTS;
+      return [];
     }
     try {
       const raw = localStorage.getItem(STORAGE_KEY_CLIENTS);
       if (!raw) {
-        localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-        return INITIAL_CLIENTS;
+        return [];
       }
       const parsed: Client[] = JSON.parse(raw);
-      return parsed && parsed.length > 0 ? parsed : INITIAL_CLIENTS;
+      const clean = (parsed || []).filter(
+        (c) => c && c.fileNo !== "CLT-2026-MOCK" && c.id !== "6ada31f787977d6da675b184"
+      );
+      if (parsed.length !== clean.length) {
+        localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(clean));
+      }
+      return clean;
     } catch {
-      return INITIAL_CLIENTS;
+      return [];
     }
   }
 

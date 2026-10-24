@@ -598,39 +598,39 @@ export class AuthService {
     const orgObj = { ...org, id: String(org._id) };
     if (!orgObj.addressDetails || !orgObj.addressDetails.state) {
       orgObj.addressDetails = {
-        addressLine1: orgObj.address || 'Unit 402, Signature Tower',
-        addressLine2: 'Bandra Kurla Complex',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        stateCode: '27',
-        pincode: '400051',
-        country: 'India',
-        landmark: 'Near Diamond Bourse',
+        addressLine1: orgObj.address || '',
+        addressLine2: '',
+        city: '',
+        state: '',
+        stateCode: '',
+        pincode: '',
+        country: '',
+        landmark: '',
         ...(orgObj.addressDetails || {}),
       };
     }
     if (!orgObj.paymentDetails || !orgObj.paymentDetails.bankDetails?.bankName) {
       orgObj.paymentDetails = {
         bankDetails: {
-          bankName: 'HDFC Bank Ltd.',
-          accountNumber: '50200012345678',
-          accountHolderName: orgObj.name || 'AYATRIO PRACTICE MANAGEMENT FIRM',
-          ifscCode: 'HDFC0000060',
-          branchName: 'BKC Branch, Mumbai',
-          accountType: 'Current',
-          upiId: 'ayatrio@hdfcbank',
+          bankName: 'Not Added',
+          accountNumber: 'Not Added',
+          accountHolderName: orgObj.name || 'Not Added',
+          ifscCode: 'Not Added',
+          branchName: 'Not Added',
+          accountType: 'N/A',
+          upiId: 'N/A',
           qrCodeUrl: '',
           ...(orgObj.paymentDetails?.bankDetails || {}),
         },
-        paymentMode: orgObj.paymentDetails?.paymentMode || 'Bank Transfer',
-        currency: orgObj.paymentDetails?.currency || 'INR',
-        terms: orgObj.paymentDetails?.terms || 'Payment due within 15 days of invoice date.',
+        paymentMode: orgObj.paymentDetails?.paymentMode || 'Not Added',
+        currency: orgObj.paymentDetails?.currency || 'N/A',
+        terms: orgObj.paymentDetails?.terms || 'Not Added',
         isDefault: true,
       };
     }
-    if (!orgObj.gstin) orgObj.gstin = '27AAACA0000A1Z5';
-    if (!orgObj.pan) orgObj.pan = 'AAACA0000A';
-    if (!orgObj.lutNumber) orgObj.lutNumber = 'AD270324000123M';
+    if (!orgObj.gstin) orgObj.gstin = '';
+    if (!orgObj.pan) orgObj.pan = '';
+    if (!orgObj.lutNumber) orgObj.lutNumber = '';
 
     return orgObj;
   }

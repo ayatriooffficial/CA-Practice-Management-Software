@@ -45,6 +45,10 @@ export const clientApi = {
       const query = searchParams.toString();
       const res = await request<Client[]>(`/clients${query ? `?${query}` : ''}`);
       if (res && res.data && res.data.length > 0) {
+        res.data = res.data.map((c: any) => ({
+          ...c,
+          id: c.id || c._id?.toString() || c._id,
+        }));
         return res;
       }
     } catch {
@@ -104,7 +108,11 @@ export const clientApi = {
   getClientById: async (id: string, includeDeleted = false): Promise<ApiResponse<Client>> => {
     try {
       const res = await request<Client>(`/clients/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
-      if (res && res.data) return res;
+      if (res && res.data) {
+        const c: any = res.data;
+        c.id = c.id || c._id?.toString() || c._id;
+        return res;
+      }
     } catch {
       // Offline fallback
     }

@@ -66,6 +66,80 @@ const organizationSchema = new Schema<IOrganizationDocument>(
       type: paymentDetailsSchema,
       default: () => ({}),
     },
+    currency: {
+      type: String,
+      trim: true,
+      default: 'INR',
+    },
+    businessEntity: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    businessType: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    isGstRegistered: {
+      type: Boolean,
+      default: false,
+    },
+    cinNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    tanNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    udyamNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    msmeCategory: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    professionalTaxNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    providentFundNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    esiRegistrationNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    invoiceSettings: {
+      type: Schema.Types.Mixed,
+      default: () => ({}),
+    },
+    businessHours: {
+      type: Schema.Types.Mixed,
+      default: () => ({}),
+    },
+    integrations: {
+      type: Schema.Types.Mixed,
+      default: () => ({}),
+    },
+    onboardingStep: {
+      type: Number,
+      default: 1,
+    },
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
     totalSeats: {
       type: Number,
       default: 5,

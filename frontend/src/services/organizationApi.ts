@@ -45,6 +45,22 @@ export interface OrganizationDetails {
   address?: string;
   addressDetails?: AddressDetails;
   paymentDetails?: PaymentDetails;
+  currency?: string;
+  businessEntity?: string;
+  businessType?: string;
+  isGstRegistered?: boolean;
+  cinNumber?: string;
+  tanNumber?: string;
+  udyamNumber?: string;
+  msmeCategory?: string;
+  professionalTaxNumber?: string;
+  providentFundNumber?: string;
+  esiRegistrationNumber?: string;
+  invoiceSettings?: Record<string, any>;
+  businessHours?: Record<string, any>;
+  integrations?: Record<string, any>;
+  onboardingStep?: number;
+  onboardingCompleted?: boolean;
   totalSeats?: number;
   isActive?: boolean;
 }

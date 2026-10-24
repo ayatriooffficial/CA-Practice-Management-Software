@@ -39,6 +39,7 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-app)] text-[var(--text-main)]">
       {/* Persistent Top Header */}

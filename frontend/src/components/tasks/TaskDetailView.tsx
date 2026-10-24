@@ -402,7 +402,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
             style={{ color: "var(--primary)" }}
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>{task.clientName}</span>
+            <span>
+              {task.clientName && !/^[0-9a-fA-F]{24}$/.test(task.clientName)
+                ? task.clientName
+                : (task.legalName && !/^[0-9a-fA-F]{24}$/.test(task.legalName)
+                    ? task.legalName
+                    : (task.clientFileNo ? `Client #${task.clientFileNo}` : "Client Details"))}
+            </span>
           </button>
           <span className="text-[var(--border-main)]">|</span>
           <div className="flex items-center space-x-2">
@@ -494,6 +500,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
           handleStatusChange={handleStatusChange}
           onGenerateInvoice={handleGenerateInvoice}
           isEmployee={isEmployee}
+          onTaskUpdated={(updated) => setTask(updated)}
         />
       </div>
       </div>

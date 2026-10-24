@@ -152,6 +152,7 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
     case "Documents":
       return (
         <ClientDocumentsTab
+          client={client}
           documents={client.documentsInOut || []}
           setIsAddDocInOutOpen={setIsAddDocInOutOpen}
           handleDeleteDocMovement={handleDeleteDocMovement}

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Task } from './task.model';
 import { Service } from '../service/service.model';
+import { Client } from '../client/client.model';
 import {
   ITask,
   ITaskDocument,
@@ -238,6 +239,64 @@ export class TaskService {
       Task.countDocuments(filter),
     ]);
 
+    const isHexId = (val?: string | null) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(String(val).trim()));
+
+    // Collect IDs for any tasks whose clientName was stored as a MongoDB ObjectId or is missing
+    const clientIdsToResolve = Array.from(
+      new Set(
+        items
+          .filter(
+            (item: any) =>
+              isHexId(item.clientName) ||
+              item.clientName === item.clientId ||
+              !item.clientName ||
+              item.clientName === '-'
+          )
+          .map((item: any) => item.clientId || (isHexId(item.clientName) ? item.clientName : null))
+          .filter(Boolean)
+      )
+    );
+
+    if (clientIdsToResolve.length > 0) {
+      try {
+        const resolvedClients = await Client.find({
+          $or: [
+            { _id: { $in: clientIdsToResolve.filter((id) => isHexId(id)) } },
+            { fileNo: { $in: clientIdsToResolve } },
+          ],
+        })
+          .select('name fileNo pan legalName')
+          .lean();
+
+        const clientMap = new Map<string, any>();
+        for (const c of resolvedClients) {
+          clientMap.set(String(c._id), c);
+          if (c.fileNo) clientMap.set(c.fileNo, c);
+        }
+
+        for (const item of items as any[]) {
+          const lookupKey = item.clientId || (isHexId(item.clientName) ? item.clientName : null);
+          if (lookupKey && clientMap.has(lookupKey)) {
+            const cl = clientMap.get(lookupKey);
+            item.clientName = cl.name;
+            item.clientId = String(cl._id);
+            if (!item.clientFileNo && cl.fileNo) item.clientFileNo = cl.fileNo;
+            if ((!item.clientPan || item.clientPan === '-') && cl.pan) item.clientPan = cl.pan;
+            if (!item.legalName && (cl.legalName || cl.name)) item.legalName = cl.legalName || cl.name;
+          }
+        }
+      } catch {
+        // graceful fallback
+      }
+    }
+
+    const normalizedItems = (items as any[]).map((doc: any) => {
+      if (doc && doc._id && !doc.id) {
+        doc.id = doc._id.toString();
+      }
+      return doc;
+    });
+
     const totalPages = Math.ceil(totalItems / limit) || 1;
 
     const pagination: PaginationMeta = {
@@ -249,7 +308,7 @@ export class TaskService {
       hasPrevPage: page > 1,
     };
 
-    return { items: items as any, pagination };
+    return { items: normalizedItems as any, pagination };
   }
 
   /**
@@ -570,6 +629,29 @@ export class TaskService {
       throw AppError.notFound(ResponseMessages.TASK_NOT_FOUND);
     }
 
+    // Auto-heal client details if clientName was mistakenly saved as a MongoDB ObjectId
+    const isHexId = (val?: string | null) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(String(val).trim()));
+    if (isHexId(task.clientName) || task.clientName === task.clientId || !task.clientName || task.clientName === '-') {
+      try {
+        const lookupId = task.clientId || (isHexId(task.clientName) ? task.clientName : null);
+        if (lookupId) {
+          const clientDoc = isHexId(lookupId)
+            ? await Client.findById(lookupId).lean()
+            : await Client.findOne({ $or: [{ fileNo: lookupId }, { name: lookupId }] }).lean();
+          if (clientDoc) {
+            task.clientName = clientDoc.name;
+            task.clientId = clientDoc._id.toString();
+            if (!task.clientFileNo && clientDoc.fileNo) task.clientFileNo = clientDoc.fileNo;
+            if ((!task.clientPan || task.clientPan === '-') && clientDoc.pan) task.clientPan = clientDoc.pan;
+            if (!task.legalName && (clientDoc.legalName || clientDoc.name)) task.legalName = clientDoc.legalName || clientDoc.name;
+            await task.save();
+          }
+        }
+      } catch {
+        // fallback gracefully
+      }
+    }
+
     // Auto-populate from Service if task items are empty but service is linked
     if (
       (!task.checklist?.length || !task.subTasks?.length || !task.documentRequests?.length) &&
@@ -579,9 +661,9 @@ export class TaskService {
         const srv = task.serviceId
           ? await Service.findById(task.serviceId).lean()
           : await Service.findOne({
-              name: { $regex: new RegExp(`^${task.serviceName?.trim()}$`, 'i') },
-              isDeleted: false,
-            }).lean();
+            name: { $regex: new RegExp(`^${task.serviceName?.trim()}$`, 'i') },
+            isDeleted: false,
+          }).lean();
 
         if (srv) {
           let modified = false;
@@ -655,6 +737,45 @@ export class TaskService {
     // Always generate taskId strictly and atomically via Dedicated Counter Collection
     const taskId = await CounterService.getNextTaskId();
 
+
+    // Resolve client details from MongoDB so task.clientName always has the proper human name
+    const isHexId = (val?: string | null) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(String(val).trim()));
+    let clientDoc: any = null;
+    const targetClientId = data.clientId || (isHexId(data.clientName) ? data.clientName : null);
+
+    if (targetClientId) {
+      try {
+        if (isHexId(targetClientId)) {
+          clientDoc = await Client.findById(targetClientId).lean();
+        }
+        if (!clientDoc) {
+          clientDoc = await Client.findOne({ $or: [{ fileNo: targetClientId }, { name: targetClientId }] }).lean();
+        }
+      } catch {
+        clientDoc = null;
+      }
+    }
+    if (!clientDoc && data.clientFileNo) {
+      try {
+        clientDoc = await Client.findOne({ fileNo: data.clientFileNo }).lean();
+      } catch {
+        clientDoc = null;
+      }
+    }
+    if (!clientDoc && data.clientName && !isHexId(data.clientName)) {
+      try {
+        clientDoc = await Client.findOne({ name: new RegExp(`^${data.clientName.trim()}$`, 'i') }).lean();
+      } catch {
+        clientDoc = null;
+      }
+    }
+
+    const resolvedClientId = clientDoc?._id?.toString() || data.clientId || null;
+    const resolvedClientName = clientDoc?.name || (data.clientName && !isHexId(data.clientName) ? data.clientName.trim() : (clientDoc?.legalName || 'Client'));
+    const resolvedClientFileNo = clientDoc?.fileNo || data.clientFileNo || '';
+    const resolvedClientPan = clientDoc?.pan || data.clientPan || '-';
+    const resolvedLegalName = clientDoc?.legalName || clientDoc?.name || data.legalName || resolvedClientName;
+
     let subTasks: any[] = data.subTasks || [];
     let checklist: any[] = data.checklist || [];
     let documentRequests: any[] = data.documentRequests || [];
@@ -666,9 +787,9 @@ export class TaskService {
         srv = data.serviceId
           ? await Service.findById(data.serviceId).lean()
           : await Service.findOne({
-              name: { $regex: new RegExp(`^${data.serviceName?.trim()}$`, 'i') },
-              isDeleted: false,
-            }).lean();
+            name: { $regex: new RegExp(`^${data.serviceName?.trim()}$`, 'i') },
+            isDeleted: false,
+          }).lean();
       } catch {
         srv = null;
       }
@@ -801,7 +922,11 @@ export class TaskService {
       serviceId: resolvedServiceId,
       sop: sop || '',
       taskName: data.taskName?.trim() || '-',
-      clientName: data.clientName?.trim(),
+      clientId: resolvedClientId,
+      clientName: resolvedClientName,
+      clientFileNo: resolvedClientFileNo,
+      clientPan: resolvedClientPan,
+      legalName: resolvedLegalName,
       serviceName: data.serviceName?.trim(),
       assigneeName: data.assigneeName?.trim(),
       creatorName,

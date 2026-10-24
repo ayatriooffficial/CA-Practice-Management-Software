@@ -146,14 +146,27 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
                     )}
                   </td>
 
-                  {/* Files */}
+                  {/* Files / Drive Link */}
                   <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    {lic.file ? (
+                    {lic.fileUrl || (lic.file && (lic.file.startsWith("http") || lic.file.startsWith("/"))) ? (
+                      <a
+                        href={lic.fileUrl || lic.file || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`View ${lic.file || lic.name} on Google Drive`}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 text-[11px] transition-colors cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span className="max-w-[85px] truncate font-semibold">View File</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                      </a>
+                    ) : lic.file ? (
                       <span
                         title={lic.file}
-                        className="inline-flex items-center justify-center p-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-[#31719B] cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[11px]"
                       >
-                        <FileText className="w-4 h-4" />
+                        <FileText className="w-3.5 h-3.5" />
+                        <span className="max-w-[75px] truncate">{lic.file}</span>
                       </span>
                     ) : (
                       <span className="text-gray-400">—</span>
