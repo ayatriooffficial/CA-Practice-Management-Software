@@ -11,6 +11,7 @@ export const registerOrgSchema = z.object({
 export const sendOtpSchema = z.object({
   target: z.string().min(3, 'Target email or mobile number is required'),
   type: z.enum(['email', 'mobile']).default('email'),
+  purpose: z.enum(['login', 'signup']).optional().default('login'),
 });
 
 export const verifyOtpSchema = z.object({
@@ -18,6 +19,7 @@ export const verifyOtpSchema = z.object({
   code: z.string().min(4, 'OTP code is required'),
   type: z.enum(['email', 'mobile']).optional(),
   deviceId: z.string().optional(),
+  purpose: z.enum(['login', 'signup']).optional().default('login'),
 });
 
 export const deviceLoginSchema = z.object({

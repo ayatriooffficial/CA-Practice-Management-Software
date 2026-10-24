@@ -145,29 +145,43 @@ export class AuthService {
   /**
    * Send an OTP code (email or mobile)
    */
-  public static async sendOtp(target: string, type: 'email' | 'mobile'): Promise<{ success: boolean; message: string }> {
+  public static async sendOtp(
+    target: string,
+    type: 'email' | 'mobile',
+    purpose: 'login' | 'signup' = 'login'
+  ): Promise<{ success: boolean; message: string }> {
     await this.ensureSeedData();
 
     const cleanTarget = type === 'email' ? target.trim().toLowerCase() : target.replace(/\D/g, '').slice(-10);
 
-    // Verify whether account exists in DB first
+    // Verify account existence based on purpose
     const existingUser = await UserModel.findOne(
       type === 'email' ? { email: cleanTarget } : { mobile: cleanTarget }
     ).select('name email status');
 
-    if (!existingUser) {
-      throw AppError.notFound(
-        type === 'email'
-          ? 'No account found with this email. Please check your email or contact your administrator.'
-          : 'No account found with this mobile number.'
-      );
-    }
+    if (purpose === 'signup') {
+      if (existingUser) {
+        throw AppError.conflict(
+          type === 'email'
+            ? 'An account with this email already exists. Please log in instead.'
+            : 'An account with this mobile number already exists. Please log in instead.'
+        );
+      }
+    } else {
+      if (!existingUser) {
+        throw AppError.notFound(
+          type === 'email'
+            ? 'No account found with this email. Please check your email or contact your administrator.'
+            : 'No account found with this mobile number.'
+        );
+      }
 
-    if (existingUser.status && String(existingUser.status).toLowerCase() !== 'active') {
-      throw new AppError(
-        'Your account has been deactivated. Please contact your firm administrator.',
-        HTTP_STATUS.FORBIDDEN
-      );
+      if (existingUser.status && String(existingUser.status).toLowerCase() !== 'active') {
+        throw new AppError(
+          'Your account has been deactivated. Please contact your firm administrator.',
+          HTTP_STATUS.FORBIDDEN
+        );
+      }
     }
 
     // Generate real 6-digit random code
@@ -178,13 +192,13 @@ export class AuthService {
     await OtpVerificationModel.create({
       target: cleanTarget,
       codeHash,
-      type: 'login',
+      type: purpose,
       attempts: 0,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
     if (type === 'email') {
-      await MailService.sendOtpEmail(cleanTarget, otpCode, existingUser.name);
+      await MailService.sendOtpEmail(cleanTarget, otpCode, existingUser?.name || 'User');
     } else {
       logger.info(`📱 Generated OTP for ${cleanTarget}: ${otpCode}`);
     }
@@ -201,8 +215,8 @@ export class AuthService {
   public static async verifyOtp(
     target: string,
     code: string,
-    options?: { userAgent?: string; ipAddress?: string; deviceId?: string }
-  ): Promise<{ user: IUserDocument; tokens: IAuthTokens; deviceCredential?: IDeviceCredential }> {
+    options?: { userAgent?: string; ipAddress?: string; deviceId?: string; purpose?: string }
+  ): Promise<{ user?: IUserDocument; tokens?: IAuthTokens; deviceCredential?: IDeviceCredential; verified?: boolean }> {
     await this.ensureSeedData();
 
     const isEmail = target.includes('@');
@@ -221,6 +235,11 @@ export class AuthService {
 
     // Delete single-use OTP record
     await OtpVerificationModel.deleteOne({ _id: record._id });
+
+    // If purpose is signup, return verified status directly (user creation happens at register)
+    if (options?.purpose === 'signup') {
+      return { verified: true };
+    }
 
     // Find the user
     const query = isEmail ? { email: cleanEmail } : { mobile: cleanNum };

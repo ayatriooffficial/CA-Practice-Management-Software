@@ -66,8 +66,8 @@ export class AuthController {
 
   public static async sendOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { target, type } = req.body;
-      const result = await AuthService.sendOtp(target, type);
+      const { target, type, purpose } = req.body;
+      const result = await AuthService.sendOtp(target, type, purpose);
       ApiResponse.success(res, result, result.message);
     } catch (error) {
       next(error);
@@ -76,21 +76,29 @@ export class AuthController {
 
   public static async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { target, code, deviceId } = req.body;
+      const { target, code, deviceId, purpose } = req.body;
       const result = await AuthService.verifyOtp(target, code, {
         userAgent: req.headers['user-agent'],
         ipAddress: req.ip,
         deviceId,
+        purpose,
       });
 
-      setRefreshCookie(res, result.tokens.refreshToken);
+      if (purpose === 'signup') {
+        ApiResponse.success(res, { verified: true }, 'OTP verified successfully');
+        return;
+      }
+
+      if (result.tokens) {
+        setRefreshCookie(res, result.tokens.refreshToken);
+      }
 
       ApiResponse.success(
         res,
         {
           user: result.user,
-          accessToken: result.tokens.accessToken,
-          expiresIn: result.tokens.expiresIn,
+          accessToken: result.tokens?.accessToken,
+          expiresIn: result.tokens?.expiresIn,
           deviceCredential: result.deviceCredential,
         },
         'Logged in successfully via OTP'

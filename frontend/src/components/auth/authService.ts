@@ -207,10 +207,14 @@ export const authService = {
   /**
    * Send an OTP to email or mobile via Backend.
    */
-  async sendOtp(target: string, type: "email" | "mobile"): Promise<{ success: boolean; message: string }> {
+  async sendOtp(
+    target: string,
+    type: "email" | "mobile",
+    purpose: "login" | "signup" = "login"
+  ): Promise<{ success: boolean; message: string }> {
     const res = await request<{ success: boolean; message: string }>("/auth/send-otp", {
       method: "POST",
-      body: JSON.stringify({ target, type }),
+      body: JSON.stringify({ target, type, purpose }),
     });
     return {
       success: true,
@@ -223,16 +227,24 @@ export const authService = {
    */
   async verifyOtp(
     target: string,
-    code: string
+    code: string,
+    purpose: "login" | "signup" = "login"
   ): Promise<{ success: boolean; user?: User; message: string }> {
     try {
       const cleanEmail = target.trim().toLowerCase();
       const deviceId = getDeviceId();
 
-      const res = await request<{ user: any; accessToken: string; deviceCredential?: any }>("/auth/verify-otp", {
+      const res = await request<{ user?: any; accessToken?: string; deviceCredential?: any; verified?: boolean }>("/auth/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ target, code, deviceId }),
+        body: JSON.stringify({ target, code, deviceId, purpose }),
       });
+
+      if (purpose === "signup" && ((res.data as any)?.verified || res.success)) {
+        return {
+          success: true,
+          message: "Code verified successfully.",
+        };
+      }
 
       if (res.data?.user) {
         const u = res.data.user;
@@ -246,7 +258,7 @@ export const authService = {
           role: u.role || "employee",
           initials: u.initials || computeInitials(u.name),
           orgId: resolvedOrgId,
-          token: res.data.accessToken,
+          token: res.data.accessToken || "",
           createdAt: u.createdAt,
           department: u.department,
           designation: u.designation,
