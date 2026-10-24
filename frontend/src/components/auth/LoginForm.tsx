@@ -399,12 +399,12 @@ export const LoginForm: React.FC = () => {
 
       {/* Footer Link */}
       <div className="mt-[24px] text-center text-[13.5px] text-[#475569] dark:text-gray-400">
-        New firm?{" "}
+        New here?{" "}
         <Link
           href="/signup"
           className="font-semibold text-[#6d55f4] hover:text-[#5841e2] hover:underline"
         >
-          Create Organization
+          Request Employment
         </Link>
       </div>
       {/* Quick-Fill Helpers for testing */}

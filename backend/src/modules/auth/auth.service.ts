@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { OrganizationModel } from './organization.model';
 import { UserModel } from './user.model';
+import { EmploymentRequestModel } from './employmentRequest.model';
 import { RefreshSessionModel } from './session.model';
 import { OtpVerificationModel } from './otp.model';
 import { TrustedDeviceModel } from './trustedDevice.model';
@@ -126,16 +127,9 @@ export class AuthService {
       throw err;
     }
 
-    // 2. Check user status
     const userStatusStr = String(user.status || 'active').toLowerCase();
-    if (userStatusStr !== 'active') {
-      throw new AppError(
-        'Your account has been deactivated. Please contact your firm administrator.',
-        HTTP_STATUS.FORBIDDEN
-      );
-    }
 
-    // 3. Compare password
+    // 2. Compare password FIRST (ensuring wrong password shows generic message for security)
     const submittedPassword = String(password).trim();
     let isMatch = false;
 
@@ -146,23 +140,44 @@ export class AuthService {
     // Backward compatibility: If raw password was stored in plain text or not yet hashed
     if (!isMatch && (user as any).password && (user as any).password === submittedPassword) {
       isMatch = true;
-      user.passwordHash = await bcrypt.hash(submittedPassword, 10);
-      (user as any).password = undefined;
-      await user.save();
+      if (userStatusStr !== 'rejected') {
+        user.passwordHash = await bcrypt.hash(submittedPassword, 10);
+        (user as any).password = undefined;
+        await user.save();
+      }
     }
 
     // Default fallback: If user was seeded without passwordHash, allow initial login with default '123456'
     if (!isMatch && !user.passwordHash && submittedPassword === '123456') {
       isMatch = true;
-      user.passwordHash = await bcrypt.hash('123456', 10);
-      await user.save();
+      if (userStatusStr !== 'rejected') {
+        user.passwordHash = await bcrypt.hash('123456', 10);
+        await user.save();
+      }
     }
 
     if (!isMatch) {
+      if (userStatusStr === 'rejected') {
+        throw AppError.unauthorized('Invalid email or password');
+      }
       if (!user.passwordHash) {
         throw AppError.unauthorized('Password not set for this account. Please use default 123456 or contact your administrator.');
       }
       throw AppError.unauthorized('Incorrect password. Please verify and try again.');
+    }
+
+    // 3. Handle specific account statuses after password verification
+    if (userStatusStr === 'rejected') {
+      const err = new AppError('Sorry, your request has been rejected. You cannot log in.', HTTP_STATUS.FORBIDDEN);
+      (err as any).code = 'EMPLOYMENT_REJECTED';
+      throw err;
+    }
+
+    if (userStatusStr !== 'active' && userStatusStr !== 'pending') {
+      throw new AppError(
+        'Your account has been deactivated. Please contact your firm administrator.',
+        HTTP_STATUS.FORBIDDEN
+      );
     }
 
     // Ensure user has valid orgId
@@ -752,7 +767,9 @@ export class AuthService {
    * Get team members belonging to the organization/firm
    */
   public static async getTeamMembers(orgId?: string, userId?: string | null): Promise<IUserDocument[]> {
-    const filter: Record<string, any> = {};
+    const filter: Record<string, any> = {
+      status: { $nin: ['pending', 'rejected'] },
+    };
     if (orgId && mongoose.Types.ObjectId.isValid(orgId)) {
       filter.orgId = new mongoose.Types.ObjectId(orgId);
     } else if (userId && mongoose.Types.ObjectId.isValid(userId)) {
@@ -1065,5 +1082,247 @@ export class AuthService {
       org = await OrganizationModel.create(updates);
     }
     return org;
+  }
+
+  /**
+   * Request Employment (Signup flow)
+   * Creates an account in pending state with no role and an EmploymentRequest record.
+   */
+  public static async requestEmployment(data: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const cleanEmail = (data.email || '').trim().toLowerCase();
+    const cleanName = (data.name || '').trim();
+    const cleanPassword = String(data.password || '').trim();
+
+    if (!cleanName) {
+      throw AppError.badRequest('Full name is required');
+    }
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw AppError.badRequest('A valid email address is required');
+    }
+    if (!cleanPassword || cleanPassword.length < 6) {
+      throw AppError.badRequest('Password must be at least 6 characters');
+    }
+
+    // Duplicate checks with exact specified error messages
+    const pendingReq = await EmploymentRequestModel.findOne({ email: cleanEmail, status: 'pending' });
+    const pendingUser = await UserModel.findOne({ email: cleanEmail, status: 'pending' });
+    if (pendingReq || pendingUser) {
+      throw AppError.conflict('A request for this email is already pending.');
+    }
+
+    const rejectedReq = await EmploymentRequestModel.findOne({ email: cleanEmail, status: 'rejected' });
+    const rejectedUser = await UserModel.findOne({ email: cleanEmail, status: 'rejected' });
+    if (rejectedReq || rejectedUser) {
+      throw AppError.conflict('The employment request for this email has already been rejected.');
+    }
+
+    const existingUser = await UserModel.findOne({ email: cleanEmail });
+    if (existingUser) {
+      throw AppError.conflict('This email is already registered. Please log in.');
+    }
+
+    let org = await OrganizationModel.findOne();
+    if (!org) {
+      org = await OrganizationModel.create({
+        name: 'Ayatrio Practice',
+        totalSeats: 999999,
+        isActive: true,
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(cleanPassword, 10);
+    const initials = computeInitials(cleanName);
+
+    const user = await UserModel.create({
+      orgId: org._id,
+      firmName: org.name || 'Ayatrio Practice',
+      name: cleanName,
+      email: cleanEmail,
+      password: cleanPassword,
+      passwordHash,
+      role: 'pending',
+      status: 'pending',
+      permissions: {},
+      initials,
+      tokenVersion: 0,
+      isEmailVerified: true,
+    });
+
+    const createdReq = await EmploymentRequestModel.create({
+      userId: user._id,
+      name: cleanName,
+      email: cleanEmail,
+      status: 'pending',
+      requestedAt: new Date(),
+      statusChangedAt: new Date(),
+    });
+
+    return {
+      success: true,
+      message: 'Your employment request has been sent to the admin.',
+      request: createdReq.toJSON(),
+    };
+  }
+
+  /**
+   * Get all employment requests (Admin only)
+   */
+  public static async getEmploymentRequests(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    requests: any[];
+    counts: { accepted: number; rejected: number; pending: number; total: number };
+    pagination: { total: number; page: number; limit: number; totalPages: number };
+  }> {
+    const rawList = await EmploymentRequestModel.find({}).lean();
+
+    const counts = {
+      accepted: rawList.filter((r) => r.status === 'accepted').length,
+      rejected: rawList.filter((r) => r.status === 'rejected').length,
+      pending: rawList.filter((r) => r.status === 'pending').length,
+      total: rawList.length,
+    };
+
+    let mapped = rawList.map((r: any) => ({
+      ...r,
+      id: String(r._id),
+    }));
+
+    if (params?.status && ['accepted', 'rejected', 'pending'].includes(params.status)) {
+      mapped = mapped.filter((r) => r.status === params.status);
+    }
+
+    // Default view: Pending first, then newest statusChangedAt first
+    mapped.sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return new Date(b.statusChangedAt || b.requestedAt).getTime() - new Date(a.statusChangedAt || a.requestedAt).getTime();
+    });
+
+    const page = Math.max(1, params?.page || 1);
+    const limit = Math.max(1, params?.limit || 10);
+    const total = mapped.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const paginated = mapped.slice((page - 1) * limit, page * limit);
+
+    return {
+      requests: paginated,
+      counts,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
+
+  /**
+   * Accept an employment request (Admin only)
+   */
+  public static async acceptEmploymentRequest(
+    requestId: string,
+    adminUserId: string,
+    employeeData: any
+  ): Promise<{ success: boolean; request: any; user: any }> {
+    const reqDoc = await EmploymentRequestModel.findOne({ _id: requestId, status: 'pending' });
+    if (!reqDoc) {
+      throw AppError.badRequest('This request has already been decided.');
+    }
+
+    const admin = await UserModel.findById(adminUserId).lean();
+    const adminName = admin?.name || 'Admin';
+
+    const now = new Date();
+    reqDoc.status = 'accepted';
+    reqDoc.statusChangedAt = now;
+    reqDoc.decidedBy = new mongoose.Types.ObjectId(adminUserId);
+    reqDoc.decidedByName = adminName;
+    await reqDoc.save();
+
+    const userUpdates: any = {
+      ...employeeData,
+      status: 'active',
+      role: (employeeData.role || 'employee').toLowerCase(),
+    };
+    if (employeeData.mobile) {
+      userUpdates.mobile = String(employeeData.mobile).replace(/\D/g, '').slice(-10);
+    }
+    if (employeeData.password && String(employeeData.password).trim()) {
+      userUpdates.password = String(employeeData.password).trim();
+      userUpdates.passwordHash = await bcrypt.hash(String(employeeData.password).trim(), 10);
+    }
+
+    const updatedUser = await UserModel.findByIdAndUpdate(reqDoc.userId, { $set: userUpdates }, { new: true });
+
+    return {
+      success: true,
+      request: reqDoc.toJSON(),
+      user: updatedUser,
+    };
+  }
+
+  /**
+   * Reject an employment request (Admin only)
+   */
+  public static async rejectEmploymentRequest(
+    requestId: string,
+    adminUserId: string
+  ): Promise<{ success: boolean; request: any }> {
+    const reqDoc = await EmploymentRequestModel.findOne({ _id: requestId, status: 'pending' });
+    if (!reqDoc) {
+      throw AppError.badRequest('This request has already been decided.');
+    }
+
+    const admin = await UserModel.findById(adminUserId).lean();
+    const adminName = admin?.name || 'Admin';
+
+    const now = new Date();
+    reqDoc.status = 'rejected';
+    reqDoc.statusChangedAt = now;
+    reqDoc.decidedBy = new mongoose.Types.ObjectId(adminUserId);
+    reqDoc.decidedByName = adminName;
+    await reqDoc.save();
+
+    // Invalidate any active sessions immediately
+    await RefreshSessionModel.deleteMany({ userId: reqDoc.userId });
+
+    // Mark user status as rejected
+    await UserModel.findByIdAndUpdate(reqDoc.userId, { $set: { status: 'rejected' } });
+
+    return {
+      success: true,
+      request: reqDoc.toJSON(),
+    };
+  }
+
+  /**
+   * Get current user's employment status (Whitelisted for pending user polling)
+   */
+  public static async getEmploymentStatus(userId: string): Promise<{
+    status: string;
+    role: string;
+    requestedAt?: Date;
+    name?: string;
+    email?: string;
+  }> {
+    const user = await UserModel.findById(userId).select('name email status role createdAt').lean();
+    if (!user) throw AppError.notFound('User not found');
+
+    const reqDoc = await EmploymentRequestModel.findOne({ userId }).lean();
+
+    return {
+      status: user.status || 'pending',
+      role: user.role || 'pending',
+      requestedAt: reqDoc?.requestedAt || user.createdAt,
+      name: user.name,
+      email: user.email,
+    };
   }
 }

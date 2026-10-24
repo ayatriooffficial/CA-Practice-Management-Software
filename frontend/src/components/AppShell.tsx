@@ -7,6 +7,8 @@ import { Sidebar } from "./Sidebar";
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 
+import { PendingApprovalCard } from "./auth/PendingApprovalCard";
+
 const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const pathname = usePathname();
@@ -39,6 +41,9 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
+  const isPending =
+    (currentUser?.role || "").toLowerCase() === "pending" ||
+    (currentUser?.status || "").toLowerCase() === "pending";
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-app)] text-[var(--text-main)]">
@@ -60,7 +65,7 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
             backgroundColor: "var(--bg-app)",
           }}
         >
-          {children}
+          {isPending ? <PendingApprovalCard /> : children}
         </main>
       </div>
     </div>

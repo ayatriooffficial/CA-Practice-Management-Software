@@ -32,10 +32,7 @@ const userSchema = new Schema<IUserDocument>(
     },
     mobile: {
       type: String,
-      required: [true, 'Mobile number is required'],
-      unique: true,
       trim: true,
-      index: true,
     },
     passwordHash: {
       type: String,
@@ -47,9 +44,9 @@ const userSchema = new Schema<IUserDocument>(
     },
     role: {
       type: String,
-      set: (v: string) => (v ? v.toLowerCase() : 'admin'),
-      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff', 'Admin', 'Partner', 'Manager', 'Employee', 'Associate', 'Staff'],
-      default: 'admin',
+      set: (v: string) => (v ? v.toLowerCase() : 'employee'),
+      enum: ['admin', 'partner', 'manager', 'employee', 'associate', 'staff', 'pending', 'rejected', '', 'Admin', 'Partner', 'Manager', 'Employee', 'Associate', 'Staff', 'Pending', 'Rejected'],
+      default: 'employee',
       index: true,
     },
     initials: {
@@ -77,7 +74,7 @@ const userSchema = new Schema<IUserDocument>(
     status: {
       type: String,
       set: (v: string) => (v ? v.toLowerCase() : 'active'),
-      enum: ['active', 'suspended', 'invited', 'deactivated', 'resigned', 'inactive', 'Active', 'Suspended', 'Invited', 'Deactivated', 'Resigned', 'Inactive'],
+      enum: ['active', 'suspended', 'invited', 'deactivated', 'resigned', 'inactive', 'pending', 'rejected', 'Active', 'Suspended', 'Invited', 'Deactivated', 'Resigned', 'Inactive', 'Pending', 'Rejected'],
       default: 'active',
       index: true,
     },

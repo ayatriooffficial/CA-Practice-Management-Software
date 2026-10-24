@@ -1,4 +1,4 @@
-import { User, RegisterOrgPayload } from "./authTypes";
+import { User, RegisterOrgPayload, EmploymentRequestItem, EmploymentRequestsResponse } from "./authTypes";
 import { teamStore } from "../team/teamStore";
 import { request, ApiError } from "../../services/apiClient";
 import {
@@ -532,6 +532,122 @@ export const authService = {
       return {
         success: false,
         message: err.message || "Registration failed. Please try again.",
+      };
+    }
+  },
+
+  /**
+   * Submit an employment request
+   */
+  async requestEmployment(payload: { name: string; email: string; password: string }): Promise<{
+    success: boolean;
+    message: string;
+    request?: EmploymentRequestItem;
+  }> {
+    try {
+      const res = await request<any>("/auth/employment-request", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: true,
+        message: res.message || "Employment request submitted successfully.",
+        request: res.data?.request,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Failed to submit employment request.",
+      };
+    }
+  },
+
+  /**
+   * Check employment status for current user (lightweight whitelist endpoint)
+   */
+  async getEmploymentStatus(): Promise<{ status: string; role: string }> {
+    try {
+      const res = await request<any>("/auth/employment-status", { method: "GET" });
+      return res.data || { status: "unknown", role: "unknown" };
+    } catch {
+      return { status: "unknown", role: "unknown" };
+    }
+  },
+
+  /**
+   * List employment requests (admin only)
+   */
+  async getEmploymentRequests(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<EmploymentRequestsResponse> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set("status", params.status);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const url = `/auth/employment-requests${qs ? `?${qs}` : ""}`;
+    const res = await request<any>(url, { method: "GET" });
+    return res.data || {
+      requests: [],
+      counts: { accepted: 0, rejected: 0, pending: 0, total: 0 },
+      pagination: { total: 0, page: 1, limit: 10, totalPages: 1 },
+    };
+  },
+
+  /**
+   * Accept an employment request
+   */
+  async acceptEmploymentRequest(
+    id: string,
+    data: {
+      mobile?: string;
+      designation: string;
+      department: string;
+      role?: string;
+      permissions?: any;
+      joiningDate?: string;
+    }
+  ): Promise<{ success: boolean; message: string; user?: any }> {
+    try {
+      const res = await request<any>(`/auth/employment-requests/${id}/accept`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      return {
+        success: true,
+        message: res.message || "Employment request accepted successfully.",
+        user: res.data?.user,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Failed to accept employment request.",
+      };
+    }
+  },
+
+  /**
+   * Reject an employment request
+   */
+  async rejectEmploymentRequest(
+    id: string,
+    reason?: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await request<any>(`/auth/employment-requests/${id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      return {
+        success: true,
+        message: res.message || "Employment request rejected.",
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Failed to reject employment request.",
       };
     }
   },

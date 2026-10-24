@@ -4,7 +4,7 @@ import React from 'react';
 
 import { useAuth } from '../auth/AuthContext';
 
-export type TeamTab = 'team' | 'attendance' | 'leave' | 'reimbursement';
+export type TeamTab = 'team' | 'attendance' | 'leave' | 'reimbursement' | 'employment-requests';
 
 interface TeamTabsHeaderProps {
   activeTab: TeamTab;
@@ -16,7 +16,9 @@ export const TeamTabsHeader: React.FC<TeamTabsHeaderProps> = ({
   onTabChange,
 }) => {
   const { currentUser } = useAuth();
-  const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const isEmployee = roleLower === 'employee';
+  const isAdmin = roleLower === 'admin';
 
   const allTabs: Array<{ id: TeamTab; label: string; icon: React.ReactNode }> = [
     {
@@ -55,10 +57,23 @@ export const TeamTabsHeader: React.FC<TeamTabsHeaderProps> = ({
         </svg>
       ),
     },
+    {
+      id: 'employment-requests',
+      label: 'Employment Request',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+    },
   ];
 
-  // Employee role sees ONLY the 'Team' subsection
-  const visibleTabs = isEmployee ? allTabs.filter((t) => t.id === 'team') : allTabs;
+  // Employee role sees ONLY the 'Team' subsection; Employment Request is ONLY visible to Admin
+  const visibleTabs = allTabs.filter((t) => {
+    if (t.id === 'employment-requests') return isAdmin;
+    if (isEmployee) return t.id === 'team';
+    return true;
+  });
 
   return (
     <div className="border-b border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] px-6 transition-colors">

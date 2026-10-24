@@ -37,3 +37,32 @@ export interface VerificationState {
   isVerifying: boolean;
   value: string;
 }
+
+export interface EmploymentRequestItem {
+  _id: string;
+  userId?: string;
+  name: string;
+  email: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  requestedAt: string;
+  statusChangedAt: string;
+  decidedBy?: string;
+  decidedByName?: string;
+  reason?: string;
+}
+
+export interface EmploymentRequestsResponse {
+  requests: EmploymentRequestItem[];
+  counts: {
+    accepted: number;
+    rejected: number;
+    pending: number;
+    total: number;
+  };
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}

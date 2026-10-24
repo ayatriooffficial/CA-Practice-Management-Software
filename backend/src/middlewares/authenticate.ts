@@ -4,6 +4,7 @@ import { JwtService } from '../modules/auth/jwt.service';
 import { ApiResponse } from '../shared/utils/apiResponse';
 import { HTTP_STATUS } from '../constants/httpStatus';
 import { IJwtUserPayload } from '../modules/auth/auth.interface';
+import { UserModel } from '../modules/auth/user.model';
 
 // Extend Express Request interface to include user
 declare global {
@@ -20,9 +21,9 @@ const DEV_FALLBACK_ORG_ID = '6ad9e23bf460aa2e6102c0c6';
 /**
  * Strict JWT Authentication Middleware.
  * Extracts Bearer token from Authorization header, validates signature & expiry,
- * and attaches decoded user to req.user.
+ * reads live role & status from DB, and blocks pending/rejected accounts from non-whitelisted routes.
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -38,6 +39,52 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
   try {
     const decoded = JwtService.verifyAccessToken(token);
+
+    // Read live role and status from database per request (not frozen in token)
+    let liveRole = decoded.role;
+    let liveStatus = 'active';
+
+    if (decoded.userId && mongoose.Types.ObjectId.isValid(decoded.userId)) {
+      const dbUser = await UserModel.findById(decoded.userId).select('role status name email').lean();
+      if (!dbUser) {
+        ApiResponse.error(res, 'User account no longer exists.', HTTP_STATUS.UNAUTHORIZED);
+        return;
+      }
+      liveStatus = String(dbUser.status || 'active').toLowerCase();
+      liveRole = dbUser.role || decoded.role;
+      (decoded as any).status = liveStatus;
+      decoded.role = liveRole;
+      if (dbUser.name) decoded.name = dbUser.name;
+    }
+
+    if (liveStatus === 'rejected') {
+      res.status(HTTP_STATUS.FORBIDDEN).json({
+        success: false,
+        code: 'EMPLOYMENT_REJECTED',
+        message: 'Sorry, your request has been rejected. You cannot log in.',
+      });
+      return;
+    }
+
+    // Pending user server-side enforcement
+    if (liveStatus === 'pending') {
+      const originalPath = req.originalUrl || req.path || '';
+      const isWhitelisted =
+        originalPath.includes('/auth/me') ||
+        originalPath.includes('/auth/employment-status') ||
+        originalPath.includes('/auth/logout') ||
+        originalPath.includes('/health');
+
+      if (!isWhitelisted) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          code: 'EMPLOYMENT_PENDING',
+          message: 'Your employment request is pending approval from an administrator.',
+        });
+        return;
+      }
+    }
+
     req.user = decoded;
 
     // Attach to headers for downstream compatibility
@@ -66,25 +113,63 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
 /**
  * Optional Authentication Middleware.
- * Attaches user if valid token exists, but doesn't block unauthenticated requests.
+ * Attaches user if valid token exists, but blocks pending users from receiving feature module data.
  */
-export const optionalAuthenticate = (req: Request, _res: Response, next: NextFunction): void => {
+export const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = JwtService.verifyAccessToken(token);
+
+      // Check live status if token provided
+      if (decoded.userId && mongoose.Types.ObjectId.isValid(decoded.userId)) {
+        const dbUser = await UserModel.findById(decoded.userId).select('role status name email').lean();
+        if (dbUser) {
+          const liveStatus = String(dbUser.status || 'active').toLowerCase();
+          if (liveStatus === 'rejected') {
+            res.status(HTTP_STATUS.FORBIDDEN).json({
+              success: false,
+              code: 'EMPLOYMENT_REJECTED',
+              message: 'Sorry, your request has been rejected. You cannot log in.',
+            });
+            return;
+          }
+          if (liveStatus === 'pending') {
+            const originalPath = req.originalUrl || req.path || '';
+            const isWhitelisted =
+              originalPath.includes('/auth/me') ||
+              originalPath.includes('/auth/employment-status') ||
+              originalPath.includes('/auth/logout') ||
+              originalPath.includes('/health');
+
+            if (!isWhitelisted) {
+              res.status(HTTP_STATUS.FORBIDDEN).json({
+                success: false,
+                code: 'EMPLOYMENT_PENDING',
+                message: 'Your employment request is pending approval from an administrator.',
+              });
+              return;
+            }
+          }
+          (decoded as any).status = liveStatus;
+          decoded.role = dbUser.role || decoded.role;
+        }
+      }
+
       req.user = decoded;
       if (decoded.userId) req.headers['x-user-id'] = decoded.userId;
       if (decoded.orgId) req.headers['x-org-id'] = decoded.orgId;
       if (decoded.role) req.headers['x-user-role'] = decoded.role;
+      next();
+      return;
     } catch {
       // Ignore token validation failure in optional mode
     }
   }
 
-  // Also support X-User-Id and query userId for multi-client testing or dev fallback
+  // Only fall back to dev mock user if no auth header was sent at all
   if (!req.user && (req.headers['x-user-id'] || req.query.userId || process.env.NODE_ENV !== 'production')) {
     const rawUserId = String(req.headers['x-user-id'] || req.query.userId || DEV_FALLBACK_USER_ID);
     const validUserId = mongoose.Types.ObjectId.isValid(rawUserId) ? rawUserId : DEV_FALLBACK_USER_ID;
