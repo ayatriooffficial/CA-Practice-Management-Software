@@ -60,6 +60,7 @@ export class TaskService {
     const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
+    const userEmail = typeof userCtx === 'object' ? userCtx?.email : undefined;
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
@@ -93,11 +94,11 @@ export class TaskService {
           { reviewerName: new RegExp(`^${escaped}$`, 'i') }
         );
       }
-      if (userCtx.email && userCtx.email.trim()) {
-        const escapedEmail = userCtx.email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (userEmail && userEmail.trim()) {
+        const escapedEmail = userEmail.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         assignedConditions.push(
           { assigneeName: new RegExp(`^${escapedEmail}$`, 'i') },
-          { assigneeId: userCtx.email.trim().toLowerCase() }
+          { assigneeId: userEmail.trim().toLowerCase() }
         );
       }
       if (assignedConditions.length) {
