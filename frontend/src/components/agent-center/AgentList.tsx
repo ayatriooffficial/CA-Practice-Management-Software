@@ -230,7 +230,7 @@ export default function AgentList() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] p-4 md:p-6 lg:p-8 select-none">
+    <div className="w-full px-6 py-6 md:px-8 select-none">
       {/* 1. TOP HEADER & TABS (When on Overview or History) */}
       {!selectedModule && (
         <div className="mb-6">
@@ -320,10 +320,10 @@ export default function AgentList() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               <tr>
-                <th className="py-3.5 px-6">MODULE</th>
-                <th className="py-3.5 px-6">DESCRIPTION</th>
-                <th className="py-3.5 px-6">ACTIVE AGENTS</th>
-                <th className="py-3.5 px-6 text-right">ACTION</th>
+                <th className="py-3.5 px-6 w-[22%]">MODULE</th>
+                <th className="py-3.5 px-6 w-[48%]">DESCRIPTION</th>
+                <th className="py-3.5 px-6 w-[18%]">ACTIVE AGENTS</th>
+                <th className="py-3.5 px-6 text-right w-[12%]">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

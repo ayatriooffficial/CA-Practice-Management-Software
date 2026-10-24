@@ -44,25 +44,41 @@ function triggerSupport(_moduleName: AgentModule, _trigger: string) {
 // Fixed sample records are used only by the backend's deterministic test-run simulation.
 const SAMPLE_TASK = {
   id: 'TASK-1001',
+  taskId: 'TASK-1001',
   title: 'Prepare monthly compliance report',
   taskName: 'Prepare monthly compliance report',
+  name: 'Prepare monthly compliance report',
   clientName: 'Sample Company',
+  clientEmail: 'sample.client@example.test',
   priority: 'High',
   status: 'In Progress',
   targetDueDate: '2026-01-15',
-  createdBy: 'Sample Manager',
-  assignee: 'Sample User',
   dueDate: '2026-01-15',
+  createdBy: 'Sample Manager',
+  creatorName: 'Sample Manager',
+  assignee: 'Sample User',
+  assigneeName: 'Sample User',
+  reviewer_name: 'Sample Reviewer',
+  reviewerName: 'Sample Reviewer',
+  expense_name: 'Design Assets',
+  expense_amount: '₹ 15,000',
+  your_firm_name: 'Ayatrio Practice',
+  task_status: 'In Progress',
 };
+
 const SAMPLE_DSC = {
   id: 'DSC-2001',
   dscId: '#S00184',
   holder: 'Sample User',
+  name: 'Sample User DSC',
   certificateClass: 'Class 3',
   expiryDate: '2026-02-01',
   vendor: 'eMudhra',
   clientName: 'Sample Company',
+  clientEmail: 'sample.client@example.test',
+  your_firm_name: 'Ayatrio Practice',
 };
+
 const SAMPLE_LICENSE = {
   id: 'LIC-3001',
   licenseNo: 'LIC-78902',
@@ -70,30 +86,32 @@ const SAMPLE_LICENSE = {
   owner: 'Sample Company',
   expiryDate: '2026-02-01',
   clientName: 'Sample Company',
+  clientEmail: 'sample.client@example.test',
+  your_firm_name: 'Ayatrio Practice',
 };
 
-const taskEvent = (event: string) => () => ({ event, task: SAMPLE_TASK });
+const taskEvent = (event: string) => () => ({ event, task: SAMPLE_TASK, ...SAMPLE_TASK });
 
 function sampleEventFor(moduleName: AgentModule, trigger: string): TriggerDefinition['sampleEvent'] {
   const norm = trigger.toLowerCase();
   if (moduleName === 'Task') {
-    if (norm === 'task created') return () => ({ event: trigger, task: SAMPLE_TASK });
-    if (norm === 'task assigned') return () => ({ event: trigger, task: SAMPLE_TASK, assignedTo: SAMPLE_TASK.assignee });
-    if (norm === 'due date approaching' || norm === 'task due soon') return (conditions) => ({ event: trigger, task: SAMPLE_TASK, daysUntilDue: conditions?.daysBeforeDue ?? 2 });
-    if (norm === 'task overdue') return () => ({ event: trigger, task: SAMPLE_TASK, overdueDays: 3 });
-    if (norm === 'document request (repeating)') return (conditions) => ({ event: trigger, task: SAMPLE_TASK, repeatIntervalDays: conditions?.repeatIntervalDays ?? 3 });
+    if (norm === 'task created') return () => ({ event: trigger, task: SAMPLE_TASK, ...SAMPLE_TASK });
+    if (norm === 'task assigned') return () => ({ event: trigger, task: SAMPLE_TASK, assignedTo: SAMPLE_TASK.assignee, ...SAMPLE_TASK });
+    if (norm === 'due date approaching' || norm === 'task due soon') return (conditions) => ({ event: trigger, task: SAMPLE_TASK, daysUntilDue: conditions?.daysBeforeDue ?? 2, ...SAMPLE_TASK });
+    if (norm === 'task overdue') return () => ({ event: trigger, task: SAMPLE_TASK, overdueDays: 3, ...SAMPLE_TASK });
+    if (norm === 'document request (repeating)') return (conditions) => ({ event: trigger, task: SAMPLE_TASK, repeatIntervalDays: conditions?.repeatIntervalDays ?? 3, ...SAMPLE_TASK });
     return taskEvent(trigger);
   }
 
   if (moduleName === 'DSC') {
-    if (norm.includes('approaching') || norm.includes('renewal')) return (conditions) => ({ event: trigger, dsc: SAMPLE_DSC, daysToExpiry: conditions?.daysBeforeExpiry ?? 30 });
-    if (norm.includes('expired')) return () => ({ event: trigger, dsc: SAMPLE_DSC, expired: true });
-    return () => ({ event: trigger, dsc: SAMPLE_DSC });
+    if (norm.includes('approaching') || norm.includes('renewal')) return (conditions) => ({ event: trigger, dsc: SAMPLE_DSC, daysToExpiry: conditions?.daysBeforeExpiry ?? 30, ...SAMPLE_DSC });
+    if (norm.includes('expired')) return () => ({ event: trigger, dsc: SAMPLE_DSC, expired: true, ...SAMPLE_DSC });
+    return () => ({ event: trigger, dsc: SAMPLE_DSC, ...SAMPLE_DSC });
   }
 
-  if (norm.includes('approaching') || norm.includes('renewal')) return (conditions) => ({ event: trigger, license: SAMPLE_LICENSE, daysToExpiry: conditions?.daysBeforeExpiry ?? 30 });
-  if (norm.includes('expired')) return () => ({ event: trigger, license: SAMPLE_LICENSE, expired: true });
-  return () => ({ event: trigger, license: SAMPLE_LICENSE });
+  if (norm.includes('approaching') || norm.includes('renewal')) return (conditions) => ({ event: trigger, license: SAMPLE_LICENSE, daysToExpiry: conditions?.daysBeforeExpiry ?? 30, ...SAMPLE_LICENSE });
+  if (norm.includes('expired')) return () => ({ event: trigger, license: SAMPLE_LICENSE, expired: true, ...SAMPLE_LICENSE });
+  return () => ({ event: trigger, license: SAMPLE_LICENSE, ...SAMPLE_LICENSE });
 }
 
 export const MODULE_DEFINITIONS = Object.fromEntries(

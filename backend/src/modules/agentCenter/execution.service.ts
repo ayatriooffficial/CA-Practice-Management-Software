@@ -15,9 +15,13 @@ import { env } from '../../config/env';
 const DEMO_RECIPIENTS: Record<string, { name: string; address?: string; email?: string; mobile?: string; id?: string }> = {
   Client: { name: 'Sample Company', address: 'sample.client@example.test', email: 'sample.client@example.test', mobile: '+10000000000', id: 'sample-client' },
   'Assigned user': { name: 'Sample User', address: 'sample.user@example.test', email: 'sample.user@example.test', mobile: '+10000000001', id: 'sample-assignee' },
+  Assignee: { name: 'Sample User', address: 'sample.user@example.test', email: 'sample.user@example.test', mobile: '+10000000001', id: 'sample-assignee' },
   'Task owner': { name: 'Sample Manager', address: 'sample.manager@example.test', email: 'sample.manager@example.test', mobile: '+10000000002', id: 'sample-owner' },
+  Manager: { name: 'Sample Manager', address: 'sample.manager@example.test', email: 'sample.manager@example.test', mobile: '+10000000002', id: 'sample-owner' },
   'Account administrator': { name: 'Account Administrator', address: 'admin@example.test', email: 'admin@example.test', mobile: '+10000000003', id: 'sample-admin' },
+  Admin: { name: 'Account Administrator', address: 'admin@example.test', email: 'admin@example.test', mobile: '+10000000003', id: 'sample-admin' },
   'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+10000000004', id: 'sample-reviewer' },
+  Reviewer: { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+10000000004', id: 'sample-reviewer' },
 };
 
 function readPath(source: unknown, path: string): unknown {
@@ -133,7 +137,14 @@ export async function executeProvider(
     .digest('hex')
     .slice(0, 16);
   const executionId = `${providerName}-${payload.previewOnly ? 'mock' : 'real'}-${fingerprint}`;
-  const missingTemplateData = /\{\{[^}]+\}\}/.test(payload.message) || (channel === 'Email' && /\{\{[^}]+\}\}/.test(payload.subject));
+  const missingTemplateMatches = [
+    ...payload.message.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g),
+    ...(channel === 'Email' && payload.subject ? payload.subject.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g) : []),
+  ].map((m) => m[1]);
+  const missingTemplateData = missingTemplateMatches.length > 0;
+  const missingTemplateMsg = missingTemplateData
+    ? `Required template variable(s) missing from event record: {{${[...new Set(missingTemplateMatches)].join('}}, {{')}}}.`
+    : 'Required template data is missing from the event record.';
   const invalidContact = channel === 'Email' ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.recipient)
     : channel === 'WhatsApp' ? !/^\+?[0-9]{7,15}$/.test(payload.recipient.replace(/[\s()-]/g, ''))
       : !payload.recipient;
@@ -145,7 +156,7 @@ export async function executeProvider(
         mode: 'mock',
         status: 'failed',
         simulated: true,
-        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (channel === 'Email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? 'Required template data is missing from the event record.' : 'Simulated provider failure.',
+        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (channel === 'Email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? missingTemplateMsg : 'Simulated provider failure.',
         timestamp: new Date().toISOString(),
         executionId,
       };
@@ -301,15 +312,27 @@ async function resolveActualRecipients(orgId: string, event: Record<string, unkn
     if (role === 'Client') {
       const clientId = typeof event.clientId === 'string' ? event.clientId : '';
       const lookup = buildTaskClientLookup(orgId, clientId);
-      if (!lookup) continue;
-      const client = await Client.findOne(lookup).select('name email mobile').lean().exec();
-      if (client) resolved[role] = { name: client.name, email: client.email || '', mobile: client.mobile || '', id: String(client._id) };
+      if (lookup) {
+        const client = await Client.findOne(lookup).select('name email mobile').lean().exec();
+        if (client) {
+          resolved[role] = { name: client.name, email: client.email || '', mobile: client.mobile || '', id: String(client._id) };
+          continue;
+        }
+      }
+      if (event.clientName || event.clientEmail) {
+        resolved[role] = {
+          name: String(event.clientName || 'Client'),
+          email: String(event.clientEmail || ''),
+          mobile: String(event.clientMobile || event.mobile || ''),
+          id: clientId || '',
+        };
+      }
       continue;
     }
-    const user = role === 'Assigned user' ? await activeUser(event.assigneeId)
-      : role === 'Task owner' ? await activeUser(event.createdBy || event.userId)
-        : role === 'Responsible person' ? await activeUser(event.reviewerId)
-          : role === 'Account administrator' ? await UserModel.findOne({ orgId, role: { $in: ['admin', 'Admin'] }, status: { $in: ['active', 'Active'] } }).sort({ createdAt: 1, _id: 1 }).select('name email mobile').lean().exec()
+    const user = role === 'Assigned user' || role === 'Assignee' ? await activeUser(event.assigneeId)
+      : role === 'Task owner' || role === 'Creator' ? await activeUser(event.createdBy || event.userId)
+        : role === 'Responsible person' || role === 'Reviewer' ? await activeUser(event.reviewerId)
+          : role === 'Account administrator' || role === 'Admin' || role === 'Manager' ? await UserModel.findOne({ orgId, role: { $in: ['admin', 'Admin', 'manager', 'Manager'] }, status: { $in: ['active', 'Active'] } }).sort({ createdAt: 1, _id: 1 }).select('name email mobile').lean().exec()
             : null;
     if (user) resolved[role] = { name: user.name, email: user.email || '', mobile: user.mobile || '', id: String(user._id) };
   }
@@ -360,12 +383,39 @@ export class AgentExecutionService {
     const resolvedRecipients = context.event
       ? await resolveActualRecipients(context.orgId, event, [...recipients, ...graphRecipients])
       : undefined;
-    const clientRecord = resolvedRecipients?.Client || (!context.event && agent.module === 'Task' ? { name: String(event.clientName || 'Sample Company'), email: 'sample.client@example.test' } : undefined);
+    const clientRecord = resolvedRecipients?.Client || {
+      name: String(event.clientName || triggerData.clientName || 'Sample Company'),
+      email: String(event.clientEmail || triggerData.clientEmail || 'sample.client@example.test'),
+      mobile: String(event.clientMobile || triggerData.clientMobile || '+91 98765 43210'),
+    };
+    const taskContext = (triggerData['task'] || (agent.module === 'Task' ? event : undefined)) as Record<string, unknown> | undefined;
+    const dscContext = (triggerData['dsc'] || (agent.module === 'DSC' ? event : undefined)) as Record<string, unknown> | undefined;
+    const licenseContext = (triggerData['license'] || (agent.module === 'License' ? event : undefined)) as Record<string, unknown> | undefined;
+
     const variables: Record<string, unknown> = {
-      agent: { name: agent.name }, event, ...triggerData, ...event, trigger: config.trigger,
+      agent: { name: agent.name },
+      event,
+      ...triggerData,
+      ...event,
+      trigger: config.trigger,
       previewOnly: !context.event,
       resolvedRecipients,
-      ...(clientRecord ? { client: { name: clientRecord.name, email: clientRecord.email } } : {}),
+      task: taskContext || event,
+      dsc: dscContext || event,
+      license: licenseContext || event,
+      client: {
+        name: clientRecord.name,
+        email: clientRecord.email,
+        mobile: clientRecord.mobile,
+      },
+      clientName: clientRecord.name,
+      clientEmail: clientRecord.email,
+      clientMobile: clientRecord.mobile,
+      your_firm_name: String(event.your_firm_name || triggerData.your_firm_name || 'Ayatrio Practice'),
+      expense_name: String(event.expense_name || triggerData.expense_name || 'Design Assets'),
+      expense_amount: String(event.expense_amount || triggerData.expense_amount || '₹ 15,000'),
+      reviewer_name: String(event.reviewer_name || triggerData.reviewer_name || 'Sample Reviewer'),
+      task_status: String(event.task_status || triggerData.task_status || event.status || 'In Progress'),
     };
     // The strict validator guarantees this list is normalized and valid.
     const graphRun = graph?.nodes.length ? await runGraph(graph, variables, context.failRecipient) : null;
