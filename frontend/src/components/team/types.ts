@@ -92,6 +92,7 @@ export interface EmployeeRecord {
   sameAddress?: boolean;
   personalDetails?: EmployeePersonalDetails;
   permissions: RolePermissionsMap;
+  password?: string;
   createdAt: string;
 }
 

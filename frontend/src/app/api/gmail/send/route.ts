@@ -30,6 +30,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (process.env.NODE_ENV !== 'production' && auth.accessToken === 'mock_token') {
+      return NextResponse.json({
+        ok: true,
+        id: 'mock-msg-' + Date.now(),
+        threadId: threadId || 'mock-thread-1',
+      });
+    }
+
     const raw = buildRaw({
       to: to.trim(),
       from: auth.email,

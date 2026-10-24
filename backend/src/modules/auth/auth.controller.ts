@@ -41,7 +41,8 @@ export class AuthController {
         {
           user: result.user,
           accessToken: result.tokens.accessToken,
-          expiresIn: result.tokens.expiresIn,
+          refreshToken: result.tokens.refreshToken,
+          expiresIn: result.tokens.expiresIn || 86400,
         },
         'Organization and administrator account registered successfully'
       );
@@ -158,7 +159,8 @@ export class AuthController {
         {
           user: result.user,
           accessToken: result.tokens.accessToken,
-          expiresIn: result.tokens.expiresIn,
+          refreshToken: result.tokens.refreshToken,
+          expiresIn: result.tokens.expiresIn || 86400,
         },
         'Logged in successfully'
       );
@@ -169,7 +171,10 @@ export class AuthController {
 
   public static async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const rawToken = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+      const rawToken =
+        req.cookies?.[REFRESH_COOKIE_NAME] ||
+        req.cookies?.refreshToken ||
+        req.body?.refreshToken;
       if (!rawToken) {
         ApiResponse.error(res, 'No refresh token provided', HTTP_STATUS.UNAUTHORIZED);
         return;
@@ -186,8 +191,9 @@ export class AuthController {
         res,
         {
           accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
           user: result.user,
-          expiresIn: 15 * 60,
+          expiresIn: 24 * 60 * 60,
         },
         'Token refreshed successfully'
       );
@@ -269,7 +275,8 @@ export class AuthController {
   public static async deleteTeamMember(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = String(req.params.id);
-      await AuthService.deleteTeamMember(id);
+      const email = req.body?.email || (req.query?.email as string);
+      await AuthService.deleteTeamMember(id, email);
       ApiResponse.success(res, null, 'Team member deleted successfully');
     } catch (error) {
       next(error);

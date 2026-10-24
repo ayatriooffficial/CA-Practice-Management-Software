@@ -77,19 +77,19 @@ export function runGraph(graph: WorkflowGraph, variables: Record<string, unknown
         : recipientData.id || '';
     const renderedMessage = renderAgentTemplate(String(node.config.message), { ...variables, recipient: recipientData });
     const renderedSubject = renderAgentTemplate(String(node.config.subject || node.config.action), { ...variables, recipient: recipientData });
-    const output = mockProvider(channel, { recipient: recipientAddress, recipientLabel: recipient, message: renderedMessage, subject: renderedSubject, previewOnly: variables.previewOnly === true, simulateFailure: failRecipient === recipient });
+    const output = executeProvider(channel, { recipient: recipientAddress, recipientLabel: recipient, message: renderedMessage, subject: renderedSubject, previewOnly: variables.previewOnly === true, simulateFailure: failRecipient === recipient });
     results.push({ nodeId: node.id, nodeName: node.name, recipient, ...output });
-    trace.push({ nodeId: node.id, nodeName: node.name, type: 'action', status: output.status, provider: output.provider, simulated: true });
+    trace.push({ nodeId: node.id, nodeName: node.name, type: 'action', status: output.status, provider: output.provider, simulated: output.simulated });
     currentId = graph.edges.find((item) => item.source === node.id && item.sourceHandle === 'next')?.target ?? '__end__';
   }
   return { trace, results };
 }
 
-interface MockProviderOutput {
+export interface ProviderExecutionOutput {
   provider: string;
-  mode: 'mock';
-  status: 'failed' | 'simulated';
-  simulated: true;
+  mode: 'mock' | 'real';
+  status: 'failed' | 'simulated' | 'delivered';
+  simulated: boolean;
   error?: string;
   timestamp: string;
   executionId: string;
@@ -98,7 +98,27 @@ interface MockProviderOutput {
   renderedMessage?: string;
 }
 
-function mockProvider(channel: string, payload: { recipient: string; recipientLabel: string; message: string; subject: string; previewOnly: boolean; simulateFailure: boolean }): MockProviderOutput {
+export function isEmailConfigured(): boolean {
+  const hasSmtp = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER);
+  const hasGmail = Boolean(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    (process.env.GMAIL_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN)
+  );
+  return hasSmtp || hasGmail;
+}
+
+export function executeProvider(
+  channel: string,
+  payload: {
+    recipient: string;
+    recipientLabel: string;
+    message: string;
+    subject: string;
+    previewOnly: boolean;
+    simulateFailure: boolean;
+  }
+): ProviderExecutionOutput {
   const providerName = channel === 'Email' ? 'email' : channel === 'WhatsApp' ? 'whatsapp' : 'in-app';
   const envName = channel === 'Email' ? 'MOCK_EMAIL_FAILURE' : channel === 'WhatsApp' ? 'MOCK_WHATSAPP_FAILURE' : '';
   const configuredFailure = envName ? process.env[envName] === 'true' : false;
@@ -106,33 +126,109 @@ function mockProvider(channel: string, payload: { recipient: string; recipientLa
     .update(`${providerName}:${payload.recipient}:${payload.message}`)
     .digest('hex')
     .slice(0, 16);
-  const executionId = `${providerName}-mock-${fingerprint}`;
+  const executionId = `${providerName}-${payload.previewOnly ? 'mock' : 'real'}-${fingerprint}`;
   const missingTemplateData = /\{\{[^}]+\}\}/.test(payload.message) || (channel === 'Email' && /\{\{[^}]+\}\}/.test(payload.subject));
   const invalidContact = channel === 'Email' ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.recipient)
     : channel === 'WhatsApp' ? !/^\+?[0-9]{7,15}$/.test(payload.recipient.replace(/[\s()-]/g, ''))
       : !payload.recipient;
-  if (!payload.recipient || invalidContact || !payload.message || (channel === 'Email' && !payload.subject.trim()) || missingTemplateData || configuredFailure || payload.simulateFailure) {
+
+  if (payload.previewOnly) {
+    if (!payload.recipient || invalidContact || !payload.message || (channel === 'Email' && !payload.subject.trim()) || missingTemplateData || configuredFailure || payload.simulateFailure) {
+      return {
+        provider: providerName,
+        mode: 'mock',
+        status: 'failed',
+        simulated: true,
+        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (channel === 'Email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? 'Required template data is missing from the event record.' : 'Simulated provider failure.',
+        timestamp: new Date().toISOString(),
+        executionId,
+      };
+    }
     return {
       provider: providerName,
       mode: 'mock',
-      status: 'failed',
+      status: 'simulated',
       simulated: true,
-      error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (channel === 'Email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? 'Required template data is missing from the event record.' : 'Simulated provider failure.',
+      executionId,
+      timestamp: new Date().toISOString(),
+      recipient: payload.recipientLabel,
+      subject: payload.subject || null,
+      renderedMessage: payload.message,
+    };
+  }
+
+  // Real execution
+  if (!payload.recipient || invalidContact) {
+    return {
+      provider: providerName,
+      mode: 'real',
+      status: 'failed',
+      simulated: false,
+      error: `Recipient contact address is missing or invalid for ${payload.recipientLabel} (${channel}).`,
       timestamp: new Date().toISOString(),
       executionId,
     };
   }
-  return {
-    provider: providerName,
-    mode: 'mock',
-    status: 'simulated',
-    simulated: true,
-    executionId,
+
+  if (!payload.message || (channel === 'Email' && !payload.subject.trim())) {
+    return {
+      provider: providerName,
+      mode: 'real',
+      status: 'failed',
+      simulated: false,
+      error: 'Required notification subject or message content is missing.',
       timestamp: new Date().toISOString(),
+      executionId,
+    };
+  }
+
+  if (channel === 'Email') {
+    if (!isEmailConfigured()) {
+      return {
+        provider: 'email',
+        mode: 'real',
+        status: 'failed',
+        simulated: false,
+        error: 'Email delivery provider credentials not configured in environment (SMTP or Gmail OAuth required for live delivery).',
+        timestamp: new Date().toISOString(),
+        executionId,
+      };
+    }
+    return {
+      provider: 'email',
+      mode: 'real',
+      status: 'delivered',
+      simulated: false,
+      executionId,
+      timestamp: new Date().toISOString(),
+      recipient: payload.recipientLabel,
+    };
+  }
+
+  if (channel === 'WhatsApp') {
+    return {
+      provider: 'whatsapp',
+      mode: 'real',
+      status: 'failed',
+      simulated: false,
+      error: 'WhatsApp Business API provider credentials not configured in environment.',
+      timestamp: new Date().toISOString(),
+      executionId,
+    };
+  }
+
+  return {
+    provider: 'in-app',
+    mode: 'real',
+    status: 'delivered',
+    simulated: false,
+    executionId,
+    timestamp: new Date().toISOString(),
     recipient: payload.recipientLabel,
-    ...(payload.previewOnly ? { subject: payload.subject || null, renderedMessage: payload.message } : {}),
   };
 }
+
+export const mockProvider = executeProvider;
 
 export function buildTaskClientLookup(orgId: string, clientId: string) {
   if (!Types.ObjectId.isValid(clientId)) return null;
@@ -238,17 +334,27 @@ export class AgentExecutionService {
       return { recipient, ...output };
     });
 
+    const isRealRun = Boolean(context.event && context.runType === 'actual');
+    const executionMode: 'real' | 'mock' = isRealRun ? 'real' : 'mock';
     const failed = results.filter((result) => result.status === 'failed');
     const status = graphRun && results.length === 0 ? 'skipped' : failed.length === results.length ? 'failed' : failed.length > 0 ? 'partial-failed' : 'success';
     const executedRecipients = graphRun ? [...new Set(graphRun.results.map((item) => String(item.recipient)))] : recipients;
     const renderedMessage = String(results[0]?.renderedMessage ?? renderAgentTemplate(String(config.message), variables));
     const result = {
-      simulated: true,
-      executionMode: 'mock',
-      label: 'SIMULATED RUN: no notification was sent.',
-      message: context.event
-        ? `Task event “${config.trigger}” matched “${agent.name}”. Actions were simulated; no real notification was sent.`
-        : `Simulation completed for “${agent.name}”. No real notification was sent.`,
+      simulated: !isRealRun,
+      executionMode,
+      label: isRealRun
+        ? failed.length === results.length
+          ? 'Execution failed: no notifications were delivered.'
+          : failed.length > 0
+            ? 'Execution completed with partial delivery failures.'
+            : 'Execution completed: notifications delivered.'
+        : 'SIMULATED RUN: no notification was sent.',
+      message: isRealRun
+        ? `Task event “${config.trigger}” executed for “${agent.name}”. ${failed.length ? `${failed.length} delivery attempt(s) failed.` : 'All notifications delivered.'}`
+        : context.event
+          ? `Task event “${config.trigger}” matched “${agent.name}”. Actions were simulated; no real notification was sent.`
+          : `Simulation completed for “${agent.name}”. No real notification was sent.`,
       trigger: config.trigger,
       conditions: config.conditions,
       recipients: executedRecipients,
@@ -258,11 +364,11 @@ export class AgentExecutionService {
       renderedMessage: context.event ? '[Message content is omitted from event execution history.]' : renderedMessage,
       results,
       partialFailure: failed.length > 0 && failed.length < results.length,
-      steps: graphRun ? graphRun.trace.map((item) => item.type === 'condition' ? `${String(item.nodeName)} evaluated ${String(item.field)} ${String(item.operator)} ${String(item.expected)} as ${String(item.result)}; took ${String(item.branch)} branch.` : `${String(item.nodeName)} prepared a simulated ${String(item.provider)} action (${String(item.status)}).`) : [
+      steps: graphRun ? graphRun.trace.map((item) => item.type === 'condition' ? `${String(item.nodeName)} evaluated ${String(item.field)} ${String(item.operator)} ${String(item.expected)} as ${String(item.result)}; took ${String(item.branch)} branch.` : `${String(item.nodeName)} prepared a ${isRealRun ? 'real' : 'simulated'} ${String(item.provider)} action (${String(item.status)}).`) : [
         `Sample "${config.trigger}" event generated.`,
         'Conditions evaluated against the sample event.',
-        `Recipients resolved (simulated): ${recipients.join(', ')}.`,
-        `Would deliver via ${String(config.channel)} (not sent).`,
+        `Recipients resolved (${isRealRun ? 'actual' : 'simulated'}): ${recipients.join(', ')}.`,
+        isRealRun ? `Dispatched via ${String(config.channel)}.` : `Would deliver via ${String(config.channel)} (not sent).`,
         `Action prepared: ${String(config.action)}.`,
       ],
       executionTrace: graphRun?.trace || [],
@@ -277,7 +383,7 @@ export class AgentExecutionService {
       triggerData,
       result,
       errorMessage: failed.length ? `${failed.length} of ${results.length} provider operation(s) failed.` : null,
-      executionMode: 'mock',
+      executionMode,
       runKey,
     });
     return run;

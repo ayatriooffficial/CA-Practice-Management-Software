@@ -63,6 +63,7 @@ export interface IUser {
   email: string;
   mobile: string;
   passwordHash?: string;
+  password?: string;
   role: UserRole;
   initials: string;
   department?: string;

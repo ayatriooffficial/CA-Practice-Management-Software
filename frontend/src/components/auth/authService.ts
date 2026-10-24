@@ -296,6 +296,74 @@ export const authService = {
   },
 
   /**
+   * Primary Login: Authenticate with Email and Password
+   */
+  async loginWithPassword(
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; user?: User; message: string; notFound?: boolean }> {
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      const res = await request<{ user: any; accessToken: string }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
+
+      if (res.data?.user && res.data.accessToken) {
+        const u = res.data.user;
+        const resolvedOrgId = String(u.orgId?._id || u.orgId || "");
+        const verifiedUser: User = {
+          id: String(u.id || u._id || ""),
+          name: u.name,
+          email: u.email,
+          mobile: u.mobile,
+          firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
+          role: u.role || "employee",
+          initials: u.initials || computeInitials(u.name),
+          orgId: resolvedOrgId,
+          token: res.data.accessToken,
+          createdAt: u.createdAt,
+          department: u.department,
+          designation: u.designation,
+          status: u.status,
+          employeeId: u.employeeId,
+          permissions: u.permissions,
+        };
+
+        if (typeof window !== "undefined") {
+          try {
+            document.cookie = `token=${res.data.accessToken}; path=/; max-age=86400; SameSite=Lax`;
+            document.cookie = `turia_access_token=${res.data.accessToken}; path=/; max-age=86400; SameSite=Lax`;
+          } catch {}
+        }
+
+        return {
+          success: true,
+          user: verifiedUser,
+          message: "Logged in successfully.",
+        };
+      }
+
+      return {
+        success: false,
+        message: res.message || "Invalid email or password.",
+      };
+    } catch (err: any) {
+      const msg = err?.message || "";
+      const isNotFound =
+        err?.statusCode === 404 ||
+        msg.toLowerCase().includes("not found") ||
+        msg.toLowerCase().includes("no account found");
+
+      return {
+        success: false,
+        notFound: isNotFound,
+        message: msg || "Incorrect email or password. Please verify and try again.",
+      };
+    }
+  },
+
+  /**
    * Returning User Login: Authenticate using verified trusted device token without OTP.
    */
   async loginWithDevice(

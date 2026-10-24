@@ -1,0 +1,382 @@
+import { Types } from 'mongoose';
+import { connectDatabase, disconnectDatabase } from '../config/database';
+import { logger } from '../config/logger';
+import { Lead as LeadModel } from '../modules/lead/lead.model';
+
+export async function seedLeads() {
+  await connectDatabase();
+  logger.info('Connected to MongoDB. Starting seed for leads...');
+
+  const DEFAULT_ORG_ID = new Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
+  const DEFAULT_USER_ID = '6ad9e23bf460aa2e6102c0c8';
+
+  const leads = [
+    {
+      firstName: 'Arjun',
+      middleName: 'K.',
+      lastName: 'Nambiar',
+      fullName: 'Arjun K. Nambiar',
+      abbreviation: 'AKN',
+      dob: '1988-06-14',
+      gender: 'Male',
+      mobile: '9845112233',
+      aadhaarMobile: '9845112233',
+      email: 'arjun.nambiar@greenvalleysolar.in',
+      pan: 'AABPN8832K',
+      aadhaar: '4589 1234 5678',
+      din: '09812451',
+      mcaId: 'arjun_mca_dir',
+      nationality: 'Indian',
+      address: 'Villa 14, Palm Meadows, Whitefield',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560066',
+      country: 'India',
+      policeStation: 'Whitefield Police Station',
+      postOffice: 'Whitefield SO',
+      referredBy: 'Vikram Adve (Senior Consultant)',
+      businessName: 'GreenValley Solar Technologies Pvt Ltd',
+      businessType: 'Private Limited Company',
+      servicesInterested: [
+        'Company Incorporation',
+        'GST Registration & Filing',
+        'Advance Tax Planning',
+        'FDI / RBI Compliance',
+      ],
+      dealValue: 125000,
+      daysInStage: 4,
+      status: 'qualified',
+      pipelineStage: 'proposal_sent',
+      leadScore: {
+        score: 88,
+        businessSize: 85,
+        responseTime: 90,
+        engagement: 92,
+        sourceQuality: 85,
+      },
+      notes: 'Clean-tech startup planning Series-A fundraise. Requires fast-track ROC compliance & statutory auditor appointment.',
+      detailNotes: [
+        {
+          id: 'note-1',
+          note: 'Initial discovery call completed on Google Meet. High intent client looking for full annual retainer.',
+          author: 'Vikram Adve',
+          createdAt: new Date(Date.now() - 3 * 24 * 3600 * 1000),
+        },
+        {
+          id: 'note-2',
+          note: 'Sent comprehensive proposal for ₹1.25L annual compliance + secretarial audit.',
+          author: 'Rahul Sharma (Partner)',
+          createdAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
+        },
+      ],
+      orgId: DEFAULT_ORG_ID,
+      userId: DEFAULT_USER_ID,
+      createdBy: DEFAULT_USER_ID,
+      isDeleted: false,
+    },
+    {
+      firstName: 'Meera',
+      middleName: 'Ramesh',
+      lastName: 'Iyer',
+      fullName: 'Meera Ramesh Iyer',
+      abbreviation: 'MRI',
+      dob: '1992-11-20',
+      gender: 'Female',
+      mobile: '9740556677',
+      aadhaarMobile: '9740556677',
+      email: 'meera.iyer@cloudmatrix.dev',
+      pan: 'ABCPI4491J',
+      aadhaar: '7812 3456 9012',
+      din: '',
+      nationality: 'Indian',
+      address: 'Flat 302, Ozone Urbana, Devanahalli',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '562110',
+      country: 'India',
+      referredBy: 'Website Contact Form',
+      businessName: 'CloudMatrix Software Labs',
+      businessType: 'Proprietorship',
+      servicesInterested: [
+        'GST Export Services LUT',
+        'Section 44ADA Presumptive Taxation',
+        'FIRC / FIRA Bank Reconciliation',
+      ],
+      dealValue: 45000,
+      daysInStage: 2,
+      status: 'contacted',
+      pipelineStage: 'contact_established',
+      leadScore: {
+        score: 74,
+        businessSize: 65,
+        responseTime: 85,
+        engagement: 75,
+        sourceQuality: 70,
+      },
+      notes: 'Software export consultant billing US clients via Stripe. Needs export LUT registration & quarterly advance tax calculation.',
+      detailNotes: [
+        {
+          id: 'note-3',
+          note: 'Verified PayPal/Stripe remittance certificates. LUT filing required under CGST Rule 96A before month end.',
+          author: 'Ananya Roy',
+          createdAt: new Date(Date.now() - 2 * 24 * 3600 * 1000),
+        },
+      ],
+      orgId: DEFAULT_ORG_ID,
+      userId: DEFAULT_USER_ID,
+      createdBy: DEFAULT_USER_ID,
+      isDeleted: false,
+    },
+    {
+      firstName: 'Gaurav',
+      middleName: '',
+      lastName: 'Singhania',
+      fullName: 'Gaurav Singhania',
+      abbreviation: 'GS',
+      dob: '1984-03-08',
+      gender: 'Male',
+      mobile: '9811224488',
+      aadhaarMobile: '9811224488',
+      email: 'gaurav@singhaniasteels.com',
+      pan: 'AAAPS6621L',
+      aadhaar: '3214 7890 2345',
+      din: '07129845',
+      mcaId: 'gaurav_singhania_dir',
+      nationality: 'Indian',
+      address: 'Plot 78, Bommasandra Industrial Area, Hosur Road',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560099',
+      country: 'India',
+      policeStation: 'Bommasandra Police Station',
+      postOffice: 'Bommasandra Anekal',
+      referredBy: 'Turia Industries Referral',
+      businessName: 'Singhania Alloy & Steels Manufacturing LLP',
+      businessType: 'Limited Liability Partnership',
+      servicesInterested: [
+        'Statutory Audit',
+        'GST Inverted Duty Refund',
+        'Section 148 Reassessment Representation',
+      ],
+      dealValue: 240000,
+      daysInStage: 6,
+      status: 'qualified',
+      pipelineStage: 'negotiation',
+      leadScore: {
+        score: 95,
+        businessSize: 98,
+        responseTime: 92,
+        engagement: 95,
+        sourceQuality: 96,
+      },
+      notes: 'Heavy manufacturing enterprise with turnover of ₹18 Cr. Incurring accumulated ITC due to inverted duty structure on steel scrap.',
+      detailNotes: [
+        {
+          id: 'note-4',
+          note: 'Met partner Gaurav at CA office. Discussed GST RFD-01 refund filing worth ₹28 Lakhs.',
+          author: 'Rahul Sharma (Partner)',
+          createdAt: new Date(Date.now() - 5 * 24 * 3600 * 1000),
+        },
+        {
+          id: 'note-5',
+          note: 'Shared draft engagement letter with 15% success fee on inverted duty refund approval.',
+          author: 'Rahul Sharma (Partner)',
+          createdAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
+        },
+      ],
+      orgId: DEFAULT_ORG_ID,
+      userId: DEFAULT_USER_ID,
+      createdBy: DEFAULT_USER_ID,
+      isDeleted: false,
+    },
+    {
+      firstName: 'Kavita',
+      middleName: 'Prakash',
+      lastName: 'Deshmukh',
+      fullName: 'Kavita Prakash Deshmukh',
+      abbreviation: 'KPD',
+      dob: '1995-09-12',
+      gender: 'Female',
+      mobile: '9920334455',
+      aadhaarMobile: '9920334455',
+      email: 'kavita.deshmukh@novabio.health',
+      pan: 'AAAPD7741M',
+      aadhaar: '6543 2109 8765',
+      din: '',
+      nationality: 'Indian',
+      address: 'Flat 5B, Prestige Shantiniketan, ITPL Main Road',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560048',
+      country: 'India',
+      referredBy: 'LinkedIn Campaign',
+      businessName: 'NovaBio Wellness Products',
+      businessType: 'Private Limited Company',
+      servicesInterested: [
+        'Ayush / FSSAI Compliance',
+        'Trademark Registration',
+        'Monthly Accounting & TDS Filing',
+      ],
+      dealValue: 65000,
+      daysInStage: 1,
+      status: 'new',
+      pipelineStage: 'new_lead',
+      leadScore: {
+        score: 68,
+        businessSize: 60,
+        responseTime: 75,
+        engagement: 70,
+        sourceQuality: 68,
+      },
+      notes: 'D2C nutraceutical brand launching on Amazon & Quick Commerce. Wants bookkeeping setup on Zoho and monthly GST/TDS filings.',
+      detailNotes: [
+        {
+          id: 'note-6',
+          note: 'Inbound lead received via LinkedIn sponsored form. Sent introductory brochure and calendar link.',
+          author: 'Suresh Rao',
+          createdAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
+        },
+      ],
+      orgId: DEFAULT_ORG_ID,
+      userId: DEFAULT_USER_ID,
+      createdBy: DEFAULT_USER_ID,
+      isDeleted: false,
+    },
+    {
+      firstName: 'Harish',
+      middleName: 'V.',
+      lastName: 'Reddy',
+      fullName: 'Harish V. Reddy',
+      abbreviation: 'HVR',
+      dob: '1982-01-25',
+      gender: 'Male',
+      mobile: '9844001122',
+      aadhaarMobile: '9844001122',
+      email: 'harish@reddywarehousing.in',
+      pan: 'AAAPR1190B',
+      aadhaar: '9012 3456 7890',
+      din: '06543210',
+      nationality: 'Indian',
+      address: 'Sy No 42, Nelamangala Industrial Corridor',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '562123',
+      country: 'India',
+      referredBy: 'Apex Logistics Referral',
+      businessName: 'Reddy Mega Warehousing & Logistics',
+      businessType: 'Partnership',
+      servicesInterested: [
+        'Commercial Property TDS (194-IB / 194-I)',
+        'Partnership Deed Amendment',
+        'Section 44AB Tax Audit',
+      ],
+      dealValue: 90000,
+      daysInStage: 3,
+      status: 'converted',
+      pipelineStage: 'converted',
+      leadScore: {
+        score: 92,
+        businessSize: 90,
+        responseTime: 95,
+        engagement: 92,
+        sourceQuality: 90,
+      },
+      notes: 'Operates 150,000 sq ft Grade-A warehouse leased to e-commerce majors. Converted to active client for full retainer.',
+      detailNotes: [
+        {
+          id: 'note-7',
+          note: 'Retainer agreement executed. Converted and onboarding statutory files into Client database.',
+          author: 'Vikram Adve',
+          createdAt: new Date(Date.now() - 4 * 24 * 3600 * 1000),
+        },
+      ],
+      orgId: DEFAULT_ORG_ID,
+      userId: DEFAULT_USER_ID,
+      createdBy: DEFAULT_USER_ID,
+      isDeleted: false,
+    },
+    {
+      firstName: 'Deepak',
+      middleName: 'Chandra',
+      lastName: 'Joshi',
+      fullName: 'Deepak Chandra Joshi',
+      abbreviation: 'DCJ',
+      dob: '1990-07-19',
+      gender: 'Male',
+      mobile: '9711883344',
+      aadhaarMobile: '9711883344',
+      email: 'deepak.joshi@himalayancrafts.org',
+      pan: 'AAAPJ9012F',
+      aadhaar: '5432 1098 7654',
+      din: '',
+      nationality: 'Indian',
+      address: 'Shop 18, Commercial Street, Tasker Town',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560001',
+      country: 'India',
+      referredBy: 'Walk-in Inquiry',
+      businessName: 'Himalayan Artisans & Handloom Emporium',
+      businessType: 'Proprietorship',
+      servicesInterested: [
+        'GST Composition Scheme CMP-08',
+        'MSME Udyam Registration',
+      ],
+      dealValue: 20000,
+      daysInStage: 8,
+      status: 'dropped',
+      pipelineStage: 'dropped',
+      leadScore: {
+        score: 35,
+        businessSize: 30,
+        responseTime: 40,
+        engagement: 35,
+        sourceQuality: 35,
+      },
+      notes: 'Decided to continue manual billing under composition scheme without professional accounting software.',
+      detailNotes: [
+        {
+          id: 'note-8',
+          note: 'Client opted out due to budget constraints. Lead marked dropped.',
+          author: 'Suresh Rao',
+          createdAt: new Date(Date.now() - 7 * 24 * 3600 * 1000),
+        },
+      ],
+      orgId: DEFAULT_ORG_ID,
+      userId: DEFAULT_USER_ID,
+      createdBy: DEFAULT_USER_ID,
+      isDeleted: false,
+    },
+  ];
+
+  for (const lead of leads) {
+    const upserted = await LeadModel.findOneAndUpdate(
+      { mobile: lead.mobile },
+      lead,
+      { upsert: true, new: true }
+    );
+    logger.info(`Upserted Lead: ${upserted.fullName} (${upserted.businessName}) - Status: ${upserted.status}`);
+  }
+
+  // Also ensure existing leads belong to default org
+  await LeadModel.updateMany(
+    { $or: [{ orgId: null }, { orgId: { $exists: false } }] },
+    { $set: { orgId: DEFAULT_ORG_ID, userId: DEFAULT_USER_ID, createdBy: DEFAULT_USER_ID } }
+  );
+
+  const totalLeads = await LeadModel.countDocuments({ isDeleted: false });
+  logger.info(`\n🎉 Leads Seed Completed Successfully! Total Active Leads: ${totalLeads}`);
+}
+
+if (require.main === module) {
+  (async () => {
+    try {
+      await seedLeads();
+      await disconnectDatabase();
+      process.exit(0);
+    } catch (err) {
+      console.error('Lead seed script failed:', err);
+      process.exit(1);
+    }
+  })();
+}

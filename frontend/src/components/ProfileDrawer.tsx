@@ -142,33 +142,35 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
                 {currentUser.email || currentUser.mobile || "Logged In"}
               </p>
 
-              {/* Quick One-Click Switcher for Instant Role Verification */}
-              <div className="mt-3 p-2 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
-                <span className="text-[11px] font-medium text-gray-500">Switch Session:</span>
-                {(currentUser.role || "").toLowerCase() === "employee" ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchToUser("admin");
-                      onClose();
-                    }}
-                    className="px-2.5 py-1 rounded bg-[#31719B] text-white font-semibold text-[11px] hover:bg-[#285c7d] transition-all cursor-pointer shadow-2xs"
-                  >
-                    Switch to Admin View
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchToUser("employee");
-                      onClose();
-                    }}
-                    className="px-2.5 py-1 rounded bg-amber-600 text-white font-semibold text-[11px] hover:bg-amber-700 transition-all cursor-pointer shadow-2xs"
-                  >
-                    Switch to Employee View
-                  </button>
-                )}
-              </div>
+              {/* Role switcher UI removed from view but preserved for future reference */}
+              {false && (
+                <div className="mt-3 p-2 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
+                  <span className="text-[11px] font-medium text-gray-500">Switch Session:</span>
+                  {(currentUser?.role || "").toLowerCase() === "employee" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        switchToUser("admin");
+                        onClose();
+                      }}
+                      className="px-2.5 py-1 rounded bg-[#31719B] text-white font-semibold text-[11px] hover:bg-[#285c7d] transition-all cursor-pointer shadow-2xs"
+                    >
+                      Switch to Admin View
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        switchToUser("employee");
+                        onClose();
+                      }}
+                      className="px-2.5 py-1 rounded bg-amber-600 text-white font-semibold text-[11px] hover:bg-amber-700 transition-all cursor-pointer shadow-2xs"
+                    >
+                      Switch to Employee View
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="pt-11 pb-2 px-6 text-center border-b" style={{ borderColor: "var(--border-subtle)" }}>

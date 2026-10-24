@@ -13,6 +13,7 @@ import {
   getPresetPermissions,
   handlePermissionToggle,
 } from './permissionsConfig';
+import { teamStore } from './teamStore';
 
 interface AddEmployeeWizardProps {
   isOpen: boolean;
@@ -37,6 +38,8 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(true);
   const [designation, setDesignation] = useState('');
   const [role, setRole] = useState<TeamRole>('Employee');
   const [department, setDepartment] = useState('Audit & Taxation');
@@ -145,11 +148,22 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
       setPermissions(
         initialData.permissions || getPresetPermissions(initialData.role || 'Employee')
       );
+      let currentPass = initialData.password || '';
+      if (!currentPass && initialData.email) {
+        const matching = teamStore.getEmployees().find(
+          (e) => e.email.toLowerCase() === initialData.email.toLowerCase()
+        );
+        if (matching?.password) {
+          currentPass = matching.password;
+        }
+      }
+      setPassword(currentPass);
     } else {
       setFirstName('');
       setLastName('');
       setEmail('');
       setMobile('');
+      setPassword('');
       setDesignation('');
       setRole('Employee');
       setDepartment('Audit & Taxation');
@@ -277,7 +291,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
       emergencyContactNumber,
     };
 
-    onSave({
+    const payload: any = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       name: fullName,
@@ -300,7 +314,15 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
       sameAddress,
       personalDetails,
       permissions,
-    });
+    };
+
+    if (isEdit) {
+      payload.password = password.trim();
+    } else {
+      payload.password = password.trim() || '123456';
+    }
+
+    onSave(payload);
 
     onClose();
   };
@@ -438,6 +460,38 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   placeholder="9876543210"
                   className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Login Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="w-full text-sm px-3 py-2 pr-10 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div>

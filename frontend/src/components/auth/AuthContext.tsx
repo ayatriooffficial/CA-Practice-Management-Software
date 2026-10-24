@@ -16,13 +16,41 @@ export function computeInitials(name?: string | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+export interface WorkdaySession {
+  user: User;
+  token?: string;
+  date: string;
+  savedAt: number;
+}
+
+export function getWorkdaySession(): WorkdaySession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("turia_workday_device_session");
+    if (!raw) return null;
+    const session: WorkdaySession = JSON.parse(raw);
+    const today = new Date().toISOString().slice(0, 10);
+    const isWithin24Hours = Date.now() - (session.savedAt || 0) < 24 * 60 * 60 * 1000;
+    if (session.date === today || isWithin24Hours) {
+      return session;
+    }
+    localStorage.removeItem("turia_workday_device_session");
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
+  workdaySession: WorkdaySession | null;
   login: (user: User) => void;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   switchToUser: (target: 'employee' | 'admin' | 'vikram') => void;
+  resumeWorkdaySession: () => boolean;
+  clearWorkdaySession: () => void;
 }
 
 const STORAGE_KEY = "turia_current_user";
@@ -59,15 +87,19 @@ export const DEFAULT_USER: User = {
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   isLoading: true,
+  workdaySession: null,
   login: () => {},
   logout: async () => {},
   refreshProfile: async () => {},
   switchToUser: () => {},
+  resumeWorkdaySession: () => false,
+  clearWorkdaySession: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [workdaySession, setWorkdaySession] = useState<WorkdaySession | null>(null);
 
   const logout = useCallback(async () => {
     try {
@@ -80,6 +112,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.setItem("turia_user_logged_out", "true");
           localStorage.removeItem(STORAGE_KEY);
+          // NOTE: turia_workday_device_session and turia_session_date are PRESERVED!
+          // This keeps the user's workday session active on this browser/device for 1-click re-entry.
+          const activeWorkday = getWorkdaySession();
+          setWorkdaySession(activeWorkday);
           document.cookie = "token=; Max-Age=0; path=/;";
           document.cookie = "refreshToken=; Max-Age=0; path=/;";
           document.cookie = "turia_access_token=; Max-Age=0; path=/;";
@@ -152,45 +188,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setCurrentUser(enrichedUser);
     try {
+      const today = new Date().toISOString().slice(0, 10);
       localStorage.removeItem("turia_user_logged_out");
       localStorage.setItem(STORAGE_KEY, JSON.stringify(enrichedUser));
+      localStorage.setItem("turia_session_date", today);
+      const sessionObj: WorkdaySession = {
+        user: enrichedUser,
+        token: enrichedUser.token,
+        date: today,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem("turia_workday_device_session", JSON.stringify(sessionObj));
+      setWorkdaySession(sessionObj);
       if (enrichedUser.orgId) localStorage.setItem("x-org-id", enrichedUser.orgId);
     } catch {
       // Ignore storage errors
     }
   }, []);
 
-  const switchToUser = useCallback((target: 'employee' | 'admin' | 'vikram') => {
-    const selected = (target === 'employee' || target === 'vikram') ? DEMO_EMPLOYEE_USER : DEFAULT_USER;
-    setCurrentUser(selected);
+  const resumeWorkdaySession = useCallback((): boolean => {
+    const session = getWorkdaySession();
+    if (session && session.user) {
+      login(session.user);
+      return true;
+    }
+    return false;
+  }, [login]);
+
+  const clearWorkdaySession = useCallback(() => {
     if (typeof window !== "undefined") {
       try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem("turia_workday_device_session");
+        localStorage.removeItem("turia_session_date");
         localStorage.removeItem("turia_user_logged_out");
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
-        if (selected.orgId) localStorage.setItem("x-org-id", selected.orgId);
+        setWorkdaySession(null);
+        setCurrentUser(null);
       } catch {}
     }
   }, []);
 
+  const switchToUser = useCallback((target: 'employee' | 'admin' | 'vikram') => {
+    const selected = (target === 'employee' || target === 'vikram') ? DEMO_EMPLOYEE_USER : DEFAULT_USER;
+    login(selected);
+  }, [login]);
+
   useEffect(() => {
     try {
-      if (localStorage.getItem("turia_user_logged_out") === "true") {
+      const today = new Date().toISOString().slice(0, 10);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const storedDate = localStorage.getItem("turia_session_date");
+      const isLoggedOut = localStorage.getItem("turia_user_logged_out") === "true";
+
+      const activeWorkday = getWorkdaySession();
+      setWorkdaySession(activeWorkday);
+
+      // Clean up if day has changed AND 24h passed
+      if (storedDate && storedDate !== today && (!activeWorkday || Date.now() - activeWorkday.savedAt >= 24 * 60 * 60 * 1000)) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem("turia_workday_device_session");
+        localStorage.removeItem("turia_session_date");
+        localStorage.removeItem("turia_user_logged_out");
+        setWorkdaySession(null);
         setCurrentUser(null);
         return;
       }
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: User = JSON.parse(stored);
-        const isLegacyFake =
-          parsed.id?.startsWith("usr_") ||
-          parsed.orgId === "org_ayatrio_practice" ||
-          parsed.token === "demo_access_token_verified";
 
-        if (isLegacyFake) {
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem("x-org-id");
-          setCurrentUser(null);
-        } else if (parsed && parsed.name && parsed.orgId) {
+      // If user had an active session today and did NOT click logout, stay logged in seamlessly!
+      if (stored && !isLoggedOut && (storedDate === today || activeWorkday)) {
+        const parsed: User = JSON.parse(stored);
+        if (parsed && parsed.name && parsed.orgId) {
           const roleLower = (parsed.role || "employee").toLowerCase();
           if (!parsed.permissions || Object.keys(parsed.permissions).length === 0) {
             parsed.permissions = getPresetPermissions(roleLower === "admin" ? "Admin" : "Employee");
@@ -205,6 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
       }
+
       setCurrentUser(null);
     } catch {
       setCurrentUser(null);
@@ -220,9 +288,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       window.removeEventListener("auth:session-expired", handleSessionExpired);
     };
-  }, [logout, refreshProfile]);
+  }, [logout, refreshProfile]);
+
   return (
-    <AuthContext.Provider value={{ currentUser, isLoading, login, logout, refreshProfile, switchToUser }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        isLoading,
+        workdaySession,
+        login,
+        logout,
+        refreshProfile,
+        switchToUser,
+        resumeWorkdaySession,
+        clearWorkdaySession,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

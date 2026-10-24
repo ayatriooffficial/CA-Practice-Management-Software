@@ -27,6 +27,7 @@ export interface RegisterOrgPayload {
   name: string;
   email: string;
   mobile: string;
+  password: string;
 }
 
 export type AuthMode = "email" | "mobile";

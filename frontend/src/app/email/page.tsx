@@ -31,6 +31,36 @@ export default function EmailPage() {
 
   const [isComposeOpen, setIsComposeOpen] = useState(false);
 
+  // Auto-select first thread when opening Gmail section and threads are loaded but no thread is open
+  const hasAutoSelectedRef = React.useRef(false);
+  const prevSearchRef = React.useRef(searchQuery);
+
+  React.useEffect(() => {
+    if (prevSearchRef.current !== searchQuery) {
+      prevSearchRef.current = searchQuery;
+      hasAutoSelectedRef.current = false;
+    }
+  }, [searchQuery]);
+
+  React.useEffect(() => {
+    if (
+      status === 'connected' &&
+      !selectedThreadId &&
+      !loadingThreads &&
+      threads.length > 0 &&
+      !hasAutoSelectedRef.current
+    ) {
+      hasAutoSelectedRef.current = true;
+      selectThread(threads[0].id);
+    }
+  }, [status, selectedThreadId, loadingThreads, threads, selectThread]);
+
+  React.useEffect(() => {
+    if (status !== 'connected') {
+      hasAutoSelectedRef.current = false;
+    }
+  }, [status]);
+
   /* ── When Disconnected: Show Connection Card ──────────────────────── */
   if (status === 'disconnected' || status === 'loading') {
     return (

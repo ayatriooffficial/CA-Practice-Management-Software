@@ -86,8 +86,10 @@ export const PUBLIC_AGENT_DEFINITIONS = {
     'task.taskName', 'task.clientName', 'task.targetDueDate', 'task.priority', 'task.status',
     'dsc.holder', 'dsc.expiryDate', 'license.name', 'license.owner', 'license.expiryDate',
     'client.name', 'client.email', 'recipient.name', 'recipient.address', 'recipient.email', 'recipient.mobile', 'agent.name', 'trigger',
+    'expense_name', 'expense_amount', 'reviewer_name', 'your_firm_name', 'task_status',
   ],
   emailTemplates: [
+    { id: 'expense-added', name: 'Expense added for task', subject: 'Expense Added for Task', message: 'Dear Team,\n\nA new expense has been recorded for the following task.\n\nTask Name: {{task.taskName}}\nExpense: {{expense_name}}\nAmount: {{expense_amount}}\nAssignee: Milton\nReviewer: {{reviewer_name}}\nCurrent Status: {{task_status}}\n\nPlease review the expense details and take any necessary action.\n\nBest Regards,\n{{your_firm_name}}' },
     { id: 'task-due-reminder', name: 'Task due date reminder', subject: 'Reminder: {{task.taskName}} is due {{task.targetDueDate}}', message: 'Hello {{recipient.name}},\n\n{{task.taskName}} for {{client.name}} is due on {{task.targetDueDate}}. Please review the task in your portal.\n\nRegards,\n{{agent.name}}' },
     { id: 'task-assigned', name: 'Task assigned notification', subject: 'A task has been assigned to {{recipient.name}}', message: 'Hello {{recipient.name}},\n\n{{task.taskName}} for {{client.name}} has been assigned to you.\n\nRegards,\n{{agent.name}}' },
     { id: 'client-task-update', name: 'Client task update', subject: 'Update about {{task.taskName}}', message: 'Hello {{client.name}},\n\nHere is an update about {{task.taskName}}. Current status: {{task.status}}.\n\nRegards,\n{{agent.name}}' },

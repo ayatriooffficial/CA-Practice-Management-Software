@@ -1,250 +1,401 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Mail,
+  Lock,
+  Eye,
+  EyeOff,
   Loader2,
   AlertCircle,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
-  Send,
+  Building2,
+  CheckCircle2,
 } from "lucide-react";
 import { authService } from "./authService";
-import { OtpInput } from "./OtpInput";
 import { useAuth } from "./AuthContext";
-import { getDeviceCredential } from "../../services/deviceCredential";
+
+type LoginStep = "email" | "password";
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, switchToUser } = useAuth();
+  const { currentUser, login, workdaySession, resumeWorkdaySession, switchToUser } = useAuth();
 
+  useEffect(() => {
+    if (currentUser) {
+      router.push("/");
+    }
+  }, [currentUser, router]);
+
+  const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
-  const [isOtpStep, setIsOtpStep] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const [isUserNotFound, setIsUserNotFound] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  // Check for prefilled email from signup redirection
+  // Check for prefilled email from signup redirection or active workday session on this device
   useEffect(() => {
     const prefillEmail = searchParams?.get("email");
     if (prefillEmail) {
       setEmail(prefillEmail);
+    } else if (workdaySession?.user?.email) {
+      setEmail(workdaySession.user.email);
     }
-  }, [searchParams]);
+  }, [searchParams, workdaySession]);
 
-  // Email format validation
+  // Focus password input when advancing to password step
+  useEffect(() => {
+    if (step === "password") {
+      setTimeout(() => {
+        passwordInputRef.current?.focus();
+      }, 100);
+    }
+  }, [step]);
+
   const cleanEmail = email.trim().toLowerCase();
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
 
-  // Check if current entered email is already verified on this device
-  const verifiedCredential = useMemo(() => {
-    if (!isMounted || !cleanEmail || !isValidEmail) return null;
-    return getDeviceCredential(cleanEmail);
-  }, [isMounted, cleanEmail, isValidEmail]);
+  // Active workday session exists on this device/browser for this email
+  const isWorkdayMatched = Boolean(
+    workdaySession?.user &&
+    cleanEmail === workdaySession.user.email.toLowerCase()
+  );
 
-  const isVerifiedOnDevice = !!verifiedCredential;
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setIsUserNotFound(false);
 
-  const triggerSendOtp = async () => {
-    if (!cleanEmail || !isValidEmail) return;
+    if (!isValidEmail) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+
+    // If an active workday session exists for this email on this device, log in immediately without asking password!
+    if (isWorkdayMatched) {
+      setIsLoading(true);
+      try {
+        const success = resumeWorkdaySession();
+        if (success) {
+          router.push("/");
+          return;
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // New session on this device/browser: proceed to password page
+    setStep("password");
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setIsUserNotFound(false);
+
+    if (!password.trim() || isLoading) return;
 
     setIsLoading(true);
-    setErrorMessage(null);
 
     try {
-      await authService.sendOtp(cleanEmail, "email");
-      setIsOtpStep(true);
+      const res = await authService.loginWithPassword(cleanEmail, password);
+
+      if (res.success && res.user) {
+        login(res.user);
+        router.push("/");
+        return;
+      }
+
+      if (res.notFound) {
+        setIsUserNotFound(true);
+        setErrorMessage("No account found with this email. Please verify your email or create an organization.");
+      } else {
+        setErrorMessage(res.message || "Incorrect password. Please verify and try again.");
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || "Unable to send verification email. Please check your email and try again.");
+      const msg = err?.message || "";
+      const notFound =
+        err?.statusCode === 404 ||
+        msg.toLowerCase().includes("not found") ||
+        msg.toLowerCase().includes("no account found");
+
+      if (notFound) {
+        setIsUserNotFound(true);
+        setErrorMessage("No account found with this email. Please check your email or create a new organization.");
+      } else {
+        setErrorMessage(msg || "Unable to sign in. Please check your credentials and try again.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Form Submission: Passwordless Device Login for returning users, or OTP for first-time
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setErrorMessage(null);
-
-    if (!isValidEmail) return;
-
-    // Returning User: Authenticate with verified device token without requesting OTP
-    if (isVerifiedOnDevice) {
-      setIsLoading(true);
-      try {
-        const res = await authService.loginWithDevice(cleanEmail);
-        if (res.success && res.user) {
-          login(res.user);
-          router.push("/");
-          return;
-        }
-        // If device token was revoked or expired, fall back to email OTP
-        setErrorMessage(res.message || "Device session expired. Sending a new verification code...");
-        await triggerSendOtp();
-      } catch (err: any) {
-        setErrorMessage(err.message || "Sending verification code...");
-        await triggerSendOtp();
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // First-time login on this device: Trigger Email OTP
-    await triggerSendOtp();
-  };
-
-  const handleVerifyOtp = async (code: string) => {
-    const res = await authService.verifyOtp(cleanEmail, code);
-
-    if (res.success && res.user) {
-      login(res.user);
-      setTimeout(() => {
-        router.push("/");
-      }, 500);
-      return { success: true };
-    }
-
-    return {
-      success: false,
-      message: res.message || "Invalid or expired verification code. Please try again.",
-    };
-  };
-
-  const handleResendOtp = async () => {
-    await authService.sendOtp(cleanEmail, "email");
-  };
-
   return (
     <div className="w-full">
-      {/* Main Form Content */}
-      {!isOtpStep ? (
-        <div className="flex flex-col gap-[22px]">
-          {/* Header */}
-          <div className="text-left">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-              Sign In to CA Practice
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-              Enter your work email address. We will send a secure verification code to your inbox.
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            className={`flex flex-col ${errorMessage ? "gap-[16px]" : "gap-[20px]"}`}
-          >
-            {/* Email Input */}
-            <div className="flex flex-col gap-[7px]">
-              <label
-                htmlFor="login-email"
-                className="block text-[14px] font-medium text-gray-700 dark:text-gray-300"
-              >
-                Work Email Address
-              </label>
-
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <input
-                  id="login-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setErrorMessage(null);
-                  }}
-                  placeholder="name@firm.com or Gmail"
-                  className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
-                  autoComplete="email"
-                  required
-                />
-              </div>
-
-              {isVerifiedOnDevice && (
-                <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Trusted device recognized &bull; Instant passwordless sign-in</span>
-                </div>
-              )}
+      <div className="flex flex-col gap-[22px]">
+        {/* Step 1: Email View */}
+        {step === "email" && (
+          <div className="flex flex-col gap-[22px] animate-fadeIn">
+            {/* Header */}
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                Sign In to CA Practice
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                Enter your registered work email to access your firm workspace.
+              </p>
             </div>
 
-            {/* Inline Error Message */}
-            {errorMessage && (
-              <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+            <form
+              onSubmit={handleEmailSubmit}
+              className={`flex flex-col ${errorMessage ? "gap-[16px]" : "gap-[20px]"}`}
+            >
+              {/* Email Input */}
+              <div className="flex flex-col gap-[7px]">
+                <label
+                  htmlFor="login-email"
+                  className="block text-[14px] font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Work Email Address
+                </label>
+
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    id="login-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrorMessage(null);
+                      setIsUserNotFound(false);
+                    }}
+                    placeholder="name@firm.com or Gmail"
+                    className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+                    autoComplete="email"
+                    autoFocus
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Status helper when session exists */}
+              {isWorkdayMatched && (
+                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>
+                    Active session recognized on this device. You can log in directly without entering your password.
+                  </span>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
-                <Link
-                  href="/signup"
-                  className="font-semibold text-[#6d55f4] hover:underline shrink-0"
-                >
-                  Register &rarr;
-                </Link>
-              </div>
-            )}
+              )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-[12px]">
+              {/* Action Button: "Log In" if session exists, "Enter Password" if new session */}
+              <div className="flex flex-col gap-[12px]">
+                <button
+                  type="submit"
+                  disabled={!isValidEmail || isLoading}
+                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
+                    !isValidEmail || isLoading
+                      ? "bg-[#b8b5fa] cursor-not-allowed"
+                      : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Logging In...</span>
+                    </>
+                  ) : isWorkdayMatched ? (
+                    <>
+                      <span>Log In</span>
+                      <ArrowRight className="w-4 h-4 ml-0.5" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Enter Password</span>
+                      <ArrowRight className="w-4 h-4 ml-0.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Step 2: Password View */}
+        {step === "password" && (
+          <div className="flex flex-col gap-[22px] animate-fadeIn">
+            {/* Header */}
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                Enter Password
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                Enter your password to sign in to your workspace.
+              </p>
+            </div>
+
+            {/* Email Pill with Change option */}
+            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-xs">
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 truncate pr-2">
+                <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <span className="font-medium truncate">{cleanEmail}</span>
+              </div>
               <button
-                type="submit"
-                disabled={!isValidEmail || isLoading}
-                className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
-                  !isValidEmail || isLoading
-                    ? "bg-[#b8b5fa] cursor-not-allowed"
-                    : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
-                }`}
+                type="button"
+                onClick={() => {
+                  setStep("email");
+                  setPassword("");
+                  setErrorMessage(null);
+                  setIsUserNotFound(false);
+                }}
+                className="text-xs font-semibold text-[#6d55f4] hover:text-[#5841e2] hover:underline cursor-pointer shrink-0"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Please wait...</span>
-                  </>
-                ) : isVerifiedOnDevice ? (
-                  <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Instant Sign In</span>
-                    <ArrowRight className="w-4 h-4 ml-0.5" />
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Send Verification Code</span>
-                  </>
-                )}
+                Change
               </button>
             </div>
-          </form>
 
-          <div className="border-t border-gray-100 dark:border-gray-800 pt-3 text-center flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Persistent session remains active for 60 days on this device</span>
+            <form
+              onSubmit={handlePasswordSubmit}
+              className={`flex flex-col ${errorMessage ? "gap-[16px]" : "gap-[20px]"}`}
+            >
+              {/* Password Input */}
+              <div className="flex flex-col gap-[7px]">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="login-password"
+                    className="block text-[14px] font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Password
+                  </label>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    ref={passwordInputRef}
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrorMessage(null);
+                      setIsUserNotFound(false);
+                    }}
+                    placeholder="Enter your password"
+                    className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer transition-colors"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* User Not Found Prompt to Create Org */}
+              {isUserNotFound && (
+                <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex flex-col gap-2.5 animate-fadeIn">
+                  <div className="flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200 font-medium">
+                    <Building2 className="w-4 h-4 text-[#6d55f4] shrink-0 mt-0.5" />
+                    <span>
+                      No firm or user is registered with <strong>{cleanEmail}</strong>. Would you like to create your firm workspace?
+                    </span>
+                  </div>
+                  <Link
+                    href={`/signup?email=${encodeURIComponent(cleanEmail)}`}
+                    className="w-full py-2 px-3 text-xs font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] rounded-lg text-center transition-colors shadow-2xs flex items-center justify-center gap-1.5"
+                  >
+                    <span>Create Organization</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
+
+              {/* Standard Error Message */}
+              {errorMessage && !isUserNotFound && (
+                <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-[10px]">
+                <button
+                  type="submit"
+                  disabled={!password.trim() || isLoading}
+                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
+                    !password.trim() || isLoading
+                      ? "bg-[#b8b5fa] cursor-not-allowed"
+                      : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Signing In...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign In</span>
+                      <ArrowRight className="w-4 h-4 ml-0.5" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("email");
+                    setErrorMessage(null);
+                    setIsUserNotFound(false);
+                  }}
+                  className="w-full py-2 text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Email</span>
+                </button>
+              </div>
+            </form>
           </div>
+        )}
+
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-3 text-center flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Persistent session keeps you logged in securely throughout the workday</span>
         </div>
-      ) : (
-        /* OTP Step */
-        <div className="flex flex-col gap-[22px]">
-          <OtpInput
-            targetDescription={cleanEmail}
-            onVerify={handleVerifyOtp}
-            onResend={handleResendOtp}
-            onChangeTarget={() => {
-              setIsOtpStep(false);
-              setErrorMessage(null);
-            }}
-            targetLabel="Change"
-          />
-        </div>
-      )}
+      </div>
 
       {/* Footer Link */}
       <div className="mt-[24px] text-center text-[13.5px] text-[#475569] dark:text-gray-400">
@@ -256,7 +407,39 @@ export const LoginForm: React.FC = () => {
           Create Organization
         </Link>
       </div>
-
+      {/* Quick-Fill Helpers for testing */}
+      <aside
+        aria-label="Demo credentials helper"
+        className="fixed bottom-4 right-4 z-30 max-w-xs bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-lg text-[11px] text-gray-500"
+      >
+        <span className="font-semibold text-gray-700 dark:text-gray-200 block mb-1">
+          Quick-Fill:
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            id="quick-fill-admin"
+            type="button"
+            onClick={() => {
+              switchToUser?.('admin');
+              router.push("/leads");
+            }}
+            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#6d55f4] hover:bg-purple-50 font-medium cursor-pointer"
+          >
+            Admin (Dipak)
+          </button>
+          <button
+            id="quick-fill-employee"
+            type="button"
+            onClick={() => {
+              switchToUser?.('employee');
+              router.push("/leads");
+            }}
+            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#6d55f4] hover:bg-purple-50 font-medium cursor-pointer"
+          >
+            Employee (Vikram)
+          </button>
+        </div>
+      </aside>
     </div>
   );
 };

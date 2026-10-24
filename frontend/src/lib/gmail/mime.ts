@@ -32,10 +32,12 @@ export function buildRaw({
     headers.push(`Cc: ${cc.trim()}`);
   }
 
+  const isHtml = /<[a-z][\s\S]*>/i.test(body || '');
+
   headers.push(
     `Subject: ${encodedSubject}`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
+    `Content-Type: ${isHtml ? 'text/html' : 'text/plain'}; charset=UTF-8`,
     'Content-Transfer-Encoding: 8bit',
   );
 

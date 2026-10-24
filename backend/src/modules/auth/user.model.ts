@@ -41,6 +41,10 @@ const userSchema = new Schema<IUserDocument>(
       type: String,
       select: false,
     },
+    password: {
+      type: String,
+      default: '',
+    },
     role: {
       type: String,
       set: (v: string) => (v ? v.toLowerCase() : 'admin'),
