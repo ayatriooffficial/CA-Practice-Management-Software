@@ -975,8 +975,10 @@ export class TaskService {
     });
 
     const created = await task.save();
-    const createdTriggers = ['Task created'];
-    if (created.assigneeId || created.assigneeName) createdTriggers.push('Task assigned');
+    const createdTriggers = ['Task Created', 'Task created'];
+    if (created.assigneeId || created.assigneeName) {
+      createdTriggers.push('Task Assigned', 'Task assigned');
+    }
     await this.dispatchAgentTaskEvents(created, createdTriggers);
     return created;
   }
@@ -986,7 +988,16 @@ export class TaskService {
    */
   static async updateTaskById(id: string, data: Partial<ITask>): Promise<ITaskDocument> {
     const task = await this.getTaskById(id);
-    const previous = { status: task.status, priority: task.priority, targetDueDate: task.targetDueDate, assigneeId: task.assigneeId, assigneeName: task.assigneeName };
+    const previous = {
+      status: task.status,
+      priority: task.priority,
+      targetDueDate: task.targetDueDate,
+      assigneeId: task.assigneeId,
+      assigneeName: task.assigneeName,
+      taskName: task.taskName,
+      description: task.description,
+      subStatus: task.complianceStatus?.status,
+    };
 
     Object.assign(task, data);
 
@@ -1013,7 +1024,27 @@ export class TaskService {
     }
     if (previous.priority !== updated.priority) triggers.add('Priority Changed');
     if (previous.targetDueDate !== updated.targetDueDate) triggers.add('Due Date Changed');
-    if ((previous.assigneeId !== updated.assigneeId || previous.assigneeName !== updated.assigneeName) && (updated.assigneeId || updated.assigneeName)) triggers.add('Task assigned');
+
+    // Assignee changed or newly assigned
+    if ((previous.assigneeId !== updated.assigneeId || previous.assigneeName !== updated.assigneeName)) {
+      if (updated.assigneeId || updated.assigneeName) {
+        triggers.add('Task Assigned');
+        triggers.add('Task assigned');
+      } else if (previous.assigneeId || previous.assigneeName) {
+        triggers.add('Task Unassigned from a User');
+      }
+    }
+
+    // Name or description changed
+    if ((data.taskName && data.taskName !== previous.taskName) || (data.description && data.description !== previous.description)) {
+      triggers.add('Task Name/Description Updated');
+    }
+
+    // Sub-status changed
+    if (data.complianceStatus?.status && data.complianceStatus.status !== previous.subStatus) {
+      triggers.add('Sub-Status Changed');
+    }
+
     await this.dispatchAgentTaskEvents(updated, [...triggers]);
     return updated;
   }
@@ -1046,7 +1077,11 @@ export class TaskService {
     });
 
     const updated = await task.save();
-    await this.dispatchAgentTaskEvents(updated, ['Comment Added']);
+    const commentTriggers = ['Comment Added'];
+    if (comment.text && (comment.text.includes('@') || /@\w+/.test(comment.text))) {
+      commentTriggers.push('Tagged in a Comment');
+    }
+    await this.dispatchAgentTaskEvents(updated, commentTriggers);
     return updated;
   }
 
@@ -1205,7 +1240,12 @@ export class TaskService {
     task.documentRequests.push(newDocItem as any);
     task.markModified('documentRequests');
     await task.save();
-    await this.dispatchAgentTaskEvents(task, ['Files Uploaded']);
+
+    const uploadTriggers = ['Files Uploaded'];
+    if (task.status === 'Completed' || String(category).toUpperCase().includes('FINAL')) {
+      uploadTriggers.push('Task Completed & Final Document Uploaded');
+    }
+    await this.dispatchAgentTaskEvents(task, uploadTriggers);
 
     return { task, document: uploaded };
   }

@@ -8,13 +8,16 @@ import { findTrigger } from './definitions';
 import { AgentCenterService } from './agent.service';
 import { Client } from '../client/client.model';
 import { UserModel } from '../auth/user.model';
+import { MailService } from '../../shared/utils/mailService';
+import { WhatsAppService, isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
+import { env } from '../../config/env';
 
 const DEMO_RECIPIENTS: Record<string, { name: string; address?: string; email?: string; mobile?: string; id?: string }> = {
-  Client: { name: 'Sample Company', address: 'sample.client@example.test', mobile: '+10000000000', id: 'sample-client' },
-  'Assigned user': { name: 'Sample User', address: 'sample.user@example.test', mobile: '+10000000001', id: 'sample-assignee' },
-  'Task owner': { name: 'Sample Manager', address: 'sample.manager@example.test', mobile: '+10000000002', id: 'sample-owner' },
-  'Account administrator': { name: 'Account Administrator', address: 'admin@example.test', mobile: '+10000000003', id: 'sample-admin' },
-  'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test', mobile: '+10000000004', id: 'sample-reviewer' },
+  Client: { name: 'Sample Company', address: 'sample.client@example.test', email: 'sample.client@example.test', mobile: '+10000000000', id: 'sample-client' },
+  'Assigned user': { name: 'Sample User', address: 'sample.user@example.test', email: 'sample.user@example.test', mobile: '+10000000001', id: 'sample-assignee' },
+  'Task owner': { name: 'Sample Manager', address: 'sample.manager@example.test', email: 'sample.manager@example.test', mobile: '+10000000002', id: 'sample-owner' },
+  'Account administrator': { name: 'Account Administrator', address: 'admin@example.test', email: 'admin@example.test', mobile: '+10000000003', id: 'sample-admin' },
+  'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+10000000004', id: 'sample-reviewer' },
 };
 
 function readPath(source: unknown, path: string): unknown {
@@ -46,7 +49,7 @@ export function compareCondition(node: WorkflowNode, variables: Record<string, u
   return { result: operator === 'greater_than' ? actualDate > expectedDate : actualDate < expectedDate, value: actual };
 }
 
-export function runGraph(graph: WorkflowGraph, variables: Record<string, unknown>, failRecipient?: string) {
+export async function runGraph(graph: WorkflowGraph, variables: Record<string, unknown>, failRecipient?: string) {
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
   const trace: Array<Record<string, unknown>> = [];
   const results: Array<Record<string, unknown>> = [];
@@ -77,7 +80,7 @@ export function runGraph(graph: WorkflowGraph, variables: Record<string, unknown
         : recipientData.id || '';
     const renderedMessage = renderAgentTemplate(String(node.config.message), { ...variables, recipient: recipientData });
     const renderedSubject = renderAgentTemplate(String(node.config.subject || node.config.action), { ...variables, recipient: recipientData });
-    const output = executeProvider(channel, { recipient: recipientAddress, recipientLabel: recipient, message: renderedMessage, subject: renderedSubject, previewOnly: variables.previewOnly === true, simulateFailure: failRecipient === recipient });
+    const output = await executeProvider(channel, { recipient: recipientAddress, recipientLabel: recipient, message: renderedMessage, subject: renderedSubject, previewOnly: variables.previewOnly === true, simulateFailure: failRecipient === recipient });
     results.push({ nodeId: node.id, nodeName: node.name, recipient, ...output });
     trace.push({ nodeId: node.id, nodeName: node.name, type: 'action', status: output.status, provider: output.provider, simulated: output.simulated });
     currentId = graph.edges.find((item) => item.source === node.id && item.sourceHandle === 'next')?.target ?? '__end__';
@@ -99,7 +102,10 @@ export interface ProviderExecutionOutput {
 }
 
 export function isEmailConfigured(): boolean {
-  const hasSmtp = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER);
+  const hasSmtp = Boolean(
+    (process.env.SMTP_USER || env.SMTP_USER) &&
+    (process.env.SMTP_PASS || env.SMTP_PASS)
+  );
   const hasGmail = Boolean(
     process.env.GOOGLE_CLIENT_ID &&
     process.env.GOOGLE_CLIENT_SECRET &&
@@ -108,7 +114,7 @@ export function isEmailConfigured(): boolean {
   return hasSmtp || hasGmail;
 }
 
-export function executeProvider(
+export async function executeProvider(
   channel: string,
   payload: {
     recipient: string;
@@ -118,7 +124,7 @@ export function executeProvider(
     previewOnly: boolean;
     simulateFailure: boolean;
   }
-): ProviderExecutionOutput {
+): Promise<ProviderExecutionOutput> {
   const providerName = channel === 'Email' ? 'email' : channel === 'WhatsApp' ? 'whatsapp' : 'in-app';
   const envName = channel === 'Email' ? 'MOCK_EMAIL_FAILURE' : channel === 'WhatsApp' ? 'MOCK_WHATSAPP_FAILURE' : '';
   const configuredFailure = envName ? process.env[envName] === 'true' : false;
@@ -194,26 +200,76 @@ export function executeProvider(
         executionId,
       };
     }
+
+    const mailResult = await MailService.sendMail({
+      to: payload.recipient,
+      subject: payload.subject,
+      text: payload.message,
+    });
+
+    if (!mailResult.success) {
+      return {
+        provider: 'email',
+        mode: 'real',
+        status: 'failed',
+        simulated: false,
+        error: mailResult.error || 'SMTP delivery transmission failure.',
+        timestamp: new Date().toISOString(),
+        executionId,
+      };
+    }
+
     return {
       provider: 'email',
       mode: 'real',
       status: 'delivered',
       simulated: false,
-      executionId,
+      executionId: mailResult.messageId || executionId,
       timestamp: new Date().toISOString(),
       recipient: payload.recipientLabel,
+      subject: payload.subject,
+      renderedMessage: payload.message,
     };
   }
 
   if (channel === 'WhatsApp') {
+    if (!isWhatsAppConfigured()) {
+      return {
+        provider: 'whatsapp',
+        mode: 'real',
+        status: 'failed',
+        simulated: false,
+        error: 'WhatsApp Business API provider credentials not configured in environment (WHATSAPP_API_TOKEN and WHATSAPP_PHONE_NUMBER_ID required).',
+        timestamp: new Date().toISOString(),
+        executionId,
+      };
+    }
+
+    const waResult = await WhatsAppService.sendMessage({
+      to: payload.recipient,
+      message: payload.message,
+    });
+
+    if (!waResult.success) {
+      return {
+        provider: 'whatsapp',
+        mode: 'real',
+        status: 'failed',
+        simulated: false,
+        error: waResult.error || 'WhatsApp message dispatch failed.',
+        timestamp: new Date().toISOString(),
+        executionId,
+      };
+    }
+
     return {
       provider: 'whatsapp',
       mode: 'real',
-      status: 'failed',
+      status: 'delivered',
       simulated: false,
-      error: 'WhatsApp Business API provider credentials not configured in environment.',
+      executionId: waResult.messageId || executionId,
       timestamp: new Date().toISOString(),
-      executionId,
+      recipient: payload.recipientLabel,
     };
   }
 
@@ -235,7 +291,7 @@ export function buildTaskClientLookup(orgId: string, clientId: string) {
   return { _id: clientId, orgId, active: true, isDeleted: false };
 }
 
-async function resolveActualRecipients(orgId: string, task: Record<string, unknown>, recipients: string[]) {
+async function resolveActualRecipients(orgId: string, event: Record<string, unknown>, recipients: string[]) {
   const resolved: Record<string, { name: string; email?: string; mobile?: string; id?: string }> = {};
   const activeUser = async (id: unknown) => {
     if (typeof id !== 'string' || !Types.ObjectId.isValid(id)) return null;
@@ -243,16 +299,16 @@ async function resolveActualRecipients(orgId: string, task: Record<string, unkno
   };
   for (const role of new Set(recipients)) {
     if (role === 'Client') {
-      const clientId = typeof task.clientId === 'string' ? task.clientId : '';
+      const clientId = typeof event.clientId === 'string' ? event.clientId : '';
       const lookup = buildTaskClientLookup(orgId, clientId);
       if (!lookup) continue;
       const client = await Client.findOne(lookup).select('name email mobile').lean().exec();
       if (client) resolved[role] = { name: client.name, email: client.email || '', mobile: client.mobile || '', id: String(client._id) };
       continue;
     }
-    const user = role === 'Assigned user' ? await activeUser(task.assigneeId)
-      : role === 'Task owner' ? await activeUser(task.createdBy || task.userId)
-        : role === 'Responsible person' ? await activeUser(task.reviewerId)
+    const user = role === 'Assigned user' ? await activeUser(event.assigneeId)
+      : role === 'Task owner' ? await activeUser(event.createdBy || event.userId)
+        : role === 'Responsible person' ? await activeUser(event.reviewerId)
           : role === 'Account administrator' ? await UserModel.findOne({ orgId, role: { $in: ['admin', 'Admin'] }, status: { $in: ['active', 'Active'] } }).sort({ createdAt: 1, _id: 1 }).select('name email mobile').lean().exec()
             : null;
     if (user) resolved[role] = { name: user.name, email: user.email || '', mobile: user.mobile || '', id: String(user._id) };
@@ -294,9 +350,9 @@ export class AgentExecutionService {
     const trigger = findTrigger(agent.module, config.trigger);
     if (!trigger) throw AppError.badRequest('Configured trigger is not available for this module.');
     const triggerData: Record<string, unknown> = context.event
-      ? { simulated: false, event: config.trigger, task: context.event }
+      ? { simulated: false, event: config.trigger, ...context.event }
       : { simulated: true, ...trigger.sampleEvent(config.conditions) };
-    const event = (triggerData['task'] || triggerData['dsc'] || triggerData['license'] || {}) as Record<string, unknown>;
+    const event = (triggerData['task'] || triggerData['dsc'] || triggerData['license'] || context.event || {}) as Record<string, unknown>;
     const graph = config.workflowGraph as WorkflowGraph | undefined;
     const recipients = (Array.isArray(config.recipient) ? config.recipient : [config.recipient])
       .filter((recipient): recipient is string => typeof recipient === 'string');
@@ -312,8 +368,8 @@ export class AgentExecutionService {
       ...(clientRecord ? { client: { name: clientRecord.name, email: clientRecord.email } } : {}),
     };
     // The strict validator guarantees this list is normalized and valid.
-    const graphRun = graph?.nodes.length ? runGraph(graph, variables, context.failRecipient) : null;
-    const results = graphRun ? graphRun.results : recipients.map((recipient) => {
+    const graphRun = graph?.nodes.length ? await runGraph(graph, variables, context.failRecipient) : null;
+    const results = graphRun ? graphRun.results : await Promise.all(recipients.map(async (recipient) => {
       const recipientData: { name: string; address?: string; email?: string; mobile?: string; id?: string } = context.event ? resolvedRecipients?.[recipient] || { name: recipient, address: '' } : DEMO_RECIPIENTS[recipient] || { name: recipient, address: '' };
       const renderedMessage = renderAgentTemplate(String(config.message), {
         ...variables,
@@ -323,7 +379,7 @@ export class AgentExecutionService {
       const recipientAddress = config.channel === 'Email' ? recipientData.email || recipientData.address || ''
         : config.channel === 'WhatsApp' ? recipientData.mobile || ''
           : recipientData.id || '';
-      const output = mockProvider(String(config.channel), {
+      const output = await mockProvider(String(config.channel), {
         recipient: recipientAddress,
         recipientLabel: recipient,
         message: renderedMessage,
@@ -332,7 +388,7 @@ export class AgentExecutionService {
         simulateFailure: context.failRecipient === recipient,
       });
       return { recipient, ...output };
-    });
+    }));
 
     const isRealRun = Boolean(context.event && context.runType === 'actual');
     const executionMode: 'real' | 'mock' = isRealRun ? 'real' : 'mock';
@@ -351,9 +407,9 @@ export class AgentExecutionService {
             : 'Execution completed: notifications delivered.'
         : 'SIMULATED RUN: no notification was sent.',
       message: isRealRun
-        ? `Task event “${config.trigger}” executed for “${agent.name}”. ${failed.length ? `${failed.length} delivery attempt(s) failed.` : 'All notifications delivered.'}`
+        ? `${agent.module} event “${config.trigger}” executed for “${agent.name}”. ${failed.length ? `${failed.length} delivery attempt(s) failed.` : 'All notifications delivered.'}`
         : context.event
-          ? `Task event “${config.trigger}” matched “${agent.name}”. Actions were simulated; no real notification was sent.`
+          ? `${agent.module} event “${config.trigger}” matched “${agent.name}”. Actions were simulated; no real notification was sent.`
           : `Simulation completed for “${agent.name}”. No real notification was sent.`,
       trigger: config.trigger,
       conditions: config.conditions,
@@ -392,7 +448,10 @@ export class AgentExecutionService {
   static async dispatchTaskEvent(orgId: string, triggerName: string, task: Record<string, unknown>, eventId: string) {
     if (!orgId || !eventId) return [];
     const agents = await Agent.find({ orgId, module: 'Task', status: 'published' }).select('_id config').exec();
-    const matching = agents.filter((agent) => (agent.config as AgentConfig)?.trigger === triggerName);
+    const matching = agents.filter((agent) => {
+      const cfg = (agent.config as AgentConfig)?.trigger || '';
+      return cfg.toLowerCase() === triggerName.toLowerCase();
+    });
     const safeTask = {
       id: String(task.id || ''),
       taskId: String(task.taskId || ''),
@@ -407,12 +466,47 @@ export class AgentExecutionService {
       reviewerId: String(task.reviewerId || ''),
       createdBy: String(task.createdBy || ''),
       userId: String(task.userId || ''),
+      expense_name: task.expense_name ? String(task.expense_name) : undefined,
+      expense_amount: task.expense_amount ? String(task.expense_amount) : undefined,
+      reviewer_name: task.reviewer_name ? String(task.reviewer_name) : undefined,
+      your_firm_name: task.your_firm_name ? String(task.your_firm_name) : 'CA Practice Firm',
+      task_status: task.status ? String(task.status) : undefined,
     };
     return Promise.all(matching.map((agent) => this.run(String(agent._id), {
       orgId,
       event: safeTask,
       runType: 'actual',
       idempotencyKey: `task-event:${eventId}:${String(agent._id)}`,
+    })));
+  }
+
+  static async dispatchDscEvent(orgId: string, triggerName: string, dsc: Record<string, unknown>, eventId: string) {
+    if (!orgId || !eventId) return [];
+    const agents = await Agent.find({ orgId, module: 'DSC', status: 'published' }).select('_id config').exec();
+    const matching = agents.filter((agent) => {
+      const cfg = (agent.config as AgentConfig)?.trigger || '';
+      return cfg.toLowerCase() === triggerName.toLowerCase();
+    });
+    return Promise.all(matching.map((agent) => this.run(String(agent._id), {
+      orgId,
+      event: dsc,
+      runType: 'actual',
+      idempotencyKey: `dsc-event:${eventId}:${String(agent._id)}`,
+    })));
+  }
+
+  static async dispatchLicenseEvent(orgId: string, triggerName: string, license: Record<string, unknown>, eventId: string) {
+    if (!orgId || !eventId) return [];
+    const agents = await Agent.find({ orgId, module: 'License', status: 'published' }).select('_id config').exec();
+    const matching = agents.filter((agent) => {
+      const cfg = (agent.config as AgentConfig)?.trigger || '';
+      return cfg.toLowerCase() === triggerName.toLowerCase();
+    });
+    return Promise.all(matching.map((agent) => this.run(String(agent._id), {
+      orgId,
+      event: license,
+      runType: 'actual',
+      idempotencyKey: `license-event:${eventId}:${String(agent._id)}`,
     })));
   }
 

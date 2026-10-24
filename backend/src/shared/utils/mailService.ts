@@ -41,7 +41,58 @@ function getTransporter(): Transporter | null {
   return transporter;
 }
 
+export interface SendMailOptions {
+  to: string | string[];
+  subject: string;
+  text?: string;
+  html?: string;
+  from?: string;
+}
+
+export interface SendMailResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
 export class MailService {
+  /**
+   * Send a general transactional or notification email
+   */
+  public static async sendMail(options: SendMailOptions): Promise<SendMailResult> {
+    const toRecipients = Array.isArray(options.to) ? options.to.join(', ') : options.to;
+    const client = getTransporter();
+
+    if (!client) {
+      const msg = 'Email delivery provider credentials not configured in environment (SMTP or Gmail required).';
+      logger.warn(`📧 [MAIL SERVICE NOT CONFIGURED] To: ${toRecipients} | Subject: ${options.subject}`);
+      return { success: false, error: msg };
+    }
+
+    try {
+      const from = options.from || process.env.SMTP_FROM || env.SMTP_FROM || `"CA Practice Management" <${process.env.SMTP_USER || env.SMTP_USER}>`;
+      const info = await client.sendMail({
+        from,
+        to: toRecipients,
+        subject: options.subject,
+        text: options.text || (options.html ? options.html.replace(/<[^>]+>/g, '') : ''),
+        html: options.html || (options.text ? `<p style="white-space: pre-wrap;">${options.text}</p>` : ''),
+      });
+
+      logger.info(`✅ Successfully dispatched email to ${toRecipients} (MessageId: ${info.messageId})`);
+      return {
+        success: true,
+        messageId: info.messageId,
+      };
+    } catch (err: any) {
+      logger.error(`❌ Failed to send email via SMTP to ${toRecipients}:`, err);
+      return {
+        success: false,
+        error: err?.message || 'SMTP transmission failure',
+      };
+    }
+  }
+
   /**
    * Send single-use OTP verification email
    */

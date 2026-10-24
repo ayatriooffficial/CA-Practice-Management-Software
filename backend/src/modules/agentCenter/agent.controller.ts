@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AgentCenterService } from './agent.service';
-import { AgentExecutionService } from './execution.service';
+import { AgentExecutionService, isEmailConfigured } from './execution.service';
+import { isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
+import { AgentSchedulerService } from './scheduler.service';
 import { getPublicDefinitions } from './definitions';
 import { AppError } from '../../shared/utils/apiError';
 
@@ -13,7 +15,50 @@ function organizationId(req: Request): string {
 
 export class AgentCenterController {
   static definitions = asyncHandler(async (_req: Request, res: Response) => {
-    return ApiResponse.success(res, getPublicDefinitions(), 'Agent definitions fetched successfully');
+    const defs = getPublicDefinitions();
+    const withIntegrations = {
+      ...defs,
+      integrations: {
+        email: {
+          configured: isEmailConfigured(),
+          statusText: isEmailConfigured() ? 'Connected' : 'Kindly integrate email',
+        },
+        whatsapp: {
+          configured: isWhatsAppConfigured(),
+          statusText: isWhatsAppConfigured() ? 'Connected' : 'Kindly integrate WhatsApp',
+        },
+      },
+    };
+    return ApiResponse.success(res, withIntegrations, 'Agent definitions fetched successfully');
+  });
+
+  static integrationsStatus = asyncHandler(async (_req: Request, res: Response) => {
+    const emailConfigured = isEmailConfigured();
+    const whatsappConfigured = isWhatsAppConfigured();
+    return ApiResponse.success(res, {
+      email: {
+        configured: emailConfigured,
+        statusText: emailConfigured ? 'Connected' : 'Kindly integrate email',
+      },
+      whatsapp: {
+        configured: whatsappConfigured,
+        statusText: whatsappConfigured ? 'Connected' : 'Kindly integrate WhatsApp',
+      },
+    }, 'Integration statuses retrieved');
+  });
+
+  static schedulerTick = asyncHandler(async (req: Request, res: Response) => {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.authorization;
+    const isCronAuthorized = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+    const isUserAuthorized = Boolean(req.user?.orgId);
+
+    if (!isCronAuthorized && !isUserAuthorized) {
+      throw AppError.unauthorized('Unauthorized scheduler invocation.');
+    }
+
+    const summary = await AgentSchedulerService.tick();
+    return ApiResponse.success(res, summary, 'Scheduler tick executed');
   });
 
   static list = asyncHandler(async (req: Request, res: Response) => {

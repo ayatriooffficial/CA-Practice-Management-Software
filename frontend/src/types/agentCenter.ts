@@ -35,6 +35,19 @@ export interface AgentModuleDefinition {
   triggers: TriggerDefinition[];
 }
 
+export interface IntegrationStatus {
+  email: {
+    configured: boolean;
+    provider: string;
+    details: string;
+  };
+  whatsApp: {
+    configured: boolean;
+    provider: string;
+    details: string;
+  };
+}
+
 export interface AgentDefinitions {
   modules: Record<AgentModule, AgentModuleDefinition>;
   recipients: AgentRecipient[];
@@ -42,6 +55,7 @@ export interface AgentDefinitions {
   actions: AgentAction[];
   emailTemplates: AgentEmailTemplate[];
   templateVariables: string[];
+  integrations?: IntegrationStatus;
 }
 
 export interface AgentEmailTemplate {

@@ -323,6 +323,25 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
   const definitions = PUBLIC_DEFINITIONS;
 
+  const integrationsQuery = useQuery({
+    queryKey: ['agent-center-integrations'],
+    queryFn: async () => {
+      try {
+        const response = await request<{ email: { configured: boolean; provider: string }; whatsApp: { configured: boolean; provider: string } }>('/agent-center/integrations/status');
+        if (response.success && response.data) return response.data;
+      } catch {}
+      return {
+        email: { configured: false, provider: 'SMTP' },
+        whatsApp: { configured: false, provider: 'Meta Cloud API' },
+      };
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const emailConfigured = Boolean(integrationsQuery.data?.email?.configured);
+  const whatsAppConfigured = Boolean(integrationsQuery.data?.whatsApp?.configured);
+
   const previewTasksQuery = useQuery({
     queryKey: ['agent-center-preview-tasks'],
     queryFn: async () => {
@@ -546,7 +565,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
   async function persistDraft(progressToSave: WorkflowStageProgress = confirmedSteps, nameOverride?: string) {
     const currentId = savedAgentId || agentId;
-    const effectiveName = nameOverride !== undefined ? nameOverride : name.trim() || `Task Agents Draft`;
+    const effectiveName = nameOverride !== undefined ? nameOverride : name.trim() || `${module} Agents Draft`;
     if (!name.trim() && nameOverride) {
       setName(nameOverride);
     }
@@ -584,7 +603,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
     setLocalError('');
     setNotice(null);
 
-    const effectiveName = name.trim() || `Task Agents Draft`;
+    const effectiveName = name.trim() || `${module} Agents Draft`;
     if (!name.trim()) setName(effectiveName);
     if (effectiveName.length > 100 || description.length > 500) {
       setLocalError('Check the agent name and description length before saving this stage.');
@@ -692,7 +711,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
     if (busyRef.current) return;
     setLocalError('');
     setNotice(null);
-    const effectiveName = name.trim() || `Task Agents`;
+    const effectiveName = name.trim() || `${module} Agents`;
     if (effectiveName.length > 100) {
       setLocalError('Agent name must be 100 characters or fewer.');
       return;
@@ -975,6 +994,33 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                                 ? 'WhatsApp Business messaging (simulated)'
                                 : 'In-app notification badge'}
                           </p>
+                          <div className="mt-1">
+                            {channel === 'Email' ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  emailConfigured
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {emailConfigured ? 'Connected' : 'Kindly integrate email'}
+                              </span>
+                            ) : channel === 'WhatsApp' ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  whatsAppConfigured
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {whatsAppConfigured ? 'Connected' : 'Kindly integrate WhatsApp'}
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                Ready
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <span
@@ -1195,7 +1241,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             ) : (
               <>
                 <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                Done
+                {stepKey === 'event'
+                  ? 'Select Recipients >'
+                  : stepKey === 'recipient'
+                    ? 'Select Channel >'
+                    : stepKey === 'channel'
+                      ? 'Configure Action >'
+                      : 'Done'}
               </>
             )}
           </button>
@@ -1222,7 +1274,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
           {/* Title & Editable Name */}
           <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Task Agents</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{module} Agents</h1>
             <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
               <input
                 value={name}
@@ -1368,7 +1420,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                 } else if (step.key === 'channel') {
                   if (selectedChannel) {
                     title = selectedChannel;
-                    subtitle = 'Delivery channel';
+                    if (selectedChannel === 'Email') {
+                      subtitle = emailConfigured ? 'Connected' : 'Kindly integrate email';
+                    } else if (selectedChannel === 'WhatsApp') {
+                      subtitle = whatsAppConfigured ? 'Connected' : 'Kindly integrate WhatsApp';
+                    } else {
+                      subtitle = 'In-app notification';
+                    }
                   }
                 } else if (step.key === 'action') {
                   if (isConfirmed || (actionStepValid && selectedAction)) {

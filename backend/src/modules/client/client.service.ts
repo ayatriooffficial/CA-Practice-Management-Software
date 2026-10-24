@@ -8,6 +8,7 @@ import { PaginationMeta } from '../../shared/utils/apiResponse';
 import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
+import { AgentExecutionService } from '../agentCenter/execution.service';
 
 export class ClientService {
   /**
@@ -738,7 +739,20 @@ export class ClientService {
     client.licenses = client.licenses || [];
     client.licenses.unshift(newLicense);
     client.markModified('licenses');
-    return await client.save();
+    const saved = await client.save();
+    if (saved.orgId) {
+      void AgentExecutionService.dispatchLicenseEvent(
+        String(saved.orgId),
+        'License Created',
+        {
+          clientId: String(saved._id),
+          clientName: saved.name,
+          license: newLicense,
+        },
+        `lic-created:${String(saved._id)}:${newLicense.id}`
+      ).catch(() => []);
+    }
+    return saved;
   }
 
   /**
@@ -774,7 +788,20 @@ export class ClientService {
     client.dscs = client.dscs || [];
     client.dscs.unshift(newDsc);
     client.markModified('dscs');
-    return await client.save();
+    const saved = await client.save();
+    if (saved.orgId) {
+      void AgentExecutionService.dispatchDscEvent(
+        String(saved.orgId),
+        'DSC Created',
+        {
+          clientId: String(saved._id),
+          clientName: saved.name,
+          dsc: newDsc,
+        },
+        `dsc-created:${String(saved._id)}:${newDsc.id}`
+      ).catch(() => []);
+    }
+    return saved;
   }
 
   /**

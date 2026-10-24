@@ -14,11 +14,14 @@ import {
 
 const router = Router();
 
-// The parent mounts optionalAuthenticate for development compatibility. Agent records
-// themselves require an organization context and are scoped to that tenant.
+// Public / operational endpoints that do not require an active user session:
+router.get('/definitions', AgentCenterController.definitions);
+router.get('/integrations/status', AgentCenterController.integrationsStatus);
+router.post('/scheduler/tick', AgentCenterController.schedulerTick);
+
+// Tenant-scoped endpoints require an organization context:
 router.use((req, _res, next) => req.user?.orgId ? next() : next(AppError.unauthorized('Sign in to access Agent Center.')));
 
-router.get('/definitions', AgentCenterController.definitions);
 router.get('/history', validateRequest({ query: historyQuerySchema }), AgentCenterController.globalHistory);
 router.get('/agents', validateRequest({ query: queryAgentsSchema }), AgentCenterController.list);
 router.post('/agents', mutationRateLimiter, validateRequest({ body: createAgentSchema }), AgentCenterController.create);
