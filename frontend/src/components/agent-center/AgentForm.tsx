@@ -1259,7 +1259,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] bg-slate-50 font-sans">
       {/* 1. TOP HEADER & BREADCRUMB (Matches Turia Reference) */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 z-20">
+      <header className="bg-white border-b border-slate-200 px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-4 z-20">
         <div>
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
@@ -1320,14 +1320,14 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
       {/* Notice Banner */}
       {notice && (
-        <div className="px-6 pt-3">
+        <div className="px-4 md:px-5 pt-3">
           <NoticeBanner type={notice.type}>{notice.text}</NoticeBanner>
         </div>
       )}
 
       {/* 2. TURIA WORKFLOW CANVAS (Subtle Dotted Grid) */}
       <main
-        className="relative flex-1 w-full overflow-x-auto overflow-y-auto min-h-[920px] p-6 md:p-10 select-none"
+        className="relative flex-1 w-full overflow-x-auto overflow-y-auto min-h-[920px] p-4 md:p-6 select-none"
         style={{
           backgroundColor: '#FFFFFF',
           backgroundImage: 'radial-gradient(#CBD5E1 1.2px, transparent 1.2px)',

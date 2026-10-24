@@ -233,7 +233,7 @@ export default function AgentList() {
   };
 
   return (
-    <div className="w-full px-6 pt-5 pb-6 select-none bg-white min-h-[calc(100vh-56px)]">
+    <div className="w-full px-4 md:px-5 pt-4 pb-6 select-none bg-white min-h-[calc(100vh-56px)]">
       {/* 1. TOP HEADER & TABS (When on Overview or History) */}
       {!selectedModule && (
         <div>
@@ -311,13 +311,13 @@ export default function AgentList() {
       {!selectedModule && activeTab === 'modules' && (
         <div className="mt-6">
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm table-fixed">
               <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
                 <tr>
-                  <th className="py-3.5 px-6 w-[22%]">Module</th>
-                  <th className="py-3.5 px-6 w-[48%]">Description</th>
-                  <th className="py-3.5 px-6 w-[18%]">Active Agents</th>
-                  <th className="py-3.5 px-6 text-right w-[12%]">Action</th>
+                  <th className="py-3.5 px-5 w-[18%]">Module</th>
+                  <th className="py-3.5 px-5 w-[58%]">Description</th>
+                  <th className="py-3.5 px-5 w-[14%]">Active Agents</th>
+                  <th className="py-3.5 px-5 text-right w-[10%]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -334,7 +334,7 @@ export default function AgentList() {
                       onClick={() => navigateToModule(mod.name)}
                       className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                     >
-                      <td className="py-4 px-6 align-middle">
+                      <td className="py-4 px-5 align-middle">
                         <div className="flex items-center gap-3.5">
                           <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
@@ -352,10 +352,10 @@ export default function AgentList() {
                           </p>
                         </div>
                       </td>
-                      <td className="py-4 px-6 text-xs text-slate-500 align-middle max-w-md">
+                      <td className="py-4 px-5 text-xs text-slate-500 align-middle leading-relaxed">
                         {mod.description}
                       </td>
-                      <td className="py-4 px-6 align-middle">
+                      <td className="py-4 px-5 align-middle">
                         <span
                           className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${
                             count > 0
@@ -366,7 +366,7 @@ export default function AgentList() {
                           {count} Active Agents
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-right align-middle">
+                      <td className="py-4 px-5 text-right align-middle">
                         <Link
                           href={`/agents/new?module=${mod.name}`}
                           onClick={(e) => e.stopPropagation()}
@@ -439,16 +439,16 @@ export default function AgentList() {
 
           {/* Table Container matching Turia Opening Pages */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm table-fixed">
               <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
                 <tr>
-                  <th className="py-3.5 px-5">Name</th>
-                  <th className="py-3.5 px-5">Trigger</th>
-                  <th className="py-3.5 px-5">Channel</th>
-                  <th className="py-3.5 px-5">Recipients</th>
-                  <th className="py-3.5 px-5">Last Triggered</th>
-                  <th className="py-3.5 px-5">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  <th className="py-3.5 px-5 w-[40%]">Name</th>
+                  <th className="py-3.5 px-5 w-[14%]">Trigger</th>
+                  <th className="py-3.5 px-5 w-[10%]">Channel</th>
+                  <th className="py-3.5 px-5 w-[12%]">Recipients</th>
+                  <th className="py-3.5 px-5 w-[10%]">Last Triggered</th>
+                  <th className="py-3.5 px-5 w-[6%]">Status</th>
+                  <th className="py-3.5 px-5 text-right w-[8%]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -620,18 +620,18 @@ export default function AgentList() {
 
           {/* History Execution Table */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm table-fixed">
               <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
                 <tr>
-                  <th className="py-3 px-5">Status</th>
-                  <th className="py-3 px-5">Agent</th>
-                  <th className="py-3 px-5">Client</th>
-                  <th className="py-3 px-5">Module</th>
-                  <th className="py-3 px-5">Trigger Event</th>
-                  <th className="py-3 px-5">Channel</th>
-                  <th className="py-3 px-5">Recipients</th>
-                  <th className="py-3 px-5">Details</th>
-                  <th className="py-3 px-5 text-right">Time</th>
+                  <th className="py-3 px-5 w-[7%]">Status</th>
+                  <th className="py-3 px-5 w-[12%]">Agent</th>
+                  <th className="py-3 px-5 w-[11%]">Client</th>
+                  <th className="py-3 px-5 w-[8%]">Module</th>
+                  <th className="py-3 px-5 w-[17%]">Trigger Event</th>
+                  <th className="py-3 px-5 w-[7%]">Channel</th>
+                  <th className="py-3 px-5 w-[14%]">Recipients</th>
+                  <th className="py-3 px-5 w-[14%]">Details</th>
+                  <th className="py-3 px-5 text-right w-[10%]">Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
