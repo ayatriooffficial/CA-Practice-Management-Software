@@ -273,6 +273,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      // In development mode, auto-fallback to DEFAULT_USER if not explicitly logged out
+      if (process.env.NODE_ENV === "development" && !isLoggedOut) {
+        setCurrentUser(DEFAULT_USER);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USER));
+          localStorage.setItem("turia_session_date", today);
+        } catch {}
+        return;
+      }
+
       setCurrentUser(null);
     } catch {
       setCurrentUser(null);

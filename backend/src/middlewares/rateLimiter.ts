@@ -8,6 +8,7 @@ import { HttpStatus } from '../constants/httpStatusCodes';
 export const apiRateLimiter = rateLimit({
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   max: env.RATE_LIMIT_MAX_REQUESTS,
+  skip: () => env.NODE_ENV === 'development',
   standardHeaders: true,
   legacyHeaders: false,
   message: {

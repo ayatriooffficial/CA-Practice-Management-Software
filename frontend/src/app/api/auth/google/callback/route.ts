@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
+  AUTHORIZED_PRACTICE_EMAIL,
   clearStateCookie,
   exchangeCodeForTokens,
-  getSessionFromCookie,
-  saveSessionToCookie,
+  saveGlobalIntegrationTokens,
   STATE_COOKIE_NAME,
 } from '@/lib/gmail/client';
-import type { GmailSession } from '@/lib/gmail/client';
 
 export const runtime = 'nodejs';
 
@@ -38,21 +37,29 @@ export async function GET(request: NextRequest) {
       // Fallback if userinfo fails
     }
 
-    const existing = await getSessionFromCookie(request);
+    // Strict validation check: abort session creation if not authorized practice email
+    if (!email || email.toLowerCase() !== AUTHORIZED_PRACTICE_EMAIL.toLowerCase()) {
+      const unauthorizedResponse = NextResponse.redirect(
+        new URL('/email?error=UnauthorizedAccount', request.url),
+      );
+      clearStateCookie(unauthorizedResponse);
+      return unauthorizedResponse;
+    }
 
-    const sessionData: GmailSession = {
-      access_token: tokens.access_token || '',
-      refresh_token: tokens.refresh_token || existing?.refresh_token,
-      scope: tokens.scope || undefined,
-      token_type: tokens.token_type || undefined,
-      expiry_date: tokens.expiry_date || undefined,
-      email: email || existing?.email || undefined,
-    };
+    // Save the global refresh_token into the backend MongoDB Integration schema
+    if (tokens.refresh_token) {
+      await saveGlobalIntegrationTokens({
+        email,
+        refreshToken: tokens.refresh_token,
+        accessToken: tokens.access_token,
+        expiryDate: tokens.expiry_date,
+        scope: tokens.scope,
+      });
+    }
 
     const response = NextResponse.redirect(
       new URL('/email?gmail=connected', request.url),
     );
-    saveSessionToCookie(response, sessionData);
     clearStateCookie(response);
     return response;
   } catch (err: unknown) {

@@ -37,7 +37,11 @@ export function getRedirectUri(): string {
   );
 }
 
-export function generateAuthUrl(state: string): string {
+/* ── Authorized Practice Email ─────────────────────────────────────── */
+export const AUTHORIZED_PRACTICE_EMAIL =
+  process.env.AUTHORIZED_PRACTICE_EMAIL || 'searchaicloud@gmail.com';
+
+export function generateAuthUrl(state: string, loginHint = AUTHORIZED_PRACTICE_EMAIL): string {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) throw new Error('Missing GOOGLE_CLIENT_ID');
   const params = new URLSearchParams({
@@ -48,6 +52,7 @@ export function generateAuthUrl(state: string): string {
     access_type: 'offline',
     prompt: 'consent',
     state,
+    login_hint: loginHint,
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
@@ -186,6 +191,74 @@ export function clearStateCookie(response: NextResponse): void {
   });
 }
 
+import { google } from 'googleapis';
+
+const BACKEND_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:5000/api/v1';
+
+export function getOAuth2Client() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+  }
+  return new google.auth.OAuth2(clientId, clientSecret, getRedirectUri());
+}
+
+export async function saveGlobalIntegrationTokens(data: {
+  email: string;
+  refreshToken: string;
+  accessToken?: string;
+  expiryDate?: number;
+  scope?: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json().catch(() => ({}));
+    return res.ok && Boolean(json.success);
+  } catch (err) {
+    console.error('Failed to save global integration tokens to backend:', err);
+    return false;
+  }
+}
+
+export async function getGlobalIntegration(): Promise<{
+  provider: string;
+  email: string;
+  refreshToken: string;
+  updatedAt: string;
+} | null> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.success && json.data ? json.data : null;
+  } catch (err) {
+    console.error('Failed to fetch global integration from backend:', err);
+    return null;
+  }
+}
+
+export async function removeGlobalIntegration(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Failed to remove global integration from backend:', err);
+    return false;
+  }
+}
+
 /* ── Authenticated client helper ───────────────────────────────────── */
 export interface AuthenticatedClient {
   accessToken: string;
@@ -195,27 +268,40 @@ export interface AuthenticatedClient {
 export async function getAuthenticatedClient(
   request?: NextRequest,
 ): Promise<AuthenticatedClient | null> {
-  const session = await getSessionFromCookie(request);
-  if (!session?.access_token && !session?.refresh_token) return null;
-
-  let accessToken = session.access_token;
-  const isExpired = session.expiry_date ? Date.now() >= session.expiry_date - 60000 : false;
-
-  if ((!accessToken || isExpired) && session.refresh_token) {
-    try {
-      const refreshed = await refreshAccessToken(session.refresh_token);
-      accessToken = refreshed.access_token;
-      session.access_token = accessToken;
-      if (refreshed.expiry_date) session.expiry_date = refreshed.expiry_date;
-    } catch {
-      // Refresh failed, continue with existing if present
+  // Check mock dev token for development testing
+  if (process.env.NODE_ENV !== 'production') {
+    const session = await getSessionFromCookie(request);
+    if (session?.access_token === 'mock_token') {
+      return {
+        accessToken: 'mock_token',
+        email: session.email || 'practice@ayatrio.com',
+      };
     }
   }
 
-  if (!accessToken) return null;
+  // Fetch the global refresh_token from the backend database (MongoDB Integration schema)
+  try {
+    const globalIntegration = await getGlobalIntegration();
+    if (globalIntegration?.refreshToken) {
+      const oauth2Client = getOAuth2Client();
+      oauth2Client.setCredentials({
+        refresh_token: globalIntegration.refreshToken,
+      });
 
-  return {
-    accessToken,
-    email: session.email || '',
-  };
+      // Google SDK automatically generates a fresh access token on the fly
+      const tokenRes = await oauth2Client.getAccessToken();
+      const accessToken = tokenRes.token;
+
+      if (accessToken) {
+        return {
+          accessToken,
+          email: globalIntegration.email || AUTHORIZED_PRACTICE_EMAIL,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error refreshing token from global database credentials:', err);
+  }
+
+  return null;
 }

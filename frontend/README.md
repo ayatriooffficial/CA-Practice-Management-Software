@@ -81,6 +81,11 @@ Ayatrio delivers a high-performance single-pane-of-glass workspace for professio
 ### 6. Leads Pipeline (`/leads`)
 * Visual pipeline stages (`New`, `Contacted`, `Qualified`, `Proposal`, `Converted`).
 * One-click conversion modal (`ConvertLeadModal.tsx`) to convert a prospect into a client.
+* **Lead Tasks & Follow-Up Suite (`LeadTasksTab.tsx`)**:
+  * Track consultations, client check-ins, and pipeline follow-ups with priority, assignee, due date, and status.
+  * **Quick Email Action**: Clicking "Contact via Email" opens the in-app `ComposeModal` pre-populated with lead email, contextual subject line, and polite follow-up template formatted in clean plain text.
+  * **WhatsApp Quick Action**: Instant one-click launch to WhatsApp Web with normalized international phone formatting.
+  * **Quotation Emailing**: Direct one-click email composition from the Quotation view modal (`QuotationViewModal.tsx`).
 
 ### 7. Team Directory (`/team`)
 * Firm hierarchy directory by Partners, Managers, Seniors, and Associates with active workload indicators and contact info.
@@ -99,7 +104,10 @@ Ayatrio delivers a high-performance single-pane-of-glass workspace for professio
 * Assessment Year / Financial Year switcher (`2025-26`, `2026-27`) and filing frequency filters.
 
 ### 10. Gmail Inbox & Client Communication (`/email`)
-* Google OAuth 2.0 integration allowing CAs to link their Google Workspace / Gmail account.
+* **Global Practice Inbox**: MongoDB-backed integration connecting the practice to an authorized Google account (`searchaicloud@gmail.com`), eliminating per-user session cookie requirements.
+* **Strict Single-Account Guard**: Forces `login_hint` during authorization and strictly validates the returned email on callback to prevent unauthorized personal accounts from accessing the practice inbox.
+* **Auto-Thread Selection**: Automatically detects and loads the first conversation thread when navigating to the inbox.
+* **Sandboxed Style Isolation (`HtmlEmailRenderer.tsx`)**: Renders email message bodies inside dynamically sized, sandboxed iframes to completely isolate third-party CSS styles from bleeding into the CRM navigation shell and themes.
 * Two-pane responsive inbox layout: thread list on the left, live email conversation thread on the right.
 * Client correspondence search across subjects, senders, and message bodies with unread tags.
 * In-app rich compose and reply modal with direct transmission via the Gmail API.
