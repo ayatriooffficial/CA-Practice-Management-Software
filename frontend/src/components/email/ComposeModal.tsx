@@ -2,24 +2,37 @@
 
 import React, { useState } from 'react';
 
-interface ComposeModalProps {
+export interface ComposeModalProps {
   onClose: () => void;
-  onSend: (params: {
+  onSend?: (params: {
     to: string;
     cc?: string;
     subject: string;
     body: string;
   }) => Promise<{ success: boolean; error?: string }>;
   sending?: boolean;
+  initialTo?: string;
+  initialSubject?: string;
+  initialHtmlBody?: string;
+  zIndex?: number;
 }
 
-export function ComposeModal({ onClose, onSend, sending }: ComposeModalProps) {
-  const [to, setTo] = useState('');
+export function ComposeModal({
+  onClose,
+  onSend,
+  sending,
+  initialTo = '',
+  initialSubject = '',
+  initialHtmlBody = '',
+  zIndex = 60,
+}: ComposeModalProps) {
+  const [to, setTo] = useState(initialTo);
   const [cc, setCc] = useState('');
   const [showCc, setShowCc] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [subject, setSubject] = useState(initialSubject);
+  const [body, setBody] = useState(initialHtmlBody);
   const [error, setError] = useState<string | null>(null);
+  const [internalSending, setInternalSending] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,12 +41,34 @@ export function ComposeModal({ onClose, onSend, sending }: ComposeModalProps) {
       return;
     }
     setError(null);
-    const res = await onSend({
-      to: to.trim(),
-      cc: cc.trim() || undefined,
-      subject: subject.trim(),
-      body: body.trim(),
-    });
+    let res: { success: boolean; error?: string };
+    if (onSend) {
+      res = await onSend({
+        to: to.trim(),
+        cc: cc.trim() || undefined,
+        subject: subject.trim(),
+        body: body.trim(),
+      });
+    } else {
+      setInternalSending(true);
+      try {
+        const { send } = await import('@/lib/integrations/gmail');
+        await send({
+          to: to.trim(),
+          cc: cc.trim() || undefined,
+          subject: subject.trim(),
+          body: body.trim(),
+        });
+        res = { success: true };
+      } catch (err: unknown) {
+        res = {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to send email.',
+        };
+      } finally {
+        setInternalSending(false);
+      }
+    }
     if (res.success) {
       onClose();
     } else {
@@ -41,12 +76,26 @@ export function ComposeModal({ onClose, onSend, sending }: ComposeModalProps) {
     }
   }
 
+  const isSending = sending || internalSending;
+
+  React.useEffect(() => {
+    if (initialTo !== undefined) setTo(initialTo);
+  }, [initialTo]);
+
+  React.useEffect(() => {
+    if (initialSubject !== undefined) setSubject(initialSubject);
+  }, [initialSubject]);
+
+  React.useEffect(() => {
+    if (initialHtmlBody !== undefined) setBody(initialHtmlBody);
+  }, [initialHtmlBody]);
+
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 50,
+        zIndex: zIndex ?? 60,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -239,7 +288,7 @@ export function ComposeModal({ onClose, onSend, sending }: ComposeModalProps) {
           </button>
           <button
             type="submit"
-            disabled={sending}
+            disabled={isSending}
             style={{
               padding: '0.5rem 1.25rem',
               borderRadius: 'var(--radius-md)',
@@ -248,11 +297,11 @@ export function ComposeModal({ onClose, onSend, sending }: ComposeModalProps) {
               color: 'var(--text-inverse)',
               fontSize: '0.875rem',
               fontWeight: 600,
-              cursor: sending ? 'not-allowed' : 'pointer',
-              opacity: sending ? 0.7 : 1,
+              cursor: isSending ? 'not-allowed' : 'pointer',
+              opacity: isSending ? 0.7 : 1,
             }}
           >
-            {sending ? 'Sending…' : 'Send'}
+            {isSending ? 'Sending…' : 'Send'}
           </button>
         </div>
       </form>

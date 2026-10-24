@@ -12,6 +12,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    if (process.env.NODE_ENV !== 'production' && auth.accessToken === 'mock_token') {
+      return NextResponse.json({
+        ok: true,
+        threads: [
+          {
+            id: 'mock-thread-1',
+            subject: 'Quotation QT-2026-0089 from Ayatrio Practice',
+            from: 'Priya Sharma <priyasharma@gmail.com>',
+            snippet: 'Please find attached the details for Quotation QT-2026-0089 regarding GST Annual Return Filing...',
+            date: 'Today, 2:30 PM',
+            unread: false,
+            messageCount: 1,
+          },
+          {
+            id: 'mock-thread-2',
+            subject: 'Tax Audit Documentation Update',
+            from: 'Rajesh Gupta <rajesh@guptafinance.com>',
+            snippet: 'Please find attached the financial statements and books of accounts for AY 2025-26.',
+            date: 'Yesterday, 5:15 PM',
+            unread: true,
+            messageCount: 1,
+          },
+        ],
+        nextPageToken: null,
+      });
+    }
+
     const params = new URL(request.url).searchParams;
     const query = params.get('q') || '';
     const pageToken = params.get('pageToken') || undefined;

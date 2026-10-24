@@ -11,6 +11,8 @@
     "clean": "rimraf dist",
     "seed:nc": "tsx src/scripts/seed-nc.ts",
     "seed:mock-client": "tsx src/scripts/seed-mock-client.ts",
+    "seed:tasks-and-clients": "tsx src/scripts/seed-tasks-and-clients.ts",
+    "seed:leads": "tsx src/scripts/seed-leads.ts",
     "get-drive-token": "node scripts/get-refresh-token.js",
     "sync:atlas": "node scripts/sync-local-to-atlas.js"
   },

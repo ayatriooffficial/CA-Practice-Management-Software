@@ -24,7 +24,7 @@ type LoginStep = "email" | "password";
 export const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentUser, login, workdaySession, resumeWorkdaySession } = useAuth();
+  const { currentUser, login, workdaySession, resumeWorkdaySession, switchToUser } = useAuth();
 
   useEffect(() => {
     if (currentUser) {
@@ -407,6 +407,39 @@ export const LoginForm: React.FC = () => {
           Create Organization
         </Link>
       </div>
+      {/* Quick-Fill Helpers for testing */}
+      <aside
+        aria-label="Demo credentials helper"
+        className="fixed bottom-4 right-4 z-30 max-w-xs bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-lg text-[11px] text-gray-500"
+      >
+        <span className="font-semibold text-gray-700 dark:text-gray-200 block mb-1">
+          Quick-Fill:
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            id="quick-fill-admin"
+            type="button"
+            onClick={() => {
+              switchToUser?.('admin');
+              router.push("/leads");
+            }}
+            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#6d55f4] hover:bg-purple-50 font-medium cursor-pointer"
+          >
+            Admin (Dipak)
+          </button>
+          <button
+            id="quick-fill-employee"
+            type="button"
+            onClick={() => {
+              switchToUser?.('employee');
+              router.push("/leads");
+            }}
+            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#6d55f4] hover:bg-purple-50 font-medium cursor-pointer"
+          >
+            Employee (Vikram)
+          </button>
+        </div>
+      </aside>
     </div>
   );
 };

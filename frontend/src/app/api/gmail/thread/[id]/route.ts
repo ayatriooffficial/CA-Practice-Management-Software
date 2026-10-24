@@ -21,6 +21,30 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Missing thread id' }, { status: 400 });
     }
 
+    if (process.env.NODE_ENV !== 'production' && auth.accessToken === 'mock_token') {
+      return NextResponse.json({
+        ok: true,
+        messages: [
+          {
+            id: 'msg-1',
+            threadId: id,
+            from: 'Ayatrio Practice <practice@ayatrio.com>',
+            to: 'Priya Sharma <priyasharma@gmail.com>',
+            subject: 'Quotation QT-2026-0089 from Ayatrio Practice',
+            date: 'Today, 2:15 PM',
+            bodyText:
+              'Dear Priya Sharma,\n\nPlease find attached the details for Quotation QT-2026-0089 regarding GST Annual Return Filing (GSTR-9 & 9C).\n\nTotal Amount: ₹29,500.00\n\nIf you have any questions, feel free to reply directly to this email.\n\nBest regards,\nAyatrio Practice',
+            bodyHtml:
+              '<p>Dear Priya Sharma,</p><p>Please find attached the details for Quotation QT-2026-0089 regarding GST Annual Return Filing (GSTR-9 & 9C).</p><p>Total Amount: ₹29,500.00</p><p>If you have any questions, feel free to reply directly to this email.</p><p>Best regards,<br/>Ayatrio Practice</p>',
+            messageIdHeader: '<msg1@ayatrio.com>',
+            references: '',
+            labelIds: ['INBOX'],
+            attachments: [],
+          },
+        ],
+      });
+    }
+
     const threadUrl = `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(id)}?format=full`;
     const threadRes = await fetch(threadUrl, {
       headers: { Authorization: `Bearer ${auth.accessToken}` },

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   X,
   Mail,
@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Quotation } from "@/services/quotationApi";
 import { Lead } from "@/data/crmData";
+import { ComposeModal } from "@/components/email/ComposeModal";
+import * as gmail from "@/lib/integrations/gmail";
 
 interface QuotationViewModalProps {
   quotation: Quotation;
@@ -28,6 +30,13 @@ export const QuotationViewModal: React.FC<QuotationViewModalProps> = ({
   onClose,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({
+    to: "",
+    subject: "",
+    body: "",
+  });
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const handlePrint = () => {
     // Remove any previous print frame if left over
@@ -385,13 +394,58 @@ export const QuotationViewModal: React.FC<QuotationViewModalProps> = ({
     window.open(`https://wa.me/${intlNumber}?text=${msg}`, "_blank");
   };
 
-  const handleEmail = () => {
-    const mail = quotation.quotationTo?.email || lead?.email;
-    if (!mail) {
-      alert("No email address found.");
-      return;
+  const handleOpenEmailCompose = () => {
+    const to = lead?.email || quotation.quotationTo?.email || "";
+    const quotationId = quotation.quotationNo || quotation.id || "";
+    const billingOrgName = quotation.billingOrg?.name || "Ayatrio Practice";
+    const clientName =
+      quotation.quotationTo?.name ||
+      quotation.quotationTo?.businessName ||
+      lead?.fullName ||
+      "Client";
+    const serviceName =
+      quotation.items && quotation.items.length > 0
+        ? quotation.items.map((item) => item.serviceName).filter(Boolean).join(", ")
+        : "Services";
+    const totalAmount = `₹${(quotation.totalAmount || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+    const subject = `Quotation ${quotationId} from ${billingOrgName}`;
+    const body = `Dear ${clientName},
+
+Please find attached the details for Quotation ${quotationId} regarding ${serviceName}.
+
+Total Amount: ${totalAmount}
+
+If you have any questions, feel free to reply directly to this email.
+
+Best regards,
+Ayatrio Practice`;
+
+    setComposeData({ to, subject, body });
+    setIsComposeOpen(true);
+  };
+
+  const handleSendEmail = async (params: {
+    to: string;
+    cc?: string;
+    subject: string;
+    body: string;
+  }) => {
+    setSendingEmail(true);
+    try {
+      await gmail.send(params);
+      return { success: true };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to send email.",
+      };
+    } finally {
+      setSendingEmail(false);
     }
-    window.location.href = `mailto:${mail}?subject=Quotation%20${quotation.quotationNo}%20from%20${quotation.billingOrg?.name}`;
   };
 
   return (
@@ -457,7 +511,7 @@ export const QuotationViewModal: React.FC<QuotationViewModalProps> = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleEmail}
+                onClick={handleOpenEmailCompose}
                 title="Email Quotation"
                 className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
               >
@@ -739,6 +793,18 @@ export const QuotationViewModal: React.FC<QuotationViewModalProps> = ({
         </div>
       </div>
     </div>
+
+    {isComposeOpen && (
+      <ComposeModal
+        initialTo={composeData.to}
+        initialSubject={composeData.subject}
+        initialHtmlBody={composeData.body}
+        onClose={() => setIsComposeOpen(false)}
+        onSend={handleSendEmail}
+        sending={sendingEmail}
+        zIndex={60}
+      />
+    )}
   </>
 );
 };
