@@ -132,11 +132,10 @@ export const HomeDashboard: React.FC = () => {
 
   return (
     <div
-      className="w-full flex flex-col transition-colors min-h-screen"
+      className="w-full flex flex-col transition-colors min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc]"
       style={{
         padding: '24px 32px 48px 32px',
         gap: '24px',
-        backgroundColor: 'var(--bg-app, #f8fafc)',
       }}
     >
       {/* 1. Welcome Greeting Banner (Username only) */}

@@ -27,9 +27,38 @@ function getContext(req: Request): FinancialUserContext {
 export class FinancialController {
   static getReport = asyncHandler(async (req: Request, res: Response) => {
     const ctx = getContext(req);
-    const { from, to } = req.query as { from: string; to: string };
+    const { from, to, clientId, view, search } = req.query as {
+      from: string;
+      to: string;
+      clientId?: string;
+      view?: 'list' | 'client' | 'employee';
+      search?: string;
+    };
     if (from > to) throw AppError.badRequest('Start date must be on or before end date');
-    return ApiResponse.success(res, await FinancialService.getProfitabilityReport(from, to, ctx));
+    return ApiResponse.success(res, await FinancialService.getProfitabilityReport(from, to, ctx, { clientId, view, search }));
+  });
+
+  static getReportPdf = asyncHandler(async (req: Request, res: Response) => {
+    const ctx = getContext(req);
+    const { from, to, clientId, view, search } = req.query as {
+      from: string;
+      to: string;
+      clientId?: string;
+      view?: 'list' | 'client' | 'employee';
+      search?: string;
+    };
+    if (from > to) throw AppError.badRequest('Start date must be on or before end date');
+    const pdfBuffer = await FinancialService.getProfitabilityReportPdf(from, to, ctx, { clientId, view, search });
+
+    const sanitizedClient = clientId ? clientId.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
+    const filename = sanitizedClient
+      ? `client-profitability-report-${sanitizedClient}-${from}-to-${to}.pdf`
+      : `profitability-report-${from}-to-${to}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.end(pdfBuffer);
   });
 
   static listInvoices = asyncHandler(async (req: Request, res: Response) =>

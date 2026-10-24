@@ -12,23 +12,23 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
   records,
   isLoading = false,
 }) => {
-  // Badge styles
-  const getBadgeStyle = (badge: string) => {
+  // Badge styles with dark mode support
+  const getBadgeClass = (badge: string) => {
     switch (badge) {
       case 'Present':
-        return { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+        return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40';
       case 'Absent':
-        return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
+        return 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40';
       case 'On Leave':
-        return { bg: '#fff7ed', text: '#ea580c', border: '#ffedd5' };
+        return 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800/40';
       case 'Half Day':
-        return { bg: '#fefce8', text: '#ca8a04', border: '#fef08a' };
+        return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40';
       case 'Week Off':
-        return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+        return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/40';
       case 'Holiday':
-        return { bg: '#faf5ff', text: '#7c3aed', border: '#e9d8fd' };
+        return 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/40';
       default:
-        return { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+        return 'bg-gray-100 dark:bg-[#162032] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-[#334155]';
     }
   };
 
@@ -37,14 +37,11 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
 
   return (
     <div
-      className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all flex flex-col"
-      style={{
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-      }}
+      className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
     >
       {/* Table Header */}
       <div
-        className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800"
+        className="flex items-center justify-between border-b border-gray-100 dark:border-[#334155]"
         style={{
           padding: '16px 20px',
         }}
@@ -66,9 +63,9 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
       >
         <table className="w-full border-collapse text-left whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <tr className="border-b border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032]">
               <th
-                className="sticky left-0 z-10 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-xs text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-gray-100 dark:border-gray-800"
+                className="sticky left-0 z-10 bg-gray-50/95 dark:bg-[#162032]/95 backdrop-blur-xs text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-gray-100 dark:border-[#334155]"
                 style={{ padding: '12px 20px' }}
               >
                 Date
@@ -99,7 +96,7 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
             {isLoading ? (
               <tr>
                 <td colSpan={9} className="text-center py-12 text-xs text-gray-400">
@@ -114,16 +111,16 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
               </tr>
             ) : (
               filteredRecords.map((r) => {
-                const bStyle = getBadgeStyle(r.attendanceBadge);
+                const badgeClass = getBadgeClass(r.attendanceBadge);
 
                 return (
                   <tr
                     key={r.date}
-                    className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors"
+                    className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors"
                   >
                     {/* Sticky Date */}
                     <td
-                      className="sticky left-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xs text-xs font-medium text-gray-900 dark:text-white border-r border-gray-100 dark:border-gray-800"
+                      className="sticky left-0 z-10 bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xs text-xs font-medium text-gray-900 dark:text-white border-r border-gray-100 dark:border-[#334155]"
                       style={{ padding: '12px 20px' }}
                     >
                       {r.date}
@@ -137,12 +134,7 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
                     {/* Attendance Badge */}
                     <td style={{ padding: '12px 16px' }}>
                       <span
-                        className="px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block"
-                        style={{
-                          backgroundColor: bStyle.bg,
-                          color: bStyle.text,
-                          borderColor: bStyle.border,
-                        }}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block ${badgeClass}`}
                       >
                         {r.attendanceBadge}
                       </span>

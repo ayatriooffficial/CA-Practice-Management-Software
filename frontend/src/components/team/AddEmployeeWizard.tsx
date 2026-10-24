@@ -313,21 +313,21 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#334155] w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn transition-colors">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-[#334155] flex items-center justify-between bg-gradient-to-r from-gray-50 to-white dark:from-[#162032] dark:to-[#1e293b]">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
               {isEdit ? 'Edit Employee' : 'Add New Employee'}
             </h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Step {currentStep} of 4: {steps[currentStep - 1].title}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#162032] transition-colors cursor-pointer"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -336,7 +336,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
         </div>
 
         {/* Stepper Bar */}
-        <div className="px-6 py-3 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-3 bg-gray-50/70 dark:bg-[#162032] border-b border-gray-100 dark:border-[#334155] flex items-center justify-between">
           {steps.map((st, idx) => {
             const isCompleted = currentStep > st.num;
             const isCurrent = currentStep === st.num;
@@ -347,7 +347,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                     ? 'bg-emerald-500 text-white'
                     : isCurrent
                       ? 'bg-[#3D6A9E] text-white shadow-md shadow-[#3D6A9E]/20'
-                      : 'bg-gray-200 text-gray-600'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                     }`}
                 >
                   {isCompleted ? (
@@ -359,13 +359,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   )}
                 </div>
                 <div className="hidden sm:block text-left">
-                  <div className={`text-xs font-semibold ${isCurrent ? 'text-[#3D6A9E]' : 'text-gray-700'}`}>
+                  <div className={`text-xs font-semibold ${isCurrent ? 'text-[#3D6A9E] dark:text-[#60a5fa]' : 'text-gray-700 dark:text-gray-300'}`}>
                     {st.title}
                   </div>
                   <div className="text-[10px] text-gray-400">{st.sub}</div>
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className="flex-1 h-0.5 mx-2 bg-gray-200 hidden md:block" />
+                  <div className="flex-1 h-0.5 mx-2 bg-gray-200 dark:bg-gray-700 hidden md:block" />
                 )}
               </div>
             );
@@ -374,7 +374,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-2">
+          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 rounded-lg text-xs flex items-center gap-2">
             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -388,7 +388,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
           {currentStep === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   First Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -396,12 +396,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="e.g. Deepak"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Last Name
                 </label>
                 <input
@@ -409,12 +409,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="e.g. Sahani"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -422,12 +422,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="deepak@krishnaassociates.example"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -436,12 +436,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder="9876543210"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Designation <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -449,18 +449,18 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={designation}
                   onChange={(e) => setDesignation(e.target.value)}
                   placeholder="e.g. Audit Senior / Article Assistant"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Role <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={role}
                   onChange={(e) => handleRoleChange(e.target.value as TeamRole)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="Admin">Admin</option>
                   <option value="Partner">Partner</option>
@@ -470,13 +470,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Department <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="All Department">All Department</option>
                   <option value="Audit & Taxation">Audit & Taxation</option>
@@ -488,13 +488,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Shift <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={shift}
                   onChange={(e) => setShift(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="General (09:30 AM - 06:30 PM)">General (09:30 AM - 06:30 PM)</option>
                   <option value="Morning (08:30 AM - 05:30 PM)">Morning (08:30 AM - 05:30 PM)</option>
@@ -503,7 +503,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Reporting To
                 </label>
                 <input
@@ -511,12 +511,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={reportingTo}
                   onChange={(e) => setReportingTo(e.target.value)}
                   placeholder="e.g. Sunita Sharma"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Employee ID
                 </label>
                 <input
@@ -524,24 +524,24 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
                   placeholder="e.g. EMP007"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Date of Joining
                 </label>
                 <input
                   type="date"
                   value={joiningDate}
                   onChange={(e) => setJoiningDate(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Salary / Stipend (₹/mo)
                 </label>
                 <input
@@ -549,12 +549,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={salary}
                   onChange={(e) => setSalary(e.target.value)}
                   placeholder="e.g. 35000"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Cost Per Hour (₹)
                 </label>
                 <input
@@ -562,12 +562,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={costPerHour}
                   onChange={(e) => setCostPerHour(e.target.value)}
                   placeholder="e.g. 400"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Billing Rate (₹/hr)
                 </label>
                 <input
@@ -575,12 +575,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={billingRate}
                   onChange={(e) => setBillingRate(e.target.value)}
                   placeholder="e.g. 1000"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Work Experience
                 </label>
                 <input
@@ -588,7 +588,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={workExperience}
                   onChange={(e) => setWorkExperience(e.target.value)}
                   placeholder="e.g. 3 Years in Statutory Audit"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
             </div>
@@ -598,25 +598,25 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
           {currentStep === 2 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Date of Birth
                 </label>
                 <input
                   type="date"
                   value={dob}
                   onChange={(e) => setDob(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Gender
                 </label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
@@ -625,13 +625,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   ID Proof Type
                 </label>
                 <select
                   value={idProofType}
                   onChange={(e) => setIdProofType(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="PAN">PAN Card</option>
                   <option value="Aadhaar">Aadhaar Card</option>
@@ -641,7 +641,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   ID Number
                 </label>
                 <input
@@ -649,18 +649,18 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={idNumber}
                   onChange={(e) => setIdNumber(e.target.value)}
                   placeholder="e.g. ABCDE1234F"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Marital Status
                 </label>
                 <select
                   value={maritalStatus}
                   onChange={(e) => setMaritalStatus(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="Single">Single</option>
                   <option value="Married">Married</option>
@@ -669,13 +669,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Blood Group
                 </label>
                 <select
                   value={bloodGroup}
                   onChange={(e) => setBloodGroup(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E] bg-white"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 >
                   <option value="A+">A+</option>
                   <option value="B+">B+</option>
@@ -689,7 +689,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               <div className="md:col-span-3">
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Education / Qualifications
                 </label>
                 <input
@@ -697,12 +697,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={education}
                   onChange={(e) => setEducation(e.target.value)}
                   placeholder="e.g. CA Inter, B.Com (Hons), DISA"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Father's Name
                 </label>
                 <input
@@ -710,12 +710,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={fatherName}
                   onChange={(e) => setFatherName(e.target.value)}
                   placeholder="Father's full name"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Mother's Name
                 </label>
                 <input
@@ -723,12 +723,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={motherName}
                   onChange={(e) => setMotherName(e.target.value)}
                   placeholder="Mother's full name"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Emergency Contact Name
                 </label>
                 <input
@@ -736,12 +736,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={emergencyContactName}
                   onChange={(e) => setEmergencyContactName(e.target.value)}
                   placeholder="e.g. Suresh Sahani (Brother)"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Emergency Contact Number
                 </label>
                 <input
@@ -750,7 +750,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={emergencyContactNumber}
                   onChange={(e) => setEmergencyContactNumber(e.target.value)}
                   placeholder="9812345678"
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
             </div>
@@ -760,13 +760,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3D6A9E]" />
                   Present Address
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       Address Line 1 <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -774,11 +774,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       value={presentAddress.addressLine1}
                       onChange={(e) => setPresentAddress({ ...presentAddress, addressLine1: e.target.value })}
                       placeholder="Flat / Building / House No., Street"
-                      className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                      className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       Address Line 2
                     </label>
                     <input
@@ -786,11 +786,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       value={presentAddress.addressLine2 || ''}
                       onChange={(e) => setPresentAddress({ ...presentAddress, addressLine2: e.target.value })}
                       placeholder="Landmark / Area"
-                      className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                      className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       City <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -798,11 +798,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       value={presentAddress.city}
                       onChange={(e) => setPresentAddress({ ...presentAddress, city: e.target.value })}
                       placeholder="e.g. Mumbai"
-                      className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                      className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       State <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -810,11 +810,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       value={presentAddress.state}
                       onChange={(e) => setPresentAddress({ ...presentAddress, state: e.target.value })}
                       placeholder="e.g. Maharashtra"
-                      className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                      className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                       Pincode <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -823,22 +823,22 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       value={presentAddress.pincode}
                       onChange={(e) => setPresentAddress({ ...presentAddress, pincode: e.target.value })}
                       placeholder="400001"
-                      className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                      className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Same address checkbox */}
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-[#334155]">
                 <input
                   type="checkbox"
                   id="sameAddress"
                   checked={sameAddress}
                   onChange={(e) => setSameAddress(e.target.checked)}
-                  className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 focus:ring-[#3D6A9E]"
+                  className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 dark:border-[#475569] focus:ring-[#3D6A9E]"
                 />
-                <label htmlFor="sameAddress" className="text-xs font-semibold text-gray-700 cursor-pointer">
+                <label htmlFor="sameAddress" className="text-xs font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
                   Same as Present Address
                 </label>
               </div>
@@ -846,13 +846,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               {/* Permanent Address */}
               {!sameAddress && (
                 <div className="pt-2 animate-fadeIn">
-                  <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     Permanent Address
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                         Address Line 1
                       </label>
                       <input
@@ -860,11 +860,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                         value={permanentAddress.addressLine1}
                         onChange={(e) => setPermanentAddress({ ...permanentAddress, addressLine1: e.target.value })}
                         placeholder="Flat / Building / House No., Street"
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                        className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                         Address Line 2
                       </label>
                       <input
@@ -872,11 +872,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                         value={permanentAddress.addressLine2 || ''}
                         onChange={(e) => setPermanentAddress({ ...permanentAddress, addressLine2: e.target.value })}
                         placeholder="Landmark / Area"
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                        className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                         City
                       </label>
                       <input
@@ -884,11 +884,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                         value={permanentAddress.city}
                         onChange={(e) => setPermanentAddress({ ...permanentAddress, city: e.target.value })}
                         placeholder="City"
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                        className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                         State
                       </label>
                       <input
@@ -896,11 +896,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                         value={permanentAddress.state}
                         onChange={(e) => setPermanentAddress({ ...permanentAddress, state: e.target.value })}
                         placeholder="State"
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                        className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                         Pincode
                       </label>
                       <input
@@ -909,7 +909,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                         value={permanentAddress.pincode}
                         onChange={(e) => setPermanentAddress({ ...permanentAddress, pincode: e.target.value })}
                         placeholder="Pincode"
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                        className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                       />
                     </div>
                   </div>
@@ -921,12 +921,12 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
           {/* STEP 4: Role Permissions */}
           {currentStep === 4 && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-[#334155]">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                     Permissions for {role} Role
                   </h3>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Control access to modules. Checking Add/Edit, Delete, Import, or Export auto-enables View.
                   </p>
                 </div>
@@ -935,7 +935,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => setPermissions(getPresetPermissions(role))}
-                    className="text-xs font-semibold text-[#3D6A9E] hover:text-[#3D6A9E] px-3 py-1.5 rounded-lg border border-[#3D6A9E]/30 hover:bg-[#EEF2FF] transition-colors self-start sm:self-auto"
+                    className="text-xs font-semibold text-[#3D6A9E] dark:text-[#60a5fa] hover:text-[#3D6A9E] px-3 py-1.5 rounded-lg border border-[#3D6A9E]/30 dark:border-[#475569] hover:bg-[#EEF2FF] dark:hover:bg-[#162032] transition-colors self-start sm:self-auto cursor-pointer"
                   >
                     Reset to {role} Defaults
                   </button>
@@ -943,15 +943,15 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               {role === 'Admin' && (
-                <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-3 text-purple-900">
-                  <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 rounded-xl flex items-center gap-3 text-purple-900 dark:text-purple-300">
+                  <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
                   <div className="text-xs">
-                    <div className="font-bold text-purple-950">Full Administrative Access</div>
-                    <div className="text-purple-700">
+                    <div className="font-bold text-purple-950 dark:text-purple-200">Full Administrative Access</div>
+                    <div className="text-purple-700 dark:text-purple-300">
                       Users with the Admin role have unrestricted view, edit, delete, import, and export permissions across all 33 firm modules.
                     </div>
                   </div>
@@ -959,9 +959,9 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               )}
 
               {/* 33 Modules Permissions Matrix */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm max-h-[460px] overflow-y-auto">
+              <div className="border border-gray-200 dark:border-[#334155] rounded-xl overflow-hidden shadow-2xs max-h-[460px] overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-gray-50 text-gray-600 uppercase font-semibold sticky top-0 z-10 border-b border-gray-200">
+                  <thead className="bg-gray-50 dark:bg-[#162032] text-gray-600 dark:text-gray-400 uppercase font-semibold sticky top-0 z-10 border-b border-gray-200 dark:border-[#334155]">
                     <tr>
                       <th className="py-2.5 px-4">Module Name</th>
                       <th className="py-2.5 px-3 text-center w-24">View</th>
@@ -971,7 +971,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       <th className="py-2.5 px-3 text-center w-24">Export</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
                     {MODULE_CONFIGS.map((mod, idx) => {
                       const curPerm = permissions[mod.key] || {
                         view: false,
@@ -985,9 +985,9 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                       return (
                         <tr
                           key={mod.key}
-                          className={idx % 2 === 0 ? 'bg-white hover:bg-gray-50/50' : 'bg-gray-50/30 hover:bg-gray-50/60'}
+                          className={idx % 2 === 0 ? 'bg-white dark:bg-[#1e293b] hover:bg-gray-50/50 dark:hover:bg-[#131d30]' : 'bg-gray-50/30 dark:bg-[#162032]/40 hover:bg-gray-50/60 dark:hover:bg-[#131d30]'}
                         >
-                          <td className="py-2 px-4 font-medium text-gray-800">
+                          <td className="py-2 px-4 font-medium text-gray-800 dark:text-gray-200">
                             {mod.label}
                           </td>
 
@@ -998,7 +998,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                               checked={isAdmin ? true : curPerm.view}
                               disabled={isAdmin || !mod.canView}
                               onChange={(e) => handlePermissionCheckbox(mod.key, 'view', e.target.checked)}
-                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 focus:ring-[#3D6A9E] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             />
                           </td>
 
@@ -1009,7 +1009,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                               checked={isAdmin ? true : curPerm.addEdit}
                               disabled={isAdmin || !mod.canAddEdit}
                               onChange={(e) => handlePermissionCheckbox(mod.key, 'addEdit', e.target.checked)}
-                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 focus:ring-[#3D6A9E] disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                             />
                           </td>
 
@@ -1020,7 +1020,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                               checked={isAdmin ? true : curPerm.delete}
                               disabled={isAdmin || !mod.canDelete}
                               onChange={(e) => handlePermissionCheckbox(mod.key, 'delete', e.target.checked)}
-                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 focus:ring-[#3D6A9E] disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                             />
                           </td>
 
@@ -1031,7 +1031,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                               checked={isAdmin ? mod.canImport : curPerm.import}
                               disabled={isAdmin || !mod.canImport}
                               onChange={(e) => handlePermissionCheckbox(mod.key, 'import', e.target.checked)}
-                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 focus:ring-[#3D6A9E] disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
                             />
                           </td>
 
@@ -1042,7 +1042,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                               checked={isAdmin ? mod.canExport : curPerm.export}
                               disabled={isAdmin || !mod.canExport}
                               onChange={(e) => handlePermissionCheckbox(mod.key, 'export', e.target.checked)}
-                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 focus:ring-[#3D6A9E] disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-4 h-4 text-[#3D6A9E] rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
                             />
                           </td>
                         </tr>
@@ -1056,11 +1056,11 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032] flex items-center justify-between">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors shadow-sm"
+            className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#475569] rounded-lg hover:bg-gray-100 dark:hover:bg-[#1e293b] transition-colors shadow-2xs cursor-pointer"
           >
             Cancel
           </button>
@@ -1070,7 +1070,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors shadow-sm"
+                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#475569] rounded-lg hover:bg-gray-100 dark:hover:bg-[#1e293b] transition-colors shadow-2xs cursor-pointer"
               >
                 Back
               </button>
@@ -1080,7 +1080,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-5 py-2 text-xs font-semibold text-white bg-[#3D6A9E] rounded-lg hover:bg-[#3D6A9E] transition-colors shadow-sm shadow-[#3D6A9E]/20"
+                className="px-5 py-2 text-xs font-semibold text-white bg-[#3D6A9E] rounded-lg hover:bg-[#315782] transition-colors shadow-sm shadow-[#3D6A9E]/20 cursor-pointer"
               >
                 Next
               </button>
@@ -1088,7 +1088,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-colors shadow-sm shadow-emerald-600/20"
+                className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-colors shadow-sm shadow-emerald-600/20 cursor-pointer"
               >
                 {isEdit ? 'Save Changes' : 'Save Employee'}
               </button>

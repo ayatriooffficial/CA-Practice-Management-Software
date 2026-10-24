@@ -1,5 +1,4 @@
-import { AgentAction, AgentChannel, AgentModule, AgentRecipient } from './agent.interface';
-import { PUBLIC_AGENT_DEFINITIONS } from './catalog';
+import { AgentAction, AgentChannel, AgentModule, AgentRecipient, PUBLIC_AGENT_DEFINITIONS } from './catalog';
 
 export interface TriggerCondition {
   key: string;
@@ -11,8 +10,11 @@ export interface TriggerCondition {
 
 export interface TriggerDefinition {
   value: string;
+  description?: string;
   condition: TriggerCondition | null;
   sampleEvent: (conditions?: Record<string, number>) => Record<string, unknown>;
+  runtimeAvailable: boolean;
+  supportReason?: string;
 }
 
 export interface ModuleDefinition {
@@ -21,15 +23,40 @@ export interface ModuleDefinition {
   triggers: TriggerDefinition[];
 }
 
+export interface AgentEmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  message: string;
+}
+
 export const CHANNELS: AgentChannel[] = [...PUBLIC_AGENT_DEFINITIONS.channels] as AgentChannel[];
 export const RECIPIENTS: AgentRecipient[] = [...PUBLIC_AGENT_DEFINITIONS.recipients] as AgentRecipient[];
 export const ACTIONS: AgentAction[] = [...PUBLIC_AGENT_DEFINITIONS.actions] as AgentAction[];
 export const MODULES: AgentModule[] = Object.keys(PUBLIC_AGENT_DEFINITIONS.modules) as AgentModule[];
 
+const LIVE_TASK_TRIGGERS = new Set([
+  'Task created', 'Task assigned', 'Due Date Changed', 'Priority Changed', 'Status Changed',
+  'Task Completed', 'Task Deleted', 'Task Sent for Review', 'Task Put on Hold', 'Comment Added',
+  'Subtask Status Changed', 'Files Uploaded',
+]);
+
+function triggerSupport(moduleName: AgentModule, trigger: string) {
+  if (moduleName === 'Task' && LIVE_TASK_TRIGGERS.has(trigger)) return { runtimeAvailable: true };
+  if (moduleName !== 'Task') return { runtimeAvailable: false, supportReason: 'No expiry scheduler is configured for this record type.' };
+  if (trigger.toLowerCase().includes('due') || trigger.toLowerCase().includes('expiry')) return { runtimeAvailable: false, supportReason: 'Scheduler configuration required: no scheduled worker evaluates date-based triggers.' };
+  return { runtimeAvailable: false, supportReason: 'No application event source currently emits this event.' };
+}
+
 // Fixed sample records are used only by the backend's deterministic test-run simulation.
 const SAMPLE_TASK = {
   id: 'TASK-1001',
   title: 'Prepare monthly compliance report',
+  taskName: 'Prepare monthly compliance report',
+  clientName: 'Sample Company',
+  priority: 'High',
+  status: 'In Progress',
+  targetDueDate: '2026-01-15',
   createdBy: 'Sample Manager',
   assignee: 'Sample User',
   dueDate: '2026-01-15',
@@ -71,6 +98,7 @@ export const MODULE_DEFINITIONS = Object.fromEntries(
       defaultMessage: definition.defaultMessage,
       triggers: definition.triggers.map((trigger) => ({
         ...trigger,
+        ...triggerSupport(moduleName, trigger.value),
         sampleEvent: sampleEventFor(moduleName, trigger.value),
       })),
     }];
@@ -84,14 +112,21 @@ export function findTrigger(moduleName: unknown, value: unknown): TriggerDefinit
 }
 
 export function getPublicDefinitions() {
-  const modules = {} as Record<AgentModule, Omit<ModuleDefinition, 'triggers'> & { triggers: Array<{ value: string; condition: TriggerCondition | null }> }>;
+  const modules = {} as Record<AgentModule, Omit<ModuleDefinition, 'triggers'> & { triggers: Array<{ value: string; description: string; condition: TriggerCondition | null; runtimeAvailable: boolean; supportReason?: string }> }>;
   for (const moduleName of MODULES) {
     const definition = MODULE_DEFINITIONS[moduleName];
     modules[moduleName] = {
       description: definition.description,
       defaultMessage: definition.defaultMessage,
-      triggers: definition.triggers.map(({ value, condition }) => ({ value, condition })),
+      triggers: definition.triggers.map(({ value, description, condition, runtimeAvailable, supportReason }) => ({ value, description: description || supportReason || `${value} event`, condition, runtimeAvailable, supportReason })),
     };
   }
-  return { modules, recipients: RECIPIENTS, channels: CHANNELS, actions: ACTIONS };
+  return {
+    modules,
+    recipients: RECIPIENTS,
+    channels: CHANNELS,
+    actions: ACTIONS,
+    emailTemplates: PUBLIC_AGENT_DEFINITIONS.emailTemplates as AgentEmailTemplate[],
+    templateVariables: [...PUBLIC_AGENT_DEFINITIONS.templateVariables],
+  };
 }

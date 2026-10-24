@@ -5,6 +5,7 @@ import { EmployeeRecord, TeamRole, UserStatus, getRoleRank } from './types';
 import { teamStore } from './teamStore';
 import { AddEmployeeWizard } from './AddEmployeeWizard';
 import { useAuth } from '../auth/AuthContext';
+import { Pagination } from '../ui/Pagination';
 
 interface TeamListViewProps {
   employees: EmployeeRecord[];
@@ -22,6 +23,8 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
   const [selectedDept, setSelectedDept] = useState('All Dept');
   const [selectedRole, setSelectedRole] = useState('All Roles');
   const [selectedStatus, setSelectedStatus] = useState<'All' | UserStatus>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [editingEmp, setEditingEmp] = useState<EmployeeRecord | null>(null);
@@ -57,6 +60,11 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
     if (rankDiff !== 0) return rankDiff;
     return a.name.localeCompare(b.name);
   });
+
+  const paginatedEmployees = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   const handleOpenAddUser = () => {
     setEditingEmp(null);
@@ -96,41 +104,44 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
   const getRoleBadgeStyle = (r: TeamRole) => {
     switch (r) {
       case 'Admin':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
+        return 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/40';
       case 'Partner':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/40';
       case 'Manager':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700';
     }
   };
 
   const getStatusBadgeStyle = (s: UserStatus) => {
     switch (s) {
       case 'Active':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40';
       case 'Deactivated':
-        return 'bg-gray-100 text-gray-600 border-gray-200';
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700';
       case 'Resigned':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/40';
     }
   };
 
   return (
     <div className="p-6 space-y-4">
       {/* Filter and Action Bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="text-sm font-bold text-gray-900 pr-2">
+          <div className="text-sm font-bold text-gray-900 dark:text-white pr-2">
             Users List <span className="text-gray-400 font-normal">({filtered.length})</span>
           </div>
 
           {/* Department Filter */}
           <select
             value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+            onChange={(e) => {
+              setSelectedDept(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
           >
             <option value="All Dept">All Dept</option>
             <option value="Audit & Taxation">Audit & Taxation</option>
@@ -144,8 +155,11 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
           {!isEmployee && (
             <select
               value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+              onChange={(e) => {
+                setSelectedRole(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
             >
               <option value="All Roles">All Roles</option>
               <option value="Admin">Admin</option>
@@ -159,8 +173,11 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
           {!isEmployee && (
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value as 'All' | UserStatus)}
-              className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+              onChange={(e) => {
+                setSelectedStatus(e.target.value as 'All' | UserStatus);
+                setCurrentPage(1);
+              }}
+              className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
             >
               <option value="All">All Status</option>
               <option value="Active">Active</option>
@@ -176,9 +193,12 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search name, email, phone..."
-              className="w-full text-xs pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+              className="w-full text-xs pl-8 pr-3 py-2 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
             />
             <svg
               className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"
@@ -205,13 +225,13 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-gray-50 text-gray-500 uppercase font-semibold border-b border-gray-200 select-none">
+            <thead className="bg-gray-50 dark:bg-[#162032] text-gray-500 dark:text-gray-400 uppercase font-semibold border-b border-gray-200 dark:border-[#334155] select-none">
               <tr>
                 <th className="py-3 px-3 w-8">
-                  <input type="checkbox" className="rounded border-gray-300 text-[#3D6A9E] focus:ring-[#3D6A9E]" />
+                  <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] cursor-pointer" />
                 </th>
                 <th className="py-3 px-4">Name</th>
                 <th className="py-3 px-3">Role</th>
@@ -227,7 +247,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                 {!isEmployee && <th className="py-3 px-3 text-center">Action</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={isEmployee ? 12 : 13} className="py-12 text-center text-gray-400">
@@ -235,19 +255,19 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filtered.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-gray-50/70 transition-colors">
+                paginatedEmployees.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors">
                     <td className="py-3 px-3">
-                      <input type="checkbox" className="rounded border-gray-300 text-[#3D6A9E] focus:ring-[#3D6A9E]" />
+                      <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] cursor-pointer" />
                     </td>
 
                     {/* Name + Initials */}
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-[#EEF2FF] text-[#3D6A9E] font-bold text-[11px] flex items-center justify-center border border-[#3D6A9E]/20">
+                        <div className="w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#1e293b] text-[#3D6A9E] dark:text-[#60a5fa] font-bold text-[11px] flex items-center justify-center border border-[#3D6A9E]/20">
                           {emp.initials}
                         </div>
-                        <span className="font-semibold text-gray-900">{emp.name}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{emp.name}</span>
                       </div>
                     </td>
 
@@ -259,28 +279,28 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                     </td>
 
                     {/* Designation */}
-                    <td className="py-3 px-4 text-gray-700">{emp.designation || '-'}</td>
+                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{emp.designation || '-'}</td>
 
                     {/* Department */}
-                    <td className="py-3 px-4 text-gray-700">{emp.department || '-'}</td>
+                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{emp.department || '-'}</td>
 
                     {/* Clients */}
-                    <td className="py-3 px-3 text-center text-gray-700">{emp.clientsCount || '-'}</td>
+                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300">{emp.clientsCount || '-'}</td>
 
                     {/* Tasks */}
-                    <td className="py-3 px-3 text-center text-gray-700">{emp.tasksCount || '-'}</td>
+                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300">{emp.tasksCount || '-'}</td>
 
                     {/* Recurring */}
-                    <td className="py-3 px-3 text-center text-gray-700">{emp.recurringCount || '-'}</td>
+                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300">{emp.recurringCount || '-'}</td>
 
                     {/* Phone */}
-                    <td className="py-3 px-4 text-gray-700">{emp.mobile}</td>
+                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{emp.mobile}</td>
 
                     {/* Email */}
-                    <td className="py-3 px-4 text-gray-600">{emp.email}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{emp.email}</td>
 
                     {/* Last Punch In */}
-                    <td className="py-3 px-4 text-gray-500">{emp.lastPunchIn || 'Never'}</td>
+                    <td className="py-3 px-4 text-gray-500 dark:text-gray-400">{emp.lastPunchIn || 'Never'}</td>
 
                     {/* Status */}
                     <td className="py-3 px-3">
@@ -294,7 +314,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                       <td className="py-3 px-3 text-center relative">
                         <button
                           onClick={() => setActiveMenuId(activeMenuId === emp.id ? null : emp.id)}
-                          className="text-gray-400 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                          className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#334155] transition-colors cursor-pointer"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -303,12 +323,12 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
 
                       {/* Dropdown Menu */}
                       {activeMenuId === emp.id && (
-                        <div className="absolute right-4 mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-20 text-left animate-fadeIn">
+                        <div className="absolute right-4 mt-1 w-44 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-gray-200 dark:border-[#334155] py-1.5 z-20 text-left animate-fadeIn">
                           <button
                             onClick={() => handleEdit(emp)}
-                            className="w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            className="w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] flex items-center gap-2 cursor-pointer"
                           >
-                            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             Edit Employee
@@ -317,9 +337,9 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                           {emp.status === 'Active' ? (
                             <button
                               onClick={() => handleToggleStatus(emp, 'Deactivated')}
-                              className="w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              className="w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] flex items-center gap-2 cursor-pointer"
                             >
-                              <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                               </svg>
                               Deactivate User
@@ -327,9 +347,9 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                           ) : (
                             <button
                               onClick={() => handleToggleStatus(emp, 'Active')}
-                              className="w-full px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2"
+                              className="w-full px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer"
                             >
-                              <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               Reactivate User
@@ -339,9 +359,9 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                           {emp.status !== 'Resigned' && (
                             <button
                               onClick={() => handleToggleStatus(emp, 'Resigned')}
-                              className="w-full px-3 py-1.5 text-xs text-amber-700 hover:bg-amber-50 flex items-center gap-2 border-t border-gray-100"
+                              className="w-full px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 border-t border-gray-100 dark:border-[#334155] cursor-pointer"
                             >
-                              <svg className="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                               </svg>
                               Mark as Resigned
@@ -358,33 +378,19 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-gray-50/40">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <select className="border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700">
-              <option value="50">50</option>
-              <option value="25">25</option>
-              <option value="10">10</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span>1-{filtered.length} of {filtered.length}</span>
-            <div className="flex items-center gap-1">
-              <button disabled className="p-1 rounded text-gray-300 hover:text-gray-500 disabled:opacity-40">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button disabled className="p-1 rounded text-gray-300 hover:text-gray-500 disabled:opacity-40">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Pagination Footer matching Clients table */}
+        <Pagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          showPageSize={true}
+          pageSizeOptions={[10, 25, 50]}
+        />
       </div>
 
       {/* Add / Edit Wizard Modal */}

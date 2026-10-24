@@ -7,6 +7,8 @@ import {
   lookupUserSchema,
   sendOtpSchema,
   verifyOtpSchema,
+  deviceLoginSchema,
+  deviceStatusSchema,
   loginSchema,
 } from './auth.validation';
 
@@ -17,9 +19,11 @@ router.post('/register', validateRequest({ body: registerOrgSchema }), AuthContr
 router.post('/lookup', validateRequest({ body: lookupUserSchema }), AuthController.lookup);
 router.post('/send-otp', validateRequest({ body: sendOtpSchema }), AuthController.sendOtp);
 router.post('/verify-otp', validateRequest({ body: verifyOtpSchema }), AuthController.verifyOtp);
+router.post('/device-login', validateRequest({ body: deviceLoginSchema }), AuthController.deviceLogin);
+router.post('/device-status', validateRequest({ body: deviceStatusSchema }), AuthController.checkDeviceStatus);
 router.post('/login', validateRequest({ body: loginSchema }), AuthController.login);
 router.post('/refresh', AuthController.refresh);
-router.post('/logout', AuthController.logout);
+router.post('/logout', optionalAuthenticate, AuthController.logout);
 
 // Protected Authentication Endpoints
 router.get('/me', authenticate, AuthController.me);

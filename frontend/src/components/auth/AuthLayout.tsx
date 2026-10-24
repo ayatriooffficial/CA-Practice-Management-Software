@@ -47,8 +47,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
       {/* Right 50% Form Panel */}
       <div
         className={`w-full lg:w-1/2 min-h-[calc(100vh-64px)] lg:min-h-screen flex items-center bg-white dark:bg-[#0f172a] ${isSignup
-            ? "justify-start py-8 px-6 lg:pl-[45px] lg:pr-[45px]"
-            : "justify-center p-6 lg:p-0"
+          ? "justify-start py-8 px-6 lg:pl-[45px] lg:pr-[45px]"
+          : "justify-center p-6 lg:p-0"
           }`}
       >
         <div
@@ -58,7 +58,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
           {/* Header Typography: exact 30px, weight 500, 12px gap to subtitle, 30px gap to form */}
           <div className="mb-[30px] flex flex-col gap-[12px]">
             <h1 className="text-[30px] font-medium tracking-tight text-[#1e293b] dark:text-white leading-[1.2]">
-              Welcome to CA practice!
+              Welcome to Afaq CA Practice!
             </h1>
             <p className="text-[15.5px] sm:text-[16px] text-[#64748b] dark:text-gray-400 leading-[1.45] whitespace-nowrap">
               Access your practice dashboard to manage clients, filings, and compliance.

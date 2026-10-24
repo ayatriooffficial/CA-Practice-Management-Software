@@ -1,18 +1,38 @@
 import { HydratedDocument, Types } from 'mongoose';
+import type {
+  AgentModule,
+  AgentStatus,
+  AgentChannel,
+  AgentAction,
+  AgentRecipient,
+} from './catalog';
 
-export type AgentModule = 'Task' | 'DSC' | 'License';
-export type AgentStatus = 'draft' | 'published' | 'disabled';
-export type AgentChannel = 'Email' | 'WhatsApp' | 'In-app';
-export type AgentAction =
-  | 'Send notification'
-  | 'Send expiry reminder'
-  | 'Send renewal reminder'
-  | 'Notify assignee';
-export type AgentRecipient =
-  | 'Assigned user'
-  | 'Task owner'
-  | 'Account administrator'
-  | 'Responsible person';
+export type {
+  AgentModule,
+  AgentStatus,
+  AgentChannel,
+  AgentAction,
+  AgentRecipient,
+};
+
+export type WorkflowNodeType = 'action' | 'condition';
+export type WorkflowOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'exists';
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  name: string;
+  config: Record<string, unknown>;
+}
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: 'true' | 'false' | 'next';
+}
+export interface WorkflowGraph {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+}
 
 export interface AgentConfig {
   trigger?: string;
@@ -21,10 +41,15 @@ export interface AgentConfig {
   channel?: AgentChannel;
   action?: AgentAction;
   message?: string;
+  subject?: string;
+  templateId?: string;
+  recipientResolution?: { mode: 'task-linked-client'; relationship: 'trigger-record' };
+  workflowGraph?: WorkflowGraph;
   [key: string]: unknown;
 }
 
 export interface IAgent {
+  orgId: string;
   name: string;
   module: AgentModule;
   description: string;
@@ -37,10 +62,11 @@ export interface IAgent {
 
 export type IAgentDocument = HydratedDocument<IAgent>;
 
-export type AgentRunStatus = 'success' | 'failed';
+export type AgentRunStatus = 'success' | 'partial-failed' | 'failed' | 'skipped';
 export type ExecutionMode = 'mock' | 'real';
 
 export interface IAgentRun {
+  orgId: string;
   agentId: Types.ObjectId;
   agentName: string;
   agentModule: AgentModule;

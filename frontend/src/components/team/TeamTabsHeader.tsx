@@ -61,7 +61,7 @@ export const TeamTabsHeader: React.FC<TeamTabsHeaderProps> = ({
   const visibleTabs = isEmployee ? allTabs.filter((t) => t.id === 'team') : allTabs;
 
   return (
-    <div className="border-b border-gray-200 bg-white px-6">
+    <div className="border-b border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] px-6 transition-colors">
       <div className="flex items-center gap-8">
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -69,9 +69,9 @@ export const TeamTabsHeader: React.FC<TeamTabsHeaderProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 py-4 text-sm font-medium border-b-2 transition-all ${isActive
+              className={`flex items-center gap-2 py-4 text-sm font-medium border-b-2 transition-all cursor-pointer ${isActive
                   ? 'border-[#3D6A9E] text-[#3D6A9E]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
             >
               <span className={isActive ? 'text-[#3D6A9E]' : 'text-gray-400'}>

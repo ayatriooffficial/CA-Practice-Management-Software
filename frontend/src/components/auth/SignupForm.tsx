@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Lock,
   Building2,
   Check,
 } from "lucide-react";
@@ -27,11 +26,6 @@ export const SignupForm: React.FC = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-
-  // Mobile verification state
-  const [isMobileVerified, setIsMobileVerified] = useState(false);
-  const [isVerifyingMobileOtp, setIsVerifyingMobileOtp] = useState(false);
-  const [mobileError, setMobileError] = useState<string | null>(null);
 
   // Overall form state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +51,7 @@ export const SignupForm: React.FC = () => {
     firmName.trim().length > 0 &&
     name.trim().length > 0 &&
     isEmailVerified &&
-    isMobileVerified;
+    isValidMobileFormat;
 
   // Handle triggering email verification OTP
   const handleStartEmailVerify = async () => {
@@ -80,54 +74,21 @@ export const SignupForm: React.FC = () => {
       return;
     }
 
-    await authService.sendOtp(email.trim(), "email");
-    setIsVerifyingEmailOtp(true);
+    try {
+      await authService.sendOtp(email.trim(), "email", "signup");
+      setIsVerifyingEmailOtp(true);
+    } catch (err: any) {
+      setEmailError(err.message || "Failed to send verification code. Please try again.");
+    }
   };
 
   // Handle email OTP verification
   const handleVerifyEmailCode = async (code: string) => {
-    const res = await authService.verifyOtp(email.trim(), code);
+    const res = await authService.verifyOtp(email.trim(), code, "signup");
     if (res.success) {
       setIsEmailVerified(true);
       setIsVerifyingEmailOtp(false);
       setEmailError(null);
-      return { success: true };
-    }
-    return { success: false, message: res.message };
-  };
-
-  // Handle triggering mobile verification OTP
-  const handleStartMobileVerify = async () => {
-    if (!isValidMobileFormat || isMobileVerified || !isEmailVerified) return;
-    setMobileError(null);
-
-    // Check 4-field conflicts for mobile
-    const dupCheck = authService.checkOrganizationDuplicates({
-      firmName,
-      name,
-      email,
-      mobile: cleanMobile,
-    });
-    if (dupCheck.hasConflict && dupCheck.conflictingFields.includes("Contact Number")) {
-      setConflictModal({
-        isOpen: true,
-        conflictingFields: dupCheck.conflictingFields,
-        message: dupCheck.message,
-      });
-      return;
-    }
-
-    await authService.sendOtp(cleanMobile, "mobile");
-    setIsVerifyingMobileOtp(true);
-  };
-
-  // Handle mobile OTP verification
-  const handleVerifyMobileCode = async (code: string) => {
-    const res = await authService.verifyOtp(cleanMobile, code);
-    if (res.success) {
-      setIsMobileVerified(true);
-      setIsVerifyingMobileOtp(false);
-      setMobileError(null);
       return { success: true };
     }
     return { success: false, message: res.message };
@@ -234,9 +195,9 @@ export const SignupForm: React.FC = () => {
             </span>
           </div>
           <div className="flex justify-between py-1">
-            <span className="text-gray-500">Verified Mobile</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-              +91 {confirmationData.mobile} ✓
+            <span className="text-gray-500">Contact Number</span>
+            <span className="font-semibold text-gray-900 dark:text-white">
+              +91 {confirmationData.mobile}
             </span>
           </div>
         </div>
@@ -334,9 +295,6 @@ export const SignupForm: React.FC = () => {
                   onClick={() => {
                     setIsEmailVerified(false);
                     setIsVerifyingEmailOtp(false);
-                    // Also lock mobile again if email is unverified
-                    setIsMobileVerified(false);
-                    setIsVerifyingMobileOtp(false);
                   }}
                   className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline ml-1 cursor-pointer"
                 >
@@ -383,32 +341,16 @@ export const SignupForm: React.FC = () => {
         )}
       </div>
 
-      {/* 4. Mobile Number Field (Locked until email verified) */}
+      {/* 4. Mobile Number Field */}
       <div className="flex flex-col gap-[8px]">
-        <div className="flex items-center justify-between">
-          <label
-            htmlFor="signup-mobile"
-            className="block text-[15px] font-medium text-[#374151] dark:text-gray-300"
-          >
-            Mobile Number <span className="text-red-500">*</span>
-          </label>
-          {!isEmailVerified && (
-            <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
-              <Lock className="w-3 h-3" />
-              Verify your email first
-            </span>
-          )}
-        </div>
-
-        <div
-          className={`relative flex items-center rounded-lg border transition-all shadow-2xs ${
-            !isEmailVerified
-              ? "bg-gray-100 dark:bg-gray-800/40 border-gray-200 dark:border-gray-800 opacity-60 cursor-not-allowed"
-              : isMobileVerified
-              ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-400 text-gray-900 dark:text-white font-medium"
-              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus-within:border-[#6d55f4] focus-within:ring-2 focus-within:ring-[#6d55f4]/20"
-          }`}
+        <label
+          htmlFor="signup-mobile"
+          className="block text-[15px] font-medium text-[#374151] dark:text-gray-300"
         >
+          Mobile Number <span className="text-red-500">*</span>
+        </label>
+
+        <div className="relative flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus-within:border-[#6d55f4] focus-within:ring-2 focus-within:ring-[#6d55f4]/20 transition-all shadow-2xs">
           <span className="inline-flex items-center px-3.5 border-r border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/80 text-[14.5px] font-medium text-gray-500 dark:text-gray-400">
             +91
           </span>
@@ -416,76 +358,15 @@ export const SignupForm: React.FC = () => {
             id="signup-mobile"
             type="tel"
             maxLength={10}
-            disabled={!isEmailVerified || isMobileVerified || isVerifyingMobileOtp}
             value={mobile}
             onChange={(e) => {
               setMobile(e.target.value.replace(/\D/g, ""));
-              setMobileError(null);
             }}
             placeholder="9876543210"
-            className="w-full h-[44px] pl-3.5 pr-24 bg-transparent text-[14.5px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden"
+            className="w-full h-[44px] px-3.5 bg-transparent text-[14.5px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden"
             required
           />
-
-          {/* Right Action: Verify Link or Verified Badge */}
-          {isEmailVerified && (
-            <div className="absolute right-3.5 flex items-center">
-              {isMobileVerified ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                    Verified
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMobileVerified(false);
-                      setIsVerifyingMobileOtp(false);
-                    }}
-                    className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline ml-1 cursor-pointer"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!isValidMobileFormat || isVerifyingMobileOtp}
-                  onClick={handleStartMobileVerify}
-                  className={`text-xs font-semibold px-2.5 py-1 rounded transition-all cursor-pointer ${
-                    isValidMobileFormat && !isVerifyingMobileOtp
-                      ? "text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 shadow-[0_0_10px_rgba(34,197,94,0.35)] animate-pulse"
-                      : "text-[#a5a3f6] cursor-not-allowed"
-                  }`}
-                >
-                  Verify
-                </button>
-              )}
-            </div>
-          )}
         </div>
-
-        {/* Mobile error message */}
-        {mobileError && (
-          <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 animate-in fade-in">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>{mobileError}</span>
-          </div>
-        )}
-
-        {/* Inline Mobile OTP verification panel */}
-        {isVerifyingMobileOtp && !isMobileVerified && (
-          <div className="pt-2 animate-in slide-in-from-top-2 duration-200">
-            <OtpInput
-              targetDescription={`+91 ${cleanMobile}`}
-              isCompact
-              onVerify={handleVerifyMobileCode}
-              onResend={handleStartMobileVerify}
-              onChangeTarget={() => setIsVerifyingMobileOtp(false)}
-              targetLabel="Cancel"
-            />
-          </div>
-        )}
       </div>
 
       {/* Global submission error */}

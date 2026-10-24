@@ -646,7 +646,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         <button
           type="button"
           onClick={() => setShowGstinModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-sm text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 rounded-s text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
           style={{ backgroundColor: "var(--premium-blue-dark)" }}
           onMouseEnter={(e) =>
             (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
@@ -749,8 +749,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="Client Name"
                     className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none transition-all bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.clientName
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
                       }`}
                   />
                   {errors.clientName && (
@@ -876,14 +876,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     aria-checked={isActive}
                     onClick={() => setIsActive(!isActive)}
                     className={`inline-flex h-6 w-12 shrink-0 items-center rounded-full border transition-colors duration-150 cursor-pointer ${isActive
-                        ? "border-[#31719B] bg-[#31719B]"
-                        : "border-gray-300 bg-gray-200 dark:bg-gray-700"
+                      ? "border-[#31719B] bg-[#31719B]"
+                      : "border-gray-300 bg-gray-200 dark:bg-gray-700"
                       }`}
                   >
                     <span
                       className={`h-4 w-4 rounded-full transition-transform duration-150 transform ${isActive
-                          ? "translate-x-6.5 bg-white"
-                          : "translate-x-1 bg-gray-400"
+                        ? "translate-x-6.5 bg-white"
+                        : "translate-x-1 bg-gray-400"
                         }`}
                     />
                   </button>
@@ -1002,10 +1002,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
         {/* 3. CARD: Customer Files (matching Screenshot 5) */}
         <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-6">
-          <h2 className="text-lg font-bold text-[#000000] dark:text-white">
-            Customer Files
-          </h2>
-
           {/* Section A: Promoter Details */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">

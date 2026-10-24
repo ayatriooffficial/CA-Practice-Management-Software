@@ -1,18 +1,23 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { OrganizationModel } from './organization.model';
 import { UserModel } from './user.model';
 import { RefreshSessionModel } from './session.model';
 import { OtpVerificationModel } from './otp.model';
+import { TrustedDeviceModel } from './trustedDevice.model';
 import { JwtService } from './jwt.service';
 import {
   IJwtUserPayload,
   IAuthTokens,
   IUserDocument,
+  IDeviceCredential,
 } from './auth.interface';
 import { AppError } from '../../shared/utils/apiError';
 import { HTTP_STATUS } from '../../constants/httpStatus';
 import { logger } from '../../config/logger';
+import { AttendanceService } from '../attendance/attendance.service';
+import { MailService } from '../../shared/utils/mailService';
 
 function computeInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -103,14 +108,14 @@ export class AuthService {
       lastLoginAt: new Date(),
     });
 
-    // Create session & tokens
+    // Create session & tokens (60 days persistent)
     const session = await RefreshSessionModel.create({
       userId: user._id,
       orgId: org._id,
       tokenHash: 'temp_hash',
       userAgent: data.userAgent || '',
       ipAddress: data.ipAddress || '',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days persistent session
     });
 
     const jwtPayload = this.buildJwtPayload(user, org.name);
@@ -140,29 +145,67 @@ export class AuthService {
   /**
    * Send an OTP code (email or mobile)
    */
-  public static async sendOtp(target: string, type: 'email' | 'mobile'): Promise<{ success: boolean; message: string }> {
+  public static async sendOtp(
+    target: string,
+    type: 'email' | 'mobile',
+    purpose: 'login' | 'signup' = 'login'
+  ): Promise<{ success: boolean; message: string }> {
     await this.ensureSeedData();
 
     const cleanTarget = type === 'email' ? target.trim().toLowerCase() : target.replace(/\D/g, '').slice(-10);
 
-    // Fixed demo OTP '123456' for predictable dev & testing
-    const otpCode = '123456';
+    // Verify account existence based on purpose
+    const existingUser = await UserModel.findOne(
+      type === 'email' ? { email: cleanTarget } : { mobile: cleanTarget }
+    ).select('name email status');
+
+    if (purpose === 'signup') {
+      if (existingUser) {
+        throw AppError.conflict(
+          type === 'email'
+            ? 'An account with this email already exists. Please log in instead.'
+            : 'An account with this mobile number already exists. Please log in instead.'
+        );
+      }
+    } else {
+      if (!existingUser) {
+        throw AppError.notFound(
+          type === 'email'
+            ? 'No account found with this email. Please check your email or contact your administrator.'
+            : 'No account found with this mobile number.'
+        );
+      }
+
+      if (existingUser.status && String(existingUser.status).toLowerCase() !== 'active') {
+        throw new AppError(
+          'Your account has been deactivated. Please contact your firm administrator.',
+          HTTP_STATUS.FORBIDDEN
+        );
+      }
+    }
+
+    // Generate real 6-digit random code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const codeHash = JwtService.hashToken(otpCode);
 
     await OtpVerificationModel.deleteMany({ target: cleanTarget });
     await OtpVerificationModel.create({
       target: cleanTarget,
       codeHash,
-      type: 'login',
+      type: purpose,
       attempts: 0,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
-    logger.info(`📱 Generated OTP for ${cleanTarget}: ${otpCode}`);
+    if (type === 'email') {
+      await MailService.sendOtpEmail(cleanTarget, otpCode, existingUser?.name || 'User');
+    } else {
+      logger.info(`📱 Generated OTP for ${cleanTarget}: ${otpCode}`);
+    }
 
     return {
       success: true,
-      message: `OTP sent successfully to ${target}`,
+      message: `Verification code sent to ${target}`,
     };
   }
 
@@ -172,67 +215,38 @@ export class AuthService {
   public static async verifyOtp(
     target: string,
     code: string,
-    options?: { userAgent?: string; ipAddress?: string }
-  ): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
+    options?: { userAgent?: string; ipAddress?: string; deviceId?: string; purpose?: string }
+  ): Promise<{ user?: IUserDocument; tokens?: IAuthTokens; deviceCredential?: IDeviceCredential; verified?: boolean }> {
     await this.ensureSeedData();
 
-    const cleanEmail = target.trim().toLowerCase();
-    const cleanNum = target.replace(/\D/g, '').slice(-10);
+    const isEmail = target.includes('@');
+    const cleanEmail = isEmail ? target.trim().toLowerCase() : '';
+    const cleanNum = !isEmail ? target.replace(/\D/g, '').slice(-10) : '';
 
-    // Support dev demo codes: 123456, 1234, 000000, 999999
-    const isDemoCode = code === '123456' || code === '1234' || code === '000000' || code === '999999';
+    const codeHash = JwtService.hashToken(code);
+    const record = await OtpVerificationModel.findOne({
+      target: isEmail ? cleanEmail : cleanNum,
+      codeHash,
+    });
 
-    if (!isDemoCode) {
-      const codeHash = JwtService.hashToken(code);
-      const record = await OtpVerificationModel.findOne({
-        target: { $in: [cleanEmail, cleanNum] },
-        codeHash,
-      });
-
-      if (!record) {
-        throw AppError.badRequest('Invalid or expired OTP code');
-      }
+    if (!record) {
+      throw AppError.badRequest('Invalid or expired OTP code');
     }
 
-    // Find the user or auto-provision on demo code verification
-    let user = await UserModel.findOne({
-      $or: [{ email: cleanEmail }, { mobile: cleanNum }],
-    }).populate('orgId', 'name');
+    // Delete single-use OTP record
+    await OtpVerificationModel.deleteOne({ _id: record._id });
+
+    // If purpose is signup, return verified status directly (user creation happens at register)
+    if (options?.purpose === 'signup') {
+      return { verified: true };
+    }
+
+    // Find the user
+    const query = isEmail ? { email: cleanEmail } : { mobile: cleanNum };
+    const user = await UserModel.findOne(query).populate('orgId', 'name');
 
     if (!user) {
-      if (isDemoCode) {
-        let org = await OrganizationModel.findOne();
-        if (!org) {
-          org = await OrganizationModel.create({
-            name: 'Ayatrio Practice',
-            code: 'ayatrio-practice',
-            totalSeats: 10,
-            isActive: true,
-          });
-        }
-
-        const defaultName = cleanEmail.includes('@')
-          ? cleanEmail.split('@')[0]
-          : `User ${cleanNum.slice(-4) || '9999'}`;
-        const formattedName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
-
-        const uniqueSuffix = Date.now().toString().slice(-9);
-        const resolvedEmail = cleanEmail.includes('@') ? cleanEmail : `user_${cleanNum || uniqueSuffix}@ayatrio.local`;
-        const resolvedMobile = cleanNum && cleanNum.length >= 10 ? cleanNum : `9${uniqueSuffix}`;
-
-        user = await UserModel.create({
-          orgId: org._id,
-          name: formattedName,
-          email: resolvedEmail,
-          mobile: resolvedMobile,
-          role: 'employee',
-          status: 'active',
-          firmName: org.name,
-          initials: computeInitials(formattedName),
-        });
-      } else {
-        throw AppError.notFound('No account found with this identifier');
-      }
+      throw AppError.notFound('Account not found. Please contact your administrator.');
     }
 
     const userStatusStr = String(user.status || 'active').toLowerCase();
@@ -255,16 +269,22 @@ export class AuthService {
     }
 
     user.lastLoginAt = new Date();
+    user.isEmailVerified = true;
     await user.save();
 
-    // Create session
+    // Single active persistent session per device (userAgent)
+    if (options?.userAgent) {
+      await RefreshSessionModel.deleteMany({ userId: user._id, userAgent: options.userAgent });
+    }
+
+    // Create persistent session (60 days across browser restarts and day changes)
     const session = await RefreshSessionModel.create({
       userId: user._id,
       orgId: (user.orgId as any)?._id || user.orgId,
       tokenHash: 'temp_hash',
       userAgent: options?.userAgent || '',
       ipAddress: options?.ipAddress || '',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days persistent
     });
 
     const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
@@ -277,7 +297,168 @@ export class AuthService {
     // Cleanup OTP
     await OtpVerificationModel.deleteMany({ target: { $in: [cleanEmail, cleanNum] } });
 
-    return { user, tokens };
+    // Generate and persist cryptographically secure device credential
+    const resolvedDeviceId = (options?.deviceId || `dev_${crypto.randomBytes(12).toString('hex')}`).trim();
+    const deviceToken = crypto.randomBytes(32).toString('hex');
+    const deviceTokenHash = JwtService.hashToken(deviceToken);
+    const userEmail = (user.email || cleanEmail).toLowerCase();
+
+    await TrustedDeviceModel.findOneAndUpdate(
+      { email: userEmail, deviceId: resolvedDeviceId },
+      {
+        userId: user._id,
+        email: userEmail,
+        deviceId: resolvedDeviceId,
+        tokenHash: deviceTokenHash,
+        isVerified: true,
+        verifiedAt: new Date(),
+        lastUsedAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+        userAgent: options?.userAgent || '',
+        ipAddress: options?.ipAddress || '',
+      },
+      { upsert: true, new: true }
+    );
+
+    const deviceCredential: IDeviceCredential = {
+      email: userEmail,
+      deviceId: resolvedDeviceId,
+      deviceToken,
+    };
+
+    return { user, tokens, deviceCredential };
+  }
+
+  /**
+   * Returning User Login: Authenticate using verified trusted device token without OTP
+   */
+  public static async loginWithDevice(
+    email: string,
+    deviceId: string,
+    deviceToken: string,
+    options?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ user: IUserDocument; tokens: IAuthTokens; deviceCredential: IDeviceCredential }> {
+    await this.ensureSeedData();
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !deviceId || !deviceToken) {
+      throw AppError.badRequest('Email, device identifier, and device token are required');
+    }
+
+    const user = await UserModel.findOne({ email: cleanEmail }).populate('orgId', 'name');
+    if (!user) {
+      throw AppError.notFound('No account found with this email');
+    }
+
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
+      throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    // Lookup trusted device record
+    const trustedRecord = await TrustedDeviceModel.findOne({
+      email: cleanEmail,
+      deviceId: deviceId.trim(),
+    });
+
+    if (!trustedRecord || !trustedRecord.isVerified) {
+      throw AppError.unauthorized('Device is not verified for this account. Please verify with OTP.');
+    }
+
+    if (trustedRecord.expiresAt && trustedRecord.expiresAt < new Date()) {
+      throw AppError.unauthorized('Device verification has expired. Please verify with OTP again.');
+    }
+
+    // Verify token hash
+    const incomingHash = JwtService.hashToken(deviceToken);
+    if (trustedRecord.tokenHash !== incomingHash) {
+      throw AppError.unauthorized('Invalid device credential. Please verify with OTP.');
+    }
+
+    // Rotate device token for continuous freshness and security
+    const newDeviceToken = crypto.randomBytes(32).toString('hex');
+    trustedRecord.tokenHash = JwtService.hashToken(newDeviceToken);
+    trustedRecord.lastUsedAt = new Date();
+    trustedRecord.expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+    if (options?.userAgent) trustedRecord.userAgent = options.userAgent;
+    if (options?.ipAddress) trustedRecord.ipAddress = options.ipAddress;
+    await trustedRecord.save();
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Create session (30-day persistent session across page refreshes and browser restarts)
+    const session = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: (user.orgId as any)?._id || user.orgId,
+      tokenHash: 'temp_hash',
+      userAgent: options?.userAgent || '',
+      ipAddress: options?.ipAddress || '',
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
+    const jwtPayload = this.buildJwtPayload(user, firmName);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
+
+    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await session.save();
+
+    return {
+      user,
+      tokens,
+      deviceCredential: {
+        email: cleanEmail,
+        deviceId,
+        deviceToken: newDeviceToken,
+      },
+    };
+  }
+
+  /**
+   * Check if a device credential is valid and verified for an email
+   */
+  public static async checkDeviceStatus(
+    email: string,
+    deviceId: string,
+    deviceToken?: string
+  ): Promise<{ isVerified: boolean; user?: any }> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !deviceId) {
+      return { isVerified: false };
+    }
+
+    const user = await UserModel.findOne({ email: cleanEmail }).populate('orgId', 'name');
+    if (!user) {
+      return { isVerified: false };
+    }
+
+    const record = await TrustedDeviceModel.findOne({
+      email: cleanEmail,
+      deviceId: deviceId.trim(),
+    });
+
+    if (!record || !record.isVerified || (record.expiresAt && record.expiresAt < new Date())) {
+      return { isVerified: false };
+    }
+
+    if (deviceToken) {
+      const incomingHash = JwtService.hashToken(deviceToken);
+      if (record.tokenHash !== incomingHash) {
+        return { isVerified: false };
+      }
+    }
+
+    return {
+      isVerified: true,
+      user: {
+        id: String(user._id),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        firmName: (user.orgId as any)?.name || user.firmName,
+      },
+    };
   }
 
   /**
@@ -414,15 +595,30 @@ export class AuthService {
   }
 
   /**
-   * Revoke current session (Logout)
+   * Revoke current session (Logout) and automatically check out from office attendance
    */
-  public static async logout(rawRefreshToken?: string): Promise<void> {
-    if (!rawRefreshToken) return;
-    try {
-      const decoded = JwtService.verifyRefreshToken(rawRefreshToken);
-      await RefreshSessionModel.findByIdAndUpdate(decoded.sessionId, { isRevoked: true });
-    } catch {
-      // Ignore token decode errors on logout
+  public static async logout(rawRefreshToken?: string, userId?: string): Promise<void> {
+    let resolvedUserId = userId;
+
+    if (rawRefreshToken) {
+      try {
+        const decoded = JwtService.verifyRefreshToken(rawRefreshToken);
+        if (!resolvedUserId && decoded.userId) {
+          resolvedUserId = decoded.userId;
+        }
+        await RefreshSessionModel.findByIdAndUpdate(decoded.sessionId, { isRevoked: true });
+      } catch {
+        // Ignore token decode errors on logout
+      }
+    }
+
+    // Auto-checkout employee on logout if currently punched in without punch-out
+    if (resolvedUserId) {
+      try {
+        await AttendanceService.autoCheckoutOnLogout(resolvedUserId);
+      } catch (err) {
+        logger.warn(`Failed to auto-checkout user on logout: ${err}`);
+      }
     }
   }
 

@@ -331,23 +331,6 @@ export const OtpInput: React.FC<OtpInputProps> = ({
         </div>
       </div>
 
-      {/* Demo helper hint with click-to-fill */}
-      {SHOW_DEMO_HINT && (
-        <div className="pt-1 text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1.5 justify-center">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span>
-            Demo mode:{" "}
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="font-semibold text-[#6d55f4] dark:text-[#8b75fc] hover:underline cursor-pointer"
-              title="Click to fill and verify demo OTP"
-            >
-              Click to use demo OTP ({DEMO_OTP.slice(0, length)})
-            </button>
-          </span>
-        </div>
-      )}
 
       {/* Scoped shake animation */}
       <style>{`

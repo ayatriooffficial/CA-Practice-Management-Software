@@ -38,5 +38,11 @@ export const createExpenseSchema = z.object({
 
 export const expenseStateSchema = z.object({ state: z.enum(['approved', 'rejected', 'cancelled']) });
 export const voidInvoiceSchema = z.object({ reason: z.string().trim().min(3).max(300) });
-export const reportDateQuerySchema = z.object({ from: dateOnly, to: dateOnly });
+export const reportDateQuerySchema = z.object({
+  from: dateOnly,
+  to: dateOnly,
+  clientId: z.string().trim().optional(),
+  view: z.enum(['list', 'client', 'employee']).optional(),
+  search: z.string().trim().optional(),
+});
 export const compensationSchema = z.object({ internalCostRatePaisePerHour: z.number().int().nonnegative().safe().nullable() });

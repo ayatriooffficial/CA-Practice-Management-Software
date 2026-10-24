@@ -11,6 +11,7 @@ import {
 const router = Router();
 router.use(authenticate);
 router.get('/report', validateRequest({ query: reportDateQuerySchema }), FinancialController.getReport);
+router.get('/report/pdf', validateRequest({ query: reportDateQuerySchema }), FinancialController.getReportPdf);
 router.get('/invoices', FinancialController.listInvoices);
 router.post('/invoices', validateRequest({ body: createInvoiceSchema }), FinancialController.createInvoice);
 router.patch('/invoices/:id/void', validateRequest({ body: voidInvoiceSchema }), FinancialController.voidInvoice);

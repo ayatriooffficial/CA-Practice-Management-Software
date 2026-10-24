@@ -1,9 +1,15 @@
 import { User, RegisterOrgPayload } from "./authTypes";
 import { teamStore } from "../team/teamStore";
 import { request, ApiError } from "../../services/apiClient";
+import {
+  getDeviceId,
+  getDeviceCredential,
+  saveDeviceCredential,
+  removeDeviceCredential,
+} from "../../services/deviceCredential";
 
-export const DEMO_OTP = "123456";
-export const SHOW_DEMO_HINT = true;
+export const DEMO_OTP = "";
+export const SHOW_DEMO_HINT = false;
 
 // Real-data mode: No seeded demo users
 const INITIAL_DEMO_USERS: User[] = [];
@@ -201,39 +207,119 @@ export const authService = {
   /**
    * Send an OTP to email or mobile via Backend.
    */
-  async sendOtp(target: string, type: "email" | "mobile"): Promise<{ success: boolean; message: string }> {
+  async sendOtp(
+    target: string,
+    type: "email" | "mobile",
+    purpose: "login" | "signup" = "login"
+  ): Promise<{ success: boolean; message: string }> {
+    const res = await request<{ success: boolean; message: string }>("/auth/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ target, type, purpose }),
+    });
+    return {
+      success: true,
+      message: res.message || `OTP sent to ${target}`,
+    };
+  },
+
+  /**
+   * Verify an OTP code and receive JWT tokens with trusted device credentials.
+   */
+  async verifyOtp(
+    target: string,
+    code: string,
+    purpose: "login" | "signup" = "login"
+  ): Promise<{ success: boolean; user?: User; message: string }> {
     try {
-      const res = await request<{ success: boolean; message: string }>("/auth/send-otp", {
+      const cleanEmail = target.trim().toLowerCase();
+      const deviceId = getDeviceId();
+
+      const res = await request<{ user?: any; accessToken?: string; deviceCredential?: any; verified?: boolean }>("/auth/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ target, type }),
+        body: JSON.stringify({ target, code, deviceId, purpose }),
       });
+
+      if (purpose === "signup" && ((res.data as any)?.verified || res.success)) {
+        return {
+          success: true,
+          message: "Code verified successfully.",
+        };
+      }
+
+      if (res.data?.user) {
+        const u = res.data.user;
+        const resolvedOrgId = String(u.orgId?._id || u.orgId || "");
+        const verifiedUser: User = {
+          id: String(u.id || u._id || ""),
+          name: u.name,
+          email: u.email,
+          mobile: u.mobile,
+          firmName: u.firmName || u.orgId?.name || "Ayatrio Practice",
+          role: u.role || "employee",
+          initials: u.initials || computeInitials(u.name),
+          orgId: resolvedOrgId,
+          token: res.data.accessToken || "",
+          createdAt: u.createdAt,
+          department: u.department,
+          designation: u.designation,
+          status: u.status,
+          employeeId: u.employeeId,
+          permissions: u.permissions,
+        };
+
+        if (res.data.deviceCredential) {
+          saveDeviceCredential(cleanEmail, {
+            ...res.data.deviceCredential,
+            name: u.name,
+            role: u.role,
+            firmName: verifiedUser.firmName,
+          });
+        }
+
+        return {
+          success: true,
+          user: verifiedUser,
+          message: "Code verified successfully.",
+        };
+      }
+
       return {
-        success: true,
-        message: res.message || `OTP sent to ${target}`,
+        success: false,
+        message: res.message || "Invalid OTP code. Please enter the correct code.",
       };
-    } catch {
-      await delay(200);
+    } catch (err: any) {
       return {
-        success: true,
-        message: `OTP sent to ${target}`,
+        success: false,
+        message: err.message || "Invalid OTP code. Please enter the correct code.",
       };
     }
   },
 
   /**
-   * Verify an OTP code and receive JWT tokens.
+   * Returning User Login: Authenticate using verified trusted device token without OTP.
    */
-  async verifyOtp(
-    target: string,
-    code: string
+  async loginWithDevice(
+    email: string
   ): Promise<{ success: boolean; user?: User; message: string }> {
     try {
-      const res = await request<{ user: any; accessToken: string }>("/auth/verify-otp", {
+      const cleanEmail = email.trim().toLowerCase();
+      const cred = getDeviceCredential(cleanEmail);
+      const deviceId = cred?.deviceId || getDeviceId();
+      const deviceToken = cred?.deviceToken || "";
+
+      if (!deviceToken) {
+        return {
+          success: false,
+          message: "No verified device token found for this account. Please verify with OTP.",
+        };
+      }
+
+      const res = await request<{ user: any; accessToken: string; deviceCredential?: any }>("/auth/device-login", {
         method: "POST",
-        body: JSON.stringify({ target, code }),
+        body: JSON.stringify({ email: cleanEmail, deviceId, deviceToken }),
       });
 
-      if (res.data?.user) {
+      if (res.data?.user && res.data.accessToken) {
         const u = res.data.user;
         const resolvedOrgId = String(u.orgId?._id || u.orgId || "");
         const verifiedUser: User = {
@@ -254,23 +340,63 @@ export const authService = {
           permissions: u.permissions,
         };
 
+        if (res.data.deviceCredential) {
+          saveDeviceCredential(cleanEmail, {
+            ...res.data.deviceCredential,
+            name: u.name,
+            role: u.role,
+            firmName: verifiedUser.firmName,
+          });
+        }
+
         return {
           success: true,
           user: verifiedUser,
-          message: "Code verified successfully.",
+          message: "Logged in successfully via verified device.",
         };
       }
 
       return {
         success: false,
-        message: res.message || "Invalid OTP code. Please enter the correct code.",
+        message: res.message || "Device authentication failed. Please verify with OTP.",
       };
     } catch (err: any) {
-
       return {
         success: false,
-        message: err.message || "Invalid OTP code. Please enter the correct code.",
+        message: err.message || "Device authentication failed. Please verify with OTP.",
       };
+    }
+  },
+
+  /**
+   * Check if a device credential is valid and verified for an email.
+   */
+  async checkDeviceStatus(
+    email: string
+  ): Promise<{ isVerified: boolean; user?: any }> {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cred = getDeviceCredential(cleanEmail);
+      if (!cred || !cred.deviceToken) {
+        return { isVerified: false };
+      }
+
+      const res = await request<{ isVerified: boolean; user?: any }>("/auth/device-status", {
+        method: "POST",
+        body: JSON.stringify({
+          email: cleanEmail,
+          deviceId: cred.deviceId,
+          deviceToken: cred.deviceToken,
+        }),
+      });
+
+      if (res.data && res.data.isVerified) {
+        return res.data;
+      }
+
+      return { isVerified: false };
+    } catch {
+      return { isVerified: false };
     }
   },
 

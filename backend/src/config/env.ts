@@ -29,6 +29,13 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().default('ayatrio_dev_refresh_secret_key_change_in_production_2026'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  // Email / SMTP (Free Gmail SMTP or Custom Provider)
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().default(465),
+  SMTP_SECURE: z.coerce.boolean().default(true),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().default('CA Practice Management <no-reply@capractice.com>'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

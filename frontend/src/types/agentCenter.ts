@@ -7,6 +7,7 @@ export type AgentAction =
   | 'Send renewal reminder'
   | 'Notify assignee';
 export type AgentRecipient =
+  | 'Client'
   | 'Assigned user'
   | 'Task owner'
   | 'Account administrator'
@@ -22,7 +23,10 @@ export interface TriggerCondition {
 
 export interface TriggerDefinition {
   value: string;
+  description?: string;
   condition: TriggerCondition | null;
+  runtimeAvailable?: boolean;
+  supportReason?: string;
 }
 
 export interface AgentModuleDefinition {
@@ -36,6 +40,15 @@ export interface AgentDefinitions {
   recipients: AgentRecipient[];
   channels: AgentChannel[];
   actions: AgentAction[];
+  emailTemplates: AgentEmailTemplate[];
+  templateVariables: string[];
+}
+
+export interface AgentEmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  message: string;
 }
 
 export interface AgentConfig {
@@ -45,6 +58,28 @@ export interface AgentConfig {
   channel: AgentChannel;
   action: AgentAction;
   message: string;
+  subject: string;
+  templateId: string;
+  recipientResolution?: { mode: 'task-linked-client'; relationship: 'trigger-record' };
+}
+
+export type WorkflowNodeType = 'action' | 'condition';
+export type WorkflowConditionOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'exists';
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  name: string;
+  config: Record<string, unknown>;
+}
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: 'true' | 'false' | 'next';
+}
+export interface WorkflowGraph {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
 }
 
 export type AgentConfigDraft = Partial<AgentConfig> & Record<string, unknown>;
@@ -62,6 +97,8 @@ export interface Agent {
 }
 
 export interface ProviderResult {
+  nodeId?: string;
+  nodeName?: string;
   recipient?: string;
   recipientData?: { name: string; address: string };
   provider?: string;
@@ -84,12 +121,13 @@ export interface AgentExecutionResult {
   conditions: Record<string, number>;
   recipients: string[];
   recipient: string[];
-  channel: AgentChannel;
-  action: AgentAction;
+  channel: AgentChannel | 'multiple';
+  action: AgentAction | 'Connected workflow';
   renderedMessage: string;
   results: ProviderResult[];
   partialFailure: boolean;
   steps: string[];
+  executionTrace?: Array<Record<string, unknown>>;
 }
 
 export interface AgentRun {
@@ -98,7 +136,7 @@ export interface AgentRun {
   agentName: string;
   agentModule: AgentModule;
   runType: 'test' | 'actual' | null;
-  status: 'success' | 'failed' | 'draft';
+  status: 'success' | 'partial-failed' | 'failed' | 'skipped' | 'draft';
   triggerData: Record<string, unknown> | null;
   result: AgentExecutionResult | null;
   errorMessage: string | null;

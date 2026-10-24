@@ -55,36 +55,33 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
     }
   }, [selectedDate]);
 
-  // Attendance badge styles
-  const getBadgeStyle = (badge: string) => {
+  // Attendance badge styles with full dark mode support
+  const getBadgeClass = (badge: string) => {
     switch (badge) {
       case 'Present':
-        return { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+        return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40';
       case 'Absent':
-        return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
+        return 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40';
       case 'On Leave':
-        return { bg: '#fff7ed', text: '#ea580c', border: '#ffedd5' };
+        return 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800/40';
       case 'Half Day':
-        return { bg: '#fefce8', text: '#ca8a04', border: '#fef08a' };
+        return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40';
       case 'Week Off':
-        return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+        return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/40';
       case 'Holiday':
-        return { bg: '#faf5ff', text: '#7c3aed', border: '#e9d8fd' };
+        return 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/40';
       default:
-        return { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+        return 'bg-gray-100 dark:bg-[#162032] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-[#334155]';
     }
   };
 
   return (
     <div
-      className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 transition-all flex flex-col"
-      style={{
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-      }}
+      className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
     >
       {/* Table Header Controls */}
       <div
-        className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-800"
+        className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-[#334155]"
         style={{
           padding: '16px 20px',
           gap: '16px',
@@ -110,14 +107,14 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                 setPage(1);
               }}
               placeholder="Search..."
-              className="text-xs rounded-lg pl-8 pr-3 py-1.5 border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600 w-44 sm:w-56"
+              className="text-xs rounded-lg pl-8 pr-3 py-1.5 border border-gray-200 dark:border-[#475569] bg-gray-50/50 dark:bg-[#0f172a] text-gray-900 dark:text-white focus:outline-hidden focus:border-[#3D6A9E] w-44 sm:w-56"
             />
           </div>
 
           {/* Date Picker Button */}
           <label className="relative flex items-center cursor-pointer">
             <div
-              className="flex items-center text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-gray-50/50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+              className="flex items-center text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-[#475569] rounded-lg px-3 py-1.5 bg-gray-50/50 dark:bg-[#0f172a] hover:bg-gray-100 dark:hover:bg-[#162032] transition-colors"
               style={{ gap: '8px' }}
             >
               <span>{formattedDateButton}</span>
@@ -134,7 +131,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
           {/* Three Dots Menu */}
           <button
             type="button"
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="p-1.5 rounded-lg border border-gray-200 dark:border-[#475569] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#162032] transition-colors"
           >
             <MoreVertical size={16} />
           </button>
@@ -150,10 +147,10 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
       >
         <table className="w-full border-collapse text-left whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <tr className="border-b border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032]">
               {/* Sticky first column */}
               <th
-                className="sticky left-0 z-10 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-xs text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-gray-100 dark:border-gray-800"
+                className="sticky left-0 z-10 bg-gray-50/95 dark:bg-[#162032]/95 backdrop-blur-xs text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-gray-100 dark:border-[#334155]"
                 style={{ padding: '12px 20px' }}
               >
                 Employee
@@ -171,49 +168,37 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                 Location
               </th>
               <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Name Of The ...
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Geo Location
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Office Location
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                Distance (Radius)
-              </th>
-              <th className="text-xs font-semibold text-gray-500 dark:text-gray-400" style={{ padding: '12px 16px' }}>
                 Break
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
             {isLoading ? (
               <tr>
-                <td colSpan={10} className="text-center py-12 text-xs text-gray-400">
+                <td colSpan={6} className="text-center py-12 text-xs text-gray-400">
                   Loading attendance records...
                 </td>
               </tr>
             ) : paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-12 text-xs text-gray-400">
+                <td colSpan={6} className="text-center py-12 text-xs text-gray-400">
                   No attendance records found for this date.
                 </td>
               </tr>
             ) : (
               paginatedRows.map((r) => {
-                const bStyle = getBadgeStyle(r.attendanceBadge);
+                const badgeClass = getBadgeClass(r.attendanceBadge);
                 const isLate = r.status === 'Late';
                 const inTimeColor = isLate ? '#ef4444' : '#10b981';
 
                 return (
                   <tr
                     key={r.id}
-                    className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors"
+                    className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors"
                   >
                     {/* Sticky Employee Avatar + Name */}
                     <td
-                      className="sticky left-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xs border-r border-gray-100 dark:border-gray-800"
+                      className="sticky left-0 z-10 bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xs border-r border-gray-100 dark:border-[#334155]"
                       style={{ padding: '12px 20px' }}
                     >
                       <div className="flex items-center" style={{ gap: '10px' }}>
@@ -232,12 +217,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                     {/* Attendance Badge */}
                     <td style={{ padding: '12px 16px' }}>
                       <span
-                        className="px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block"
-                        style={{
-                          backgroundColor: bStyle.bg,
-                          color: bStyle.text,
-                          borderColor: bStyle.border,
-                        }}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block ${badgeClass}`}
                       >
                         {r.attendanceBadge}
                       </span>
@@ -279,26 +259,6 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                       {r.location || '-'}
                     </td>
 
-                    {/* Name of Location */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.nameOfTheLocation || '-'}
-                    </td>
-
-                    {/* Geo Location */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.geoLocation || '-'}
-                    </td>
-
-                    {/* Office Location */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.officeLocation || '-'}
-                    </td>
-
-                    {/* Distance (Radius) */}
-                    <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
-                      {r.distanceRadius || '-'}
-                    </td>
-
                     {/* Break */}
                     <td className="text-xs text-gray-600 dark:text-gray-400" style={{ padding: '12px 16px' }}>
                       {r.breakMinutes || '00:00'}
@@ -313,7 +273,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
 
       {/* Standard Table Pagination Footer */}
       <div
-        className="flex items-center justify-end border-t border-gray-100 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400"
+        className="flex items-center justify-end border-t border-gray-100 dark:border-[#334155] text-xs text-gray-500 dark:text-gray-400"
         style={{
           padding: '12px 20px',
           gap: '24px',
@@ -338,7 +298,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
             type="button"
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#162032] text-gray-600 dark:text-gray-300 disabled:opacity-40 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
@@ -346,7 +306,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
             type="button"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#162032] text-gray-600 dark:text-gray-300 disabled:opacity-40 transition-colors"
           >
             <ChevronRight size={16} />
           </button>
