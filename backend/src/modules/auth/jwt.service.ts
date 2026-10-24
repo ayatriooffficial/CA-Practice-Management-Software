@@ -12,21 +12,21 @@ export class JwtService {
   }
 
   /**
-   * Sign an access token (default 15 minutes)
+   * Sign an access token (default 24 hours)
    */
   public static signAccessToken(payload: IJwtUserPayload): string {
     const options: SignOptions = {
-      expiresIn: (env.JWT_ACCESS_EXPIRES_IN || '15m') as any,
+      expiresIn: (env.JWT_ACCESS_EXPIRES_IN || '24h') as any,
     };
     return jwt.sign(payload, env.JWT_ACCESS_SECRET, options);
   }
 
   /**
-   * Sign a refresh token (default 7 days)
+   * Sign a refresh token (default 30 days)
    */
   public static signRefreshToken(payload: { userId: string; sessionId: string; tokenVersion: number }): string {
     const options: SignOptions = {
-      expiresIn: (env.JWT_REFRESH_EXPIRES_IN || '7d') as any,
+      expiresIn: (env.JWT_REFRESH_EXPIRES_IN || '30d') as any,
     };
     return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
   }
@@ -62,7 +62,7 @@ export class JwtService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60, // 15 mins in seconds
+      expiresIn: 24 * 60 * 60, // 24 hours in seconds
     };
   }
 }

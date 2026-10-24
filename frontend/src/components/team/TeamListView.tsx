@@ -29,6 +29,8 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [editingEmp, setEditingEmp] = useState<EmployeeRecord | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     teamStore.loadEmployeesFromBackend().then(() => {
@@ -367,6 +369,19 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                               Mark as Resigned
                             </button>
                           )}
+
+                          <button
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              setEmployeeToDelete(emp);
+                            }}
+                            className="w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 border-t border-gray-100 dark:border-[#334155] cursor-pointer"
+                          >
+                            <svg className="w-3.5 h-3.5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Remove Employee
+                          </button>
                         </div>
                       )}
                     </td>
@@ -401,6 +416,63 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
         isEdit={Boolean(editingEmp)}
         initialData={editingEmp}
       />
+
+      {/* Permanent Deletion Confirmation Modal */}
+      {employeeToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-[#1e293b] rounded-2xl max-w-md w-full border border-gray-200 dark:border-[#334155] shadow-2xl p-6 flex flex-col gap-4 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Remove Employee
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {employeeToDelete.name} ({employeeToDelete.email})
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 text-xs text-red-700 dark:text-red-300">
+              <span className="font-semibold block mb-0.5">Warning:</span>
+              This action will remove the employee permanently.
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setEmployeeToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!employeeToDelete) return;
+                  setIsDeleting(true);
+                  try {
+                    teamStore.deleteEmployee(employeeToDelete.id, employeeToDelete.email);
+                    setEmployeeToDelete(null);
+                    onRefresh();
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? 'Removing...' : 'Yes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

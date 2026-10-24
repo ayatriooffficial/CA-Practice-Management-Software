@@ -8,10 +8,12 @@ import {
   AlertCircle,
   Loader2,
   Building2,
-  Check,
+  Lock,
+  Eye,
+  EyeOff,
+  UserCheck,
 } from "lucide-react";
 import { authService } from "./authService";
-import { OtpInput } from "./OtpInput";
 
 export const SignupForm: React.FC = () => {
   const router = useRouter();
@@ -21,11 +23,10 @@ export const SignupForm: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
-
-  // Email verification state
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Overall form state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,68 +44,43 @@ export const SignupForm: React.FC = () => {
   } | null>(null);
 
   // Form validations
-  const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const cleanEmail = email.trim().toLowerCase();
+  const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
   const cleanMobile = mobile.replace(/\D/g, "");
   const isValidMobileFormat = /^[6-9]\d{9}$/.test(cleanMobile);
+  const isValidPassword = password.length >= 6;
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   const isFormComplete =
     firmName.trim().length > 0 &&
     name.trim().length > 0 &&
-    isEmailVerified &&
-    isValidMobileFormat;
-
-  // Handle triggering email verification OTP
-  const handleStartEmailVerify = async () => {
-    if (!isValidEmailFormat || isEmailVerified) return;
-    setEmailError(null);
-
-    // Check 4-field conflicts for email
-    const dupCheck = authService.checkOrganizationDuplicates({
-      firmName,
-      name,
-      email,
-      mobile: cleanMobile,
-    });
-    if (dupCheck.hasConflict && dupCheck.conflictingFields.includes("Email")) {
-      setConflictModal({
-        isOpen: true,
-        conflictingFields: dupCheck.conflictingFields,
-        message: dupCheck.message,
-      });
-      return;
-    }
-
-    try {
-      await authService.sendOtp(email.trim(), "email", "signup");
-      setIsVerifyingEmailOtp(true);
-    } catch (err: any) {
-      setEmailError(err.message || "Failed to send verification code. Please try again.");
-    }
-  };
-
-  // Handle email OTP verification
-  const handleVerifyEmailCode = async (code: string) => {
-    const res = await authService.verifyOtp(email.trim(), code, "signup");
-    if (res.success) {
-      setIsEmailVerified(true);
-      setIsVerifyingEmailOtp(false);
-      setEmailError(null);
-      return { success: true };
-    }
-    return { success: false, message: res.message };
-  };
+    isValidEmailFormat &&
+    isValidMobileFormat &&
+    isValidPassword &&
+    passwordsMatch;
 
   // Handle final registration submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
 
+    if (password !== confirmPassword) {
+      setSubmitError("Passwords do not match. Please verify.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setSubmitError("Password must be at least 6 characters.");
+      return;
+    }
+
     // 4-field duplicate check (Person name, Org name, Contact number, Email)
     const dupCheck = authService.checkOrganizationDuplicates({
       firmName: firmName.trim(),
       name: name.trim(),
-      email: email.trim(),
+      email: cleanEmail,
       mobile: cleanMobile,
+      password,
     });
 
     if (dupCheck.hasConflict) {
@@ -124,15 +100,16 @@ export const SignupForm: React.FC = () => {
       const res = await authService.registerOrganization({
         firmName: firmName.trim(),
         name: name.trim(),
-        email: email.trim(),
+        email: cleanEmail,
         mobile: cleanMobile,
+        password: password.trim(),
       });
 
       if (res.success) {
         setConfirmationData({
           firmName: firmName.trim(),
           name: name.trim(),
-          email: email.trim(),
+          email: cleanEmail,
           mobile: cleanMobile,
         });
       } else {
@@ -169,7 +146,7 @@ export const SignupForm: React.FC = () => {
             Organization Created!
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Your firm account is now ready. Continue to login with your verified email.
+            Your firm workspace and administrator account are ready. Sign in with your email and password.
           </p>
         </div>
 
@@ -189,9 +166,9 @@ export const SignupForm: React.FC = () => {
             </span>
           </div>
           <div className="flex justify-between py-1 border-b border-gray-200/60 dark:border-gray-800">
-            <span className="text-gray-500">Verified Email</span>
+            <span className="text-gray-500">Registered Email</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-              {confirmationData.email} ✓
+              {confirmationData.email}
             </span>
           </div>
           <div className="flex justify-between py-1">
@@ -209,19 +186,19 @@ export const SignupForm: React.FC = () => {
           }}
           className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] transition-all shadow-sm hover:shadow cursor-pointer flex items-center justify-center gap-2"
         >
-          <span>Continue to Login</span>
+          <span>Sign In to Your Workspace</span>
         </button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[24px]">
+    <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[20px]">
       {/* 1. Firm Name Field */}
-      <div className="flex flex-col gap-[8px]">
+      <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-firm"
-          className="block text-[15px] font-medium text-[#374151] dark:text-gray-300"
+          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
         >
           Firm Name <span className="text-red-500">*</span>
         </label>
@@ -231,127 +208,62 @@ export const SignupForm: React.FC = () => {
           value={firmName}
           onChange={(e) => setFirmName(e.target.value)}
           placeholder="ABC & Associates"
-          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14.5px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
           required
         />
       </div>
 
-      {/* 2. Name Field */}
-      <div className="flex flex-col gap-[8px]">
+      {/* 2. Contact Name Field */}
+      <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-name"
-          className="block text-[15px] font-medium text-[#374151] dark:text-gray-300"
+          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
         >
-          Name <span className="text-red-500">*</span>
+          Contact Person Name <span className="text-red-500">*</span>
         </label>
         <input
           id="signup-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="John Doe"
-          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14.5px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+          placeholder="e.g. CA John Doe"
+          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
           required
         />
       </div>
 
-      {/* 3. Email Field with Verify Link / Verified Badge */}
-      <div className="flex flex-col gap-[8px]">
+      {/* 3. Email Field */}
+      <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-email"
-          className="block text-[15px] font-medium text-[#374151] dark:text-gray-300"
+          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
         >
-          Email <span className="text-red-500">*</span>
+          Work Email <span className="text-red-500">*</span>
         </label>
-        <div className="relative flex items-center">
-          <input
-            id="signup-email"
-            type="email"
-            value={email}
-            disabled={isEmailVerified || isVerifyingEmailOtp}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setEmailError(null);
-            }}
-            placeholder="john.deo@gmail.com"
-            className={`w-full h-[44px] pl-3.5 pr-24 rounded-lg border border-gray-200 dark:border-gray-700 text-[14.5px] placeholder-gray-400 focus:outline-hidden transition-all shadow-2xs ${
-              isEmailVerified
-                ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-400 text-gray-900 dark:text-white font-medium"
-                : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20"
-            }`}
-            required
-          />
-
-          {/* Right Action: Verify Link or Verified Badge */}
-          <div className="absolute right-3.5 flex items-center">
-            {isEmailVerified ? (
-              <div className="flex items-center gap-1.5">
-                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                  Verified
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEmailVerified(false);
-                    setIsVerifyingEmailOtp(false);
-                  }}
-                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline ml-1 cursor-pointer"
-                >
-                  Change
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                disabled={!isValidEmailFormat || isVerifyingEmailOtp}
-                onClick={handleStartEmailVerify}
-                className={`text-xs font-semibold px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  isValidEmailFormat && !isVerifyingEmailOtp
-                    ? "text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 shadow-[0_0_10px_rgba(34,197,94,0.35)] animate-pulse"
-                    : "text-[#a5a3f6] cursor-not-allowed"
-                }`}
-              >
-                Verify
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Email error message */}
-        {emailError && (
-          <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 animate-in fade-in">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>{emailError}</span>
-          </div>
-        )}
-
-        {/* Inline Email OTP verification panel */}
-        {isVerifyingEmailOtp && !isEmailVerified && (
-          <div className="pt-2 animate-in slide-in-from-top-2 duration-200">
-            <OtpInput
-              targetDescription={email}
-              isCompact
-              onVerify={handleVerifyEmailCode}
-              onResend={handleStartEmailVerify}
-              onChangeTarget={() => setIsVerifyingEmailOtp(false)}
-              targetLabel="Cancel"
-            />
-          </div>
-        )}
+        <input
+          id="signup-email"
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setSubmitError(null);
+          }}
+          placeholder="name@firm.com or Gmail"
+          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+          required
+        />
       </div>
 
       {/* 4. Mobile Number Field */}
-      <div className="flex flex-col gap-[8px]">
+      <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-mobile"
-          className="block text-[15px] font-medium text-[#374151] dark:text-gray-300"
+          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
         >
           Mobile Number <span className="text-red-500">*</span>
         </label>
-
-        <div className="relative flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus-within:border-[#6d55f4] focus-within:ring-2 focus-within:ring-[#6d55f4]/20 transition-all shadow-2xs">
-          <span className="inline-flex items-center px-3.5 border-r border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/80 text-[14.5px] font-medium text-gray-500 dark:text-gray-400">
+        <div className="relative flex items-center">
+          <span className="absolute left-3.5 text-gray-400 font-medium text-[14px] select-none">
             +91
           </span>
           <input
@@ -359,100 +271,164 @@ export const SignupForm: React.FC = () => {
             type="tel"
             maxLength={10}
             value={mobile}
-            onChange={(e) => {
-              setMobile(e.target.value.replace(/\D/g, ""));
-            }}
+            onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
             placeholder="9876543210"
-            className="w-full h-[44px] px-3.5 bg-transparent text-[14.5px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden"
+            className="w-full h-[44px] pl-12 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
             required
           />
         </div>
       </div>
 
-      {/* Global submission error */}
+      {/* 5. Password Field */}
+      <div className="flex flex-col gap-[6px]">
+        <label
+          htmlFor="signup-password"
+          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
+        >
+          Create Password <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <Lock className="w-4 h-4" />
+          </div>
+          <input
+            id="signup-password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setSubmitError(null);
+            }}
+            placeholder="Min. 6 characters"
+            className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* 6. Confirm Password Field */}
+      <div className="flex flex-col gap-[6px]">
+        <label
+          htmlFor="signup-confirm-password"
+          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
+        >
+          Confirm Password <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <Lock className="w-4 h-4" />
+          </div>
+          <input
+            id="signup-confirm-password"
+            type={showConfirmPassword ? "text" : "password"}
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setSubmitError(null);
+            }}
+            placeholder="Re-enter your password"
+            className={`w-full h-[44px] pl-10 pr-10 rounded-lg border text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden transition-all shadow-2xs ${
+              confirmPassword && !passwordsMatch
+                ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-white dark:bg-gray-800"
+                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20"
+            }`}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+          >
+            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        {confirmPassword && !passwordsMatch && (
+          <p className="text-[12px] text-red-500 mt-0.5">Passwords do not match</p>
+        )}
+      </div>
+
+      {/* Global Error Banner */}
       {submitError && (
-        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+        <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{submitError}</span>
         </div>
       )}
 
-      {/* Submit Button aligned to RIGHT: 30px from mobile input, 47px height */}
-      <div className="mt-[30px] flex justify-end">
-        <button
-          type="submit"
-          disabled={!isFormComplete || isSubmitting}
-          className={`px-8 h-[47px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            !isFormComplete || isSubmitting
-              ? "bg-[#b8b5fa] cursor-not-allowed"
-              : "bg-[#6d55f4] hover:bg-[#5b42e6] shadow-xs hover:shadow"
-          }`}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Submitting...</span>
-            </>
-          ) : (
-            <span>Submit</span>
-          )}
-        </button>
-      </div>
+      {/* Submit Action */}
+      <button
+        type="submit"
+        disabled={!isFormComplete || isSubmitting}
+        className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
+          !isFormComplete || isSubmitting
+            ? "bg-[#b8b5fa] cursor-not-allowed"
+            : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
+        }`}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Creating Organization...</span>
+          </>
+        ) : (
+          <span>Create Organization</span>
+        )}
+      </button>
 
-      {/* Footer Link: exactly 32px below Submit */}
-      <div className="mt-[32px] text-center text-[14.5px] text-[#475569] dark:text-gray-400">
+      {/* Switch to Login Link */}
+      <div className="text-center text-[13.5px] text-[#475569] dark:text-gray-400">
         Already have an account?{" "}
         <Link
           href="/login"
           className="font-semibold text-[#6d55f4] hover:text-[#5841e2] hover:underline"
         >
-          Login
+          Sign In
         </Link>
       </div>
 
-      {/* Duplicate Conflict Message Box / Modal */}
+      {/* Conflict Modal */}
       {conflictModal?.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl max-w-md w-full p-6 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-200 dark:border-amber-800">
-              <AlertCircle className="w-7 h-7" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-gray-700 space-y-4">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-gray-900 dark:text-white">
+                  Account Conflict
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Existing details detected in system
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                Account Details Already In Use
-              </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
-                {conflictModal.message}
-              </p>
-            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              {conflictModal.message}
+            </p>
 
-            <div className="flex flex-wrap justify-center gap-1.5 py-1">
-              {conflictModal.conflictingFields.map((f) => (
-                <span
-                  key={f}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-                >
-                  {f}
-                </span>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setConflictModal(null)}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
               >
-                Edit Information
+                Change Details
               </button>
-              <button
-                type="button"
-                onClick={() => router.push("/login")}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] rounded-lg shadow-sm transition-colors cursor-pointer"
+              <Link
+                href={`/login?email=${encodeURIComponent(cleanEmail)}`}
+                className="px-4 py-2 text-xs font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] rounded-lg transition-colors shadow-xs"
               >
-                Go to Login
-              </button>
+                Sign In Instead
+              </Link>
             </div>
           </div>
         </div>

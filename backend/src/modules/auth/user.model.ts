@@ -41,6 +41,10 @@ const userSchema = new Schema<IUserDocument>(
       type: String,
       select: false,
     },
+    password: {
+      type: String,
+      select: false,
+    },
     role: {
       type: String,
       set: (v: string) => (v ? v.toLowerCase() : 'admin'),
@@ -117,6 +121,7 @@ const userSchema = new Schema<IUserDocument>(
         delete ret._id;
         delete ret.__v;
         delete ret.passwordHash;
+        delete ret.password;
         return ret;
       },
     },

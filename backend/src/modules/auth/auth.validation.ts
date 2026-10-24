@@ -5,7 +5,7 @@ export const registerOrgSchema = z.object({
   name: z.string().min(2, 'Contact person name must be at least 2 characters'),
   email: z.string().email('Valid email address is required'),
   mobile: z.string().min(10, 'Valid 10-digit mobile number is required'),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 export const sendOtpSchema = z.object({

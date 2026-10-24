@@ -14,6 +14,7 @@ import { logger } from './config/logger';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { CounterService } from './modules/counter/counter.service';
 import { initializeFinancialIndexes } from './modules/financials/financial.model';
+import { AuthService } from './modules/auth/auth.service';
 
 let server: http.Server | null = null;
 
@@ -22,13 +23,16 @@ const startServer = async (): Promise<void> => {
     // 1. Establish Database Connection
     await connectDatabase();
 
-    // 2. Ensure financial uniqueness and query indexes (production disables autoIndex)
+    // 2. Ensure admin account & seed data
+    await AuthService.ensureSeedData();
+
+    // 3. Ensure financial uniqueness and query indexes (production disables autoIndex)
     await initializeFinancialIndexes();
 
-    // 3. Initialize Dedicated Counters Collection
+    // 4. Initialize Dedicated Counters Collection
     await CounterService.initializeCounters();
 
-    // 4. Initialize Express Application
+    // 5. Initialize Express Application
     const app = createApp();
 
     // 3. Start HTTP Server

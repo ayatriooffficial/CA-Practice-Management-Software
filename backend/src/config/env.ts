@@ -27,7 +27,7 @@ const envSchema = z.object({
   // JWT Configuration
   JWT_ACCESS_SECRET: z.string().default('ayatrio_dev_access_secret_key_change_in_production_2026'),
   JWT_REFRESH_SECRET: z.string().default('ayatrio_dev_refresh_secret_key_change_in_production_2026'),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('24h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   // Email / SMTP (Free Gmail SMTP or Custom Provider)
   SMTP_HOST: z.string().default('smtp.gmail.com'),

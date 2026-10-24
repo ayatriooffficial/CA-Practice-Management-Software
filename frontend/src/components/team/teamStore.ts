@@ -155,17 +155,19 @@ export const teamStore = {
           department: newEmp.department,
           designation: newEmp.designation,
           permissions: newEmp.permissions,
+          password: employee.password || '123456',
         }),
       }).then((res: any) => {
-        if (res?.data?.id) {
+        const backendId = res?.data?.id || res?.data?._id;
+        if (backendId) {
           // Update local id to backend MongoDB _id
-          this.updateEmployee(newEmp.id, { id: res.data.id });
+          this.updateEmployee(newEmp.id, { id: backendId });
           if (employee.costPerHour !== undefined && employee.costPerHour !== '') {
-            void financialApi.setInternalCostRate(res.data.id, Number(employee.costPerHour));
+            void financialApi.setInternalCostRate(backendId, Number(employee.costPerHour));
           }
         }
-      }).catch(() => {
-        // Continue with local storage if offline
+      }).catch((err) => {
+        console.error('Failed to sync new employee to backend:', err);
       });
     }
 
@@ -181,11 +183,28 @@ export const teamStore = {
     });
     this.saveEmployees(employees);
 
-    if (isBrowser() && id && !id.startsWith('emp_')) {
+    if (isBrowser() && id) {
+      const emp = employees.find((e) => e.id === id);
+      const payload: any = { ...updates };
+      if (emp?.email && !payload.email) {
+        payload.email = emp.email;
+      }
+
       request(`/auth/team/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify(updates),
-      }).catch(() => {});
+        body: JSON.stringify(payload),
+      }).then((res: any) => {
+        const backendId = res?.data?.id || res?.data?._id;
+        if (backendId && backendId !== id) {
+          const updatedList = this.getEmployees().map((e) =>
+            e.id === id ? { ...e, id: backendId } : e
+          );
+          this.saveEmployees(updatedList);
+        }
+      }).catch((err) => {
+        console.error('Failed to sync employee update to backend:', err);
+      });
+
       if (Object.prototype.hasOwnProperty.call(updates, 'costPerHour')) {
         void financialApi.setInternalCostRate(id, updates.costPerHour == null || updates.costPerHour === '' ? null : Number(updates.costPerHour));
       }
@@ -203,13 +222,46 @@ export const teamStore = {
     }
     this.saveEmployees(employees);
 
-    if (isBrowser() && id && !id.startsWith('emp_')) {
+    if (isBrowser() && id) {
+      const emp = employees.find((e) => e.id === id);
       request(`/auth/team/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: targetStatus.toLowerCase() }),
+        body: JSON.stringify({ status: targetStatus.toLowerCase(), email: emp?.email }),
       }).catch(() => {});
     }
     return { success: true };
+  },
+
+  deleteEmployee(id: string, email?: string): void {
+    const cleanEmail = email?.trim().toLowerCase();
+    const employees = this.getEmployees().filter(
+      (e) => e.id !== id && (!cleanEmail || e.email.trim().toLowerCase() !== cleanEmail)
+    );
+    this.saveEmployees(employees);
+
+    // Also remove from demo registered users in localStorage if present
+    if (isBrowser()) {
+      try {
+        const raw = localStorage.getItem(REGISTERED_USERS_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          const filtered = list.filter(
+            (u: any) => u.id !== id && (!cleanEmail || u.email?.trim().toLowerCase() !== cleanEmail)
+          );
+          localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(filtered));
+        }
+      } catch {
+        // ignore
+      }
+
+      // Sync permanent deletion with backend MongoDB database
+      request(`/auth/team/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ email }),
+      }).catch((err) => {
+        console.error('Failed to delete employee from backend:', err);
+      });
+    }
   },
 
   async loadEmployeesFromBackend(): Promise<EmployeeRecord[]> {

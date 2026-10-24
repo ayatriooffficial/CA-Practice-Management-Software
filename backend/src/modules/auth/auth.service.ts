@@ -27,14 +27,188 @@ function computeInitials(name: string): string {
 }
 
 export class AuthService {
+  public static readonly DEFAULT_ADMIN_EMAIL = 'info.openstreem@gmail.com';
+  public static readonly DEFAULT_ADMIN_PASSWORD_NUMERIC = '482916';
+
   /**
-   * Auto-seed disabled by configuration: do not create default users
+   * Seed/Ensure Admin Account with 6-digit numerical password
    */
   public static async ensureSeedData(): Promise<void> {
-    // Disabled: Do not create any default users or mock data
-    return;
+    try {
+      const adminEmail = this.DEFAULT_ADMIN_EMAIL.toLowerCase().trim();
+      const adminPasswordNumeric = this.DEFAULT_ADMIN_PASSWORD_NUMERIC;
+      const passwordHash = await bcrypt.hash(adminPasswordNumeric, 10);
+
+      let org = await OrganizationModel.findOne({ email: adminEmail });
+      if (!org) {
+        org = await OrganizationModel.findOne();
+      }
+      if (!org) {
+        org = await OrganizationModel.create({
+          name: 'Ayatrio Practice Management Firm',
+          email: adminEmail,
+          mobile: '4000000000',
+          totalSeats: 999999,
+          isActive: true,
+        });
+      }
+
+      const existingAdmin = await UserModel.findOne({ email: adminEmail }).select('+passwordHash');
+      if (!existingAdmin) {
+        await UserModel.create({
+          orgId: org._id,
+          firmName: org.name,
+          name: 'Ayatrio Admin',
+          email: adminEmail,
+          mobile: '4000000000',
+          passwordHash,
+          role: 'admin',
+          initials: 'AY',
+          status: 'active',
+          tokenVersion: 0,
+          isEmailVerified: true,
+        });
+        logger.info(`✅ Seeded Admin Account: ${adminEmail} with numerical password: ${adminPasswordNumeric}`);
+      } else {
+        // Only set seed password if no password has ever been set!
+        // DO NOT overwrite if user or admin has set or updated their password
+        let needsSave = false;
+        if (!existingAdmin.passwordHash) {
+          existingAdmin.passwordHash = passwordHash;
+          needsSave = true;
+        }
+        if (existingAdmin.status !== 'active') {
+          existingAdmin.status = 'active';
+          needsSave = true;
+        }
+        if (!existingAdmin.orgId) {
+          existingAdmin.orgId = org._id as any;
+          needsSave = true;
+        }
+        if (needsSave) {
+          await existingAdmin.save();
+        }
+      }
+    } catch (err) {
+      logger.error('Failed to ensure seed data:', err);
+    }
   }
 
+  /**
+   * Authenticate user with Email and Password
+   */
+  public static async loginWithPassword(
+    email: string,
+    password: string,
+    options?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
+    await this.ensureSeedData();
+
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      throw AppError.badRequest('Email is required');
+    }
+    if (!password) {
+      throw AppError.badRequest('Password is required');
+    }
+
+    // 1. Check if user exists in DB
+    const user = await UserModel.findOne({ email: cleanEmail })
+      .select('+passwordHash +password')
+      .populate('orgId', 'name isActive');
+
+    if (!user) {
+      const err = new AppError(
+        'No account found with this email. Please check your email or create a new organization.',
+        HTTP_STATUS.NOT_FOUND
+      );
+      (err as any).code = 'USER_NOT_FOUND';
+      throw err;
+    }
+
+    // 2. Check user status
+    const userStatusStr = String(user.status || 'active').toLowerCase();
+    if (userStatusStr !== 'active') {
+      throw new AppError(
+        'Your account has been deactivated. Please contact your firm administrator.',
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    // 3. Compare password
+    const submittedPassword = String(password).trim();
+    let isMatch = false;
+
+    if (user.passwordHash) {
+      isMatch = await bcrypt.compare(submittedPassword, user.passwordHash);
+    }
+
+    // Backward compatibility: If raw password was stored in plain text or not yet hashed
+    if (!isMatch && (user as any).password && (user as any).password === submittedPassword) {
+      isMatch = true;
+      user.passwordHash = await bcrypt.hash(submittedPassword, 10);
+      (user as any).password = undefined;
+      await user.save();
+    }
+
+    // Default fallback: If user was seeded without passwordHash, allow initial login with default '123456'
+    if (!isMatch && !user.passwordHash && submittedPassword === '123456') {
+      isMatch = true;
+      user.passwordHash = await bcrypt.hash('123456', 10);
+      await user.save();
+    }
+
+    if (!isMatch) {
+      if (!user.passwordHash) {
+        throw AppError.unauthorized('Password not set for this account. Please use default 123456 or contact your administrator.');
+      }
+      throw AppError.unauthorized('Incorrect password. Please verify and try again.');
+    }
+
+    // Ensure user has valid orgId
+    if (!user.orgId) {
+      let org = await OrganizationModel.findOne();
+      if (!org) {
+        org = await OrganizationModel.create({
+          name: 'Ayatrio Practice',
+          code: 'ayatrio-practice',
+          totalSeats: 10,
+          isActive: true,
+        });
+      }
+      user.orgId = org._id as any;
+      user.firmName = user.firmName || org.name;
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // 4. Persistence management: single active session per device (userAgent)
+    if (options?.userAgent) {
+      await RefreshSessionModel.deleteMany({ userId: user._id, userAgent: options.userAgent });
+    }
+
+    const session = await RefreshSessionModel.create({
+      userId: user._id,
+      orgId: (user.orgId as any)?._id || user.orgId,
+      tokenHash: 'temp_hash',
+      userAgent: options?.userAgent || '',
+      ipAddress: options?.ipAddress || '',
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
+    });
+
+    const firmName = (user.orgId as any)?.name || user.firmName || 'Ayatrio Practice';
+    const jwtPayload = this.buildJwtPayload(user, firmName);
+    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
+
+    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
+    await session.save();
+
+    const userObj = user.toObject ? user.toObject() : (user as any);
+    delete (userObj as any).passwordHash;
+
+    return { user: userObj, tokens };
+  }
 
   /**
    * Helper to build JWT payload from a User document
@@ -62,7 +236,7 @@ export class AuthService {
     name: string;
     email: string;
     mobile: string;
-    password?: string;
+    password: string;
     userAgent?: string;
     ipAddress?: string;
   }): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
@@ -70,6 +244,10 @@ export class AuthService {
 
     const cleanEmail = data.email.trim().toLowerCase();
     const cleanMobile = data.mobile.replace(/\D/g, '').slice(-10);
+
+    if (!data.password || String(data.password).trim().length < 6) {
+      throw AppError.badRequest('Password must be at least 6 characters');
+    }
 
     const existingUser = await UserModel.findOne({
       $or: [{ email: cleanEmail }, { mobile: cleanMobile }],
@@ -88,10 +266,7 @@ export class AuthService {
       isActive: true,
     });
 
-    let passwordHash: string | undefined = undefined;
-    if (data.password) {
-      passwordHash = await bcrypt.hash(data.password, 10);
-    }
+    const passwordHash = await bcrypt.hash(String(data.password).trim(), 10);
 
     // Create admin user
     const user = await UserModel.create({
@@ -124,7 +299,10 @@ export class AuthService {
     session.tokenHash = JwtService.hashToken(tokens.refreshToken);
     await session.save();
 
-    return { user, tokens };
+    const userObj = user.toObject ? user.toObject() : (user as any);
+    delete (userObj as any).passwordHash;
+
+    return { user: userObj, tokens };
   }
 
   /**
@@ -461,70 +639,7 @@ export class AuthService {
     };
   }
 
-  /**
-   * Password login fallback
-   */
-  public static async loginWithPassword(
-    email: string,
-    pass: string,
-    options?: { userAgent?: string; ipAddress?: string }
-  ): Promise<{ user: IUserDocument; tokens: IAuthTokens }> {
-    await this.ensureSeedData();
 
-    const cleanEmail = email.trim().toLowerCase();
-    const user = await UserModel.findOne({ email: cleanEmail })
-      .select('+passwordHash')
-      .populate('orgId', 'name');
-
-    if (!user || !user.passwordHash) {
-      throw AppError.unauthorized('Invalid email or password');
-    }
-
-    const matches = await bcrypt.compare(pass, user.passwordHash);
-    if (!matches) {
-      throw AppError.unauthorized('Invalid email or password');
-    }
-
-    const userStatusStr = String(user.status || 'active').toLowerCase();
-    if (userStatusStr !== 'active') {
-      throw new AppError('Your account has been deactivated.', HTTP_STATUS.FORBIDDEN);
-    }
-
-    if (!user.orgId) {
-      let org = await OrganizationModel.findOne();
-      if (!org) {
-        org = await OrganizationModel.create({
-          name: 'Ayatrio Practice',
-          code: 'ayatrio-practice',
-          totalSeats: 10,
-          isActive: true,
-        });
-      }
-      user.orgId = org._id as any;
-      user.firmName = user.firmName || org.name;
-    }
-
-    user.lastLoginAt = new Date();
-    await user.save();
-
-    const session = await RefreshSessionModel.create({
-      userId: user._id,
-      orgId: (user.orgId as any)?._id || user.orgId,
-      tokenHash: 'temp_hash',
-      userAgent: options?.userAgent || '',
-      ipAddress: options?.ipAddress || '',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-
-    const firmName = (user.orgId as any)?.name || user.firmName || 'Practice Firm';
-    const jwtPayload = this.buildJwtPayload(user, firmName);
-    const tokens = JwtService.generateAuthTokens(jwtPayload, String(session._id));
-
-    session.tokenHash = JwtService.hashToken(tokens.refreshToken);
-    await session.save();
-
-    return { user, tokens };
-  }
 
   /**
    * Rotate Refresh Token & Issue new Access Token
@@ -662,6 +777,7 @@ export class AuthService {
       department?: string;
       designation?: string;
       permissions?: any;
+      password?: string;
     }
   ): Promise<IUserDocument> {
     const cleanEmail = data.email.toLowerCase().trim();
@@ -669,9 +785,26 @@ export class AuthService {
 
     const exists = await UserModel.findOne({
       $or: [{ email: cleanEmail }, { mobile: cleanMobile }],
-    });
+    }).select('+passwordHash');
+
     if (exists) {
-      throw AppError.conflict('A user with this email or mobile number already exists');
+      // If user exists with this email, update details and set password
+      if (exists.email.toLowerCase() === cleanEmail) {
+        if (data.password && String(data.password).trim()) {
+          exists.passwordHash = await bcrypt.hash(String(data.password).trim(), 10);
+        } else if (!exists.passwordHash) {
+          exists.passwordHash = await bcrypt.hash('123456', 10);
+        }
+        if (data.name) exists.name = data.name.trim();
+        if (data.role) exists.role = (data.role || 'employee').toLowerCase() as any;
+        if (data.department) exists.department = data.department;
+        if (data.designation) exists.designation = data.designation;
+        if (data.permissions) exists.permissions = data.permissions;
+        exists.status = 'active';
+        await exists.save();
+        return exists;
+      }
+      throw AppError.conflict('A user with this mobile number already exists');
     }
 
     let resolvedOrgId = adminUser.orgId;
@@ -697,6 +830,8 @@ export class AuthService {
     }
 
     const initials = computeInitials(data.name);
+    const rawPassword = data.password && String(data.password).trim() ? String(data.password).trim() : '123456';
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
 
     const user = await UserModel.create({
       orgId: new mongoose.Types.ObjectId(resolvedOrgId),
@@ -704,6 +839,7 @@ export class AuthService {
       name: data.name.trim(),
       email: cleanEmail,
       mobile: cleanMobile,
+      passwordHash,
       role: (data.role || 'employee').toLowerCase() as any,
       department: data.department || 'Audit & Taxation',
       designation: data.designation || 'Staff',
@@ -711,6 +847,7 @@ export class AuthService {
       permissions: data.permissions || {},
       status: 'active',
       tokenVersion: 0,
+      isEmailVerified: true,
     });
 
     return user;
@@ -720,18 +857,90 @@ export class AuthService {
    * Update team member
    */
   public static async updateTeamMember(id: string, updates: Partial<any>): Promise<IUserDocument> {
-    const user = await UserModel.findByIdAndUpdate(id, { $set: updates }, { new: true });
+    const updateData: any = { ...updates };
+
+    // 1. Password hashing
+    if (updateData.password && String(updateData.password).trim()) {
+      updateData.passwordHash = await bcrypt.hash(String(updateData.password).trim(), 10);
+      delete updateData.password;
+    } else {
+      delete updateData.password;
+    }
+
+    // 2. Normalize fields
+    if (updateData.email) {
+      updateData.email = updateData.email.trim().toLowerCase();
+    }
+    if (updateData.mobile) {
+      updateData.mobile = updateData.mobile.replace(/\D/g, '').slice(-10);
+    }
+    if (updateData.role) {
+      updateData.role = updateData.role.toLowerCase();
+    }
+    if (updateData.status && typeof updateData.status === 'string') {
+      const s = updateData.status.toLowerCase();
+      if (s === 'deactivated' || s === 'resigned' || s === 'suspended') {
+        updateData.status = 'suspended';
+      } else {
+        updateData.status = 'active';
+      }
+    }
+
+    let user: IUserDocument | null = null;
+
+    // Try finding by ObjectId if id is valid Mongo ObjectId
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      user = await UserModel.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+    }
+
+    // Fallback: Try finding by email
+    const emailToMatch = (updateData.email || (id && id.includes('@') ? id : '')).toLowerCase().trim();
+    if (!user && emailToMatch) {
+      user = await UserModel.findOneAndUpdate({ email: emailToMatch }, { $set: updateData }, { new: true });
+    }
+
+    // Fallback: If not in MongoDB yet, create the user record
+    if (!user && emailToMatch) {
+      let org = await OrganizationModel.findOne();
+      const rawPassword = updateData.passwordHash ? null : '123456';
+      const hash = updateData.passwordHash || (await bcrypt.hash(rawPassword!, 10));
+      delete updateData.passwordHash;
+
+      user = await UserModel.create({
+        orgId: org?._id,
+        firmName: org?.name || 'Ayatrio Practice',
+        name: updateData.name || emailToMatch.split('@')[0],
+        email: emailToMatch,
+        mobile: updateData.mobile || '9999999999',
+        passwordHash: hash,
+        role: (updateData.role || 'employee').toLowerCase(),
+        department: updateData.department || 'Audit & Taxation',
+        designation: updateData.designation || 'Staff',
+        status: updateData.status || 'active',
+        permissions: updateData.permissions || {},
+        isEmailVerified: true,
+      });
+    }
+
     if (!user) {
       throw AppError.notFound('Team member not found');
     }
+
     return user;
   }
 
   /**
-   * Delete team member
+   * Delete team member permanently from DB by ObjectId or email
    */
-  public static async deleteTeamMember(id: string): Promise<void> {
-    await UserModel.findByIdAndDelete(id);
+  public static async deleteTeamMember(id: string, email?: string): Promise<void> {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      await UserModel.findByIdAndDelete(id);
+      return;
+    }
+    const emailToMatch = (email || (id && id.includes('@') ? id : '')).toLowerCase().trim();
+    if (emailToMatch) {
+      await UserModel.findOneAndDelete({ email: emailToMatch });
+    }
   }
 
   /**

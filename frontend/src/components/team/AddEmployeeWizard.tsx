@@ -37,6 +37,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
   const [designation, setDesignation] = useState('');
   const [role, setRole] = useState<TeamRole>('Employee');
   const [department, setDepartment] = useState('Audit & Taxation');
@@ -145,11 +146,13 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
       setPermissions(
         initialData.permissions || getPresetPermissions(initialData.role || 'Employee')
       );
+      setPassword('');
     } else {
       setFirstName('');
       setLastName('');
       setEmail('');
       setMobile('');
+      setPassword('');
       setDesignation('');
       setRole('Employee');
       setDepartment('Audit & Taxation');
@@ -277,7 +280,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
       emergencyContactNumber,
     };
 
-    onSave({
+    const payload: any = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       name: fullName,
@@ -300,7 +303,15 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
       sameAddress,
       personalDetails,
       permissions,
-    });
+    };
+
+    if (password.trim()) {
+      payload.password = password.trim();
+    } else if (!isEdit) {
+      payload.password = '123456';
+    }
+
+    onSave(payload);
 
     onClose();
   };
@@ -436,6 +447,22 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder="9876543210"
+                  className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  {isEdit ? 'Update Login Password' : 'Login Password'}{' '}
+                  <span className="text-gray-400 font-normal">
+                    {isEdit ? '(Leave blank to keep unchanged)' : '(Default: 123456)'}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={isEdit ? 'Enter new password to change' : 'Set 6-digit or custom password'}
                   className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
                 />
               </div>
