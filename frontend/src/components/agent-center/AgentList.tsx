@@ -25,6 +25,7 @@ import {
   Search,
   Trash2,
   XCircle,
+  Zap,
 } from 'lucide-react';
 import {
   useAgents,
@@ -45,18 +46,18 @@ interface ModuleCardConfig {
 const MODULE_DEFINITIONS: ModuleCardConfig[] = [
   {
     name: 'Task',
-    description: 'Automated alerts for task creation, assignment, status change, and overdue deadlines.',
-    icon: <CheckSquare className="h-5 w-5 text-[#7C3AED]" />,
+    description: 'Agents for task creation, assignment notifications, and reminders.',
+    icon: <CheckSquare className="h-5 w-5 text-indigo-600" />,
   },
   {
     name: 'DSC',
     description: 'Notifications for DSC creation, renewal, and upcoming expiry reminders.',
-    icon: <KeyRound className="h-5 w-5 text-[#7C3AED]" />,
+    icon: <KeyRound className="h-5 w-5 text-rose-600" />,
   },
   {
     name: 'License',
     description: 'Automated alerts for license application, renewal, and expiry dates.',
-    icon: <Award className="h-5 w-5 text-[#7C3AED]" />,
+    icon: <Award className="h-5 w-5 text-cyan-600" />,
   },
 ];
 
@@ -235,7 +236,7 @@ export default function AgentList() {
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7C3AED] text-white shadow-sm">
-              <Bot className="h-5 w-5" />
+              <Zap className="h-5 w-5 fill-white stroke-[2.5]" />
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Agent Center</h1>
@@ -321,7 +322,8 @@ export default function AgentList() {
               <tr>
                 <th className="py-3.5 px-6">MODULE</th>
                 <th className="py-3.5 px-6">DESCRIPTION</th>
-                <th className="py-3.5 px-6 text-right">ACTIONS</th>
+                <th className="py-3.5 px-6">ACTIVE AGENTS</th>
+                <th className="py-3.5 px-6 text-right">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -340,33 +342,41 @@ export default function AgentList() {
                   >
                     <td className="py-4 px-6 align-middle">
                       <div className="flex items-center gap-3.5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 border border-purple-100">
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                            mod.name === 'Task'
+                              ? 'bg-indigo-50 border border-indigo-100'
+                              : mod.name === 'DSC'
+                                ? 'bg-rose-50 border border-rose-100'
+                                : 'bg-cyan-50 border border-cyan-100'
+                          }`}
+                        >
                           {mod.icon}
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-900 group-hover:text-[#7C3AED] transition-colors">
-                            {mod.name}
-                          </p>
-                          <span
-                            className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                              count > 0
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                            }`}
-                          >
-                            {count} Active Agents
-                          </span>
-                        </div>
+                        <p className="font-bold text-slate-900 group-hover:text-[#7C3AED] transition-colors">
+                          {mod.name}
+                        </p>
                       </div>
                     </td>
                     <td className="py-4 px-6 text-slate-600 align-middle max-w-md">
                       {mod.description}
                     </td>
+                    <td className="py-4 px-6 align-middle">
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                          count > 0
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}
+                      >
+                        {count} Active Agents
+                      </span>
+                    </td>
                     <td className="py-4 px-6 text-right align-middle">
                       <Link
                         href={`/agents/new?module=${mod.name}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-purple-50 hover:border-purple-300 text-xs font-semibold text-slate-700 hover:text-[#7C3AED] shadow-xs transition-colors"
+                        className="inline-flex items-center text-sm font-semibold text-[#7C3AED] hover:text-[#6D28D9] hover:underline transition-colors"
                       >
                         Add Agents +
                       </Link>
@@ -376,6 +386,13 @@ export default function AgentList() {
               })}
             </tbody>
           </table>
+          {/* Table Footer matching Turia 1-3 of 3 */}
+          <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
+            <span>1-3 of 3</span>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Rows per page: 10</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -428,44 +445,37 @@ export default function AgentList() {
             </div>
           </div>
 
-          {/* Table or Empty State */}
-          {moduleAgents.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-xs">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-[#7C3AED] mb-4">
-                <Bot className="h-7 w-7" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">
-                No {selectedModule.toLowerCase()} agents yet.
-              </h3>
-              <p className="mt-1 text-xs md:text-sm text-slate-500 max-w-sm mx-auto">
-                Create your first agent to automate notifications when {selectedModule.toLowerCase()} events happen.
-              </p>
-              <div className="mt-5">
-                <Link
-                  href={`/agents/new?module=${selectedModule}`}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs md:text-sm font-semibold shadow-xs transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Agent
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          {/* Table Container matching Turia Opening Pages */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th className="py-3.5 px-5">NAME</th>
+                  <th className="py-3.5 px-5">TRIGGER</th>
+                  <th className="py-3.5 px-5">CHANNEL</th>
+                  <th className="py-3.5 px-5">RECIPIENTS</th>
+                  <th className="py-3.5 px-5">LAST TRIGGERED</th>
+                  <th className="py-3.5 px-5">STATUS</th>
+                  <th className="py-3.5 px-5 text-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {moduleAgents.length === 0 ? (
                   <tr>
-                    <th className="py-3.5 px-5">NAME</th>
-                    <th className="py-3.5 px-5">TRIGGER</th>
-                    <th className="py-3.5 px-5">CHANNEL</th>
-                    <th className="py-3.5 px-5">RECIPIENTS</th>
-                    <th className="py-3.5 px-5">LAST TRIGGERED</th>
-                    <th className="py-3.5 px-5">STATUS</th>
-                    <th className="py-3.5 px-5 text-right">ACTIONS</th>
+                    <td colSpan={7} className="py-12 px-6 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center py-4">
+                        <Bot className="h-8 w-8 text-slate-300 mb-2" />
+                        <p className="text-sm font-medium text-slate-600">
+                          No {selectedModule.toLowerCase()} agents yet.
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Click "+ New Agent" above to create an automated notification workflow.
+                        </p>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {moduleAgents.map((agent) => {
+                ) : (
+                  moduleAgents.map((agent) => {
                     const cfg = agent.config || {};
                     const trigger = typeof cfg.trigger === 'string' ? cfg.trigger : '—';
                     const channel = typeof cfg.channel === 'string' ? cfg.channel : '—';
@@ -561,11 +571,18 @@ export default function AgentList() {
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
+                  })
+                )}
+              </tbody>
+            </table>
+            {/* Table Footer with moduleAgents pagination */}
+            <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
+              <span>{moduleAgents.length > 0 ? `1-${moduleAgents.length} of ${moduleAgents.length}` : '0-0 of 0'}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Rows per page: 10</span>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -719,11 +736,18 @@ export default function AgentList() {
                     );
                   })}
                 </tbody>
-              </table>
+            </table>
+            {/* Table Footer with filteredHistory pagination */}
+            <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
+              <span>{filteredHistory.length > 0 ? `1-${filteredHistory.length} of ${filteredHistory.length}` : '0-0 of 0'}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Rows per page: 10</span>
+              </div>
             </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
 }

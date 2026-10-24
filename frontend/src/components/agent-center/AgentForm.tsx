@@ -1272,20 +1272,9 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             <span className="text-slate-700 font-semibold">{agentId ? 'Edit Agents' : 'Create Agents'}</span>
           </div>
 
-          {/* Title & Editable Name */}
-          <div className="flex items-center gap-3">
+          {/* Title matching Turia screenshot */}
+          <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{module} Agents</h1>
-            <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name your agent (optional)"
-                maxLength={100}
-                disabled={readOnly || busy}
-                className="text-xs md:text-sm font-medium text-slate-700 bg-transparent border-b border-dashed border-slate-300 hover:border-purple-500 focus:border-purple-600 outline-none px-1 py-0.5 transition-colors"
-                title="Agent Name"
-              />
-            </div>
           </div>
         </div>
 
@@ -1352,25 +1341,12 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
         >
           {/* A. FOUR HORIZONTALLY CONNECTED WORKFLOW CARDS */}
           <div className="relative pt-6 pb-4 w-full flex justify-center">
-            {/* Horizontal Purple Dotted Line Connecting all 4 Cards Behind them */}
-            <div
-              className="absolute top-[68px] left-[calc(50%-420px)] w-[840px] border-t-2 border-dashed border-purple-400 z-0 pointer-events-none"
-              style={{ strokeDasharray: '4 4' }}
-            />
+            {/* Cards and In-Between Dotted Connector Lines Row (Centered Midpoint Alignment) */}
+            <div className="relative z-10 flex items-center justify-center">
+              {/* Outer Left Lead-In Dotted Line */}
+              <div className="w-8 md:w-12 h-0 border-t-2 border-dashed border-[#CBD5E1] shrink-0" />
 
-            {/* Funnel accent above Card 2 (RECIPIENT) matching Turia screenshot */}
-            <svg
-              className="absolute top-[16px] left-[calc(50%-146px)] w-[64px] h-[36px] pointer-events-none z-0"
-              viewBox="0 0 64 36"
-              fill="none"
-            >
-              <path d="M 6 0 C 6 18, 32 18, 32 36" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="3 3" />
-              <path d="M 58 0 C 58 18, 32 18, 32 36" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="3 3" />
-            </svg>
-
-            {/* Workflow Cards */}
-            <div className="relative z-10 flex items-start gap-10 md:gap-14">
-              {STEPS.map((step) => {
+              {STEPS.map((step, index) => {
                 const isActive = activeStep === step.key && activePanelOpen;
                 const isConfirmed = isStepConfirmed(step.key);
                 const isUnlocked = isWorkflowStageUnlocked(step.key, confirmedSteps);
@@ -1436,87 +1412,98 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                 }
 
                 return (
-                  <div key={step.key} className="relative flex flex-col items-center">
-                    {/* The Workflow Card */}
-                    <div
-                      onClick={() => {
-                        if (isUnlocked) handleCardClick(step.key);
-                      }}
-                      className={`relative w-64 min-w-[240px] max-w-[270px] bg-white rounded-2xl border-2 p-5 shadow-xs transition-all ${
-                        isUnlocked
-                          ? 'cursor-pointer hover:shadow-md'
-                          : 'opacity-40 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50/50 shadow-none'
-                      } ${
-                        isUnlocked && (isActive || isConfirmed) ? borderColor : 'border-slate-200'
-                      } ${isActive ? 'ring-2 ring-purple-300 ring-offset-2 shadow-md' : ''}`}
-                    >
-                      {/* Green Completion Checkmark Overlapping Upper-Right Corner */}
-                      {isConfirmed && (
-                        <span
-                          className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs border-2 border-white z-20"
-                          title="Stage completed"
-                        >
-                          <Check className="h-3.5 w-3.5 stroke-[3]" />
-                        </span>
-                      )}
-
-                      {/* Step Label Badge with Icon */}
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
-                            isUnlocked ? badgeStyle : 'bg-slate-100 text-slate-400 border-slate-200'
-                          }`}
-                        >
-                          {step.icon}
-                          {step.label}
-                        </span>
-                        {!isUnlocked && (
-                          <span className="text-slate-400" title="Locked stage">
-                            <Lock className="h-3.5 w-3.5" />
+                  <React.Fragment key={step.key}>
+                    {/* The Card Wrapper */}
+                    <div className="relative flex flex-col items-center shrink-0">
+                      {/* Uniform 248px x 104px Workflow Card */}
+                      <div
+                        onClick={() => {
+                          if (isUnlocked) handleCardClick(step.key);
+                        }}
+                        className={`relative w-[248px] h-[104px] bg-white rounded-2xl border-2 p-4 shadow-xs transition-all flex flex-col justify-between shrink-0 ${
+                          isUnlocked
+                            ? 'cursor-pointer hover:shadow-md'
+                            : 'opacity-40 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50/50 shadow-none'
+                        } ${
+                          isUnlocked && (isActive || isConfirmed) ? borderColor : 'border-slate-200'
+                        } ${isActive ? 'ring-2 ring-purple-300 ring-offset-2 shadow-md' : ''}`}
+                      >
+                        {/* Green Completion Checkmark Overlapping Upper-Right Corner */}
+                        {isConfirmed && (
+                          <span
+                            className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs border-2 border-white z-20"
+                            title="Stage completed"
+                          >
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
                           </span>
                         )}
+
+                        {/* Step Label Badge with Icon */}
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
+                              isUnlocked ? badgeStyle : 'bg-slate-100 text-slate-400 border-slate-200'
+                            }`}
+                          >
+                            {step.icon}
+                            {step.label}
+                          </span>
+                          {!isUnlocked && (
+                            <span className="text-slate-400" title="Locked stage">
+                              <Lock className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <div className="overflow-hidden">
+                          <h3
+                            className={`text-sm font-bold truncate leading-snug ${
+                              isUnlocked ? 'text-slate-800' : 'text-slate-400'
+                            }`}
+                            title={title}
+                          >
+                            {title}
+                          </h3>
+                          <p
+                            className={`text-xs truncate leading-tight mt-0.5 ${
+                              isUnlocked ? 'text-slate-500' : 'text-slate-400'
+                            }`}
+                            title={subtitle}
+                          >
+                            {subtitle}
+                          </p>
+                        </div>
                       </div>
 
-                      {/* Title */}
-                      <h3
-                        className={`mt-3 text-sm md:text-base font-bold truncate ${
-                          isUnlocked ? 'text-slate-800' : 'text-slate-400'
-                        }`}
-                        title={title}
-                      >
-                        {title}
-                      </h3>
-
-                      {/* Subtitle */}
-                      <p
-                        className={`mt-1 text-xs truncate ${
-                          isUnlocked ? 'text-slate-500' : 'text-slate-400'
-                        }`}
-                        title={subtitle}
-                      >
-                        {subtitle}
-                      </p>
+                      {/* Card-Anchored Configuration Panel */}
+                      {isActive && (
+                        <div
+                          className={`absolute top-[calc(100%+16px)] z-30 w-[440px] md:w-[480px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 text-left ${
+                            step.key === 'event'
+                              ? 'left-0'
+                              : step.key === 'recipient'
+                                ? 'left-1/2 -translate-x-1/2'
+                                : step.key === 'channel'
+                                  ? 'left-1/2 -translate-x-1/2'
+                                  : 'right-0'
+                          }`}
+                        >
+                          {renderPanelContent(step.key)}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Card-Anchored Configuration Panel */}
-                    {isActive && (
-                      <div
-                        className={`absolute top-[calc(100%+16px)] z-30 w-[440px] md:w-[480px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 text-left ${
-                          step.key === 'event'
-                            ? 'left-0'
-                            : step.key === 'recipient'
-                              ? 'left-1/2 -translate-x-1/2'
-                              : step.key === 'channel'
-                                ? 'left-1/2 -translate-x-1/2'
-                                : 'right-0'
-                        }`}
-                      >
-                        {renderPanelContent(step.key)}
-                      </div>
+                    {/* Dotted Connector Line Strictly In Gap Between Cards (Vertical Midpoint) */}
+                    {index < STEPS.length - 1 && (
+                      <div className="w-12 md:w-16 h-0 border-t-2 border-dashed border-[#CBD5E1] shrink-0" />
                     )}
-                  </div>
+                  </React.Fragment>
                 );
               })}
+
+              {/* Outer Right Lead-Out Dotted Line */}
+              <div className="w-8 md:w-12 h-0 border-t-2 border-dashed border-[#CBD5E1] shrink-0" />
             </div>
           </div>
 
