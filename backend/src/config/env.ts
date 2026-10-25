@@ -6,7 +6,40 @@ import { z } from 'zod';
 const envPath = path.resolve(__dirname, '../../.env');
 dotenv.config({ path: envPath });
 
-const envSchema = z.object({
+/**
+ * Strict boolean parser for environment variables.
+ * - 'true' -> true
+ * - 'false' -> false
+ * - boolean true/false -> true/false
+ * - undefined, null, or empty string -> defaultValue
+ * - any other value -> triggers a validation error (rejects invalid values rather than silently coercing)
+ */
+export const strictBoolean = (defaultValue: boolean) =>
+  z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform((val, ctx) => {
+      if (val === undefined || val === null || val === '') {
+        return defaultValue;
+      }
+      if (typeof val === 'boolean') {
+        return val;
+      }
+      const trimmed = val.trim().toLowerCase();
+      if (trimmed === 'true') {
+        return true;
+      }
+      if (trimmed === 'false') {
+        return false;
+      }
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid boolean environment variable: expected "true" or "false", received "${val}"`,
+      });
+      return z.NEVER;
+    });
+
+export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(5000),
   API_PREFIX: z.string().default('/api/v1'),
@@ -32,7 +65,7 @@ const envSchema = z.object({
   // Email / SMTP (Free Gmail SMTP or Custom Provider)
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().default(465),
-  SMTP_SECURE: z.coerce.boolean().default(true),
+  SMTP_SECURE: strictBoolean(true),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().default('CA Practice Management <no-reply@capractice.com>'),
@@ -41,6 +74,11 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   AUTHORIZED_PRACTICE_EMAIL: z.string().default('searchaicloud@gmail.com'),
   GOOGLE_REDIRECT_URI: z.string().optional(),
+  // Automatic Expiry Reminders (DSC & License)
+  AUTOMATIC_EXPIRY_REMINDERS_ENABLED: strictBoolean(false),
+  AUTOMATIC_REMINDERS_REAL_SEND: strictBoolean(false),
+  AGENT_SCHEDULER_INTERVAL_MS: z.coerce.number().default(60000),
+  ENABLE_BACKGROUND_SCHEDULER: strictBoolean(true),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

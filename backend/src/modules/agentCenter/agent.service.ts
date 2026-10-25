@@ -56,8 +56,14 @@ function configValidation(moduleName: unknown, config: unknown): { valid: boolea
   }
   const hasClientRecipient = rawRecipients.includes('Client');
   const recipientResolution = config.recipientResolution;
-  if (hasClientRecipient && recipientResolution !== undefined && !isPlainObject(recipientResolution)) {
-    errors.push('Client recipient resolution configuration must be an object.');
+  if (hasClientRecipient) {
+    if (moduleName === 'Task') {
+      if (!isPlainObject(recipientResolution) || recipientResolution.mode !== 'task-linked-client' || recipientResolution.relationship !== 'trigger-record') {
+        errors.push('Client recipients must resolve to the client linked to the triggering task.');
+      }
+    } else if (recipientResolution !== undefined && !isPlainObject(recipientResolution)) {
+      errors.push('Client recipient resolution configuration must be an object.');
+    }
   }
 
   if (typeof config.channel !== 'string' || !CHANNELS.includes(config.channel as (typeof CHANNELS)[number])) {
