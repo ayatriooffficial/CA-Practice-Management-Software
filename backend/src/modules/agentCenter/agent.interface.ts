@@ -62,7 +62,7 @@ export interface IAgent {
 
 export type IAgentDocument = HydratedDocument<IAgent>;
 
-export type AgentRunStatus = 'success' | 'partial-failed' | 'failed' | 'skipped';
+export type AgentRunStatus = 'success' | 'partial-failed' | 'failed' | 'skipped' | 'in-progress';
 export type ExecutionMode = 'mock' | 'real';
 
 export interface IAgentRun {

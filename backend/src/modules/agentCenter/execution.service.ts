@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 import { AppError } from '../../shared/utils/apiError';
 import { Agent } from './agent.model';
 import { AgentRun } from './agentRun.model';
-import { AgentConfig, AgentModule, WorkflowGraph, WorkflowNode } from './agent.interface';
+import { AgentConfig, AgentModule, IAgentRunDocument, WorkflowGraph, WorkflowNode } from './agent.interface';
 import { findTrigger } from './definitions';
 import { AgentCenterService } from './agent.service';
 import { Client } from '../client/client.model';
@@ -411,6 +411,108 @@ async function resolveActualRecipients(orgId: string, event: Record<string, unkn
 }
 
 export class AgentExecutionService {
+  /**
+   * Atomically acquires an execution claim for a given (orgId, agentId, runKey).
+   * Guarantees that only ONE worker can proceed to dispatch notifications.
+   *
+   * 1. Path A (First time run):
+   *    Attempts to insert an in-progress record. If another worker attempts this simultaneously,
+   *    MongoDB's unique index raises code: 11000 on the second worker, preventing duplicate inserts.
+   *
+   * 2. Path B (Reclaiming existing failed/stale/mock run):
+   *    Executes an atomic Compare-And-Swap (CAS) findOneAndUpdate.
+   *    Matches ONLY if:
+   *    - status is 'failed' (retry), OR
+   *    - status is 'in-progress' AND updatedAt < staleThreshold (crash recovery), OR
+   *    - isRealSend is true AND status is 'success' AND executionMode is 'mock' (upgrade simulation).
+   *    If a concurrent worker claimed it milliseconds earlier, the status/updatedAt check
+   *    will not match, returning null.
+   */
+  static async acquireAtomicClaim(params: {
+    orgId: string;
+    agentId: Types.ObjectId | string;
+    agentName: string;
+    agentModule: 'Task' | 'DSC' | 'License';
+    runKey: string;
+    isRealSend: boolean;
+    triggerData?: Record<string, unknown>;
+    staleTimeoutMs?: number;
+  }): Promise<{ acquired: boolean; run: IAgentRunDocument | null }> {
+    const {
+      orgId,
+      agentId,
+      agentName,
+      agentModule,
+      runKey,
+      isRealSend,
+      triggerData,
+      staleTimeoutMs = 5 * 60 * 1000,
+    } = params;
+
+    const parsedAgentId = Types.ObjectId.isValid(agentId)
+      ? new Types.ObjectId(String(agentId))
+      : new Types.ObjectId('000000000000000000000001');
+
+    // 1. Path A: Try inserting brand-new in-progress claim
+    try {
+      const newClaim = await AgentRun.create({
+        orgId,
+        agentId: parsedAgentId,
+        agentName: agentName || 'System Agent',
+        agentModule,
+        runType: isRealSend ? 'actual' : 'test',
+        status: 'in-progress',
+        executionMode: isRealSend ? 'real' : 'mock',
+        runKey,
+        triggerData: triggerData || null,
+        result: null,
+        errorMessage: null,
+      });
+      return { acquired: true, run: newClaim };
+    } catch (createErr: any) {
+      if (createErr?.code !== 11000) {
+        throw createErr;
+      }
+      // Document already exists, proceed to Path B (Atomic CAS)
+    }
+
+    // 2. Path B: Atomic Compare-And-Swap (CAS) on existing document
+    const staleThreshold = new Date(Date.now() - staleTimeoutMs);
+
+    const casFilter: any = {
+      orgId,
+      agentId: parsedAgentId,
+      runKey,
+      $or: [
+        { status: 'failed' },
+        { status: 'in-progress', updatedAt: { $lt: staleThreshold } },
+      ],
+    };
+
+    if (isRealSend) {
+      casFilter.$or.push({ status: 'success', executionMode: 'mock' });
+    }
+
+    const casUpdate = {
+      $set: {
+        status: 'in-progress',
+        runType: isRealSend ? 'actual' : 'test',
+        executionMode: isRealSend ? 'real' : 'mock',
+        updatedAt: new Date(),
+      },
+    };
+
+    const claimedRun = await AgentRun.findOneAndUpdate(casFilter, casUpdate, {
+      new: true,
+    }).exec();
+
+    if (!claimedRun) {
+      return { acquired: false, run: null };
+    }
+
+    return { acquired: true, run: claimedRun };
+  }
+
   static async run(id: string, context: {
     idempotencyKey?: string;
     failRecipient?: string;
@@ -419,6 +521,7 @@ export class AgentExecutionService {
     runType?: 'test' | 'actual';
     testRecipientEmail?: string;
     externalExecutionId?: string;
+    claimedRun?: IAgentRunDocument | null;
   }) {
     const agent = await Agent.findOne({ _id: id, orgId: context.orgId }).exec();
     if (!agent) throw AppError.notFound('Agent not found.');
@@ -427,11 +530,37 @@ export class AgentExecutionService {
     }
 
     const runKey = context.idempotencyKey || randomUUID();
-    const existingRun = await AgentRun.findOne({ agentId: agent._id, orgId: context.orgId, runKey }).exec();
-    if (existingRun) return existingRun;
+    let existingRun = context.claimedRun || null;
+    const isRequestedReal = context.runType === 'actual';
+
+    if (!existingRun) {
+      existingRun = await AgentRun.findOne({ agentId: agent._id, orgId: context.orgId, runKey }).exec();
+      if (existingRun) {
+        if (existingRun.status === 'success') {
+          // If caller requested real send, but existing run was only a simulation (mock),
+          // do not block the real send. Otherwise return the cached success run.
+          if (!isRequestedReal || existingRun.executionMode === 'real') {
+            return existingRun;
+          }
+        } else if (existingRun.status === 'in-progress') {
+          // If another process is actively running and not stale (< 5 minutes), return it
+          const isStale = (Date.now() - existingRun.updatedAt.getTime()) > 5 * 60 * 1000;
+          if (!isStale) {
+            return existingRun;
+          }
+        }
+      }
+    }
+
     const checked = AgentCenterService.validateConfig(agent.module, agent.config);
     if (!checked.valid || !checked.config) {
       const errorMessage = `Simulation failed: ${checked.errors.join(' ')}`;
+      if (existingRun) {
+        existingRun.status = 'failed';
+        existingRun.errorMessage = errorMessage;
+        await existingRun.save();
+        return existingRun;
+      }
       const run = await AgentRun.create({
         orgId: context.orgId,
         agentId: agent._id,
@@ -553,6 +682,9 @@ export class AgentExecutionService {
       expense_amount: String(event.expense_amount || triggerData.expense_amount || mergedTask.expense_amount || '₹ 15,000'),
       reviewer_name: String(event.reviewer_name || triggerData.reviewer_name || mergedTask.reviewer_name || 'Sample Reviewer'),
       task_status: String(event.task_status || triggerData.task_status || event.status || mergedTask.status || 'In Progress'),
+      daysLeft: String(event.daysLeft ?? triggerData.daysLeft ?? event.daysToExpiry ?? 15),
+      daysToExpiry: String(event.daysToExpiry ?? event.daysLeft ?? triggerData.daysToExpiry ?? 15),
+      milestone: String(event.milestone ?? '15d'),
     };
     // The strict validator guarantees this list is normalized and valid.
     const graphRun = graph?.nodes.length
@@ -662,20 +794,41 @@ export class AgentExecutionService {
       ],
       executionTrace: graphRun?.trace || [],
     };
-    const run = await AgentRun.create({
-      orgId: context.orgId,
-      agentId: agent._id,
-      agentName: agent.name,
-      agentModule: agent.module,
-      runType: context.runType || 'test',
-      status,
-      triggerData,
-      result,
-      errorMessage: failed.length ? `${failed.length} of ${results.length} provider operation(s) failed.` : null,
-      executionMode,
-      runKey,
-    });
-    return run;
+    if (existingRun) {
+      existingRun.agentName = agent.name;
+      existingRun.agentModule = agent.module;
+      existingRun.runType = context.runType || 'test';
+      existingRun.status = status;
+      existingRun.triggerData = triggerData;
+      existingRun.result = result;
+      existingRun.errorMessage = failed.length ? `${failed.length} of ${results.length} provider operation(s) failed.` : null;
+      existingRun.executionMode = executionMode;
+      await existingRun.save();
+      return existingRun;
+    }
+
+    try {
+      const run = await AgentRun.create({
+        orgId: context.orgId,
+        agentId: agent._id,
+        agentName: agent.name,
+        agentModule: agent.module,
+        runType: context.runType || 'test',
+        status,
+        triggerData,
+        result,
+        errorMessage: failed.length ? `${failed.length} of ${results.length} provider operation(s) failed.` : null,
+        executionMode,
+        runKey,
+      });
+      return run;
+    } catch (createErr: any) {
+      if (createErr?.code === 11000) {
+        const reFetched = await AgentRun.findOne({ agentId: agent._id, orgId: context.orgId, runKey }).exec();
+        if (reFetched) return reFetched;
+      }
+      throw createErr;
+    }
   }
 
   static async dispatchTaskEvent(orgId: string, triggerName: string, task: Record<string, unknown>, eventId: string) {

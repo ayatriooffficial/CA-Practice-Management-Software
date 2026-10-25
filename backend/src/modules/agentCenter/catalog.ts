@@ -106,6 +106,7 @@ export const PUBLIC_AGENT_DEFINITIONS = {
     'license.name', 'license.owner', 'license.expiryDate', 'license.licenseNo',
     'client.name', 'client.email', 'recipient.name', 'recipient.address', 'recipient.email', 'recipient.mobile', 'agent.name', 'trigger',
     'expense_name', 'expense_amount', 'reviewer_name', 'your_firm_name', 'task_status',
+    'daysLeft', 'daysToExpiry', 'milestone',
   ],
   emailTemplates: [
     { id: 'expense-added', name: 'Expense added for task', subject: 'Expense Added for Task', message: 'Dear Team,\n\nA new expense has been recorded for the following task.\n\nTask Name: {{task.taskName}}\nExpense: {{expense_name}}\nAmount: {{expense_amount}}\nAssignee: Milton\nReviewer: {{reviewer_name}}\nCurrent Status: {{task_status}}\n\nPlease review the expense details and take any necessary action.\n\nBest Regards,\n{{your_firm_name}}' },
