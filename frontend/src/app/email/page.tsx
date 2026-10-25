@@ -61,8 +61,9 @@ export default function EmailPage() {
     }
   }, [status]);
 
-  /* ── When Disconnected: Show Connection Card ──────────────────────── */
-  if (status === 'disconnected' || status === 'loading') {
+  /* ── When Disconnected or Needs Reconnect: Show Connection Card ──────────── */
+  if (status === 'disconnected' || status === 'loading' || status === 'needs_reconnect') {
+    const isNeedsReconnect = status === 'needs_reconnect';
     return (
       <div style={{ padding: '2rem', maxWidth: 600, margin: '0 auto' }}>
         <h1
@@ -79,7 +80,7 @@ export default function EmailPage() {
         <section
           style={{
             borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-main)',
+            border: isNeedsReconnect ? '1px solid var(--warning, #f59e0b)' : '1px solid var(--border-main)',
             backgroundColor: 'var(--bg-surface)',
             padding: '1.5rem',
             boxShadow: 'var(--shadow-card)',
@@ -106,10 +107,14 @@ export default function EmailPage() {
                 style={{
                   marginTop: 4,
                   fontSize: '0.75rem',
-                  color: 'var(--text-muted)',
+                  color: isNeedsReconnect ? 'var(--warning, #d97706)' : 'var(--text-muted)',
                 }}
               >
-                {status === 'loading' ? 'Checking connection…' : 'Not connected'}
+                {status === 'loading'
+                  ? 'Checking connection…'
+                  : isNeedsReconnect
+                    ? `Authorization Expired (${email || 'searchaicloud@gmail.com'})`
+                    : 'Not connected'}
               </p>
             </div>
 
@@ -121,7 +126,9 @@ export default function EmailPage() {
                 backgroundColor:
                   status === 'loading'
                     ? 'var(--banner-text)'
-                    : 'var(--text-subtle)',
+                    : isNeedsReconnect
+                      ? 'var(--warning, #f59e0b)'
+                      : 'var(--text-subtle)',
                 flexShrink: 0,
               }}
             />
@@ -152,9 +159,12 @@ export default function EmailPage() {
                   fontSize: '0.8125rem',
                   color: 'var(--text-muted)',
                   marginBottom: 16,
+                  lineHeight: 1.5,
                 }}
               >
-                Connect your Google account to send emails and sync client communications.
+                {isNeedsReconnect
+                  ? `The authorization token for ${email || 'searchaicloud@gmail.com'} has expired. Reconnect now to restore Gmail synchronization and real Agent Center email delivery.`
+                  : 'Connect your Google account to send emails and sync client communications.'}
               </p>
               <button
                 type="button"
@@ -171,7 +181,7 @@ export default function EmailPage() {
                   transition: 'var(--transition-fast)',
                 }}
               >
-                Connect Gmail
+                {isNeedsReconnect ? 'Reconnect Gmail' : 'Connect Gmail'}
               </button>
             </div>
           )}
@@ -181,11 +191,11 @@ export default function EmailPage() {
               style={{
                 marginTop: 12,
                 fontSize: '0.75rem',
-                color: 'var(--danger)',
+                color: isNeedsReconnect ? '#b45309' : 'var(--danger)',
                 padding: '8px 12px',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--credits-bg)',
-                border: '1px solid var(--credits-border)',
+                backgroundColor: isNeedsReconnect ? '#fef3c7' : 'var(--credits-bg)',
+                border: isNeedsReconnect ? '1px solid #fde68a' : '1px solid var(--credits-border)',
               }}
             >
               {error}

@@ -81,11 +81,42 @@ export const agentCenterApi = {
     await request(`/agent-center/agents/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
-  async testRunAgent(id: string): Promise<AgentRun> {
+  async testRunAgent(id: string, options?: { testEmail?: string; mode?: 'test' | 'live'; failRecipient?: string; messageId?: string }): Promise<AgentRun> {
     const response = await request<AgentRun>(`/agent-center/agents/${encodeURIComponent(id)}/test-run`, {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify(options || {}),
     });
+    return response.data;
+  },
+
+  async getIntegrationsStatus(): Promise<{
+    email: {
+      configured: boolean;
+      statusText: string;
+      provider?: 'gmail' | 'smtp' | 'none';
+      email?: string | null;
+      needsReconnect?: boolean;
+      error?: string;
+    };
+    whatsapp: {
+      configured: boolean;
+      statusText: string;
+    };
+  }> {
+    const response = await request<{
+      email: {
+        configured: boolean;
+        statusText: string;
+        provider?: 'gmail' | 'smtp' | 'none';
+        email?: string | null;
+        needsReconnect?: boolean;
+        error?: string;
+      };
+      whatsapp: {
+        configured: boolean;
+        statusText: string;
+      };
+    }>('/agent-center/integrations/status');
     return response.data;
   },
 

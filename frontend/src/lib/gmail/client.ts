@@ -30,23 +30,71 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 
-export function getRedirectUri(): string {
-  return (
-    process.env.GOOGLE_REDIRECT_URI ||
-    'http://localhost:3000/api/auth/google/callback'
-  );
+export const BACKEND_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:5001/api/v1';
+
+export function getRedirectUri(request?: NextRequest): string {
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    return process.env.GOOGLE_REDIRECT_URI;
+  }
+  if (request?.nextUrl?.origin) {
+    return `${request.nextUrl.origin}/api/auth/google/callback`;
+  }
+  return 'http://localhost:3000/api/auth/google/callback';
 }
 
 /* ── Authorized Practice Email ─────────────────────────────────────── */
 export const AUTHORIZED_PRACTICE_EMAIL =
   process.env.AUTHORIZED_PRACTICE_EMAIL || 'searchaicloud@gmail.com';
 
-export function generateAuthUrl(state: string, loginHint = AUTHORIZED_PRACTICE_EMAIL): string {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error('Missing GOOGLE_CLIENT_ID');
+export async function fetchBackendAuthConfig(): Promise<{
+  clientId: string | null;
+  authorizedEmail: string;
+  redirectUri: string;
+  configured: boolean;
+}> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google/auth-config`, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch Google auth config from backend:', err);
+  }
+
+  return {
+    clientId: process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || null,
+    authorizedEmail: AUTHORIZED_PRACTICE_EMAIL,
+    redirectUri: getRedirectUri(),
+    configured: Boolean(process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID),
+  };
+}
+
+export function generateAuthUrl(
+  state: string,
+  loginHint = AUTHORIZED_PRACTICE_EMAIL,
+  clientIdOverride?: string,
+  redirectUriOverride?: string,
+): string {
+  const clientId =
+    clientIdOverride ||
+    process.env.GOOGLE_CLIENT_ID ||
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!clientId) throw new Error('Missing GOOGLE_CLIENT_ID in server environment');
+
+  const redirectUri = redirectUriOverride || getRedirectUri();
+
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: SCOPES.join(' '),
     access_type: 'offline',
@@ -57,75 +105,29 @@ export function generateAuthUrl(state: string, loginHint = AUTHORIZED_PRACTICE_E
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-export async function exchangeCodeForTokens(code: string): Promise<{
-  access_token: string;
-  refresh_token?: string;
-  scope?: string;
-  token_type?: string;
-  expiry_date?: number;
+export async function exchangeCodeForTokens(
+  code: string,
+  redirectUri?: string,
+): Promise<{
+  email: string;
+  provider: string;
+  connected: boolean;
 }> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
-  }
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch(`${BACKEND_API_URL}/integrations/google/exchange`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: getRedirectUri(),
-      grant_type: 'authorization_code',
+      redirectUri: redirectUri || getRedirectUri(),
     }),
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error_description || data.error || 'Failed to exchange authorization code');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || data.error?.message || 'Failed to exchange authorization code on backend');
   }
 
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    scope: data.scope,
-    token_type: data.token_type,
-    expiry_date: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-  };
-}
-
-export async function refreshAccessToken(refreshToken: string): Promise<{
-  access_token: string;
-  expiry_date?: number;
-}> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
-  }
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error_description || data.error || 'Failed to refresh token');
-  }
-
-  return {
-    access_token: data.access_token,
-    expiry_date: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-  };
+  return data.data;
 }
 
 /* ── Session helpers using AES-256-GCM ──────────────────────────────── */
@@ -191,22 +193,6 @@ export function clearStateCookie(response: NextResponse): void {
   });
 }
 
-import { google } from 'googleapis';
-
-const BACKEND_API_URL =
-  process.env.INTERNAL_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:5000/api/v1';
-
-export function getOAuth2Client() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
-  }
-  return new google.auth.OAuth2(clientId, clientSecret, getRedirectUri());
-}
-
 export async function saveGlobalIntegrationTokens(data: {
   email: string;
   refreshToken: string;
@@ -231,7 +217,9 @@ export async function saveGlobalIntegrationTokens(data: {
 export async function getGlobalIntegration(): Promise<{
   provider: string;
   email: string;
-  refreshToken: string;
+  connected: boolean;
+  authorized?: boolean;
+  needsReconnect?: boolean;
   updatedAt: string;
 } | null> {
   try {
@@ -279,28 +267,22 @@ export async function getAuthenticatedClient(
     }
   }
 
-  // Fetch the global refresh_token from the backend database (MongoDB Integration schema)
+  // Fetch valid, auto-refreshed access token from the backend server
   try {
-    const globalIntegration = await getGlobalIntegration();
-    if (globalIntegration?.refreshToken) {
-      const oauth2Client = getOAuth2Client();
-      oauth2Client.setCredentials({
-        refresh_token: globalIntegration.refreshToken,
-      });
-
-      // Google SDK automatically generates a fresh access token on the fly
-      const tokenRes = await oauth2Client.getAccessToken();
-      const accessToken = tokenRes.token;
-
-      if (accessToken) {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google/access-token`, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data?.accessToken) {
         return {
-          accessToken,
-          email: globalIntegration.email || AUTHORIZED_PRACTICE_EMAIL,
+          accessToken: json.data.accessToken,
+          email: json.data.email || AUTHORIZED_PRACTICE_EMAIL,
         };
       }
     }
   } catch (err) {
-    console.error('Error refreshing token from global database credentials:', err);
+    console.error('Error fetching valid access token from backend:', err);
   }
 
   return null;

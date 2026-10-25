@@ -36,6 +36,11 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().default('CA Practice Management <no-reply@capractice.com>'),
+  // Google OAuth 2.0 & Practice Email Integration
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  AUTHORIZED_PRACTICE_EMAIL: z.string().default('searchaicloud@gmail.com'),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

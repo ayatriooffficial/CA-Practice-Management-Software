@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
-  AUTHORIZED_PRACTICE_EMAIL,
   clearStateCookie,
   exchangeCodeForTokens,
-  saveGlobalIntegrationTokens,
+  getRedirectUri,
   STATE_COOKIE_NAME,
 } from '@/lib/gmail/client';
 
@@ -22,40 +21,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tokens = await exchangeCodeForTokens(code);
-
-    let email = '';
-    try {
-      const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
-      if (userRes.ok) {
-        const userInfo = await userRes.json();
-        email = userInfo.email || '';
-      }
-    } catch {
-      // Fallback if userinfo fails
-    }
-
-    // Strict validation check: abort session creation if not authorized practice email
-    if (!email || email.toLowerCase() !== AUTHORIZED_PRACTICE_EMAIL.toLowerCase()) {
-      const unauthorizedResponse = NextResponse.redirect(
-        new URL('/email?error=UnauthorizedAccount', request.url),
-      );
-      clearStateCookie(unauthorizedResponse);
-      return unauthorizedResponse;
-    }
-
-    // Save the global refresh_token into the backend MongoDB Integration schema
-    if (tokens.refresh_token) {
-      await saveGlobalIntegrationTokens({
-        email,
-        refreshToken: tokens.refresh_token,
-        accessToken: tokens.access_token,
-        expiryDate: tokens.expiry_date,
-        scope: tokens.scope,
-      });
-    }
+    const redirectUri = getRedirectUri(request);
+    await exchangeCodeForTokens(code, redirectUri);
 
     const response = NextResponse.redirect(
       new URL('/email?gmail=connected', request.url),
@@ -64,8 +31,10 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL(`/email?error=${encodeURIComponent(message)}`, request.url),
     );
+    clearStateCookie(response);
+    return response;
   }
 }

@@ -116,9 +116,9 @@ export interface ProviderResult {
   recipient?: string;
   recipientData?: { name: string; address: string };
   provider?: string;
-  mode?: 'mock';
-  status: 'simulated' | 'failed';
-  simulated: true;
+  mode?: 'mock' | 'real';
+  status: 'simulated' | 'failed' | 'delivered';
+  simulated: boolean;
   executionId?: string;
   timestamp?: string;
   subject?: string | null;
@@ -127,8 +127,8 @@ export interface ProviderResult {
 }
 
 export interface AgentExecutionResult {
-  simulated: true;
-  executionMode: 'mock';
+  simulated: boolean;
+  executionMode: 'mock' | 'real';
   label: string;
   message: string;
   trigger: string;

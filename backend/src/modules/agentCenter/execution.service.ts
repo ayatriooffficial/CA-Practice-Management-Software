@@ -11,7 +11,6 @@ import { UserModel } from '../auth/user.model';
 import { MailService } from '../../shared/utils/mailService';
 import { WhatsAppService, isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
 import { env } from '../../config/env';
-import { IntegrationModel } from '../integration/integration.model';
 
 const DEMO_RECIPIENTS: Record<string, { name: string; address?: string; email?: string; mobile?: string; id?: string }> = {
   Client: { name: 'Sample Company', address: 'sample.client@example.test', email: 'sample.client@example.test', mobile: '+10000000000', id: 'sample-client' },
@@ -98,7 +97,12 @@ export function compareCondition(node: WorkflowNode, variables: Record<string, u
   return { result: operator === 'greater_than' ? actualDate > expectedDate : actualDate < expectedDate, value: actual };
 }
 
-export async function runGraph(graph: WorkflowGraph, variables: Record<string, unknown>, failRecipient?: string) {
+export async function runGraph(
+  graph: WorkflowGraph,
+  variables: Record<string, unknown>,
+  failRecipient?: string,
+  testRecipientEmail?: string
+) {
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
   const trace: Array<Record<string, unknown>> = [];
   const results: Array<Record<string, unknown>> = [];
@@ -124,12 +128,26 @@ export async function runGraph(graph: WorkflowGraph, variables: Record<string, u
       ? DEMO_RECIPIENTS[recipient] || { name: recipient, address: '' }
       : actualRecipients?.[recipient] || { name: recipient, address: '' };
     const channel = String(node.config.channel);
-    const recipientAddress = channel === 'Email' ? recipientData.email || (recipientData as { address?: string }).address || ''
+    let recipientAddress = channel === 'Email' ? recipientData.email || (recipientData as { address?: string }).address || ''
       : channel === 'WhatsApp' ? recipientData.mobile || ''
         : recipientData.id || '';
+
+    let recipientLabel = recipient;
+    if (channel === 'Email' && testRecipientEmail) {
+      recipientAddress = testRecipientEmail;
+      recipientLabel = `${recipient} (${testRecipientEmail})`;
+    }
+
     const renderedMessage = renderAgentTemplate(String(node.config.message), { ...variables, recipient: recipientData });
     const renderedSubject = renderAgentTemplate(String(node.config.subject || node.config.action), { ...variables, recipient: recipientData });
-    const output = await executeProvider(channel, { recipient: recipientAddress, recipientLabel: recipient, message: renderedMessage, subject: renderedSubject, previewOnly: variables.previewOnly === true, simulateFailure: failRecipient === recipient });
+    const output = await executeProvider(channel, {
+      recipient: recipientAddress,
+      recipientLabel,
+      message: renderedMessage,
+      subject: renderedSubject,
+      previewOnly: variables.previewOnly === true,
+      simulateFailure: failRecipient === recipient,
+    });
     results.push({ nodeId: node.id, nodeName: node.name, recipient, ...output });
     trace.push({ nodeId: node.id, nodeName: node.name, type: 'action', status: output.status, provider: output.provider, simulated: output.simulated });
     currentId = graph.edges.find((item) => item.source === node.id && item.sourceHandle === 'next')?.target ?? '__end__';
@@ -151,29 +169,8 @@ export interface ProviderExecutionOutput {
 }
 
 export async function isEmailConfiguredAsync(): Promise<boolean> {
-  const hasSmtp = Boolean(
-    (process.env.SMTP_USER || env.SMTP_USER) &&
-    (process.env.SMTP_PASS || env.SMTP_PASS)
-  );
-  if (hasSmtp) return true;
-
-  const hasGmailEnv = Boolean(
-    process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET &&
-    (process.env.GMAIL_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN)
-  );
-  if (hasGmailEnv) return true;
-
-  try {
-    const googleIntegration = await IntegrationModel.findOne({ provider: 'google' }).lean().exec();
-    if (googleIntegration?.email && (googleIntegration?.refreshToken || googleIntegration?.accessToken)) {
-      return true;
-    }
-  } catch {
-    // ignore
-  }
-
-  return false;
+  const status = await MailService.getStatus();
+  return status.authorized;
 }
 
 export function isEmailConfigured(): boolean {
@@ -271,16 +268,17 @@ export async function executeProvider(
   }
 
   if (channel === 'Email') {
-    const emailConfigured = await isEmailConfiguredAsync();
-    if (!emailConfigured) {
+    const status = await MailService.getStatus();
+    if (!status.authorized) {
       return {
         provider: 'email',
         mode: 'real',
         status: 'failed',
         simulated: false,
-        error: 'Email delivery provider credentials not configured in environment (SMTP or Gmail OAuth required for live delivery).',
+        error: status.error || 'Email delivery provider credentials not configured in environment (SMTP or Gmail OAuth required for live delivery).',
         timestamp: new Date().toISOString(),
         executionId,
+        recipient: payload.recipientLabel,
       };
     }
 
@@ -292,18 +290,19 @@ export async function executeProvider(
 
     if (!mailResult.success) {
       return {
-        provider: 'email',
+        provider: mailResult.provider || 'email',
         mode: 'real',
         status: 'failed',
         simulated: false,
         error: mailResult.error || 'Email delivery transmission failure.',
         timestamp: new Date().toISOString(),
         executionId,
+        recipient: payload.recipientLabel,
       };
     }
 
     return {
-      provider: 'email',
+      provider: mailResult.provider || 'email',
       mode: 'real',
       status: 'delivered',
       simulated: false,
@@ -412,7 +411,15 @@ async function resolveActualRecipients(orgId: string, event: Record<string, unkn
 }
 
 export class AgentExecutionService {
-  static async run(id: string, context: { idempotencyKey?: string; failRecipient?: string; orgId: string; event?: Record<string, unknown>; runType?: 'test' | 'actual' }) {
+  static async run(id: string, context: {
+    idempotencyKey?: string;
+    failRecipient?: string;
+    orgId: string;
+    event?: Record<string, unknown>;
+    runType?: 'test' | 'actual';
+    testRecipientEmail?: string;
+    externalExecutionId?: string;
+  }) {
     const agent = await Agent.findOne({ _id: id, orgId: context.orgId }).exec();
     if (!agent) throw AppError.notFound('Agent not found.');
     if (agent.status !== 'published') {
@@ -460,7 +467,12 @@ export class AgentExecutionService {
       email: String(event.clientEmail || triggerData.clientEmail || 'sample.client@example.test'),
       mobile: String(event.clientMobile || triggerData.clientMobile || '+91 98765 43210'),
     };
-    const isRealRun = Boolean(context.event && context.runType === 'actual');
+    const isTestEmailSend = Boolean(context.testRecipientEmail);
+    const isRealRun = Boolean(
+      (context.event && context.runType === 'actual') ||
+      isTestEmailSend ||
+      context.runType === 'actual'
+    );
     const taskContext = (triggerData['task'] || (agent.module === 'Task' ? event : undefined)) as Record<string, unknown> | undefined;
     const dscContext = (triggerData['dsc'] || (agent.module === 'DSC' ? event : undefined)) as Record<string, unknown> | undefined;
     const licenseContext = (triggerData['license'] || (agent.module === 'License' ? event : undefined)) as Record<string, unknown> | undefined;
@@ -543,59 +555,95 @@ export class AgentExecutionService {
       task_status: String(event.task_status || triggerData.task_status || event.status || mergedTask.status || 'In Progress'),
     };
     // The strict validator guarantees this list is normalized and valid.
-    const graphRun = graph?.nodes.length ? await runGraph(graph, variables, context.failRecipient) : null;
-    const results = graphRun ? graphRun.results : await Promise.all(recipients.map(async (recipient) => {
-      const dbRecipient = resolvedRecipients?.[recipient];
-      const resolved = resolveRecipientWithFallback(recipient, dbRecipient, !isRealRun);
-      const recipientAddress = config.channel === 'Email' ? (resolved.email || '')
-        : config.channel === 'WhatsApp' ? (resolved.mobile || '')
-          : (resolved.id || '');
-      const recipientData = {
-        name: resolved.name,
-        address: recipientAddress,
-        email: resolved.email,
-        mobile: resolved.mobile,
-        id: resolved.id,
-      };
-      const renderedMessage = renderAgentTemplate(String(config.message), {
-        ...variables,
-        recipient: recipientData,
-      });
-      const renderedSubject = renderAgentTemplate(String(config.subject || config.action), {
-        ...variables,
-        recipient: recipientData,
-      });
-      const output = await mockProvider(String(config.channel), {
-        recipient: recipientAddress,
-        recipientLabel: recipient,
-        message: renderedMessage,
-        subject: renderedSubject,
-        previewOnly: !isRealRun,
-        simulateFailure: context.failRecipient === recipient,
-      });
-      return { recipient, ...output };
-    }));
+    const graphRun = graph?.nodes.length
+      ? await runGraph(graph, variables, context.failRecipient, context.testRecipientEmail)
+      : null;
+    const results = context.externalExecutionId
+      ? [{
+          provider: 'gmail',
+          mode: 'real' as const,
+          status: 'delivered',
+          simulated: false,
+          executionId: context.externalExecutionId,
+          timestamp: new Date().toISOString(),
+          recipient: context.testRecipientEmail || 'Test Recipient',
+          subject: renderAgentTemplate(String(config.subject || config.action), variables),
+          renderedMessage: renderAgentTemplate(String(config.message), variables),
+        }]
+      : graphRun
+        ? graphRun.results
+        : await Promise.all(recipients.map(async (recipient) => {
+            const dbRecipient = resolvedRecipients?.[recipient];
+            const resolved = resolveRecipientWithFallback(recipient, dbRecipient, !isRealRun);
+            let recipientAddress = config.channel === 'Email' ? (resolved.email || '')
+              : config.channel === 'WhatsApp' ? (resolved.mobile || '')
+                : (resolved.id || '');
+
+            let recipientLabel = recipient;
+            if (config.channel === 'Email' && context.testRecipientEmail) {
+              recipientAddress = context.testRecipientEmail;
+              recipientLabel = `${recipient} (${context.testRecipientEmail})`;
+            }
+
+            const recipientData = {
+              name: resolved.name,
+              address: recipientAddress,
+              email: recipientAddress,
+              mobile: resolved.mobile,
+              id: resolved.id,
+            };
+            const renderedMessage = renderAgentTemplate(String(config.message), {
+              ...variables,
+              recipient: recipientData,
+            });
+            const renderedSubject = renderAgentTemplate(String(config.subject || config.action), {
+              ...variables,
+              recipient: recipientData,
+            });
+            const output = await executeProvider(String(config.channel), {
+              recipient: recipientAddress,
+              recipientLabel,
+              message: renderedMessage,
+              subject: renderedSubject,
+              previewOnly: !isRealRun,
+              simulateFailure: context.failRecipient === recipient,
+            });
+            return { ...output, recipient: output.recipient || recipientLabel };
+          }));
 
     const executionMode: 'real' | 'mock' = isRealRun ? 'real' : 'mock';
     const failed = results.filter((result) => result.status === 'failed');
     const status = graphRun && results.length === 0 ? 'skipped' : failed.length === results.length ? 'failed' : failed.length > 0 ? 'partial-failed' : 'success';
     const executedRecipients = graphRun ? [...new Set(graphRun.results.map((item) => String(item.recipient)))] : recipients;
     const renderedMessage = String(results[0]?.renderedMessage ?? renderAgentTemplate(String(config.message), variables));
+
+    const resultLabel = isRealRun
+      ? failed.length === results.length
+        ? isTestEmailSend
+          ? `Live test email failed: ${results[0]?.error || 'Delivery failed'}`
+          : 'Execution failed: no notifications were delivered.'
+        : failed.length > 0
+          ? 'Execution completed with partial delivery failures.'
+          : isTestEmailSend
+            ? `Controlled test email delivered to ${context.testRecipientEmail}`
+            : 'Execution completed: notifications delivered.'
+      : 'SIMULATED RUN: no notification was sent.';
+
+    const resultMessage = isRealRun
+      ? isTestEmailSend
+        ? failed.length === results.length
+          ? `Failed to deliver test email to ${context.testRecipientEmail}: ${results[0]?.error || 'Provider error'}.`
+          : `Successfully delivered test email for “${agent.name}” to ${context.testRecipientEmail} via ${results[0]?.provider || 'email'}.`
+        : `${agent.module} event “${config.trigger}” executed for “${agent.name}”. ${failed.length ? `${failed.length} delivery attempt(s) failed.` : 'All notifications delivered.'}`
+      : context.event
+        ? `${agent.module} event “${config.trigger}” matched “${agent.name}”. Actions were simulated; no real notification was sent.`
+        : `Simulation completed for “${agent.name}”. No real notification was sent.`;
+
     const result = {
       simulated: !isRealRun,
       executionMode,
-      label: isRealRun
-        ? failed.length === results.length
-          ? 'Execution failed: no notifications were delivered.'
-          : failed.length > 0
-            ? 'Execution completed with partial delivery failures.'
-            : 'Execution completed: notifications delivered.'
-        : 'SIMULATED RUN: no notification was sent.',
-      message: isRealRun
-        ? `${agent.module} event “${config.trigger}” executed for “${agent.name}”. ${failed.length ? `${failed.length} delivery attempt(s) failed.` : 'All notifications delivered.'}`
-        : context.event
-          ? `${agent.module} event “${config.trigger}” matched “${agent.name}”. Actions were simulated; no real notification was sent.`
-          : `Simulation completed for “${agent.name}”. No real notification was sent.`,
+      label: resultLabel,
+      message: resultMessage,
       trigger: config.trigger,
       conditions: config.conditions,
       recipients: executedRecipients,
@@ -608,9 +656,9 @@ export class AgentExecutionService {
       steps: graphRun ? graphRun.trace.map((item) => item.type === 'condition' ? `${String(item.nodeName)} evaluated ${String(item.field)} ${String(item.operator)} ${String(item.expected)} as ${String(item.result)}; took ${String(item.branch)} branch.` : `${String(item.nodeName)} prepared a ${isRealRun ? 'real' : 'simulated'} ${String(item.provider)} action (${String(item.status)}).`) : [
         `Sample "${config.trigger}" event generated.`,
         'Conditions evaluated against the sample event.',
-        `Recipients resolved (${isRealRun ? 'actual' : 'simulated'}): ${recipients.join(', ')}.`,
-        isRealRun ? `Dispatched via ${String(config.channel)}.` : `Would deliver via ${String(config.channel)} (not sent).`,
-        `Action prepared: ${String(config.action)}.`,
+        `Recipients resolved (${isRealRun ? 'actual' : 'simulated'}): ${context.testRecipientEmail ? `Controlled Test Inbox (${context.testRecipientEmail})` : recipients.join(', ')}.`,
+        isRealRun ? `Dispatched via ${String(config.channel)} to ${context.testRecipientEmail || 'recipients'}.` : `Would deliver via ${String(config.channel)} (not sent).`,
+        `Action outcome: ${isRealRun ? results[0]?.status === 'delivered' ? `Delivered (Message ID: ${results[0]?.executionId})` : `Failed (${results[0]?.error || 'unauthorized'})` : 'Simulated (not sent)'}.`,
       ],
       executionTrace: graphRun?.trace || [],
     };

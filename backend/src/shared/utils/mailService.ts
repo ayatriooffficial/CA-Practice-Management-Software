@@ -57,6 +57,79 @@ export interface SendMailResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  provider?: 'gmail' | 'smtp';
+}
+
+export interface MailServiceStatus {
+  connected: boolean;
+  authorized: boolean;
+  provider: 'gmail' | 'smtp' | 'none';
+  email: string | null;
+  needsReconnect: boolean;
+  statusText: string;
+  error?: string;
+}
+
+export function getGoogleOAuthCredentials(): { clientId?: string; clientSecret?: string } {
+  const clientId =
+    process.env.GOOGLE_CLIENT_ID ||
+    env.GOOGLE_CLIENT_ID ||
+    process.env.GOOGLE_DRIVE_CLIENT_ID ||
+    env.GOOGLE_DRIVE_CLIENT_ID;
+  const clientSecret =
+    process.env.GOOGLE_CLIENT_SECRET ||
+    env.GOOGLE_CLIENT_SECRET ||
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET ||
+    env.GOOGLE_DRIVE_CLIENT_SECRET;
+  return { clientId, clientSecret };
+}
+
+export async function refreshGoogleAccessToken(refreshToken: string): Promise<{
+  accessToken?: string;
+  expiryDate?: number;
+  error?: string;
+}> {
+  const { clientId, clientSecret } = getGoogleOAuthCredentials();
+  if (!clientId || !clientSecret) {
+    return {
+      error: 'Google OAuth client credentials (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET) are not configured in backend/.env',
+    };
+  }
+
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, any>;
+    if (!res.ok) {
+      return {
+        error: data.error_description || data.error || `Token refresh failed with HTTP ${res.status}`,
+      };
+    }
+
+    const accessToken = data.access_token as string;
+    const expiryDate = data.expires_in ? Date.now() + Number(data.expires_in) * 1000 : Date.now() + 3600 * 1000;
+
+    // Update MongoDB integration document with newly minted access token
+    await IntegrationModel.updateOne(
+      { provider: 'google' },
+      { $set: { accessToken, expiryDate } }
+    ).exec();
+
+    logger.info('🔄 Successfully refreshed Google OAuth access token and updated database.');
+    return { accessToken, expiryDate };
+  } catch (err: any) {
+    logger.warn(`Failed to refresh Google OAuth access token: ${err?.message}`);
+    return { error: err?.message || 'Token refresh network error' };
+  }
 }
 
 function buildRawEmail(params: {
@@ -103,6 +176,102 @@ function buildRawEmail(params: {
 
 export class MailService {
   /**
+   * Determine the current email configuration and authorization status.
+   * Checks Google OAuth integration (MongoDB) and SMTP settings honestly.
+   */
+  public static async getStatus(): Promise<MailServiceStatus> {
+    const hasSmtp = Boolean(
+      (process.env.SMTP_USER || env.SMTP_USER) &&
+      (process.env.SMTP_PASS || env.SMTP_PASS)
+    );
+
+    let googleIntegration: any = null;
+    try {
+      googleIntegration = await IntegrationModel.findOne({ provider: 'google' }).lean().exec();
+    } catch (err: any) {
+      logger.warn(`Failed to retrieve Google integration settings from database: ${err?.message}`);
+    }
+
+    if (googleIntegration?.email) {
+      const email = googleIntegration.email;
+      const isExpired = googleIntegration.expiryDate ? Date.now() >= googleIntegration.expiryDate - 30000 : true;
+
+      // If access token is still within validity window, test or report active
+      if (!isExpired && googleIntegration.accessToken) {
+        return {
+          connected: true,
+          authorized: true,
+          provider: 'gmail',
+          email,
+          needsReconnect: false,
+          statusText: `Connected (${email})`,
+        };
+      }
+
+      // If expired, attempt transparent refresh using refresh token and client credentials
+      if (googleIntegration.refreshToken) {
+        const refreshResult = await refreshGoogleAccessToken(googleIntegration.refreshToken);
+        if (refreshResult.accessToken) {
+          return {
+            connected: true,
+            authorized: true,
+            provider: 'gmail',
+            email,
+            needsReconnect: false,
+            statusText: `Connected (${email})`,
+          };
+        }
+      }
+
+      // If Google refresh was not possible, but SMTP is configured, SMTP can deliver
+      if (hasSmtp) {
+        const smtpUser = process.env.SMTP_USER || env.SMTP_USER || null;
+        return {
+          connected: true,
+          authorized: true,
+          provider: 'smtp',
+          email: smtpUser,
+          needsReconnect: false,
+          statusText: `Connected via SMTP (${smtpUser})`,
+        };
+      }
+
+      // Otherwise report honest authorization required status
+      return {
+        connected: true,
+        authorized: false,
+        provider: 'gmail',
+        email,
+        needsReconnect: true,
+        statusText: `Authorization required (${email} expired)`,
+        error: 'Gmail access token expired. Please reconnect Gmail at /email.',
+      };
+    }
+
+    if (hasSmtp) {
+      const smtpUser = process.env.SMTP_USER || env.SMTP_USER || null;
+      return {
+        connected: true,
+        authorized: true,
+        provider: 'smtp',
+        email: smtpUser,
+        needsReconnect: false,
+        statusText: `Connected via SMTP (${smtpUser})`,
+      };
+    }
+
+    return {
+      connected: false,
+      authorized: false,
+      provider: 'none',
+      email: null,
+      needsReconnect: false,
+      statusText: 'Not connected (reconnect at /email)',
+      error: 'Email delivery provider credentials not configured (Gmail OAuth or SMTP required).',
+    };
+  }
+
+  /**
    * Send a general transactional or notification email using the configured
    * practice email account (via Google OAuth / Gmail API or SMTP transporter).
    */
@@ -128,43 +297,89 @@ export class MailService {
       env.SMTP_FROM ||
       `"CA Practice Management" <${defaultSenderEmail}>`;
 
-    // 2. Priority 1: If Google integration has an active access token, attempt sending via Gmail API
-    if (googleIntegration?.accessToken) {
-      try {
-        const raw = buildRawEmail({
-          to: toRecipients,
-          from: defaultSenderEmail,
-          subject: options.subject,
-          body: options.text || '',
-          html: options.html,
-          cc: options.cc,
-          inReplyTo: options.inReplyTo,
-          references: options.references,
-        });
+    // 2. Priority 1: If Google integration document exists, attempt sending via Gmail API
+    if (googleIntegration?.email) {
+      let accessToken = googleIntegration.accessToken;
+      const isExpired = googleIntegration.expiryDate ? Date.now() >= googleIntegration.expiryDate - 30000 : true;
 
-        const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${googleIntegration.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ raw }),
-        });
-
-        if (res.ok) {
-          const json = (await res.json().catch(() => ({}))) as Record<string, any>;
-          const messageId = json.id || `gmail-${Date.now()}`;
-          logger.info(`✅ Successfully dispatched email via Gmail API to ${toRecipients} (MessageId: ${messageId})`);
-          return {
-            success: true,
-            messageId,
-          };
+      // If token expired, refresh first
+      if (isExpired && googleIntegration.refreshToken) {
+        const refreshResult = await refreshGoogleAccessToken(googleIntegration.refreshToken);
+        if (refreshResult.accessToken) {
+          accessToken = refreshResult.accessToken;
         }
+      }
 
-        const errJson = await res.json().catch(() => ({}));
-        logger.warn(`Gmail API dispatch returned HTTP ${res.status}: ${JSON.stringify(errJson)}`);
-      } catch (gmailErr: any) {
-        logger.warn(`Gmail API invocation failed: ${gmailErr?.message}`);
+      if (accessToken) {
+        try {
+          const raw = buildRawEmail({
+            to: toRecipients,
+            from: defaultSenderEmail,
+            subject: options.subject,
+            body: options.text || '',
+            html: options.html,
+            cc: options.cc,
+            inReplyTo: options.inReplyTo,
+            references: options.references,
+          });
+
+          let res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ raw }),
+          });
+
+          // Handle 401: attempt token refresh retry once
+          if (res.status === 401 && googleIntegration.refreshToken) {
+            logger.warn('Gmail API returned 401; attempting refresh token retry...');
+            const retryRefresh = await refreshGoogleAccessToken(googleIntegration.refreshToken);
+            if (retryRefresh.accessToken) {
+              accessToken = retryRefresh.accessToken;
+              res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ raw }),
+              });
+            }
+          }
+
+          if (res.ok) {
+            const json = (await res.json().catch(() => ({}))) as Record<string, any>;
+            const messageId = json.id as string;
+            if (messageId) {
+              logger.info(`✅ Successfully dispatched email via Gmail API to ${toRecipients} (MessageId: ${messageId})`);
+              return {
+                success: true,
+                messageId,
+                provider: 'gmail',
+              };
+            }
+          }
+
+          const errJson = (await res.json().catch(() => ({}))) as Record<string, any>;
+          const errMsg = errJson.error?.message || `Gmail API HTTP error ${res.status}`;
+          logger.warn(`Gmail API dispatch failed: ${errMsg}`);
+
+          // If error is 401 and refresh wasn't possible, report honest error
+          if (res.status === 401) {
+            const smtpFallback = getTransporter();
+            if (!smtpFallback) {
+              return {
+                success: false,
+                error: 'Gmail authorization expired or missing client credentials. Please reconnect Gmail via /email.',
+                provider: 'gmail',
+              };
+            }
+          }
+        } catch (gmailErr: any) {
+          logger.warn(`Gmail API invocation exception: ${gmailErr?.message}`);
+        }
       }
     }
 
@@ -184,19 +399,21 @@ export class MailService {
         return {
           success: true,
           messageId: info.messageId,
+          provider: 'smtp',
         };
       } catch (err: any) {
         logger.error(`❌ Failed to send email via SMTP to ${toRecipients}:`, err);
         return {
           success: false,
           error: err?.message || 'SMTP transmission failure',
+          provider: 'smtp',
         };
       }
     }
 
-    // 4. Provider not available
-    const msg = googleIntegration
-      ? 'Gmail delivery credentials unauthorized or expired. Please reconnect practice email.'
+    // 4. Provider not available or unauthenticated
+    const msg = googleIntegration?.email
+      ? 'Gmail authorization expired or missing credentials. Please reconnect practice email at /email.'
       : 'Email delivery provider credentials not configured in environment (SMTP or Gmail required).';
     logger.warn(`📧 [MAIL SERVICE NOT CONFIGURED] To: ${toRecipients} | Subject: ${options.subject}`);
     return { success: false, error: msg };

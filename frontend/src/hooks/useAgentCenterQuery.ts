@@ -94,7 +94,24 @@ export function useDeleteAgent() {
 export function useTestRunAgent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => agentCenterApi.testRunAgent(id),
+    mutationFn: (variables: string | { id: string; testEmail?: string; mode?: 'test' | 'live'; failRecipient?: string; messageId?: string }) => {
+      const id = typeof variables === 'string' ? variables : variables.id;
+      const options = typeof variables === 'string' ? undefined : {
+        testEmail: variables.testEmail,
+        mode: variables.mode,
+        failRecipient: variables.failRecipient,
+        messageId: variables.messageId,
+      };
+      return agentCenterApi.testRunAgent(id, options);
+    },
     onSuccess: (run) => invalidateAgentData(queryClient, run.agentId),
+  });
+}
+
+export function useIntegrationsStatus() {
+  return useQuery({
+    queryKey: ['agentCenter', 'integrationsStatus'],
+    queryFn: () => agentCenterApi.getIntegrationsStatus(),
+    staleTime: 15000,
   });
 }

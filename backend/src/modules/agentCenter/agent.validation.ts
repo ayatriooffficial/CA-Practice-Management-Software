@@ -95,6 +95,9 @@ export const queryAgentsSchema = z.object({
 
 export const testRunSchema = z.object({
   failRecipient: z.string().optional(),
+  mode: z.enum(['test', 'live']).optional(),
+  testEmail: z.string().email('Invalid test email format').optional(),
+  messageId: z.string().optional(),
 });
 
 export const historyQuerySchema = z.object({

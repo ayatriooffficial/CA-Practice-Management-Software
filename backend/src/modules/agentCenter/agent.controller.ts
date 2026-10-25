@@ -2,11 +2,12 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AgentCenterService } from './agent.service';
-import { AgentExecutionService, isEmailConfiguredAsync } from './execution.service';
+import { AgentExecutionService } from './execution.service';
 import { isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
 import { AgentSchedulerService } from './scheduler.service';
 import { getPublicDefinitions } from './definitions';
 import { AppError } from '../../shared/utils/apiError';
+import { MailService } from '../../shared/utils/mailService';
 
 function organizationId(req: Request): string {
   if (!req.user?.orgId) throw AppError.unauthorized('Organization context is required.');
@@ -16,14 +17,18 @@ function organizationId(req: Request): string {
 export class AgentCenterController {
   static definitions = asyncHandler(async (_req: Request, res: Response) => {
     const defs = getPublicDefinitions();
-    const emailConfigured = await isEmailConfiguredAsync();
+    const emailStatus = await MailService.getStatus();
     const whatsappConfigured = isWhatsAppConfigured();
     const withIntegrations = {
       ...defs,
       integrations: {
         email: {
-          configured: emailConfigured,
-          statusText: emailConfigured ? 'Connected' : 'Kindly integrate email',
+          configured: emailStatus.authorized,
+          statusText: emailStatus.statusText,
+          provider: emailStatus.provider,
+          email: emailStatus.email,
+          needsReconnect: emailStatus.needsReconnect,
+          error: emailStatus.error,
         },
         whatsapp: {
           configured: whatsappConfigured,
@@ -35,12 +40,16 @@ export class AgentCenterController {
   });
 
   static integrationsStatus = asyncHandler(async (_req: Request, res: Response) => {
-    const emailConfigured = await isEmailConfiguredAsync();
+    const emailStatus = await MailService.getStatus();
     const whatsappConfigured = isWhatsAppConfigured();
     return ApiResponse.success(res, {
       email: {
-        configured: emailConfigured,
-        statusText: emailConfigured ? 'Connected' : 'Kindly integrate email',
+        configured: emailStatus.authorized,
+        statusText: emailStatus.statusText,
+        provider: emailStatus.provider,
+        email: emailStatus.email,
+        needsReconnect: emailStatus.needsReconnect,
+        error: emailStatus.error,
       },
       whatsapp: {
         configured: whatsappConfigured,
@@ -104,12 +113,30 @@ export class AgentCenterController {
 
   static testRun = asyncHandler(async (req: Request, res: Response) => {
     const idempotencyKey = req.get('Idempotency-Key') || undefined;
+    const { failRecipient, mode, testEmail, messageId } = req.body || {};
+    const isLive = mode === 'live' || Boolean(testEmail) || Boolean(messageId);
+
     const run = await AgentExecutionService.run(req.params.id as string, {
       idempotencyKey,
-      failRecipient: typeof req.body?.failRecipient === 'string' ? req.body.failRecipient : undefined,
+      failRecipient: typeof failRecipient === 'string' ? failRecipient : undefined,
       orgId: organizationId(req),
+      runType: isLive ? 'actual' : 'test',
+      testRecipientEmail: typeof testEmail === 'string' ? testEmail.trim() : undefined,
+      externalExecutionId: typeof messageId === 'string' ? messageId.trim() : undefined,
     });
-    return ApiResponse.created(res, run, 'Simulated test run recorded. No real notification was sent.');
+
+    const isTestEmailSend = Boolean(testEmail);
+    const message = isTestEmailSend
+      ? run.status === 'success'
+        ? `Test email successfully dispatched to ${testEmail}.`
+        : `Execution recorded: ${run.errorMessage || run.result?.message || 'Email delivery failed.'}`
+      : isLive
+        ? run.status === 'success'
+          ? 'Live agent execution completed.'
+          : `Execution recorded: ${run.errorMessage || run.result?.message || 'Execution failed.'}`
+        : 'Simulated test run recorded. No real notification was sent.';
+
+    return ApiResponse.created(res, run, message);
   });
 
   static agentHistory = asyncHandler(async (req: Request, res: Response) => {
