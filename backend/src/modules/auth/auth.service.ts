@@ -1048,6 +1048,22 @@ export class AuthService {
   }
 
   /**
+   * Get all organizations in database
+   */
+  public static async getAllOrganizations(): Promise<any[]> {
+    const orgs = await OrganizationModel.find({}).sort({ createdAt: 1 }).lean();
+    if (!orgs || orgs.length === 0) {
+      const primary = await this.getOrganization();
+      return [primary];
+    }
+    return orgs.map((org: any, index: number) => ({
+      ...org,
+      id: String(org._id),
+      priority: index === 0 ? 'Primary' : 'Secondary',
+    }));
+  }
+
+  /**
    * Update organization details
    */
   public static async updateOrganization(orgId: string, updates: Record<string, any>): Promise<any> {

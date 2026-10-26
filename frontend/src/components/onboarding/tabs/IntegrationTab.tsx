@@ -43,7 +43,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
           onClick={() => setSelectedApp("gmail")}
           className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
             selectedApp === "gmail"
-              ? "border-[#635BFF] bg-purple-50/30 dark:bg-purple-950/20 ring-2 ring-[#635BFF]/20"
+              ? "border-[var(--primary)] bg-blue-50/30 dark:bg-blue-950/20 ring-2 ring-[var(--primary)]/20"
               : "border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-600"
           }`}
         >
@@ -77,7 +77,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
           <div
             className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
               selectedApp === "gmail"
-                ? "border-[#635BFF] bg-[#635BFF]"
+                ? "border-[var(--primary)] bg-[var(--primary)]"
                 : "border-[var(--border-subtle)]"
             }`}
           >
@@ -90,7 +90,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
           onClick={() => setSelectedApp("outlook")}
           className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
             selectedApp === "outlook"
-              ? "border-[#635BFF] bg-purple-50/30 dark:bg-purple-950/20 ring-2 ring-[#635BFF]/20"
+              ? "border-[var(--primary)] bg-blue-50/30 dark:bg-blue-950/20 ring-2 ring-[var(--primary)]/20"
               : "border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-600"
           }`}
         >
@@ -123,7 +123,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
           <div
             className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
               selectedApp === "outlook"
-                ? "border-[#635BFF] bg-[#635BFF]"
+                ? "border-[var(--primary)] bg-[var(--primary)]"
                 : "border-[var(--border-subtle)]"
             }`}
           >
@@ -140,7 +140,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
           className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2.5 cursor-pointer ${
             isGoogleConnected
               ? "bg-emerald-600 text-white"
-              : "bg-[#635BFF] hover:bg-[#5349e0] text-white"
+              : "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white"
           }`}
         >
           {isGoogleConnected ? (
@@ -228,7 +228,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
             type="button"
             disabled={isSaving}
             onClick={onSubmit}
-            className="px-6 py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5349e0] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {isSaving && (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

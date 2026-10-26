@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     <>
       {/* Desktop Sidebar (hidden on mobile, visible on md+) */}
       <aside
-        className="hidden md:flex app-sidebar sticky top-[var(--header-height)] h-[calc(100vh-var(--header-height))] z-30 shrink-0 flex-col justify-between overflow-visible select-none transition-colors"
+        className="hidden md:flex app-sidebar sticky top-[var(--header-height)] h-[calc(100vh-var(--header-height))] z-40 shrink-0 flex-col justify-between overflow-visible select-none transition-colors"
         style={{
           width: "var(--sidebar-width)",
           backgroundColor: "var(--bg-surface)",
@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
                 {/* Floating Label Tooltip on Hover */}
                 <div
-                  className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-tight whitespace-nowrap shadow-md border opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 select-none"
+                  className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-tight whitespace-nowrap shadow-md border opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[100] select-none"
                   style={{
                     backgroundColor: "var(--bg-surface)",
                     borderColor: "var(--border-main)",
@@ -184,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <LogOut className="w-4 h-4 mb-0.5 transition-transform group-hover:scale-110" />
               <span className="text-[10px] font-semibold leading-tight">Logout</span>
               <div
-                className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-tight whitespace-nowrap shadow-md border opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 select-none"
+                className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-tight whitespace-nowrap shadow-md border opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[100] select-none"
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderColor: "var(--border-main)",

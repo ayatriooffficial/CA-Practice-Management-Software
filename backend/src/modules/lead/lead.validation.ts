@@ -10,43 +10,67 @@ export const leadIdParamSchema = z.object({
 });
 
 export const createLeadSchema = z.object({
-  firstName: z.string().min(1, 'First name is required').max(50),
-  middleName: z.string().max(50).optional().default(''),
-  lastName: z.string().min(1, 'Last name is required').max(50),
-  abbreviation: z.string().max(10).optional().default(''),
-  dob: z.string().optional(),
-  aadhaarMobile: z.string().optional(),
-  mobile: z.string().min(7, 'Valid mobile number is required').regex(MOBILE_REGEX, 'Invalid mobile number format'),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  id: z.string().optional(),
+  fullName: z.string().optional(),
+  firstName: z.string().trim().min(1, 'First name is required').max(50),
+  middleName: z.string().trim().max(50).nullable().optional().default(''),
+  lastName: z.string().trim().min(1, 'Last name is required').max(50),
+  abbreviation: z.string().trim().max(10).nullable().optional().default(''),
+  dob: z.string().nullable().optional().default(''),
+  aadhaarMobile: z.string().nullable().optional().default(''),
+  mobile: z
+    .string()
+    .trim()
+    .min(7, 'Valid mobile number is required')
+    .regex(MOBILE_REGEX, 'Invalid mobile number format'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((val) => !val || val === '' || z.string().email().safeParse(val).success, {
+      message: 'Invalid email address',
+    })
+    .nullable()
+    .optional()
+    .default(''),
   pan: z
     .string()
+    .trim()
     .toUpperCase()
-    .regex(PAN_REGEX, 'Invalid Indian PAN format (e.g. ABCDE1234F)')
+    .refine((val) => !val || val === '' || PAN_REGEX.test(val), {
+      message: 'Invalid Indian PAN format (e.g. ABCDE1234F)',
+    })
+    .nullable()
     .optional()
-    .or(z.literal('')),
+    .default(''),
   panAttachment: z.string().nullable().optional(),
   aadhaar: z
     .string()
-    .regex(AADHAAR_REGEX, 'Aadhaar must be a 12-digit number')
+    .trim()
+    .transform((val) => (val ? val.replace(/\s+/g, '') : ''))
+    .refine((val) => !val || val === '' || AADHAAR_REGEX.test(val), {
+      message: 'Aadhaar must be a 12-digit number',
+    })
+    .nullable()
     .optional()
-    .or(z.literal('')),
+    .default(''),
   aadhaarAttachment: z.string().nullable().optional(),
-  gender: z.enum(['Male', 'Female', 'Others', 'Transgender', '']).optional().default(''),
-  address: z.string().max(250).optional().default(''),
-  country: z.string().max(60).optional().default('India'),
-  state: z.string().max(60).optional().default(''),
-  pincode: z.string().max(10).optional().default(''),
-  nationality: z.string().max(50).optional().default('Indian'),
-  policeStation: z.string().max(100).optional().default(''),
-  postOffice: z.string().max(100).optional().default(''),
-  din: z.string().max(20).optional().default(''),
+  gender: z.enum(['Male', 'Female', 'Others', 'Transgender', '']).nullable().optional().default('Male'),
+  address: z.string().max(250).nullable().optional().default(''),
+  country: z.string().max(60).nullable().optional().default('India'),
+  state: z.string().max(60).nullable().optional().default(''),
+  pincode: z.string().max(10).nullable().optional().default(''),
+  nationality: z.string().max(50).nullable().optional().default('Indian'),
+  policeStation: z.string().max(100).nullable().optional().default(''),
+  postOffice: z.string().max(100).nullable().optional().default(''),
+  din: z.string().max(20).nullable().optional().default(''),
   dinAttachment: z.string().nullable().optional(),
-  mcaId: z.string().max(50).optional().default(''),
-  mcaPassword: z.string().max(100).optional(),
-  referredBy: z.string().max(100).optional().default(''),
+  mcaId: z.string().max(50).nullable().optional().default(''),
+  mcaPassword: z.string().max(100).nullable().optional().default(''),
+  referredBy: z.string().max(100).nullable().optional().default(''),
   photo: z.string().nullable().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'converted', 'dropped']).optional().default('new'),
-  notes: z.string().max(1000).optional().default(''),
+  notes: z.string().max(1000).nullable().optional().default(''),
   pipelineStage: z.string().optional().default('new_lead'),
   leadScore: z
     .object({

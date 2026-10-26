@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Loader2, ArrowLeftRight, Calendar, User, FileText } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
-import { Client } from "@/data/crmData";
+import { Client, ClientDocumentInOut } from "@/data/crmData";
 
 interface AddDocumentInOutModalProps {
   isOpen: boolean;
   client: Client;
   onClose: () => void;
   onSuccess: (updatedClient: Client) => void;
+  initialData?: ClientDocumentInOut | null;
 }
 
 export const AddDocumentInOutModal: React.FC<AddDocumentInOutModalProps> = ({
@@ -17,6 +18,7 @@ export const AddDocumentInOutModal: React.FC<AddDocumentInOutModalProps> = ({
   client,
   onClose,
   onSuccess,
+  initialData,
 }) => {
   const [documentName, setDocumentName] = useState("");
   const [personName, setPersonName] = useState("");
@@ -28,6 +30,39 @@ export const AddDocumentInOutModal: React.FC<AddDocumentInOutModalProps> = ({
   const [hasFile, setHasFile] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const parseToInputDate = (str?: string) => {
+    if (!str || str === "-") return "";
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  useEffect(() => {
+    if (initialData) {
+      setDocumentName(initialData.documentName || "");
+      setPersonName(initialData.personName && initialData.personName !== "-" ? initialData.personName : "");
+      setDate(parseToInputDate(initialData.date) || new Date().toISOString().split("T")[0]);
+      setStatus(initialData.status === "Out" ? "Out" : "In");
+      setReturnable(initialData.returnable ? "Yes" : "No");
+      setReturnDate(parseToInputDate(initialData.returnDate));
+      setRemarks(initialData.remarks && initialData.remarks !== "-" ? initialData.remarks : "");
+      setHasFile(!!initialData.file);
+    } else {
+      setDocumentName("");
+      setPersonName("");
+      setDate(new Date().toISOString().split("T")[0]);
+      setStatus("In");
+      setReturnable("No");
+      setReturnDate("");
+      setRemarks("");
+      setHasFile(false);
+    }
+    setErrorMessage("");
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
@@ -50,10 +85,13 @@ export const AddDocumentInOutModal: React.FC<AddDocumentInOutModalProps> = ({
         returnable,
         returnDate: returnable === "Yes" && returnDate ? formatDateDisplay(returnDate) : "-",
         remarks: remarks.trim() || "-",
-        file: hasFile ? "pdf" : null,
+        file: hasFile ? (initialData?.file || "pdf") : null,
       };
 
-      const res = await clientApi.addDocumentInOut(client.id, payload);
+      const res = initialData?.id
+        ? await clientApi.updateDocumentInOut(client.id, initialData.id, payload)
+        : await clientApi.addDocumentInOut(client.id, payload);
+
       if (res.data) {
         onSuccess(res.data);
         onClose();
@@ -95,7 +133,7 @@ export const AddDocumentInOutModal: React.FC<AddDocumentInOutModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                Record Document Movement (In - Out)
+                {initialData ? `Edit Document Movement: ${initialData.documentName}` : "Record Document Movement (In - Out)"}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {client.name}
@@ -253,7 +291,7 @@ export const AddDocumentInOutModal: React.FC<AddDocumentInOutModalProps> = ({
               style={{ backgroundColor: "var(--premium-blue-dark)" }}
             >
               {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Record</span>
+              <span>{initialData ? "Save Changes" : "Save Record"}</span>
             </button>
           </div>
         </form>

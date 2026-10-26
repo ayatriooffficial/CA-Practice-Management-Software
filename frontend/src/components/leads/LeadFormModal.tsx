@@ -21,7 +21,7 @@ import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 
 interface LeadFormModalProps {
   lead?: Lead | null;
-  onSave: (lead: Lead) => void;
+  onSave: (lead: Lead) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -72,6 +72,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputId = useId();
 
   const handleChange = (field: keyof Lead, value: any) => {
@@ -176,20 +177,93 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
     }
   };
 
-  const validate = () => {
+  const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
+
+    // 1. First Name (Required, min 2 chars)
     if (!formData.firstName?.trim()) {
       newErrors.firstName = "First Name is required";
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = "First Name must be at least 2 characters";
     }
+
+    // 2. Last Name (Required)
+    if (!formData.lastName?.trim()) {
+      newErrors.lastName = "Last Name is required";
+    }
+
+    // 3. Communication Mobile (Required, valid Indian mobile number)
+    const rawMobile = (formData.mobile || "").trim();
+    const cleanMobile = rawMobile
+      .replace(/[\s\-\(\)\+]/g, "")
+      .replace(/^91(?=\d{10}$)/, "")
+      .replace(/^0(?=\d{10}$)/, "");
+
+    if (!cleanMobile) {
+      newErrors.mobile = "Communication Mobile number is required";
+    } else if (!/^[6-9]\d{9}$/.test(cleanMobile)) {
+      newErrors.mobile = "Enter a valid 10-digit mobile number (e.g. 9876543210)";
+    }
+
+    // 4. Communication Email (Optional, but if entered must be valid)
+    const cleanEmail = (formData.email || "").trim();
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      newErrors.email = "Enter a valid email address (e.g. name@domain.com)";
+    }
+
+    // 5. PAN (Optional, but if entered must match 10-char uppercase PAN format)
+    const cleanPan = (formData.pan || "").replace(/\s+/g, "").trim().toUpperCase();
+    if (cleanPan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanPan)) {
+      newErrors.pan = "Invalid PAN format. Must be 10 characters (e.g. ABCDE1234F)";
+    }
+
+    // 6. Aadhaar (Optional, but if entered must be 12 digits)
+    const cleanAadhaar = (formData.aadhaar || "").replace(/\s+/g, "").trim();
+    if (cleanAadhaar && !/^\d{12}$/.test(cleanAadhaar)) {
+      newErrors.aadhaar = "Aadhaar number must be exactly 12 digits";
+    }
+
+    // 7. DIN (Optional, but if entered must be 8 digits)
+    const cleanDin = (formData.din || "").replace(/\s+/g, "").trim();
+    if (cleanDin && !/^\d{8}$/.test(cleanDin)) {
+      newErrors.din = "DIN must be exactly 8 digits (e.g. 08123456)";
+    }
+
+    // 8. Pincode (Optional, but if entered must be 6 digits)
+    const cleanPin = (formData.pincode || "").replace(/\s+/g, "").trim();
+    if (cleanPin && !/^\d{6}$/.test(cleanPin)) {
+      newErrors.pincode = "Pincode must be exactly 6 digits";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(
+          ".border-\\[\\#e8655a\\], .border-rose-500, .border-red-500"
+        );
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          (firstErrorEl as HTMLElement)?.focus?.();
+        }
+      }, 50);
       return;
     }
+
+    const rawMobile = (formData.mobile || "").trim();
+    const cleanMobile = rawMobile
+      .replace(/[\s\-\(\)\+]/g, "")
+      .replace(/^91(?=\d{10}$)/, "")
+      .replace(/^0(?=\d{10}$)/, "");
+
+    const cleanPan = (formData.pan || "").replace(/\s+/g, "").trim().toUpperCase();
+    const cleanAadhaar = (formData.aadhaar || "").replace(/\s+/g, "").trim();
+    const cleanDin = (formData.din || "").replace(/\s+/g, "").trim();
+    const cleanPin = (formData.pincode || "").replace(/\s+/g, "").trim();
 
     const now = new Date().toISOString();
     const finalLead: Lead = {
@@ -200,37 +274,61 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
           .filter(Boolean)
           .join(" ") ||
         "Unnamed Lead",
-      firstName: formData.firstName || "",
-      middleName: formData.middleName || "",
-      lastName: formData.lastName || "",
-      abbreviation: formData.abbreviation || "",
+      firstName: (formData.firstName || "").trim(),
+      middleName: (formData.middleName || "").trim(),
+      lastName: (formData.lastName || "").trim(),
+      abbreviation: (formData.abbreviation || "").trim(),
       dob: formData.dob || "",
-      aadhaarMobile: formData.aadhaarMobile || "",
-      mobile: formData.mobile || "",
-      email: formData.email || "",
-      pan: (formData.pan || "").toUpperCase(),
+      aadhaarMobile: (formData.aadhaarMobile || "").trim(),
+      mobile: cleanMobile,
+      email: (formData.email || "").trim().toLowerCase(),
+      pan: cleanPan,
       panAttachment: formData.panAttachment || null,
-      aadhaar: formData.aadhaar || "",
+      aadhaar: cleanAadhaar,
       aadhaarAttachment: formData.aadhaarAttachment || null,
       gender: (formData.gender as any) || "Male",
-      address: formData.address || "",
-      country: formData.country || "India",
-      state: formData.state || "Maharashtra",
-      pincode: formData.pincode || "",
-      nationality: formData.nationality || "Indian",
-      policeStation: formData.policeStation || "",
-      postOffice: formData.postOffice || "",
-      din: formData.din || "",
+      address: (formData.address || "").trim(),
+      country: (formData.country || "India").trim(),
+      state: (formData.state || "Maharashtra").trim(),
+      pincode: cleanPin,
+      nationality: (formData.nationality || "Indian").trim(),
+      policeStation: (formData.policeStation || "").trim(),
+      postOffice: (formData.postOffice || "").trim(),
+      din: cleanDin,
       dinAttachment: formData.dinAttachment || null,
-      mcaId: formData.mcaId || "",
-      mcaPassword: formData.mcaPassword || "",
-      referredBy: formData.referredBy || "",
+      mcaId: (formData.mcaId || "").trim(),
+      mcaPassword: (formData.mcaPassword || "").trim(),
+      referredBy: (formData.referredBy || "").trim(),
       photo: formData.photo || null,
       createdAt: formData.createdAt || now,
       updatedAt: now,
     };
 
-    onSave(finalLead);
+    setIsSubmitting(true);
+    try {
+      await onSave(finalLead);
+    } catch (err: any) {
+      if (err?.errors && Array.isArray(err.errors)) {
+        const fieldErrors: Record<string, string> = {};
+        err.errors.forEach((e: any) => {
+          if (e.field) fieldErrors[e.field] = e.message;
+        });
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      }
+      setTimeout(() => {
+        const banner = document.getElementById("lead-form-error-banner");
+        if (banner) {
+          banner.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          const firstErrorEl = document.querySelector(
+            ".border-\\[\\#e8655a\\], .border-rose-500, .border-red-500"
+          );
+          firstErrorEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isDirty = useMemo(() => {
@@ -302,6 +400,36 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
             onSubmit={handleSubmit}
             className="flex-1 overflow-y-auto px-6 py-2 space-y-5 scrollbar-slim"
           >
+            {/* Top Form Errors Warning Banner */}
+            {Object.keys(errors).length > 0 && (
+              <div
+                id="lead-form-error-banner"
+                className="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                        <span>Required Fields & Validation Warnings</span>
+                        <span className="text-xs bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full font-semibold">
+                          {Object.keys(errors).length} requirement{Object.keys(errors).length > 1 ? "s" : ""} need attention
+                        </span>
+                      </h4>
+                    </div>
+
+                    <ul className="list-disc list-inside text-xs space-y-1 text-rose-700 dark:text-rose-300 pt-1">
+                      {Object.entries(errors).map(([key, msg]) => (
+                        <li key={key} className="font-medium">
+                          {msg}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 1. PERSONAL DETAILS */}
             <div className="space-y-3">
               <h3
@@ -394,6 +522,11 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                           : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
                           }`}
                       />
+                      {errors.firstName && (
+                        <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                          {errors.firstName}
+                        </span>
+                      )}
                     </div>
 
                     <div>
@@ -425,8 +558,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         value={formData.lastName || ""}
                         onChange={(e) => handleChange("lastName", e.target.value)}
                         placeholder="Last Name"
-                        className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                        className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.lastName
+                          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                          : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                        }`}
                       />
+                      {errors.lastName && (
+                        <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                          {errors.lastName}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -545,8 +686,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     }
                     required
                     placeholder="Communication Mobile"
-                    className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.mobile
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    }`}
                   />
+                  {errors.mobile && (
+                    <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                      {errors.mobile}
+                    </span>
+                  )}
                 </div>
 
                 <div>
@@ -561,8 +710,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     value={formData.email || ""}
                     onChange={(e) => handleChange("email", e.target.value)}
                     placeholder="Communication Mail ID"
-                    className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.email
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    }`}
                   />
+                  {errors.email && (
+                    <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                      {errors.email}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -597,8 +754,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         )
                       }
                       placeholder="PAN No"
-                      className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm uppercase font-mono outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      className={`h-11 w-full rounded-md border px-3 text-sm uppercase font-mono outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.pan
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                     />
+                    {errors.pan && (
+                      <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                        {errors.pan}
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -650,8 +815,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         handleChange("aadhaar", e.target.value.replace(/\D/g, ""))
                       }
                       placeholder="Aadhaar No"
-                      className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.aadhaar
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                     />
+                    {errors.aadhaar && (
+                      <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                        {errors.aadhaar}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -706,8 +879,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         handleChange("din", e.target.value.replace(/\D/g, ""))
                       }
                       placeholder="DIN / DPIN No"
-                      className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.din
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                     />
+                    {errors.din && (
+                      <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                        {errors.din}
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -885,8 +1066,16 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         handleChange("pincode", e.target.value.replace(/\D/g, ""))
                       }
                       placeholder="Pin Code"
-                      className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.pincode
+                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                     />
+                    {errors.pincode && (
+                      <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                        {errors.pincode}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -956,7 +1145,8 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
             <button
               type="submit"
               form="lead-form"
-              className="h-10 rounded-md px-7 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+              disabled={isSubmitting}
+              className="h-10 rounded-md px-7 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 cursor-pointer flex items-center gap-2"
               style={{ backgroundColor: "var(--premium-blue-dark)" }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
@@ -965,7 +1155,14 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
               }
             >
-              Save
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>Save</span>
+              )}
             </button>
           </div>
         </div>

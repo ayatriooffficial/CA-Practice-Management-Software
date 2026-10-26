@@ -29,6 +29,8 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
 import {
@@ -203,24 +205,66 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
     [services, updateMutation, createMutation, showToast]
   );
 
+  // In-App Delete Confirmation Modal
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    id: string;
+    name: string;
+  }>({
+    isOpen: false,
+    id: "",
+    name: "",
+  });
+
   const handleDeleteService = useCallback(
-    async (id: string, name: string) => {
-      if (window.confirm(`Are you sure you want to soft delete "${name}"?`)) {
-        try {
-          await deleteMutation.mutateAsync(id);
-          setSelectedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-          showToast(`Service "${name}" moved to trash.`);
-        } catch (err: any) {
-          showToast(err.message || "Failed to delete service.");
-        }
-      }
+    (id: string, name: string) => {
+      setDeleteConfirm({
+        isOpen: true,
+        id,
+        name,
+      });
     },
-    [deleteMutation, showToast]
+    []
   );
+
+  const handleConfirmDelete = async () => {
+    const { id, name } = deleteConfirm;
+    setDeleteConfirm({ isOpen: false, id: "", name: "" });
+    if (!id) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      showToast(`Service "${name}" moved to trash.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete service.");
+    }
+  };
+
+  // Bulk Delete State & Handler
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      await Promise.allSettled(
+        idsToDelete.map((id) => deleteMutation.mutateAsync(id))
+      );
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+      showToast(`${idsToDelete.length} ${idsToDelete.length === 1 ? "service" : "services"} moved to trash.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete selected services.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const handleRestoreService = useCallback(
     async (id: string, name: string) => {
@@ -293,7 +337,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
       )}
 
       {/* Header Row */}
-      <div className="flex flex-wrap items-center justify-between px-1">
+      <div className="flex flex-wrap items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white py-2">
             Services ({pagination?.totalDocs ?? services.length})
@@ -345,7 +389,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
       </div>
 
       {/* Filters Bar (Clean, no unnecessary border) */}
-      <div className="p-4 bg-white dark:bg-[#1e293b] gap-y-3">
+      <div className="px-4 bg-white dark:bg-[#1e293b] gap-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* Search */}
           <div className="relative">
@@ -438,6 +482,18 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Bulk Action Bar on Selection */}
+      {selectedIds.size > 0 && canDelete("services") && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onDelete={() => setBulkDeleteConfirm(true)}
+          isDeleting={isBulkDeleting}
+          itemLabel="services"
+          deleteLabel="Delete Selected"
+        />
+      )}
 
       {/* Spreadsheet / Table (Clean shadow-card, no unnecessary outer border) */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
@@ -596,6 +652,30 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
           />
         </div>
       </div>
+
+      {/* In-App Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={deleteConfirm.isOpen}
+        title="Move Service to Trash?"
+        message={`Are you sure you want to move service "${deleteConfirm.name}" to trash?`}
+        confirmText="Move to Trash"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setDeleteConfirm({ isOpen: false, id: "", name: "" })}
+        onDiscard={handleConfirmDelete}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={bulkDeleteConfirm}
+        title={`Delete ${selectedIds.size} Selected Services?`}
+        message={`Are you sure you want to delete ${selectedIds.size} selected ${selectedIds.size === 1 ? "service" : "services"}? They will be moved to trash and can be restored if needed.`}
+        confirmText="Delete Selected"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setBulkDeleteConfirm(false)}
+        onDiscard={handleBulkDelete}
+      />
     </div>
   );
 };

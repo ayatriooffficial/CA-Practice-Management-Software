@@ -377,13 +377,14 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
 
     if (existingIndex >= 0) {
       updatedSettings = currentSettings.map((s, idx) =>
-        idx === existingIndex ? { ...s, compliance: nextVal, recTask: nextVal ? "Enabled" : "Disabled" } : s
+        idx === existingIndex ? { ...s, isActive: nextVal, compliance: nextVal, recTask: nextVal ? "Enabled" : "Disabled" } : s
       );
     } else {
       const newSetting: ClientServiceSetting = {
         id: `ss-${Date.now()}`,
         serviceName: service.name,
         category: service.category || "General",
+        isActive: nextVal,
         compliance: nextVal,
         recTask: nextVal ? "Enabled" : "Disabled",
         recInvoice: "Disabled",
@@ -397,7 +398,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     }
 
     const activeNames = updatedSettings
-      .filter((s) => s.compliance)
+      .filter((s) => (s.isActive !== undefined ? s.isActive : s.compliance))
       .map((s) => s.serviceName);
 
     // Optimistically update local clients state

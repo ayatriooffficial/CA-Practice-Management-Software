@@ -108,7 +108,9 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
                 const isServiceInArray = (clientItem.services || []).some(
                   (s) => s.trim().toLowerCase() === service.name.trim().toLowerCase()
                 );
-                const isEnabled = svcSetting ? Boolean(svcSetting.compliance) : Boolean(isServiceInArray);
+                const isEnabled = svcSetting
+                  ? Boolean(svcSetting.isActive !== undefined ? svcSetting.isActive : svcSetting.compliance)
+                  : Boolean(isServiceInArray);
 
                 const recTask = svcSetting?.recTask || (isEnabled ? "Enabled" : "Disabled");
                 const taskFreq = svcSetting?.frequency || service.frequency || "Monthly";

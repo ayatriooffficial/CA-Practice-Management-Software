@@ -179,9 +179,15 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
-      const firstErrorField = Object.keys(errors)[0];
-      const el = document.getElementById(`client-${firstErrorField}`);
-      el?.focus();
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(
+          ".border-rose-500, .border-\\[\\#e8655a\\], .border-red-500"
+        );
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          (firstErrorEl as HTMLElement)?.focus?.();
+        }
+      }, 50);
       return;
     }
 
@@ -284,6 +290,36 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
             onSubmit={handleSubmit}
             className="flex-1 overflow-y-auto px-6 py-2 space-y-5 scrollbar-slim"
           >
+            {/* Requirement Warning & Validation Banner */}
+            {Object.keys(errors).length > 0 && (
+              <div
+                id="modal-client-form-error-banner"
+                className="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                        <span>Required Fields & Validation Warnings</span>
+                        <span className="text-xs bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full font-semibold">
+                          {Object.keys(errors).length} requirement{Object.keys(errors).length > 1 ? "s" : ""} need attention
+                        </span>
+                      </h4>
+                    </div>
+
+                    <ul className="list-disc list-inside text-xs space-y-1 text-rose-700 dark:text-rose-300 pt-1">
+                      {Object.entries(errors).map(([key, msg]) => (
+                        <li key={key} className="font-medium">
+                          {msg}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Quick GSTIN Autofill Banner */}
             <div className="p-4 rounded-xl border border-[#31719B]/30 bg-[#31719B]/5 dark:bg-[#31719B]/10 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">

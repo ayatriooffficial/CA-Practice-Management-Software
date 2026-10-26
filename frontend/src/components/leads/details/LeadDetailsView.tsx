@@ -12,6 +12,7 @@ import { BusinessInfoCard } from "./BusinessInfoCard";
 import { LeadTasksTab, QuotationTab, DetailNotesTab } from "./tabs";
 import { Quotation } from "@/services/quotationApi";
 import { Loader2 } from "lucide-react";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 // Code-split heavy modals out of the initial tab render
 const AddQuotationModal = dynamic(
@@ -133,23 +134,57 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
     [activeLead.id, updateMutation]
   );
 
+  // Confirmation modal state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    confirmVariant?: "danger" | "primary";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
   // Handle Lost Lead
-  const handleLostLead = useCallback(async () => {
-    if (window.confirm(`Mark lead "${activeLead.fullName}" as Lost Lead?`)) {
-      await handleStatusChange("dropped");
-    }
+  const handleLostLead = useCallback(() => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Mark as Lost Lead?",
+      message: `Are you sure you want to mark lead "${activeLead.fullName}" as Lost Lead?`,
+      confirmText: "Mark as Lost",
+      cancelText: "Cancel",
+      confirmVariant: "danger",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await handleStatusChange("dropped");
+      },
+    });
   }, [activeLead.fullName, handleStatusChange]);
 
   // Handle Delete Lead
-  const handleDeleteLead = useCallback(async () => {
-    if (window.confirm(`Move lead "${activeLead.fullName}" to trash?`)) {
-      try {
-        await deleteMutation.mutateAsync(activeLead.id);
-        onClose();
-      } catch (err: any) {
-        alert(err.message || "Failed to delete lead");
-      }
-    }
+  const handleDeleteLead = useCallback(() => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Move to Trash?",
+      message: `Are you sure you want to move lead "${activeLead.fullName}" to trash?`,
+      confirmText: "Move to Trash",
+      cancelText: "Cancel",
+      confirmVariant: "danger",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await deleteMutation.mutateAsync(activeLead.id);
+          onClose();
+        } catch (err: any) {
+          alert(err.message || "Failed to delete lead");
+        }
+      },
+    });
   }, [activeLead.fullName, activeLead.id, deleteMutation, onClose]);
 
   if (isLoading && !serverLead && !initialLead) {
@@ -323,6 +358,18 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
           onClose={() => setIsEditDealOpen(false)}
         />
       )}
+
+      {/* Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        confirmVariant={confirmDialog.confirmVariant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

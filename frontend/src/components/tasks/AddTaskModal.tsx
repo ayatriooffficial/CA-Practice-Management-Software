@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, Paperclip, Loader2, Mail } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { X, Paperclip, Loader2, Mail, AlertCircle } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
 import { taskApi } from "@/services/taskApi";
@@ -11,6 +11,7 @@ import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail } from "@/data
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
 import { appSyncService } from "@/services/appSyncService";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 export interface AddTaskInitialData {
   taskName?: string;
@@ -39,6 +40,18 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [isLoadingTeam, setIsLoadingTeam] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   // Form Fields matching Screenshot 1
   const [clientId, setClientId] = useState<string>("");
@@ -58,6 +71,24 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [isSprintPlanner, setIsSprintPlanner] = useState(false);
   const [description, setDescription] = useState("");
   const [createProformaInvoice, setCreateProformaInvoice] = useState(false);
+
+  const isDirty = useMemo(() => {
+    return Boolean(
+      taskName ||
+      description ||
+      startDate ||
+      targetDueDate ||
+      endDate
+    );
+  }, [taskName, description, startDate, targetDueDate, endDate]);
+
+  const handleCloseAttempt = () => {
+    if (isDirty) {
+      setShowDiscardModal(true);
+    } else {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     if (isOpen && initialData) {
@@ -200,9 +231,72 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     ];
   };
 
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+
+    const selectedClient = clients.find(
+      (c) =>
+        (c.id && c.id === clientId) ||
+        ((c as any)._id && (c as any)._id === clientId) ||
+        (c.fileNo && c.fileNo === clientId) ||
+        (c.name && c.name.toLowerCase() === clientId.toLowerCase())
+    );
+    if (!clientId || !selectedClient) {
+      errs.clientId = "Please select a client from the database.";
+    }
+
+    if (!serviceId) {
+      errs.serviceId = "Service selection is required.";
+    }
+
+    if (!taskName.trim()) {
+      errs.taskName = "Task Name is required.";
+    }
+
+    if (!assigneeId) {
+      errs.assigneeId = "Assignee is required.";
+    }
+
+    if (!startDate) {
+      errs.startDate = "Start Date is required.";
+    }
+
+    if (!targetDueDate) {
+      errs.targetDueDate = "Target Due Date is required.";
+    }
+
+    if (!endDate) {
+      errs.endDate = "End Date is required.";
+    }
+
+    if (startDate && targetDueDate && new Date(startDate) > new Date(targetDueDate)) {
+      errs.targetDueDate = "Target Due Date cannot be earlier than Start Date.";
+    }
+
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      errs.endDate = "End Date cannot be earlier than Start Date.";
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
+
+    if (!validate()) {
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(
+          ".border-rose-500, .border-\\[\\#e8655a\\], .border-red-500"
+        );
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          (firstErrorEl as HTMLElement)?.focus?.();
+        }
+      }, 50);
+      return;
+    }
 
     const selectedClient = clients.find(
       (c) =>
@@ -370,7 +464,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             aria-label="Close modal"
             className="text-[var(--text-subtle)] hover:text-[var(--text-main)] transition-colors p-1 rounded-md"
           >
@@ -395,10 +489,43 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </div>
         )}
 
-        {/* Error Banner */}
-        {errorMessage && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/40 text-[var(--danger)] text-xs rounded-md border border-red-200 dark:border-red-900">
-            {errorMessage}
+        {/* Requirement Warning & Validation Banner */}
+        {(errorMessage || Object.keys(errors).length > 0) && (
+          <div
+            id="task-form-error-banner"
+            className="mx-6 mt-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                    <span>Required Fields & Validation Warnings</span>
+                    {Object.keys(errors).length > 0 && (
+                      <span className="text-xs bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full font-semibold">
+                        {Object.keys(errors).length} requirement{Object.keys(errors).length > 1 ? "s" : ""} need attention
+                      </span>
+                    )}
+                  </h4>
+                </div>
+
+                {errorMessage && (
+                  <p className="text-xs font-semibold text-rose-800 dark:text-rose-200">
+                    {errorMessage}
+                  </p>
+                )}
+
+                {Object.keys(errors).length > 0 && (
+                  <ul className="list-disc list-inside text-xs space-y-1 text-rose-700 dark:text-rose-300 pt-1">
+                    {Object.entries(errors).map(([key, msg]) => (
+                      <li key={key} className="font-medium">
+                        {msg}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -417,9 +544,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               <select
                 id="task-client"
                 value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all truncate"
+                onChange={(e) => {
+                  setClientId(e.target.value);
+                  clearError("clientId");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all truncate ${
+                  errors.clientId
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               >
                 {isLoadingClients ? (
                   <option value="">Loading clients...</option>
@@ -436,6 +569,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   <option value="" disabled>No clients found in database</option>
                 )}
               </select>
+              {errors.clientId && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.clientId}
+                </span>
+              )}
             </div>
 
             {/* Service * */}
@@ -449,9 +587,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               <select
                 id="task-service"
                 value={serviceId}
-                onChange={handleServiceChange}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all truncate"
+                onChange={(e) => {
+                  handleServiceChange(e);
+                  clearError("serviceId");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all truncate ${
+                  errors.serviceId
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               >
                 {isLoadingServices ? (
                   <option value="">Loading services...</option>
@@ -465,25 +609,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   <option value="" disabled>No services found in database</option>
                 )}
               </select>
-              {/* {(() => {
-                const s = services.find((srv) => srv.id === serviceId || srv.name === serviceId);
-                if (!s) return null;
-                const subCount = s.subTasks?.length || 0;
-                const checkCount = s.checklist?.length || 0;
-                const docCount = s.documentRequests?.length || 0;
-                if (subCount === 0 && checkCount === 0 && docCount === 0) return null;
-                return (
-                  <div className="flex items-center gap-1.5 mt-1 text-[10.5px] text-[var(--primary)] font-medium">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
-                    <span>Auto-integrating from service:</span>
-                    <span className="font-semibold underline decoration-dotted">{subCount} Sub Tasks</span>
-                    <span>•</span>
-                    <span className="font-semibold underline decoration-dotted">{checkCount} Checklists</span>
-                    <span>•</span>
-                    <span className="font-semibold underline decoration-dotted">{docCount} Docs</span>
-                  </div>
-                );
-              })()} */}
+              {errors.serviceId && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.serviceId}
+                </span>
+              )}
             </div>
 
             {/* Frequency */}
@@ -537,16 +667,28 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 htmlFor="task-name"
                 className="block text-xs font-semibold text-[var(--text-muted)] p-1.5"
               >
-                Task Name
+                Task Name <span className="text-[var(--danger)]">*</span>
               </label>
               <input
                 id="task-name"
                 type="text"
                 placeholder="Enter task name"
                 value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] placeholder-[var(--text-placeholder)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
+                onChange={(e) => {
+                  setTaskName(e.target.value);
+                  clearError("taskName");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] placeholder-[var(--text-placeholder)] focus:outline-none transition-all ${
+                  errors.taskName
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               />
+              {errors.taskName && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.taskName}
+                </span>
+              )}
             </div>
           </div>
 
@@ -609,9 +751,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               <select
                 id="task-assignee"
                 value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
+                onChange={(e) => {
+                  setAssigneeId(e.target.value);
+                  clearError("assigneeId");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all ${
+                  errors.assigneeId
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               >
                 <option value="">Select Assignee</option>
                 {teamMembers.map((tm) => (
@@ -620,6 +768,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   </option>
                 ))}
               </select>
+              {errors.assigneeId && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.assigneeId}
+                </span>
+              )}
             </div>
 
             {/* Reviewer */}
@@ -684,10 +837,21 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 id="task-start-date"
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  clearError("startDate");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all ${
+                  errors.startDate
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               />
+              {errors.startDate && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.startDate}
+                </span>
+              )}
             </div>
 
             {/* Target Due Date * */}
@@ -702,10 +866,21 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 id="task-due-date"
                 type="date"
                 value={targetDueDate}
-                onChange={(e) => setTargetDueDate(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
+                onChange={(e) => {
+                  setTargetDueDate(e.target.value);
+                  clearError("targetDueDate");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all ${
+                  errors.targetDueDate
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               />
+              {errors.targetDueDate && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.targetDueDate}
+                </span>
+              )}
             </div>
 
             {/* End Date * */}
@@ -720,10 +895,21 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 id="task-end-date"
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  clearError("endDate");
+                }}
+                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all ${
+                  errors.endDate
+                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
+                }`}
               />
+              {errors.endDate && (
+                <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
+                  {errors.endDate}
+                </span>
+              )}
             </div>
 
             {/* Billing Type (Radio buttons) */}
@@ -823,7 +1009,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           <div className="flex items-center justify-end gap-x-3 pt-3.5 border-t border-[var(--border-main)]">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseAttempt}
               disabled={isSubmitting}
               className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md hover:bg-[var(--bg-subtle)] transition-colors"
             >
@@ -847,6 +1033,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </div>
         </form>
       </div>
+
+      <DiscardConfirmationModal
+        isOpen={showDiscardModal}
+        onKeepEditing={() => setShowDiscardModal(false)}
+        onDiscard={() => {
+          setShowDiscardModal(false);
+          onClose();
+        }}
+      />
     </div>
   );
 };

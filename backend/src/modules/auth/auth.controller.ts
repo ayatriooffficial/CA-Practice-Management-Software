@@ -294,6 +294,15 @@ export class AuthController {
     }
   }
 
+  public static async getAllOrganizations(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const orgs = await AuthService.getAllOrganizations();
+      ApiResponse.success(res, orgs, 'Organizations fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async updateOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const authUser = (req as any).user;

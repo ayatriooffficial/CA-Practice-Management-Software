@@ -138,9 +138,15 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white dark:bg-[#1e293b] w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
+        <div
+          className="px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between"
+          style={{ backgroundColor: "var(--orange-havy-light)" }}
+        >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[#7c3aed]">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold"
+              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            >
               <UserCheck className="w-4 h-4" />
             </div>
             <div>
@@ -183,7 +189,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Kishore Kumar"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
 
@@ -196,7 +202,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={designation}
                 onChange={(e) => setDesignation(e.target.value)}
                 placeholder="e.g. Director, Managing Director, Partner"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
           </div>
@@ -208,7 +214,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               id="isPrimaryCheckbox"
               checked={isPrimary}
               onChange={(e) => setIsPrimary(e.target.checked)}
-              className="w-4 h-4 text-[#7c3aed] rounded border-gray-300 focus:ring-[#7c3aed] cursor-pointer"
+              className="w-4 h-4 text-[#31719B] accent-[#31719B] rounded border-gray-300 focus:ring-[#31719B] cursor-pointer"
             />
             <label
               htmlFor="isPrimaryCheckbox"
@@ -229,7 +235,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={din}
                 onChange={(e) => setDin(e.target.value)}
                 placeholder="e.g. 08123456"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
 
@@ -240,7 +246,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               <select
                 value={dinStatus}
                 onChange={(e) => setDinStatus(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed] cursor-pointer"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B] cursor-pointer"
               >
                 <option value="Active">Active</option>
                 <option value="Approved">Approved</option>
@@ -261,7 +267,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 type="date"
                 value={appointmentDate}
                 onChange={(e) => setAppointmentDate(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
 
@@ -273,7 +279,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 type="date"
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
           </div>
@@ -289,7 +295,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="kishore@turia.com"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
 
@@ -302,7 +308,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
                 placeholder="9876543210"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
           </div>
@@ -319,7 +325,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 onChange={(e) => setPan(e.target.value.toUpperCase())}
                 placeholder="ABCDE1234F"
                 maxLength={10}
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white uppercase font-mono outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white uppercase font-mono outline-none focus:border-[#31719B]"
               />
             </div>
 
@@ -332,7 +338,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={aadhar}
                 onChange={(e) => setAadhar(e.target.value)}
                 placeholder="XXXX-XXXX-XXXX"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono outline-none focus:border-[#31719B]"
               />
             </div>
           </div>
@@ -348,7 +354,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={passport}
                 onChange={(e) => setPassport(e.target.value.toUpperCase())}
                 placeholder="A1234567"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
 
@@ -361,7 +367,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 value={fatherName}
                 onChange={(e) => setFatherName(e.target.value)}
                 placeholder="e.g. Ramesh Kumar"
-                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>
           </div>
@@ -376,7 +382,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="e.g. Flat 402, Sunshine Heights, MG Road, Bangalore - 560001"
-              className="w-full p-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#7c3aed] resize-none"
+              className="w-full p-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B] resize-none"
             />
           </div>
 
@@ -393,7 +399,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-9 px-5 rounded-md text-xs font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+              className="h-9 px-5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{editingContact ? "Update Contact" : "Save Contact"}</span>

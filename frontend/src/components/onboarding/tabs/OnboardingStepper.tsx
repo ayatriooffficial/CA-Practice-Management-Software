@@ -38,7 +38,7 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
               {idx > 0 && (
                 <div
                   className={`absolute top-3.5 -left-1/2 w-full h-[2px] transition-colors duration-300 ${
-                    currentStep >= step.id ? "bg-[#635BFF]" : "bg-[var(--border-subtle)]"
+                    currentStep >= step.id ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)]"
                   }`}
                   style={{ zIndex: 0 }}
                 />
@@ -50,9 +50,9 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                 onClick={() => onSelectStep(step.id)}
                 className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
                   isPast
-                    ? "bg-[#635BFF] text-white shadow-xs"
+                    ? "bg-[var(--primary)] text-white shadow-xs"
                     : isCurrent
-                    ? "bg-[#635BFF] text-white ring-4 ring-[#635BFF]/20 shadow-xs"
+                    ? "bg-[var(--primary)] text-white ring-4 ring-[var(--primary)]/20 shadow-xs"
                     : "bg-[var(--bg-hover)] text-[var(--text-muted)] border border-[var(--border-subtle)]"
                 }`}
               >
@@ -64,7 +64,7 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                 onClick={() => onSelectStep(step.id)}
                 className={`mt-2 text-[11px] sm:text-xs font-medium text-center whitespace-nowrap cursor-pointer transition-colors ${
                   isCurrent
-                    ? "text-[#635BFF] dark:text-[#8276f2] font-semibold"
+                    ? "text-[var(--primary)] dark:text-[var(--primary-hover)] font-semibold"
                     : isPast
                     ? "text-[var(--text-main)]"
                     : "text-[var(--text-muted)]"

@@ -15,6 +15,8 @@ import { ClientTasksTab } from "./ClientTasksTab";
 import { ClientPasswordsTab } from "./ClientPasswordsTab";
 import { ClientNotesTab } from "./ClientNotesTab";
 import { ClientContactsTab } from "./ClientContactsTab";
+import { ClientInvoicesTab } from "./ClientInvoicesTab";
+import { ClientAssigneeTab } from "./ClientAssigneeTab";
 
 export {
   ClientServiceSettingsTab,
@@ -26,6 +28,8 @@ export {
   ClientPasswordsTab,
   ClientNotesTab,
   ClientContactsTab,
+  ClientInvoicesTab,
+  ClientAssigneeTab,
 };
 
 export interface ClientDetailViewTabsProps {
@@ -53,9 +57,11 @@ export interface ClientDetailViewTabsProps {
   // License tab props
   setIsAddLicenseOpen: (v: boolean) => void;
   handleDeleteLicense: (id: string, name: string) => Promise<void>;
+  onEditLicense?: (lic: any) => void;
   // Doc Movement props
   setIsAddDocInOutOpen: (v: boolean) => void;
   handleDeleteDocMovement: (id: string, name: string) => Promise<void>;
+  onEditDocMovement?: (doc: any) => void;
   // DSC props
   setIsAddDscOpen: (v: boolean) => void;
   handleDeleteDsc: (id: string, name: string) => Promise<void>;
@@ -102,8 +108,10 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
   handleSaveServiceOptions,
   setIsAddLicenseOpen,
   handleDeleteLicense,
+  onEditLicense,
   setIsAddDocInOutOpen,
   handleDeleteDocMovement,
+  onEditDocMovement,
   setIsAddDscOpen,
   handleDeleteDsc,
   clientTasks,
@@ -151,6 +159,7 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
           licenses={client.licenses || []}
           setIsAddLicenseOpen={setIsAddLicenseOpen}
           handleDeleteLicense={handleDeleteLicense}
+          onEditLicense={onEditLicense}
         />
       );
 
@@ -161,6 +170,7 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
           documents={client.documentsInOut || []}
           setIsAddDocInOutOpen={setIsAddDocInOutOpen}
           handleDeleteDocMovement={handleDeleteDocMovement}
+          onEditDocMovement={onEditDocMovement}
           clientTasks={clientTasks}
           isLoadingTasks={isLoadingTasks}
           clientName={client.name}
@@ -212,6 +222,19 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
           onClientUpdated={onClientUpdated}
           showToast={showToast}
           handleDeleteContact={handleDeleteContact}
+        />
+      );
+
+    case "Invoices":
+      return <ClientInvoicesTab client={client} showToast={showToast} />;
+
+    case "Assignee":
+      return (
+        <ClientAssigneeTab
+          client={client}
+          clientTasks={clientTasks}
+          onClientUpdated={onClientUpdated}
+          showToast={showToast}
         />
       );
 

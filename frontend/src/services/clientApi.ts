@@ -221,6 +221,13 @@ export const clientApi = {
     });
   },
 
+  updateLicense: async (id: string, licenseId: string, payload: any): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/clients/${id}/licenses/${licenseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
   deleteLicense: async (id: string, licenseId: string): Promise<ApiResponse<Client>> => {
     return request<Client>(`/clients/${id}/licenses/${licenseId}`, {
       method: 'DELETE',
@@ -243,6 +250,13 @@ export const clientApi = {
   addDocumentInOut: async (id: string, payload: any): Promise<ApiResponse<Client>> => {
     return request<Client>(`/clients/${id}/documents-in-out`, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateDocumentInOut: async (id: string, docId: string, payload: any): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/clients/${id}/documents-in-out/${docId}`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     });
   },

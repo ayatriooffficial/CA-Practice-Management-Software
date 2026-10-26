@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { X, Loader2, Award, Calendar, Link as LinkIcon, FileText, Upload, CheckCircle2, FileUp } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { driveApi } from "@/services/driveApi";
-import { Client } from "@/data/crmData";
+import { Client, ClientLicense } from "@/data/crmData";
 
 interface AddLicenseModalProps {
   isOpen: boolean;
   client: Client;
   onClose: () => void;
   onSuccess: (updatedClient: Client) => void;
+  initialData?: ClientLicense | null;
 }
 
 export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
@@ -18,6 +19,7 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
   client,
   onClose,
   onSuccess,
+  initialData,
 }) => {
   const [name, setName] = useState("");
   const [licenseNo, setLicenseNo] = useState("");
@@ -30,6 +32,37 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
   const [isUploadingDrive, setIsUploadingDrive] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const parseToInputDate = (str?: string) => {
+    if (!str || str === "-") return "";
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || "");
+      setLicenseNo(initialData.licenseNo && initialData.licenseNo !== "-" ? initialData.licenseNo : "");
+      setIssuedDate(parseToInputDate(initialData.issuedDate));
+      setExpiryDate(parseToInputDate(initialData.expiryDate));
+      setUrl(initialData.url && initialData.url !== "-" ? initialData.url : "");
+      setRemarks(initialData.remarks && initialData.remarks !== "-" ? initialData.remarks : "");
+      setSelectedFile(null);
+    } else {
+      setName("");
+      setLicenseNo("");
+      setIssuedDate("");
+      setExpiryDate("");
+      setUrl("");
+      setRemarks("");
+      setSelectedFile(null);
+    }
+    setErrorMessage("");
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
@@ -82,18 +115,21 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
         licenseNo: licenseNo.trim() || "-",
         issuedDate: issuedDate ? formatDateDisplay(issuedDate) : "-",
         expiryDate: expiryDate ? formatDateDisplay(expiryDate) : "-",
-        url: url.trim() || uploadedFileUrl || "-",
+        url: url.trim() || uploadedFileUrl || (initialData?.url && initialData.url !== "-" ? initialData.url : "-"),
         remarks: remarks.trim() || "-",
-        file: attachedFileName || (name.toLowerCase().includes("shop") ? "xls" : "pdf"),
-        fileUrl: uploadedFileUrl || undefined,
+        file: attachedFileName || initialData?.file || (name.toLowerCase().includes("shop") ? "xls" : "pdf"),
+        fileUrl: uploadedFileUrl || initialData?.fileUrl || undefined,
       };
 
-      const res = await clientApi.addLicense(client.id, payload);
+      const res = initialData?.id
+        ? await clientApi.updateLicense(client.id, initialData.id, payload)
+        : await clientApi.addLicense(client.id, payload);
+
       if (res.data) {
         onSuccess(res.data);
         onClose();
       } else {
-        throw new Error((res as any).error || res.message || "Failed to add license");
+        throw new Error((res as any).error || res.message || "Failed to save license");
       }
     } catch (err: any) {
       setErrorMessage(err.message || "An unexpected error occurred.");
@@ -130,7 +166,7 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                Add Client License
+                {initialData ? `Edit License: ${initialData.name}` : "Add Client License"}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {client.name}
@@ -316,7 +352,7 @@ export const AddLicenseModal: React.FC<AddLicenseModalProps> = ({
               style={{ backgroundColor: "var(--premium-blue-dark)" }}
             >
               {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save License</span>
+              <span>{initialData ? "Save Changes" : "Save License"}</span>
             </button>
           </div>
         </form>

@@ -36,7 +36,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               cx="24"
               cy="24"
               r="20"
-              className="text-[#635BFF] transition-all duration-500 ease-out"
+              className="text-[var(--primary)] transition-all duration-500 ease-out"
               strokeWidth="4"
               strokeDasharray={125.6}
               strokeDashoffset={125.6 - (125.6 * progressPercent) / 100}
@@ -45,7 +45,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               fill="transparent"
             />
           </svg>
-          <span className="absolute text-[11px] font-bold text-[#635BFF] dark:text-[#8276f2]">
+          <span className="absolute text-[11px] font-bold text-[var(--primary)] dark:text-[var(--primary-hover)]">
             {progressPercent}%
           </span>
         </div>

@@ -83,11 +83,12 @@ export const ClientPasswordsTab: React.FC<ClientPasswordsTabProps> = ({
             <span>Get Extension</span>
           </button>
 
-          {/* + Add button matching purple button in screenshot 2 */}
+          {/* + Add button */}
           <button
             type="button"
             onClick={() => setIsAddPasswordOpen(true)}
-            className="h-8 px-4 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all bg-[#7c3aed] hover:bg-[#6d28d9] cursor-pointer"
+            style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            className="h-8 px-4 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add</span>
@@ -337,7 +338,7 @@ export const ClientPasswordsTab: React.FC<ClientPasswordsTabProps> = ({
           <div className="bg-white dark:bg-[#1e293b] w-full max-w-md rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-[#7c3aed] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center">
                   <Puzzle className="w-5 h-5" />
                 </div>
                 <div>
@@ -392,7 +393,8 @@ export const ClientPasswordsTab: React.FC<ClientPasswordsTabProps> = ({
                   setIsExtensionModalOpen(false);
                   window.open("https://chromewebstore.google.com", "_blank", "noopener,noreferrer");
                 }}
-                className="px-4 py-1.5 rounded-md text-xs font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] shadow-xs flex items-center gap-1.5 cursor-pointer"
+                style={{ backgroundColor: "var(--premium-blue-dark)" }}
+                className="px-4 py-1.5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install Extension</span>

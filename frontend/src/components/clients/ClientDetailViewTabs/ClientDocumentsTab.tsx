@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Layers,
   Sparkles,
+  Eye,
+  Edit3,
 } from "lucide-react";
 import { Client, ClientDocumentInOut } from "@/data/crmData";
 import { TaskItem } from "@/data/taskData";
@@ -24,12 +26,14 @@ import { serviceApi } from "@/services/serviceApi";
 import { appSyncService } from "@/services/appSyncService";
 import { driveApi, IDocumentItem } from "@/services/driveApi";
 import { usePermission } from "../../team/usePermission";
+import { TableActionDropdown, DropdownActionItem } from "@/components/ui/TableActionDropdown";
 
 export interface ClientDocumentsTabProps {
   client?: Client;
   documents: ClientDocumentInOut[];
   setIsAddDocInOutOpen: (open: boolean) => void;
   handleDeleteDocMovement: (docId: string, docName: string) => Promise<void>;
+  onEditDocMovement?: (doc: ClientDocumentInOut) => void;
   clientTasks?: TaskItem[];
   isLoadingTasks?: boolean;
   clientName?: string;
@@ -42,6 +46,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   documents,
   setIsAddDocInOutOpen,
   handleDeleteDocMovement,
+  onEditDocMovement,
   clientTasks = [],
   isLoadingTasks = false,
   clientName = "",
@@ -140,10 +145,13 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
 
     // 2. From client.serviceSettings
     (client?.serviceSettings || []).forEach((setting: any) => {
+      const isSettingActive =
+        setting?.isActive !== undefined
+          ? Boolean(setting.isActive)
+          : Boolean(setting?.compliance);
       if (
         setting?.serviceName &&
-        setting?.recTask !== "Disabled" &&
-        setting?.compliance !== false
+        isSettingActive
       ) {
         set.add(setting.serviceName.trim());
       }
@@ -556,7 +564,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                   type="button"
                   onClick={() => setStatusFilter(filter)}
                   className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${statusFilter === filter
-                      ? "bg-purple-100 text-[#7c3aed] dark:bg-purple-950/60 dark:text-purple-300 shadow-xs"
+                      ? "bg-blue-100 text-[#31719B] dark:bg-blue-950/60 dark:text-blue-300 shadow-xs"
                       : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                     }`}
                 >
@@ -743,21 +751,9 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                           : "—"}
                       </td>
 
-                      {/* Actions: View & Upload to Drive */}
+                      {/* Actions: View, Upload & 3-dots Menu */}
                       <td className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
                         <div className="flex items-center justify-center space-x-2">
-                          {doc.fileUrl && (
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-xs font-semibold transition-colors cursor-pointer"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              <span>View File</span>
-                            </a>
-                          )}
-
                           <input
                             id={fileInputId}
                             type="file"
@@ -777,29 +773,37 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                               }
                             }}
                           />
-                          <button
-                            type="button"
-                            disabled={isUploading}
-                            onClick={() => document.getElementById(fileInputId)?.click()}
-                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-xs font-medium cursor-pointer transition-colors"
-                            title={
-                              isReceived
-                                ? "Re-upload document to Google Drive"
-                                : "Upload file to Google Drive"
-                            }
-                          >
-                            {isUploading ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-                                <span>Uploading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-3 h-3 text-gray-500" />
-                                <span>{isReceived ? "Re-upload" : "Upload File"}</span>
-                              </>
-                            )}
-                          </button>
+                          {(() => {
+                            const actions: DropdownActionItem[] = [
+                              {
+                                label: "View Document",
+                                icon: Eye,
+                                disabled: !doc.fileUrl,
+                                onClick: () => {
+                                  if (doc.fileUrl) {
+                                    window.open(doc.fileUrl, "_blank", "noopener,noreferrer");
+                                  }
+                                },
+                              },
+                              {
+                                label: isReceived ? "Edit / Re-upload" : "Upload Document",
+                                icon: Upload,
+                                onClick: () => {
+                                  document.getElementById(fileInputId)?.click();
+                                },
+                              },
+                              {
+                                label: "Remove Requirement",
+                                icon: Trash2,
+                                variant: "danger",
+                                onClick: () => {
+                                  setCustomReqDocs((prev) => prev.filter((d) => d.docId !== doc.docId));
+                                },
+                              },
+                            ];
+
+                            return <TableActionDropdown actions={actions} buttonAriaLabel={`Actions for ${doc.title}`} />;
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -897,21 +901,48 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                       {doc.remarks || "—"}
                     </td>
 
+                    {/* Three-dots Action Menu */}
                     <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                      {canDelete("documentsInOut") ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDeleteDocMovement(doc.id || "", doc.documentName)
-                          }
-                          title="Delete movement"
-                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
-                      )}
+                      {(() => {
+                        const docTarget =
+                          doc.fileUrl ||
+                          (doc.file && (doc.file.startsWith("http") || doc.file.startsWith("/")) ? doc.file : null);
+
+                        const actions: DropdownActionItem[] = [
+                          {
+                            label: "View Document",
+                            icon: Eye,
+                            disabled: !docTarget && !doc.file,
+                            onClick: () => {
+                              if (docTarget) {
+                                window.open(docTarget, "_blank", "noopener,noreferrer");
+                              } else if (doc.file) {
+                                alert(`Attached movement file: ${doc.file}`);
+                              }
+                            },
+                          },
+                          {
+                            label: "Edit",
+                            icon: Edit3,
+                            onClick: () => onEditDocMovement?.(doc),
+                          },
+                          {
+                            label: "Delete",
+                            icon: Trash2,
+                            variant: "danger",
+                            disabled: !canDelete("documentsInOut"),
+                            onClick: () =>
+                              handleDeleteDocMovement(doc.id || "", doc.documentName),
+                          },
+                        ];
+
+                        return (
+                          <TableActionDropdown
+                            actions={actions}
+                            buttonAriaLabel={`Actions for ${doc.documentName}`}
+                          />
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))

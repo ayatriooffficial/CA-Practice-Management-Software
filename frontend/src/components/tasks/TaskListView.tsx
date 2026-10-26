@@ -20,6 +20,7 @@ import {
   MoreVertical,
   Repeat,
   ReceiptText,
+  Check,
 } from "lucide-react";
 import { taskApi } from "@/services/taskApi";
 import {
@@ -31,6 +32,9 @@ import {
 import { TeamMember } from "@/data/teamData";
 import { teamStore } from "@/components/team/teamStore";
 import { useAuth } from "../auth/AuthContext";
+import { usePermission } from "@/components/team/usePermission";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { BulkActionBar } from "@/components/ui/BulkActionBar";
 
 interface TaskListViewProps {
   onOpenAddTask: () => void;
@@ -45,6 +49,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
 }) => {
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { canDelete } = usePermission();
   const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
   const employeeName = currentUser?.name || "";
 
@@ -76,6 +81,35 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  // Bulk Delete State & Toast
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = [...selectedTaskIds];
+      await Promise.allSettled(
+        idsToDelete.map((id) => taskApi.deleteTask(id))
+      );
+      setSelectedTaskIds([]);
+      setBulkDeleteConfirm(false);
+      showToast(`${idsToDelete.length} ${idsToDelete.length === 1 ? "task" : "tasks"} deleted successfully.`);
+      fetchTasks();
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete selected tasks.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // Column resizing state
   const [colWidths, setColWidths] = useState<{ [key: string]: number }>({
@@ -402,6 +436,19 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
 
   return (
     <div className="py-2">
+      {/* Toast Feedback */}
+      {toastMessage && (
+        <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[#31719B]/30 bg-white dark:bg-[#1e293b] text-[#000000] dark:text-white animate-in slide-in-from-top-2 duration-200">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center text-white"
+            style={{ backgroundColor: "var(--premium-blue-dark)" }}
+          >
+            <Check className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-sm font-semibold">{toastMessage}</span>
+        </div>
+      )}
+
       {/* 1. Category Chips Bar matching Image 4 */}
       <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs px-2">
         {TASK_CATEGORIES.slice(0, 6).map((cat) => {
@@ -603,6 +650,20 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Bulk Action Bar on Selection */}
+      {selectedTaskIds.length > 0 && canDelete("tasks") && (
+        <div className="mb-3 px-2">
+          <BulkActionBar
+            selectedCount={selectedTaskIds.length}
+            onClearSelection={() => setSelectedTaskIds([])}
+            onDelete={() => setBulkDeleteConfirm(true)}
+            isDeleting={isBulkDeleting}
+            itemLabel="tasks"
+            deleteLabel="Delete Selected"
+          />
+        </div>
+      )}
 
       {/* 4. Resizable Dense Data Table matching Image 4 */}
       <div className="bg-[var(--bg-surface)] overflow-hidden shadow-xs">
@@ -906,6 +967,18 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={bulkDeleteConfirm}
+        title={`Delete ${selectedTaskIds.length} Selected Tasks?`}
+        message={`Are you sure you want to delete ${selectedTaskIds.length} selected ${selectedTaskIds.length === 1 ? "task" : "tasks"}? This action will remove them from the active queue.`}
+        confirmText="Delete Selected"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setBulkDeleteConfirm(false)}
+        onDiscard={handleBulkDelete}
+      />
     </div>
   );
 };

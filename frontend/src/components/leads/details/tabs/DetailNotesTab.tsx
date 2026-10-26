@@ -4,6 +4,7 @@ import React, { memo, useState } from "react";
 import { Send, FileText, Trash2, Calendar, User, Clock } from "lucide-react";
 import { Lead } from "@/data/crmData";
 import { useAddLeadNote, useDeleteLeadNote } from "@/hooks/useLeadsQuery";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface DetailNotesTabProps {
   lead: Lead;
@@ -11,6 +12,7 @@ interface DetailNotesTabProps {
 
 export const DetailNotesTab = memo(({ lead }: DetailNotesTabProps) => {
   const [noteText, setNoteText] = useState("");
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
   const addNoteMutation = useAddLeadNote();
   const deleteNoteMutation = useDeleteLeadNote();
 
@@ -31,13 +33,8 @@ export const DetailNotesTab = memo(({ lead }: DetailNotesTabProps) => {
     }
   };
 
-  const handleDeleteNote = async (noteId: string) => {
-    if (window.confirm("Delete this note?")) {
-      await deleteNoteMutation.mutateAsync({
-        leadId: lead.id,
-        noteId,
-      });
-    }
+  const handleDeleteNote = (noteId: string) => {
+    setDeleteNoteId(noteId);
   };
 
   return (
@@ -134,6 +131,26 @@ export const DetailNotesTab = memo(({ lead }: DetailNotesTabProps) => {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={Boolean(deleteNoteId)}
+        title="Delete Note?"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={async () => {
+          if (deleteNoteId) {
+            await deleteNoteMutation.mutateAsync({
+              leadId: lead.id,
+              noteId: deleteNoteId,
+            });
+            setDeleteNoteId(null);
+          }
+        }}
+        onCancel={() => setDeleteNoteId(null)}
+      />
     </div>
   );
 });

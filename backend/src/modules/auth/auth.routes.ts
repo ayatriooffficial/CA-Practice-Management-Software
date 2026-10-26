@@ -30,6 +30,7 @@ router.get('/me', authenticate, AuthController.me);
 
 // Organization Endpoints (Address, Bank Details, Billing Profile)
 router.get('/organization', optionalAuthenticate, AuthController.getOrganization);
+router.get('/organizations', optionalAuthenticate, AuthController.getAllOrganizations);
 router.patch('/organization', authenticate, AuthController.updateOrganization);
 
 // Team Member Management Endpoints

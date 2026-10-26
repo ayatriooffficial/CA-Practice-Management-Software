@@ -92,6 +92,7 @@ export interface IClientServiceSetting {
   serviceName: string;
   category: string;
   compliance: boolean;
+  isActive?: boolean;
   recTask: 'Enabled' | 'Disabled' | string;
   recInvoice: 'Enabled' | 'Disabled' | string;
   frequency: string;

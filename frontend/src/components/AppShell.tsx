@@ -55,7 +55,7 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Main Workspace Content Area */}
         <main
-          className="flex-1 min-w-0 transition-all"
+          className="flex-1 min-w-0 transition-all relative z-0"
           style={{
             backgroundColor: "var(--bg-app)",
           }}

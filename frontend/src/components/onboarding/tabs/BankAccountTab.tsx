@@ -63,7 +63,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={bankName}
             onChange={(e) => setBankName(e.target.value)}
             placeholder="Bank Name"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -76,7 +76,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={accountBusinessName}
             onChange={(e) => setAccountBusinessName(e.target.value)}
             placeholder="Account Business Name"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -89,7 +89,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={ifscCode}
             onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
             placeholder="IFSC Code"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -103,7 +103,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={accountNumber}
             onChange={(e) => setAccountNumber(e.target.value)}
             placeholder="Account Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -116,7 +116,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={branchAddress}
             onChange={(e) => setBranchAddress(e.target.value)}
             placeholder="Branch Address"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -127,7 +127,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
           <select
             value={accountType}
             onChange={(e) => setAccountType(e.target.value)}
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           >
             <option value="Savings">Savings</option>
             <option value="Current">Current</option>
@@ -146,7 +146,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={bankDescription}
             onChange={(e) => setBankDescription(e.target.value)}
             placeholder="Description"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -159,7 +159,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             value={upiId}
             onChange={(e) => setUpiId(e.target.value)}
             placeholder="UPI"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
       </div>
@@ -193,7 +193,7 @@ export const BankAccountTab: React.FC<BankAccountTabProps> = ({
             type="button"
             disabled={isSaving}
             onClick={onSave}
-            className="px-6 py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5349e0] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {isSaving && (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

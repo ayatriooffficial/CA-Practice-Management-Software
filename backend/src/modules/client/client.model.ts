@@ -44,6 +44,35 @@ const recurringSchema = new Schema<IRecurringFile>(
   { _id: true }
 );
 
+export const serviceSettingSchema = new Schema(
+  {
+    id: { type: String },
+    serviceId: { type: String, default: null },
+    serviceName: { type: String, required: true },
+    category: { type: String, default: 'General' },
+    compliance: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: false },
+    recTask: { type: String, default: 'Disabled' },
+    recInvoice: { type: String, default: 'Disabled' },
+    frequency: { type: String, default: 'Monthly' },
+    start: { type: String, default: 'Day 1' },
+    target: { type: String, default: 'Day 15' },
+    end: { type: String, default: 'Day 20' },
+    invFreq: { type: String, default: 'Monthly' },
+    invDay: { type: Schema.Types.Mixed, default: 1 },
+    amount: { type: Number, default: 0 },
+    taskName: { type: String, default: '' },
+    priority: { type: String, default: 'Medium' },
+    assignee: { type: String, default: '' },
+    reviewer: { type: String, default: '' },
+    startDate: { type: String, default: '' },
+    targetDate: { type: String, default: '' },
+    endDate: { type: String, default: '' },
+    recurringTask: { type: Schema.Types.Mixed, default: null },
+  },
+  { _id: false }
+);
+
 const clientSchema = new Schema<IClientDocument>(
   {
     name: {
@@ -192,7 +221,7 @@ const clientSchema = new Schema<IClientDocument>(
       default: [],
     },
     serviceSettings: {
-      type: [Schema.Types.Mixed],
+      type: [serviceSettingSchema],
       default: [],
     },
     passwords: {

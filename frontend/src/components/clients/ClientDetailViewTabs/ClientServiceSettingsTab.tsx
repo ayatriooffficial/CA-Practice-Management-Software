@@ -76,7 +76,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
               value={serviceSearch}
               onChange={(e) => setServiceSearch(e.target.value)}
               placeholder="Search service..."
-              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
             />
           </div>
 
@@ -87,7 +87,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
               onClick={() => setServiceFilter("Enabled")}
               className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
                 serviceFilter === "Enabled"
-                  ? "bg-purple-100 text-[#7c3aed] dark:bg-purple-950/60 dark:text-purple-300 shadow-xs"
+                  ? "bg-blue-100 text-[#31719B] dark:bg-blue-950/60 dark:text-blue-300 shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
               }`}
             >
@@ -98,7 +98,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
               onClick={() => setServiceFilter("All")}
               className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
                 serviceFilter === "All"
-                  ? "bg-purple-100 text-[#7c3aed] dark:bg-purple-950/60 dark:text-purple-300 shadow-xs"
+                  ? "bg-blue-100 text-[#31719B] dark:bg-blue-950/60 dark:text-blue-300 shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
               }`}
             >
@@ -126,7 +126,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
               style={{ backgroundColor: "var(--orange-havy-light)" }}
             >
               <th className="w-16 px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                Compliance
+                Active
               </th>
               <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
                 Service
@@ -166,7 +166,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
               <tr>
                 <td colSpan={12} className="py-12 text-center text-gray-500 font-medium">
                   <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#7c3aed]" />
+                    <Loader2 className="w-5 h-5 animate-spin text-[#31719B]" />
                     <span>Loading services...</span>
                   </div>
                 </td>
@@ -180,7 +180,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
             ) : (
               Object.entries(groupedServices).map(([category, items]) => {
                 const isCollapsed = collapsedCategories[category];
-                const allCategoryCompliance = items.length > 0 && items.every((x) => x.compliance);
+                const allCategoryCompliance = items.length > 0 && items.every((x) => Boolean(x.isActive !== undefined ? x.isActive : x.compliance));
 
                 return (
                   <React.Fragment key={category}>
@@ -228,12 +228,12 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                         return (
                           <React.Fragment key={svc.id || svc.serviceName}>
                             <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
-                              {/* Compliance Toggle switch */}
+                              {/* Active / Compliance Toggle switch */}
                               <td className="px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
                                 <IosToggleSwitch
-                                  checked={Boolean(svc.compliance)}
+                                  checked={Boolean(svc.isActive !== undefined ? svc.isActive : svc.compliance)}
                                   onChange={() =>
-                                    handleToggleServiceCompliance(svc.serviceName, Boolean(svc.compliance))
+                                    handleToggleServiceCompliance(svc.serviceName, Boolean(svc.isActive !== undefined ? svc.isActive : svc.compliance))
                                   }
                                   ariaLabel={`Toggle ${svc.serviceName}`}
                                 />
@@ -276,7 +276,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                                   className={`inline-block px-2.5 py-0.5 rounded text-[10.5px] font-semibold ${
                                     svc.frequency === "Quarterly"
                                       ? "bg-[#ffedd5] text-[#ea580c]"
-                                      : "bg-[#ede9fe] text-[#7c3aed]"
+                                      : "bg-blue-50 dark:bg-blue-950/50 text-[#31719B] dark:text-[#60a5fa]"
                                   }`}
                                 >
                                   {svc.frequency || "Monthly"}
@@ -301,7 +301,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                                     className={`inline-block px-2.5 py-0.5 rounded text-[10.5px] font-semibold ${
                                       svc.invFreq === "Quarterly"
                                         ? "bg-[#ffedd5] text-[#ea580c]"
-                                        : "bg-[#ede9fe] text-[#7c3aed]"
+                                        : "bg-blue-50 dark:bg-blue-950/50 text-[#31719B] dark:text-[#60a5fa]"
                                     }`}
                                   >
                                     {svc.invFreq}
@@ -426,7 +426,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                                   className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer transition-colors"
                                 >
                                   {isExpanded ? (
-                                    <ChevronUp className="w-3.5 h-3.5 text-[#7c3aed]" />
+                                    <ChevronUp className="w-3.5 h-3.5 text-[#31719B]" />
                                   ) : (
                                     <ChevronDown className="w-3.5 h-3.5" />
                                   )}

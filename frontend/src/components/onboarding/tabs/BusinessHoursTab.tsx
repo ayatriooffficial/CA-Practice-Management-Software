@@ -70,7 +70,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
           value={shiftName}
           onChange={(e) => setShiftName(e.target.value)}
           placeholder="General Shift"
-          className="max-w-md w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+          className="max-w-md w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
         />
       </div>
 
@@ -104,7 +104,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
                 type="checkbox"
                 checked={item.enabled}
                 onChange={() => handleToggleDay(idx)}
-                className="w-4 h-4 rounded text-[#635BFF] focus:ring-[#635BFF] cursor-pointer"
+                className="w-4 h-4 rounded text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)] cursor-pointer"
               />
               <span>{item.day}</span>
             </label>
@@ -165,7 +165,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
             value={gracePeriod}
             onChange={(e) => setGracePeriod(e.target.value)}
             placeholder="15"
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
           />
           <span className="text-[11px] text-[var(--text-muted)] mt-1 block">
             Allows employees to clock in late without late mark
@@ -181,7 +181,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
               type="button"
               onClick={() => setEnableAutoLogout(!enableAutoLogout)}
               className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                enableAutoLogout ? "bg-[#635BFF]" : "bg-gray-300 dark:bg-gray-700"
+                enableAutoLogout ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
               }`}
             >
               <span
@@ -197,7 +197,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
             value={autoLogoutAfter}
             onChange={(e) => setAutoLogoutAfter(e.target.value)}
             placeholder="8:00 PM"
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] disabled:opacity-40 focus:outline-none focus:border-[#635BFF]"
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] disabled:opacity-40 focus:outline-none focus:border-[var(--primary)]"
           />
           <span className="text-[11px] text-[var(--text-muted)] mt-1 block">
             Automatically log out after specified time
@@ -233,7 +233,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
           <button
             type="button"
             onClick={onNext}
-            className="px-6 py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5349e0] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            className="px-6 py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
           >
             <span>Save & Next</span>
           </button>

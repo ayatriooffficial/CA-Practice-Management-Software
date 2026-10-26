@@ -1,19 +1,22 @@
 import React, { useState, useMemo } from "react";
-import { Plus, Trash2, ExternalLink, FileText, Search } from "lucide-react";
+import { Plus, Trash2, ExternalLink, FileText, Search, Eye, Edit3 } from "lucide-react";
 import { ClientLicense } from "@/data/crmData";
 import { getAvatarBadge } from "./utils";
 import { usePermission } from "../../team/usePermission";
+import { TableActionDropdown, DropdownActionItem } from "@/components/ui/TableActionDropdown";
 
 export interface ClientLicensesTabProps {
   licenses: ClientLicense[];
   setIsAddLicenseOpen: (open: boolean) => void;
   handleDeleteLicense: (licId: string, licName: string) => Promise<void>;
+  onEditLicense?: (lic: ClientLicense) => void;
 }
 
 export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
   licenses,
   setIsAddLicenseOpen,
   handleDeleteLicense,
+  onEditLicense,
 }) => {
   const { canDelete } = usePermission();
   const [search, setSearch] = useState("");
@@ -43,7 +46,7 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter licenses..."
-              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
             />
           </div>
         </div>
@@ -178,20 +181,41 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
                     {lic.remarks || "-"}
                   </td>
 
-                  {/* Delete action */}
+                  {/* Three-dots Action Menu */}
                   <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    {canDelete("licenses") ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteLicense(lic.id || "", lic.name)}
-                        title="Delete license"
-                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
-                    )}
+                    {(() => {
+                      const docTarget =
+                        lic.fileUrl ||
+                        (lic.file && (lic.file.startsWith("http") || lic.file.startsWith("/")) ? lic.file : null) ||
+                        (lic.url && lic.url !== "-" ? lic.url : null);
+
+                      const actions: DropdownActionItem[] = [
+                        {
+                          label: "View Document",
+                          icon: Eye,
+                          disabled: !docTarget,
+                          onClick: () => {
+                            if (docTarget) {
+                              window.open(docTarget, "_blank", "noopener,noreferrer");
+                            }
+                          },
+                        },
+                        {
+                          label: "Edit",
+                          icon: Edit3,
+                          onClick: () => onEditLicense?.(lic),
+                        },
+                        {
+                          label: "Delete",
+                          icon: Trash2,
+                          variant: "danger",
+                          disabled: !canDelete("licenses"),
+                          onClick: () => handleDeleteLicense(lic.id || "", lic.name),
+                        },
+                      ];
+
+                      return <TableActionDropdown actions={actions} buttonAriaLabel={`Actions for ${lic.name}`} />;
+                    })()}
                   </td>
                 </tr>
               ))

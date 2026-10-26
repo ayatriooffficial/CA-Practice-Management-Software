@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Plus,
@@ -17,6 +17,7 @@ import {
 } from './mockData';
 import { useInvoice } from './InvoiceContext';
 import { AddBankAccountModal } from './AddBankAccountModal';
+import { organizationApi, OrganizationDetails } from '@/services/organizationApi';
 
 interface AddReimbursementFormProps {
   mode?: 'create' | 'edit' | 'view';
@@ -37,6 +38,64 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
   const todayFormatted = '19/10/2026';
   const [challanDate, setChallanDate] = useState(initialData?.date || todayFormatted);
   const [dueDate, setDueDate] = useState(initialData?.dueDate || todayFormatted);
+
+  // Organization Selection (Fetched from actual DB)
+  const [organizations, setOrganizations] = useState<OrganizationDetails[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+
+  useEffect(() => {
+    Promise.allSettled([
+      organizationApi.getOrganizations(),
+      organizationApi.getOrganization(),
+    ]).then(([multiRes, singleRes]) => {
+      let orgList: OrganizationDetails[] = [];
+      if (multiRes.status === 'fulfilled' && multiRes.value?.data && multiRes.value.data.length > 0) {
+        orgList = multiRes.value.data;
+      } else if (singleRes.status === 'fulfilled' && singleRes.value?.data) {
+        orgList = [singleRes.value.data];
+      }
+      setOrganizations(orgList);
+      if (orgList.length > 0) {
+        const matched = orgList.find(
+          (o) =>
+            (initialData?.billingOrg && o.name.toLowerCase() === initialData.billingOrg.toLowerCase()) ||
+            (initialData?.billingOrg && (o.id === initialData.billingOrg || (o as any)._id === initialData.billingOrg))
+        );
+        setSelectedOrgId(matched?.id || (matched as any)?._id || orgList[0].id || (orgList[0] as any)._id || '');
+      }
+    }).catch(() => {});
+  }, [initialData]);
+
+  const selectedOrg = React.useMemo(() => {
+    const found = organizations.find((o) => (o.id || (o as any)._id) === selectedOrgId);
+    if (found) return found;
+    if (organizations.length > 0) return organizations[0];
+    return null;
+  }, [organizations, selectedOrgId]);
+
+  const formattedOrgAddress = React.useMemo(() => {
+    if (!selectedOrg) return FIRM_DETAILS.address;
+    if (selectedOrg.addressDetails) {
+      const parts = [
+        selectedOrg.addressDetails.addressLine1,
+        selectedOrg.addressDetails.addressLine2,
+        selectedOrg.addressDetails.city,
+        selectedOrg.addressDetails.state,
+        selectedOrg.addressDetails.pincode,
+        selectedOrg.addressDetails.country,
+      ].filter(Boolean);
+      if (parts.length > 0) return parts.join(', ');
+    }
+    return selectedOrg.address || FIRM_DETAILS.address;
+  }, [selectedOrg]);
+
+  const orgName = selectedOrg?.name || initialData?.billingOrg || FIRM_DETAILS.name;
+  const orgInitials = React.useMemo(() => {
+    if (!orgName) return 'KA';
+    const words = orgName.trim().split(/\s+/);
+    if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+    return orgName.substring(0, 2).toUpperCase();
+  }, [orgName]);
 
   // Client Selection
   const [selectedClientId, setSelectedClientId] = useState<string>(initialData?.clientId || '');
@@ -137,8 +196,8 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
     const payload = {
       date: challanDate,
       dueDate: dueDate,
-      billingOrg: FIRM_DETAILS.name,
-      billingAddress: FIRM_DETAILS.address,
+      billingOrg: orgName,
+      billingAddress: formattedOrgAddress,
       clientId: selectedClient.id,
       clientBusinessName: selectedClient.businessName,
       clientLegalName: selectedClient.legalName,
@@ -202,9 +261,9 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
 
         {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
         <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
-          {/* Large KA Circular Avatar */}
-          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-3xl font-bold tracking-tight shadow-xs shrink-0">
-            KA
+          {/* Circular Organization Avatar */}
+          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
+            {orgInitials}
           </div>
 
           {/* Dedicated Right Column: Vertically Stacked Challan No, Challan Date, Due Date with 20px gap */}
@@ -267,11 +326,23 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
               </label>
 
               <select
-                disabled
-                value={FIRM_DETAILS.name}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-gray-50 dark:bg-[#0f172a] text-xs font-semibold text-gray-800 dark:text-gray-200 outline-none"
+                disabled={isView || organizations.length <= 1}
+                value={selectedOrgId || (selectedOrg ? (selectedOrg.id || (selectedOrg as any)._id) : '')}
+                onChange={(e) => setSelectedOrgId(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer disabled:bg-gray-50 dark:disabled:bg-[#0f172a]/60 disabled:cursor-default"
               >
-                <option value={FIRM_DETAILS.name}>{FIRM_DETAILS.name}</option>
+                {organizations.length > 0 ? (
+                  organizations.map((org, index) => {
+                    const oId = org.id || (org as any)._id || `org-${index}`;
+                    return (
+                      <option key={oId} value={oId}>
+                        {org.name}
+                      </option>
+                    );
+                  })
+                ) : (
+                  <option value="">{orgName}</option>
+                )}
               </select>
             </div>
 
@@ -282,18 +353,30 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
               </div>
               <div className="flex items-start">
                 <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Business Name</span>
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{FIRM_DETAILS.name}</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{orgName}</span>
               </div>
               <div className="flex items-start">
                 <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Address</span>
-                <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{FIRM_DETAILS.address}</span>
+                <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{formattedOrgAddress}</span>
               </div>
               <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
                 <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Priority</span>
                 <span className="px-2.5 py-0.5 rounded border border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b] text-xs font-semibold">
-                  {FIRM_DETAILS.priority}
+                  {(selectedOrg as any)?.priority || (organizations.indexOf(selectedOrg as any) === 0 ? "Primary" : "Secondary")}
                 </span>
               </div>
+              {selectedOrg?.gstin && (
+                <div className="flex items-center">
+                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">GSTIN</span>
+                  <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.gstin}</span>
+                </div>
+              )}
+              {selectedOrg?.pan && (
+                <div className="flex items-center">
+                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
+                  <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.pan}</span>
+                </div>
+              )}
             </div>
           </div>
 

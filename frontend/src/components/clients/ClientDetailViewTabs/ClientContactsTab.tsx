@@ -14,6 +14,8 @@ import {
 import { Client, ClientContact } from "@/data/crmData";
 import { AddContactModal } from "../modals/AddContactModal";
 
+import { TableActionDropdown, DropdownActionItem } from "@/components/ui/TableActionDropdown";
+
 interface ClientContactsTabProps {
   client: Client;
   onClientUpdated?: (updated: Client) => void;
@@ -30,7 +32,6 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Contacts list directly from client.contacts (no default or demo contacts)
   const contactsList: ClientContact[] = useMemo(() => {
@@ -54,7 +55,7 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Header matching Screenshot 1 */}
+      {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-1">
         <h2 className="text-base font-bold text-gray-900 dark:text-white">
           Contacts ({contactsList.length})
@@ -69,18 +70,19 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Contacts..."
-              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
             />
           </div>
 
-          {/* + Add Contact Button (matching purple button in screenshot 1) */}
+          {/* + Add Contact Button */}
           <button
             type="button"
             onClick={() => {
               setEditingContact(null);
               setIsAddModalOpen(true);
             }}
-            className="h-8 px-4 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all bg-[#7c3aed] hover:bg-[#6d28d9] cursor-pointer"
+            style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            className="h-8 px-4 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Contact</span>
@@ -88,7 +90,7 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
         </div>
       </div>
 
-      {/* Contacts Cards List matching Screenshot 1 */}
+      {/* Contacts Cards List */}
       {filteredContacts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-gray-800">
           <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
@@ -100,7 +102,8 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
               setEditingContact(null);
               setIsAddModalOpen(true);
             }}
-            className="mt-3 px-4 py-1.5 rounded-md text-xs font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] transition-colors cursor-pointer"
+            style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            className="mt-3 px-4 py-1.5 rounded-md text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
           >
             + Add First Contact
           </button>
@@ -108,7 +111,28 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
       ) : (
         <div className="space-y-4">
           {filteredContacts.map((contact, index) => {
-            const isMenuOpen = openMenuId === (contact.id || String(index));
+            const actions: DropdownActionItem[] = [
+              {
+                label: "Edit Contact",
+                icon: Pencil,
+                onClick: () => {
+                  setEditingContact(contact);
+                  setIsAddModalOpen(true);
+                },
+              },
+              {
+                label: "Delete Contact",
+                icon: Trash2,
+                variant: "danger",
+                onClick: async () => {
+                  if (handleDeleteContact && contact.id) {
+                    await handleDeleteContact(contact.id, contact.name);
+                  } else {
+                    showToast("Contact ID is missing");
+                  }
+                },
+              },
+            ];
 
             return (
               <div
@@ -119,7 +143,7 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
                 <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800/80 pb-4">
                   <div className="flex items-center gap-3">
                     {/* User Icon inside squircle */}
-                    <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-[#7c3aed] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center shrink-0">
                       <User className="w-5 h-5" />
                     </div>
 
@@ -129,7 +153,7 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
                           {contact.name}
                         </span>
                         {contact.isPrimary && (
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 dark:bg-purple-950/60 text-[#7c3aed]">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-[#31719B] dark:text-[#60a5fa] border border-blue-200 dark:border-blue-800">
                             Primary Contact
                           </span>
                         )}
@@ -149,59 +173,16 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
                         setIsAddModalOpen(true);
                       }}
                       title="Edit Contact"
-                      className="h-8 px-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:border-purple-200 text-gray-600 dark:text-gray-300 hover:text-[#7c3aed] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="h-8 px-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-200 text-gray-600 dark:text-gray-300 hover:text-[#31719B] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <Pencil className="w-3.5 h-3.5 text-[#7c3aed]" />
+                      <Pencil className="w-3.5 h-3.5 text-[#31719B]" />
                       <span>Edit</span>
                     </button>
 
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenMenuId(isMenuOpen ? null : contact.id || String(index))
-                        }
-                        title="Contact actions"
-                        className="h-8 w-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 flex items-center justify-center text-[#7c3aed] hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4 text-[#7c3aed]" />
-                      </button>
-
-                      {isMenuOpen && (
-                        <div
-                          onMouseLeave={() => setOpenMenuId(null)}
-                          className="absolute right-0 mt-1 w-36 rounded-lg bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700 shadow-xl py-1 z-30 text-xs animate-in fade-in"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenMenuId(null);
-                              setEditingContact(contact);
-                              setIsAddModalOpen(true);
-                            }}
-                            className="w-full text-left px-3 py-1.5 flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Edit Contact</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setOpenMenuId(null);
-                              if (handleDeleteContact && contact.id) {
-                                await handleDeleteContact(contact.id, contact.name);
-                              } else {
-                                showToast("Contact ID is missing");
-                              }
-                            }}
-                            className="w-full text-left px-3 py-1.5 flex items-center gap-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Delete Contact</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <TableActionDropdown
+                      actions={actions}
+                      buttonAriaLabel={`Actions for ${contact.name}`}
+                    />
                   </div>
                 </div>
 

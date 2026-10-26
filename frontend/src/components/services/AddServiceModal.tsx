@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { X, Loader2, AlertCircle } from "lucide-react";
 import {
   Service,
   SERVICE_CATEGORIES,
@@ -11,6 +11,7 @@ import {
   EXEMPTION_REASONS,
 } from "@/data/serviceData";
 import { Select } from "@/components/ui/Select";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface AddServiceModalProps {
   service?: Service | null;
@@ -57,28 +58,92 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   // UI State
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const isDirty = useMemo(() => {
+    if (!service) {
+      return Boolean(name || category || description || professionalFee !== "0" || note);
+    }
+    return (
+      name !== (service.name || "") ||
+      category !== (service.category || "") ||
+      description !== (service.description || "") ||
+      professionalFee !== String(service.professionalFee || 0)
+    );
+  }, [name, category, description, professionalFee, note, service]);
+
+  const handleCloseAttempt = () => {
+    if (isDirty) {
+      setShowDiscardModal(true);
+    } else {
+      onClose();
+    }
+  };
 
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleCloseAttempt();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [handleCloseAttempt]);
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!name.trim()) {
+      errs.name = "Service Name is required";
+    } else if (name.trim().length < 2) {
+      errs.name = "Service Name must be at least 2 characters";
+    }
+
+    if (!category.trim()) {
+      errs.category = "Category is required";
+    }
+
+    if (professionalFee === "" || isNaN(Number(professionalFee)) || Number(professionalFee) < 0) {
+      errs.professionalFee = "Enter a valid professional fee (cannot be negative)";
+    }
+
+    if (sacCode.trim() && !/^\d{6}$/.test(sacCode.trim())) {
+      errs.sacCode = "SAC Code must be a 6-digit numeric code (e.g. 998231)";
+    }
+
+    if (tatDays !== "" && (isNaN(Number(tatDays)) || Number(tatDays) < 0)) {
+      errs.tatDays = "TAT days must be a valid non-negative number";
+    }
+
+    if (maxOopBudget !== "" && (isNaN(Number(maxOopBudget)) || Number(maxOopBudget) < 0)) {
+      errs.maxOopBudget = "Max OOP Budget must be a valid non-negative number";
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const errs: Record<string, string> = {};
-    if (!name.trim()) errs.name = "Service Name is required";
-    if (!category.trim()) errs.category = "Category is required";
-    if (isNaN(Number(professionalFee)) || Number(professionalFee) < 0) {
-      errs.professionalFee = "Enter a valid professional fee";
-    }
-
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
+    if (!validate()) {
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(
+          ".border-rose-500, .border-\\[\\#e8655a\\], .border-red-500"
+        );
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          (firstErrorEl as HTMLElement)?.focus?.();
+        }
+      }, 50);
       return;
     }
 
@@ -137,7 +202,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
             aria-label="Close modal"
           >
@@ -148,6 +213,36 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
         {/* Modal Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-6 scrollbar-slim">
           <form id="add-service-form" onSubmit={handleSubmit}>
+            {/* Requirement Warning & Validation Banner */}
+            {Object.keys(errors).length > 0 && (
+              <div
+                id="modal-service-form-error-banner"
+                className="mb-5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                        <span>Required Fields & Validation Warnings</span>
+                        <span className="text-xs bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full font-semibold">
+                          {Object.keys(errors).length} requirement{Object.keys(errors).length > 1 ? "s" : ""} need attention
+                        </span>
+                      </h4>
+                    </div>
+
+                    <ul className="list-disc list-inside text-xs space-y-1 text-rose-700 dark:text-rose-300 pt-1">
+                      {Object.entries(errors).map(([key, msg]) => (
+                        <li key={key} className="font-medium">
+                          {msg}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* LEFT COLUMN: Service Details & Commercials (Spans 2 cols) */}
               <div className="lg:col-span-2 space-y-5">
@@ -312,17 +407,27 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                         htmlFor="srv-fee"
                         className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
                       >
-                        Professional Fee <span className="text-red-500">*</span>
+                        Professional Fee <span className="text-[#e8655a]">*</span>
                       </label>
                       <input
                         id="srv-fee"
                         type="number"
                         min={0}
                         value={professionalFee}
-                        onChange={(e) => setProfessionalFee(e.target.value)}
+                        onChange={(e) => {
+                          setProfessionalFee(e.target.value);
+                          clearError("professionalFee");
+                        }}
                         placeholder="0"
-                        className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] px-3 text-xs outline-none text-gray-900 dark:text-white focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+                          errors.professionalFee
+                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        }`}
                       />
+                      {errors.professionalFee && (
+                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.professionalFee}</p>
+                      )}
                     </div>
 
                     {/* Tax Rate */}
@@ -354,10 +459,20 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                         id="srv-sac"
                         type="text"
                         value={sacCode}
-                        onChange={(e) => setSacCode(e.target.value)}
+                        onChange={(e) => {
+                          setSacCode(e.target.value);
+                          clearError("sacCode");
+                        }}
                         placeholder="e.g. 998231"
-                        className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] px-3 text-xs outline-none text-gray-900 dark:text-white focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+                          errors.sacCode
+                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        }`}
                       />
+                      {errors.sacCode && (
+                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.sacCode}</p>
+                      )}
                     </div>
                   </div>
 
@@ -392,10 +507,20 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                         type="number"
                         min={0}
                         value={maxOopBudget}
-                        onChange={(e) => setMaxOopBudget(e.target.value)}
+                        onChange={(e) => {
+                          setMaxOopBudget(e.target.value);
+                          clearError("maxOopBudget");
+                        }}
                         placeholder="0"
-                        className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] px-3 text-xs outline-none text-gray-900 dark:text-white focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+                          errors.maxOopBudget
+                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        }`}
                       />
+                      {errors.maxOopBudget && (
+                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.maxOopBudget}</p>
+                      )}
                     </div>
 
                     {/* TAT (days) */}
@@ -411,10 +536,20 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                         type="number"
                         min={0}
                         value={tatDays}
-                        onChange={(e) => setTatDays(e.target.value)}
+                        onChange={(e) => {
+                          setTatDays(e.target.value);
+                          clearError("tatDays");
+                        }}
                         placeholder="e.g. 3"
-                        className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] px-3 text-xs outline-none text-gray-900 dark:text-white focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+                          errors.tatDays
+                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                        }`}
                       />
+                      {errors.tatDays && (
+                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.tatDays}</p>
+                      )}
                     </div>
                   </div>
 
@@ -553,7 +688,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
         <div className="flex items-center justify-end gap-3 px-6 py-3.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#1e293b] shrink-0">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             disabled={isSubmitting}
             className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
           >
@@ -570,6 +705,15 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
           </button>
         </div>
       </div>
+
+      <DiscardConfirmationModal
+        isOpen={showDiscardModal}
+        onKeepEditing={() => setShowDiscardModal(false)}
+        onDiscard={() => {
+          setShowDiscardModal(false);
+          onClose();
+        }}
+      />
     </div>
   );
 };

@@ -111,7 +111,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 {upiId || "kidmoras@okicici"}
               </td>
               <td className="py-3.5 px-4">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-[var(--primary)] dark:text-[#60a5fa] border border-blue-200 dark:border-blue-800">
                   {accountType}
                 </span>
               </td>
@@ -120,7 +120,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                   type="radio"
                   name="primary_account"
                   defaultChecked
-                  className="w-4 h-4 text-[#635BFF] focus:ring-[#635BFF] cursor-pointer"
+                  className="w-4 h-4 text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)] cursor-pointer"
                 />
               </td>
               <td className="py-3.5 px-4 text-right">
@@ -162,7 +162,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
               name="inv_gen"
               checked={invoiceGenMode === "Automatically"}
               onChange={() => setInvoiceGenMode("Automatically")}
-              className="text-[#635BFF] focus:ring-[#635BFF]"
+              className="text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)]"
             />
             <span>Automatically</span>
           </label>
@@ -172,7 +172,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
               name="inv_gen"
               checked={invoiceGenMode === "Manually"}
               onChange={() => setInvoiceGenMode("Manually")}
-              className="text-[#635BFF] focus:ring-[#635BFF]"
+              className="text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)]"
             />
             <span>Manually</span>
           </label>
@@ -194,7 +194,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 value={invoicePrefix}
                 onChange={(e) => setInvoicePrefix(e.target.value)}
                 placeholder="MA"
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
               />
             </div>
 
@@ -207,7 +207,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 value={invoiceFY}
                 onChange={(e) => setInvoiceFY(e.target.value)}
                 placeholder="25-26"
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
               />
             </div>
 
@@ -220,7 +220,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 value={invoiceNextNum}
                 onChange={(e) => setInvoiceNextNum(e.target.value)}
                 placeholder="001"
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
               />
             </div>
 
@@ -247,7 +247,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 type="button"
                 onClick={() => setShowQuantity(!showQuantity)}
                 className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showQuantity ? "bg-[#635BFF]" : "bg-gray-300 dark:bg-gray-700"
+                  showQuantity ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
                 }`}
               >
                 <span
@@ -264,7 +264,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 type="button"
                 onClick={() => setShowHsnSac(!showHsnSac)}
                 className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showHsnSac ? "bg-[#635BFF]" : "bg-gray-300 dark:bg-gray-700"
+                  showHsnSac ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
                 }`}
               >
                 <span
@@ -283,7 +283,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             Invoice Signature
           </span>
           <div className="flex items-start gap-4">
-            <label className="px-4 py-2 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-[#635BFF] dark:text-[#8276f2] text-xs font-semibold flex items-center gap-2 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors">
+            <label className="px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[var(--primary)] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
               <Upload className="w-3.5 h-3.5" />
               <span>Upload Signature</span>
               <input
@@ -329,7 +329,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             value={defaultInvoiceNote}
             onChange={(e) => setDefaultInvoiceNote(e.target.value)}
             placeholder="Type Invoice Note"
-            className="w-full p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -343,7 +343,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             <select
               value={autoReminder ? "Yes" : "No"}
               onChange={(e) => setAutoReminder(e.target.value === "Yes")}
-              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
             >
               <option value="No">Disabled</option>
               <option value="Yes">Send 3 days before due date</option>
@@ -359,7 +359,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
               value={ccInvoiceMail}
               onChange={(e) => setCcInvoiceMail(e.target.value)}
               placeholder="accounts@firm.com"
-              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[#635BFF]"
+              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
             />
           </div>
         </div>
@@ -393,7 +393,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
           <button
             type="button"
             onClick={onNext}
-            className="px-6 py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5349e0] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            className="px-6 py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
           >
             <span>Save & Next</span>
           </button>

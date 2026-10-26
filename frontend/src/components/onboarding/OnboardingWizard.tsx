@@ -297,7 +297,7 @@ export const OnboardingWizard: React.FC = () => {
     return (
       <div className="w-full min-h-[60vh] flex items-center justify-center p-8">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#635BFF] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
           <span className="text-xs text-[var(--text-muted)] font-medium">Loading profile details...</span>
         </div>
       </div>
@@ -305,8 +305,8 @@ export const OnboardingWizard: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-[var(--bg-app)] text-[var(--text-main)] p-4 sm:p-6 md:p-8 flex flex-col justify-between font-sans">
-      <div className="max-w-6xl w-full mx-auto space-y-6">
+    <div className="w-full bg-[var(--bg-app)] text-[var(--text-main)] px-4 flex flex-col justify-between font-sans">
+      <div className=" w-full mx-auto space-y-6">
         {/* Top Progress Banner Card */}
         <OnboardingHeader
           businessName={businessName}

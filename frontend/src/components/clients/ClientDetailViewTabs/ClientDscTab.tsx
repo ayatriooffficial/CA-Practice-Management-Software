@@ -50,7 +50,7 @@ export const ClientDscTab: React.FC<ClientDscTabProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search DSC..."
-              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#7c3aed]"
+              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
             />
           </div>
 
@@ -62,7 +62,7 @@ export const ClientDscTab: React.FC<ClientDscTabProps> = ({
                 onClick={() => setStatusFilter(filter)}
                 className={`h-7 px-3 rounded text-xs font-semibold cursor-pointer transition-all ${
                   statusFilter === filter
-                    ? "bg-purple-100 text-[#7c3aed] dark:bg-purple-950/60 dark:text-purple-300 shadow-xs"
+                    ? "bg-blue-100 text-[#31719B] dark:bg-blue-950/60 dark:text-blue-300 shadow-xs"
                     : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                 }`}
               >

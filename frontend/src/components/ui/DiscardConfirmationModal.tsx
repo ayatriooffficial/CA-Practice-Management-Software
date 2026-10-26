@@ -5,20 +5,43 @@ import { AlertCircle, X } from 'lucide-react';
 
 export interface DiscardConfirmationModalProps {
   isOpen: boolean;
-  onKeepEditing: () => void;
-  onDiscard: () => void;
+  onKeepEditing?: () => void;
+  onDiscard?: () => void;
+  onCancel?: () => void;
+  onConfirm?: () => void;
   title?: string;
   message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  confirmVariant?: 'danger' | 'primary';
 }
 
 export default function DiscardConfirmationModal({
   isOpen,
   onKeepEditing,
   onDiscard,
+  onCancel,
+  onConfirm,
   title = "Discard Changes?",
   message = "You have unsaved changes. Are you sure you want to close?",
+  confirmText,
+  cancelText,
+  confirmVariant = 'danger',
 }: DiscardConfirmationModalProps) {
   if (!isOpen) return null;
+
+  const handleCancel = () => {
+    if (onCancel) onCancel();
+    else if (onKeepEditing) onKeepEditing();
+  };
+
+  const handleConfirm = () => {
+    if (onConfirm) onConfirm();
+    else if (onDiscard) onDiscard();
+  };
+
+  const resolvedConfirmText = confirmText || (onConfirm && !onDiscard ? "Confirm" : "Discard");
+  const resolvedCancelText = cancelText || (onCancel && !onKeepEditing ? "Cancel" : "Keep Editing");
 
   return (
     /* Outer Overlay */
@@ -28,7 +51,7 @@ export default function DiscardConfirmationModal({
         {/* Close X */}
         <button
           type="button"
-          onClick={onKeepEditing}
+          onClick={handleCancel}
           className="absolute top-5 right-5 p-1 rounded-sm text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
           aria-label="Close"
         >
@@ -52,22 +75,26 @@ export default function DiscardConfirmationModal({
 
         {/* Action Buttons */}
         <div className="mt-6 flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-          {/* Secondary Button: Keep Editing */}
+          {/* Secondary Button */}
           <button
             type="button"
-            onClick={onKeepEditing}
+            onClick={handleCancel}
             className="w-full sm:w-auto rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1e293b] px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 cursor-pointer shadow-xs"
           >
-            Keep Editing
+            {resolvedCancelText}
           </button>
 
-          {/* Primary/Destructive Button: Discard */}
+          {/* Primary/Destructive Button */}
           <button
             type="button"
-            onClick={onDiscard}
-            className="w-full sm:w-auto rounded-sm bg-[#e8655a] hover:bg-[#d85247] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#e8655a] focus:ring-offset-2 cursor-pointer"
+            onClick={handleConfirm}
+            className={`w-full sm:w-auto rounded-sm px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer ${
+              confirmVariant === 'danger'
+                ? "bg-[#e8655a] hover:bg-[#d85247] focus:ring-[#e8655a]"
+                : "bg-[#31719B] hover:bg-[#285d80] focus:ring-[#31719B]"
+            }`}
           >
-            Discard
+            {resolvedConfirmText}
           </button>
         </div>
       </div>
@@ -75,4 +102,4 @@ export default function DiscardConfirmationModal({
   );
 }
 
-export { DiscardConfirmationModal };
+export { DiscardConfirmationModal, DiscardConfirmationModal as ConfirmationModal };

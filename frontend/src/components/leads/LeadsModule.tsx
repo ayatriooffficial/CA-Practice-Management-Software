@@ -24,6 +24,8 @@ import {
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Pagination } from "@/components/ui/Pagination";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
 import {
@@ -209,35 +211,85 @@ export const LeadsModule: React.FC = () => {
           await updateMutation.mutateAsync({ id: lead.id, data: lead });
           showToast(`Lead "${lead.fullName}" updated.`);
         } else {
-          await createMutation.mutateAsync(lead);
+          // For create, strip client-generated dummy ID so MongoDB generates ObjectId
+          const { id, ...createData } = lead as any;
+          await createMutation.mutateAsync(createData);
           showToast(`Lead "${lead.fullName}" created.`);
         }
         setEditingLead(undefined);
       } catch (err: any) {
-        showToast(err.message || "Failed to save lead.");
+        if (err?.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+          const detailMsg = err.errors.map((e: any) => `${e.field ? `${e.field}: ` : ''}${e.message}`).join(', ');
+          showToast(`Validation error: ${detailMsg}`);
+        } else {
+          showToast(err.message || "Failed to save lead.");
+        }
+        throw err;
       }
     },
     [leads, updateMutation, createMutation, showToast]
   );
 
+  // In-App Delete Confirmation Modal
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    id: string;
+    name: string;
+  }>({
+    isOpen: false,
+    id: "",
+    name: "",
+  });
+
   const handleDeleteLead = useCallback(
-    async (id: string, name: string) => {
-      if (window.confirm(`Are you sure you want to soft delete lead "${name}"?`)) {
-        try {
-          await deleteMutation.mutateAsync(id);
-          setSelectedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-          showToast(`Lead "${name}" moved to trash.`);
-        } catch (err: any) {
-          showToast(err.message || "Failed to delete lead.");
-        }
-      }
+    (id: string, name: string) => {
+      setDeleteConfirm({
+        isOpen: true,
+        id,
+        name,
+      });
     },
-    [deleteMutation, showToast]
+    []
   );
+
+  const handleConfirmDelete = async () => {
+    const { id, name } = deleteConfirm;
+    setDeleteConfirm({ isOpen: false, id: "", name: "" });
+    if (!id) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      showToast(`Lead "${name}" moved to trash.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete lead.");
+    }
+  };
+
+  // Bulk Delete State & Handler
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      await Promise.allSettled(
+        idsToDelete.map((id) => deleteMutation.mutateAsync(id))
+      );
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+      showToast(`${idsToDelete.length} ${idsToDelete.length === 1 ? "lead" : "leads"} moved to trash.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete selected leads.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const handleRestoreLead = useCallback(
     async (id: string, name: string) => {
@@ -404,6 +456,18 @@ export const LeadsModule: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Bulk Action Bar on Selection */}
+      {selectedIds.size > 0 && canDelete("leads") && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onDelete={() => setBulkDeleteConfirm(true)}
+          isDeleting={isBulkDeleting}
+          itemLabel="leads"
+          deleteLabel="Delete Selected"
+        />
+      )}
 
       {/* Spreadsheet Table with Memoized Rows */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
@@ -604,6 +668,30 @@ export const LeadsModule: React.FC = () => {
           onClose={() => setConvertingLead(null)}
         />
       )}
+
+      {/* In-App Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={deleteConfirm.isOpen}
+        title="Move Lead to Trash?"
+        message={`Are you sure you want to move lead "${deleteConfirm.name}" to trash?`}
+        confirmText="Move to Trash"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setDeleteConfirm({ isOpen: false, id: "", name: "" })}
+        onDiscard={handleConfirmDelete}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={bulkDeleteConfirm}
+        title={`Delete ${selectedIds.size} Selected Leads?`}
+        message={`Are you sure you want to delete ${selectedIds.size} selected ${selectedIds.size === 1 ? "lead" : "leads"}? They will be moved to trash and can be restored if needed.`}
+        confirmText="Delete Selected"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setBulkDeleteConfirm(false)}
+        onDiscard={handleBulkDelete}
+      />
     </div>
   );
 };

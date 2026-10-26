@@ -189,6 +189,21 @@ export class ClientController {
    * Delete a license from client
    * DELETE /api/v1/clients/:id/licenses/:subId
    */
+  /**
+   * Update a License for client
+   * PATCH /api/v1/clients/:id/licenses/:subId
+   */
+  static updateLicense = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const subId = req.params.subId as string;
+    const client = await ClientService.updateLicense(id, subId, req.body);
+    return ApiResponse.success(res, client, 'License updated successfully');
+  });
+
+  /**
+   * Delete a License from client
+   * DELETE /api/v1/clients/:id/licenses/:subId
+   */
   static deleteLicense = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const subId = req.params.subId as string;
@@ -225,6 +240,17 @@ export class ClientController {
     const id = req.params.id as string;
     const client = await ClientService.addDocumentInOut(id, req.body);
     return ApiResponse.created(res, client, 'Document movement logged successfully');
+  });
+
+  /**
+   * Update a Document In - Out movement for client
+   * PATCH /api/v1/clients/:id/documents-in-out/:subId
+   */
+  static updateDocumentInOut = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const subId = req.params.subId as string;
+    const client = await ClientService.updateDocumentInOut(id, subId, req.body);
+    return ApiResponse.success(res, client, 'Document movement updated successfully');
   });
 
   /**

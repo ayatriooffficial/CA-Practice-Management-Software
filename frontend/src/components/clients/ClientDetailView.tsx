@@ -45,6 +45,7 @@ import { AddPasswordModal } from "./modals/AddPasswordModal";
 import { AddNoteModal } from "./modals/AddNoteModal";
 import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab";
 import { usePermission } from "@/components/team/usePermission";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 export type ClientTabType =
   | "Master"
@@ -128,10 +129,42 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   // Modals
   const [isAddLicenseOpen, setIsAddLicenseOpen] = useState(false);
+  const [editingLicense, setEditingLicense] = useState<ClientLicense | null>(null);
   const [isAddDocInOutOpen, setIsAddDocInOutOpen] = useState(false);
+  const [editingDocMovement, setEditingDocMovement] = useState<ClientDocumentInOut | null>(null);
   const [isAddDscOpen, setIsAddDscOpen] = useState(false);
   const [isAddPasswordOpen, setIsAddPasswordOpen] = useState(false);
   const [isAddNoteOpen, setIsAddNoteOpen] = useState(false);
+
+  // In-App Confirmation Modal
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Delete",
+    onConfirm: () => {},
+  });
+
+  const promptConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => Promise<void> | void,
+    confirmText = "Delete"
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      onConfirm,
+    });
+  };
 
   // Service Settings Tab State
   const [serviceSearch, setServiceSearch] = useState("");
@@ -223,14 +256,16 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       const result: ClientServiceSetting[] = systemServices.map((svc) => {
         const found = clientMap.get(svc.name.trim().toLowerCase());
         if (found) {
+          const active = found.isActive !== undefined ? Boolean(found.isActive) : Boolean(found.compliance);
           return {
             ...found,
             id: found.id || (found as any)._id || `ss-${svc.id}`,
             serviceId: svc.id,
             serviceName: svc.name,
             category: svc.category || found.category || "General",
-            compliance: !!found.compliance,
-            recTask: found.recTask || (found.compliance ? "Enabled" : "Disabled"),
+            isActive: active,
+            compliance: active,
+            recTask: found.recTask || (active ? "Enabled" : "Disabled"),
             recInvoice: found.recInvoice || "Disabled",
             frequency: found.frequency || svc.frequency || "Monthly",
             start: found.start || "Day 1",
@@ -247,6 +282,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           serviceId: svc.id,
           serviceName: svc.name,
           category: svc.category || "General",
+          isActive: false,
           compliance: false,
           recTask: "Disabled",
           recInvoice: "Disabled",
@@ -264,20 +300,30 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       const systemSet = new Set(systemServices.map((s) => s.name.trim().toLowerCase()));
       for (const s of clientSettings) {
         if (!systemSet.has(s.serviceName.trim().toLowerCase())) {
-          result.push(s);
+          const active = s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance);
+          result.push({
+            ...s,
+            isActive: active,
+            compliance: active,
+          });
         }
       }
 
       return result;
     }
 
-    return clientSettings;
+    return clientSettings.map((s) => ({
+      ...s,
+      isActive: s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance),
+      compliance: s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance),
+    }));
   }, [systemServices, client.serviceSettings]);
 
   // Filtered services based on search and Enabled/All pill filter
   const filteredServices = useMemo(() => {
     return allServices.filter((item) => {
-      if (serviceFilter === "Enabled" && !item.compliance) return false;
+      const isItemActive = item.isActive !== undefined ? item.isActive : item.compliance;
+      if (serviceFilter === "Enabled" && !isItemActive) return false;
       if (serviceSearch.trim()) {
         const q = serviceSearch.toLowerCase();
         return (
@@ -312,12 +358,13 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       s.serviceName.trim().toLowerCase() === serviceName.trim().toLowerCase()
         ? {
           ...s,
+          isActive: nextVal,
           compliance: nextVal,
-          recTask: nextVal ? "Enabled" : "Disabled",
+          recTask: nextVal ? (s.recTask === "Disabled" ? "Enabled" : s.recTask || "Enabled") : "Disabled",
         }
         : s
     );
-    const activeNames = updated.filter((s) => s.compliance).map((s) => s.serviceName);
+    const activeNames = updated.filter((s) => s.isActive || s.compliance).map((s) => s.serviceName);
 
     setClient((prev) => ({
       ...prev,
@@ -333,25 +380,26 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       }
       showToast(`Service "${serviceName}" ${nextVal ? "enabled" : "disabled"}.`);
     } catch (err: any) {
-      showToast(err.message || "Failed to update service compliance.");
+      showToast(err.message || "Failed to update service status.");
       reloadClientData();
     }
   };
 
   // Toggle compliance for whole category
   const handleToggleCategoryCompliance = async (catName: string, items: ClientServiceSetting[]) => {
-    const allEnabled = items.every((x) => x.compliance);
+    const allEnabled = items.every((x) => (x.isActive !== undefined ? x.isActive : x.compliance));
     const targetState = !allEnabled;
     const updated = allServices.map((s) =>
       s.category.trim().toLowerCase() === catName.trim().toLowerCase()
         ? {
           ...s,
+          isActive: targetState,
           compliance: targetState,
-          recTask: targetState ? "Enabled" : "Disabled",
+          recTask: targetState ? (s.recTask === "Disabled" ? "Enabled" : s.recTask || "Enabled") : "Disabled",
         }
         : s
     );
-    const activeNames = updated.filter((s) => s.compliance).map((s) => s.serviceName);
+    const activeNames = updated.filter((s) => s.isActive || s.compliance).map((s) => s.serviceName);
 
     setClient((prev) => ({
       ...prev,
@@ -378,12 +426,17 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     keepDrawerOpen = false
   ) => {
     setIsSavingServiceOptions(true);
+    const finalSetting = {
+      ...updatedSetting,
+      isActive: updatedSetting.isActive !== undefined ? updatedSetting.isActive : updatedSetting.compliance,
+      compliance: updatedSetting.isActive !== undefined ? updatedSetting.isActive : updatedSetting.compliance,
+    };
     const updated = allServices.map((s) =>
       s.serviceName.trim().toLowerCase() === updatedSetting.serviceName.trim().toLowerCase()
-        ? updatedSetting
+        ? finalSetting
         : s
     );
-    const activeNames = updated.filter((s) => s.compliance).map((s) => s.serviceName);
+    const activeNames = updated.filter((s) => s.isActive || s.compliance).map((s) => s.serviceName);
 
     setClient((prev) => ({
       ...prev,
@@ -418,77 +471,107 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   // Delete License
   const handleDeleteLicense = async (licId: string, licName: string) => {
-    if (!window.confirm(`Delete license "${licName}"?`)) return;
-    try {
-      const res = await clientApi.deleteLicense(client.id, licId);
-      if (res.data) setClient(res.data);
-      showToast(`License "${licName}" deleted.`);
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete license.");
-    }
+    promptConfirm(
+      "Delete License",
+      `Are you sure you want to delete license "${licName}"?`,
+      async () => {
+        try {
+          const res = await clientApi.deleteLicense(client.id, licId);
+          if (res.data) setClient(res.data);
+          showToast(`License "${licName}" deleted.`);
+        } catch (err: any) {
+          showToast(err.message || "Failed to delete license.");
+        }
+      }
+    );
   };
 
   // Delete Document Movement
   const handleDeleteDocMovement = async (docId: string, docName: string) => {
-    if (!window.confirm(`Delete record for "${docName}"?`)) return;
-    try {
-      const res = await clientApi.deleteDocumentInOut(client.id, docId);
-      if (res.data) setClient(res.data);
-      showToast(`Document movement deleted.`);
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete document movement.");
-    }
+    promptConfirm(
+      "Delete Document Movement",
+      `Are you sure you want to delete record for "${docName}"?`,
+      async () => {
+        try {
+          const res = await clientApi.deleteDocumentInOut(client.id, docId);
+          if (res.data) setClient(res.data);
+          showToast(`Document movement deleted.`);
+        } catch (err: any) {
+          showToast(err.message || "Failed to delete document movement.");
+        }
+      }
+    );
   };
 
   // Delete DSC
   const handleDeleteDsc = async (dscId: string, name: string) => {
-    if (!window.confirm(`Delete digital signature for "${name}"?`)) return;
-    try {
-      const res = await clientApi.deleteDsc(client.id, dscId);
-      if (res.data) setClient(res.data);
-      showToast(`Digital signature removed.`);
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete DSC.");
-    }
+    promptConfirm(
+      "Delete Digital Signature",
+      `Are you sure you want to delete digital signature for "${name}"?`,
+      async () => {
+        try {
+          const res = await clientApi.deleteDsc(client.id, dscId);
+          if (res.data) setClient(res.data);
+          showToast(`Digital signature removed.`);
+        } catch (err: any) {
+          showToast(err.message || "Failed to delete DSC.");
+        }
+      }
+    );
   };
 
   // Delete Contact
   const handleDeleteContact = async (contactId: string, name: string) => {
-    if (!window.confirm(`Delete contact "${name}"?`)) return;
-    try {
-      const res = await clientApi.deleteContact(client.id, contactId);
-      if (res.data) {
-        setClient(res.data);
-        onClientUpdated?.(res.data);
+    promptConfirm(
+      "Delete Contact",
+      `Are you sure you want to delete contact "${name}"?`,
+      async () => {
+        try {
+          const res = await clientApi.deleteContact(client.id, contactId);
+          if (res.data) {
+            setClient(res.data);
+            onClientUpdated?.(res.data);
+          }
+          showToast(`Contact "${name}" deleted.`);
+        } catch (err: any) {
+          showToast(err.message || "Failed to delete contact.");
+        }
       }
-      showToast(`Contact "${name}" deleted.`);
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete contact.");
-    }
+    );
   };
 
   // Delete Password
   const handleDeletePassword = async (pwdId: string, portal: string) => {
-    if (!window.confirm(`Delete credential for "${portal}"?`)) return;
-    try {
-      const res = await clientApi.deletePassword(client.id, pwdId);
-      if (res.data) setClient(res.data);
-      showToast(`Credential for "${portal}" removed.`);
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete credential.");
-    }
+    promptConfirm(
+      "Delete Credential",
+      `Are you sure you want to delete credential for "${portal}"?`,
+      async () => {
+        try {
+          const res = await clientApi.deletePassword(client.id, pwdId);
+          if (res.data) setClient(res.data);
+          showToast(`Credential for "${portal}" removed.`);
+        } catch (err: any) {
+          showToast(err.message || "Failed to delete credential.");
+        }
+      }
+    );
   };
 
   // Delete Note
   const handleDeleteNote = async (noteId: string) => {
-    if (!window.confirm("Delete this client note?")) return;
-    try {
-      const res = await clientApi.deleteNote(client.id, noteId);
-      if (res.data) setClient(res.data);
-      showToast("Note deleted.");
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete note.");
-    }
+    promptConfirm(
+      "Delete Client Note",
+      "Are you sure you want to delete this client note?",
+      async () => {
+        try {
+          const res = await clientApi.deleteNote(client.id, noteId);
+          if (res.data) setClient(res.data);
+          showToast("Note deleted.");
+        } catch (err: any) {
+          showToast(err.message || "Failed to delete note.");
+        }
+      }
+    );
   };
 
   // Helper avatar generator with distinct harmonious soft colors
@@ -728,7 +811,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 type="button"
                 onClick={() => setActiveTab(tab)}
                 className={`py-3 text-xs whitespace-nowrap transition-all border-b-2 font-medium cursor-pointer ${isActive
-                  ? "border-[#7c3aed] text-[#7c3aed] dark:text-[#a78bfa] font-bold"
+                  ? "border-[#31719B] text-[#31719B] dark:text-[#60a5fa] font-bold"
                   : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
                   }`}
               >
@@ -765,10 +848,24 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             handleToggleServiceCompliance={handleToggleServiceCompliance}
             handleToggleCategoryCompliance={handleToggleCategoryCompliance}
             handleSaveServiceOptions={handleSaveServiceOptions}
-            setIsAddLicenseOpen={setIsAddLicenseOpen}
+            setIsAddLicenseOpen={(open) => {
+              if (open) setEditingLicense(null);
+              setIsAddLicenseOpen(open);
+            }}
             handleDeleteLicense={handleDeleteLicense}
-            setIsAddDocInOutOpen={setIsAddDocInOutOpen}
+            onEditLicense={(lic) => {
+              setEditingLicense(lic);
+              setIsAddLicenseOpen(true);
+            }}
+            setIsAddDocInOutOpen={(open) => {
+              if (open) setEditingDocMovement(null);
+              setIsAddDocInOutOpen(open);
+            }}
             handleDeleteDocMovement={handleDeleteDocMovement}
+            onEditDocMovement={(doc) => {
+              setEditingDocMovement(doc);
+              setIsAddDocInOutOpen(true);
+            }}
             setIsAddDscOpen={setIsAddDscOpen}
             handleDeleteDsc={handleDeleteDsc}
             clientTasks={clientTasks}
@@ -792,22 +889,30 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       <AddLicenseModal
         isOpen={isAddLicenseOpen}
         client={client}
-        onClose={() => setIsAddLicenseOpen(false)}
+        initialData={editingLicense}
+        onClose={() => {
+          setIsAddLicenseOpen(false);
+          setEditingLicense(null);
+        }}
         onSuccess={(updated) => {
           setClient(updated);
           onClientUpdated?.(updated);
-          showToast("License added successfully.");
+          showToast(editingLicense ? "License updated successfully." : "License added successfully.");
         }}
       />
 
       <AddDocumentInOutModal
         isOpen={isAddDocInOutOpen}
         client={client}
-        onClose={() => setIsAddDocInOutOpen(false)}
+        initialData={editingDocMovement}
+        onClose={() => {
+          setIsAddDocInOutOpen(false);
+          setEditingDocMovement(null);
+        }}
         onSuccess={(updated) => {
           setClient(updated);
           onClientUpdated?.(updated);
-          showToast("Document movement logged.");
+          showToast(editingDocMovement ? "Document movement updated." : "Document movement logged.");
         }}
       />
 
@@ -841,6 +946,22 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           setClient(updated);
           onClientUpdated?.(updated);
           showToast("Note added.");
+        }}
+      />
+
+      {/* Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onDiscard={async () => {
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+          await action();
         }}
       />
     </div>

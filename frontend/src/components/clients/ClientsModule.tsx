@@ -29,6 +29,8 @@ import {
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Select } from "@/components/ui/Select";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { BulkActionBar } from "@/components/ui/BulkActionBar";
 
 // Dynamically split heavy form and detail drawer from the critical table route
 const ClientForm = dynamic(
@@ -194,26 +196,68 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
     [clients, updateMutation, showToast, viewingClient]
   );
 
+  // In-App Delete Confirmation Modal
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    id: string;
+    name: string;
+  }>({
+    isOpen: false,
+    id: "",
+    name: "",
+  });
+
   // Soft Delete
   const handleDeleteClient = useCallback(
-    async (id: string, name: string) => {
-      if (window.confirm(`Are you sure you want to move client "${name}" to trash?`)) {
-        try {
-          await deleteMutation.mutateAsync(id);
-          setSelectedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-          if (viewingClient?.id === id) setViewingClient(null);
-          showToast(`Client "${name}" moved to trash.`);
-        } catch (err: any) {
-          showToast(err.message || "Failed to delete client.");
-        }
-      }
+    (id: string, name: string) => {
+      setDeleteConfirm({
+        isOpen: true,
+        id,
+        name,
+      });
     },
-    [deleteMutation, showToast, viewingClient]
+    []
   );
+
+  const handleConfirmDelete = async () => {
+    const { id, name } = deleteConfirm;
+    setDeleteConfirm({ isOpen: false, id: "", name: "" });
+    if (!id) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      if (viewingClient?.id === id) setViewingClient(null);
+      showToast(`Client "${name}" moved to trash.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete client.");
+    }
+  };
+
+  // Bulk Delete State & Handler
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      await Promise.allSettled(
+        idsToDelete.map((id) => deleteMutation.mutateAsync(id))
+      );
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+      showToast(`${idsToDelete.length} ${idsToDelete.length === 1 ? "client" : "clients"} moved to trash.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete selected clients.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // Restore
   const handleRestoreClient = useCallback(
@@ -454,6 +498,18 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         </div>
       </div>
 
+      {/* Bulk Action Bar on Selection */}
+      {selectedIds.size > 0 && canDelete("clients") && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onDelete={() => setBulkDeleteConfirm(true)}
+          isDeleting={isBulkDeleting}
+          itemLabel="clients"
+          deleteLabel="Delete Selected"
+        />
+      )}
+
       {/* Spreadsheet Table */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
         <div className="overflow-x-auto scrollbar-slim">
@@ -611,6 +667,30 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
           />
         </div>
       </div>
+
+      {/* In-App Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={deleteConfirm.isOpen}
+        title="Move Client to Trash?"
+        message={`Are you sure you want to move client "${deleteConfirm.name}" to trash?`}
+        confirmText="Move to Trash"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setDeleteConfirm({ isOpen: false, id: "", name: "" })}
+        onDiscard={handleConfirmDelete}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={bulkDeleteConfirm}
+        title={`Delete ${selectedIds.size} Selected Clients?`}
+        message={`Are you sure you want to delete ${selectedIds.size} selected ${selectedIds.size === 1 ? "client" : "clients"}? They will be moved to trash and can be restored if needed.`}
+        confirmText="Delete Selected"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onKeepEditing={() => setBulkDeleteConfirm(false)}
+        onDiscard={handleBulkDelete}
+      />
     </div>
   );
 };

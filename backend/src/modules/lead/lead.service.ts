@@ -133,6 +133,14 @@ export class LeadService {
       }
     }
 
+    if (!data.fullName) {
+      data.fullName = [data.firstName, data.middleName, data.lastName].filter(Boolean).join(' ');
+    }
+
+    if ((data as any).id) {
+      delete (data as any).id;
+    }
+
     const lead = new Lead(data);
     return await lead.save();
   }

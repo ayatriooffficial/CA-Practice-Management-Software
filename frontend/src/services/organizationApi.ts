@@ -70,6 +70,10 @@ export const organizationApi = {
     return request<OrganizationDetails>(`/auth/organization${orgId ? `?orgId=${orgId}` : ''}`);
   },
 
+  getOrganizations: async (): Promise<ApiResponse<OrganizationDetails[]>> => {
+    return request<OrganizationDetails[]>('/auth/organizations');
+  },
+
   updateOrganization: async (payload: Partial<OrganizationDetails>): Promise<ApiResponse<OrganizationDetails>> => {
     return request<OrganizationDetails>('/auth/organization', {
       method: 'PATCH',

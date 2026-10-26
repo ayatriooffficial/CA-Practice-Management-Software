@@ -827,6 +827,7 @@ export class ServiceService {
     );
 
     if (settingIndex >= 0) {
+      client.serviceSettings[settingIndex].isActive = enabled;
       client.serviceSettings[settingIndex].compliance = enabled;
       client.serviceSettings[settingIndex].recTask = enabled ? 'Enabled' : 'Disabled';
       if (!client.serviceSettings[settingIndex].serviceId && service._id) {
@@ -838,6 +839,7 @@ export class ServiceService {
         serviceId: service._id?.toString() || serviceId,
         serviceName: service.name,
         category: service.category || 'General',
+        isActive: true,
         compliance: true,
         recTask: 'Enabled',
         recInvoice: 'Disabled',

@@ -33,7 +33,7 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({ isOpen, onClos
             onClose();
             router.push("/");
           }}
-          className="w-full py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5349e0] text-sm font-semibold text-white shadow transition-all cursor-pointer"
+          className="w-full py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow transition-all cursor-pointer"
         >
           Go to Dashboard
         </button>

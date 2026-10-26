@@ -374,9 +374,9 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                   const checked = e.target.checked;
                   handleFieldChange("recTask", checked ? "Enabled" : "Disabled");
                 }}
-                className="w-3.5 h-3.5 accent-[#7c3aed] rounded cursor-pointer"
+                className="w-3.5 h-3.5 accent-[#31719B] rounded cursor-pointer"
               />
-              <span className={editingService.recTask !== "Disabled" ? "text-[#7c3aed]" : "text-gray-400"}>
+              <span className={editingService.recTask !== "Disabled" ? "text-[#31719B] font-medium" : "text-gray-400"}>
                 {editingService.recTask !== "Disabled" ? "Enabled" : "Disabled"}
               </span>
             </label>
@@ -393,7 +393,8 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
               type="button"
               disabled={isSaving}
               onClick={handleSaveAll}
-              className="px-4 py-1.5 rounded-md text-xs font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+              className="px-4 py-1.5 rounded-md text-xs font-semibold text-white hover:opacity-90 shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
             >
               {isSaving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -417,7 +418,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
               value={taskName}
               onChange={(e) => handleFieldChange("taskName", e.target.value)}
               placeholder="e.g. TDS Return - Form 26Q"
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed]"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B]"
             />
           </div>
 
@@ -429,7 +430,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
             <select
               value={frequency}
               onChange={(e) => handleFieldChange("frequency", e.target.value)}
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed] cursor-pointer"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B] cursor-pointer"
             >
               <option value="Quarterly">Quarterly</option>
               <option value="Monthly">Monthly</option>
@@ -449,7 +450,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
             <select
               value={priority}
               onChange={(e) => handleFieldChange("priority", e.target.value)}
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed] cursor-pointer"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B] cursor-pointer"
             >
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>
@@ -472,7 +473,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                 value={startDay}
                 onChange={(e) => handleFieldChange("start", e.target.value)}
                 placeholder="Day 1"
-                className="w-full h-8 px-2.5 pr-6 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed]"
+                className="w-full h-8 px-2.5 pr-6 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B]"
               />
               {startDay && (
                 <button
@@ -499,7 +500,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
               value={targetDay}
               onChange={(e) => handleFieldChange("target", e.target.value)}
               placeholder="Day 59"
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed]"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B]"
             />
             <span className="block text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 font-medium">
               {targetDateText}
@@ -516,7 +517,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
               value={endDay}
               onChange={(e) => handleFieldChange("end", e.target.value)}
               placeholder="Day 61"
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed]"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B]"
             />
             <span className="block text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 font-medium">
               {endDateText}
@@ -534,7 +535,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
             <select
               value={assignee}
               onChange={(e) => handleFieldChange("assignee", e.target.value)}
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed] cursor-pointer"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B] cursor-pointer"
             >
               <option value="">
                 {isLoadingTeam && memberList.length === 0 ? "Loading team..." : "Assignee"}
@@ -555,7 +556,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
             <select
               value={reviewer}
               onChange={(e) => handleFieldChange("reviewer", e.target.value)}
-              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed] cursor-pointer"
+              className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B] cursor-pointer"
             >
               <option value="">Reviewer</option>
               {memberList.map((u) => (
@@ -623,7 +624,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                 <select
                   value={editingService.invFreq || "Monthly"}
                   onChange={(e) => handleFieldChange("invFreq", e.target.value)}
-                  className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed] cursor-pointer"
+                  className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B] cursor-pointer"
                 >
                   <option value="Monthly">Monthly</option>
                   <option value="Quarterly">Quarterly</option>
@@ -646,7 +647,7 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                       parseInt(e.target.value, 10) || 1
                     )
                   }
-                  className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#7c3aed]"
+                  className="w-full h-8 px-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs outline-none focus:border-[#31719B]"
                 />
               </div>
 

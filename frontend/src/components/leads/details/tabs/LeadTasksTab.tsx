@@ -4,6 +4,7 @@ import React, { memo, useState } from "react";
 import { Plus, Mail, MessageCircle, MoreVertical, Calendar, Clock, User, Phone, CheckCircle2, AlertCircle } from "lucide-react";
 import { Lead, LeadFollowUpTask } from "@/data/crmData";
 import { useLeadTasks, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useLeadsQuery";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface LeadTasksTabProps {
   lead: Lead;
@@ -16,6 +17,7 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
   const updateTaskMutation = useUpdateLeadTask();
   const deleteTaskMutation = useDeleteLeadTask();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   // Helper date formatter
   const formatTaskDate = (d?: string | Date) => {
@@ -39,10 +41,9 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
     });
   };
 
-  const handleDelete = async (taskId: string) => {
-    if (window.confirm("Are you sure you want to delete this follow-up task?")) {
-      await deleteTaskMutation.mutateAsync({ leadId: lead.id, taskId });
-    }
+  const handleDelete = (taskId: string) => {
+    setActiveMenuId(null);
+    setDeleteTaskId(taskId);
   };
 
   const handleWhatsAppClick = (phone?: string) => {
@@ -317,6 +318,23 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
           );
         })}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={Boolean(deleteTaskId)}
+        title="Delete Follow-up Task?"
+        message="Are you sure you want to delete this follow-up task? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={async () => {
+          if (deleteTaskId) {
+            await deleteTaskMutation.mutateAsync({ leadId: lead.id, taskId: deleteTaskId });
+            setDeleteTaskId(null);
+          }
+        }}
+        onCancel={() => setDeleteTaskId(null)}
+      />
     </div>
   );
 });

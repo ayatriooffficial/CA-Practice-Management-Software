@@ -124,7 +124,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
             placeholder="Enter Business Name"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -137,7 +137,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={businessEmail}
             onChange={(e) => setBusinessEmail(e.target.value)}
             placeholder="name@business.com"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -150,7 +150,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={contactNumber}
             onChange={(e) => setContactNumber(e.target.value)}
             placeholder="9876543210"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -162,7 +162,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           >
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.label}>
@@ -179,7 +179,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
           <select
             value={businessEntity}
             onChange={(e) => setBusinessEntity(e.target.value)}
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           >
             {BUSINESS_ENTITIES.map((be) => (
               <option key={be} value={be}>
@@ -196,7 +196,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
           <select
             value={businessType}
             onChange={(e) => setBusinessType(e.target.value)}
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           >
             {BUSINESS_TYPES.map((bt) => (
               <option key={bt} value={bt}>
@@ -216,7 +216,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={addressLine1}
             onChange={(e) => setAddressLine1(e.target.value)}
             placeholder="Address Line 1"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -229,7 +229,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={addressLine2}
             onChange={(e) => setAddressLine2(e.target.value)}
             placeholder="Address Line 2"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -242,7 +242,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={city}
             onChange={(e) => setCity(e.target.value)}
             placeholder="City"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -256,7 +256,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={country}
             onChange={(e) => setCountry(e.target.value)}
             placeholder="India"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -267,7 +267,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
           <select
             value={state}
             onChange={(e) => setState(e.target.value)}
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           >
             {INDIAN_STATES.map((st) => (
               <option key={st} value={st}>
@@ -286,7 +286,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={pincode}
             onChange={(e) => setPincode(e.target.value)}
             placeholder="560038"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
       </div>
@@ -301,7 +301,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             type="button"
             onClick={() => setIsGstRegistered(!isGstRegistered)}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              isGstRegistered ? "bg-[#635BFF]" : "bg-gray-300 dark:bg-gray-700"
+              isGstRegistered ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
             }`}
           >
             <span
@@ -322,7 +322,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
               value={gstin}
               onChange={(e) => setGstin(e.target.value.toUpperCase())}
               placeholder="e.g. 29AARCS3638L2ZH"
-              className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+              className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
             />
           </div>
         )}
@@ -339,7 +339,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={cinNumber}
             onChange={(e) => setCinNumber(e.target.value.toUpperCase())}
             placeholder="CIN Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -352,7 +352,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={panNumber}
             onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
             placeholder="PAN Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -365,7 +365,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={tanNumber}
             onChange={(e) => setTanNumber(e.target.value.toUpperCase())}
             placeholder="TAN Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
       </div>
@@ -381,7 +381,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={udyamNumber}
             onChange={(e) => setUdyamNumber(e.target.value.toUpperCase())}
             placeholder="Udyam Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -392,7 +392,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
           <select
             value={msmeCategory}
             onChange={(e) => setMsmeCategory(e.target.value)}
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           >
             {MSME_CATEGORIES.map((m) => (
               <option key={m} value={m}>
@@ -411,7 +411,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={professionalTaxNumber}
             onChange={(e) => setProfessionalTaxNumber(e.target.value)}
             placeholder="Professional Tax Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
       </div>
@@ -427,7 +427,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={providentFundNumber}
             onChange={(e) => setProvidentFundNumber(e.target.value)}
             placeholder="Provident Fund Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
 
@@ -440,7 +440,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
             value={esiRegistrationNumber}
             onChange={(e) => setEsiRegistrationNumber(e.target.value)}
             placeholder="Enter ESI Registration Number"
-            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/15 transition-all"
+            className="w-full h-[42px] px-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
         </div>
       </div>
@@ -465,7 +465,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
           type="button"
           disabled={isSaving}
           onClick={onSave}
-          className="px-6 py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5349e0] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          className="px-6 py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
         >
           {isSaving && (
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

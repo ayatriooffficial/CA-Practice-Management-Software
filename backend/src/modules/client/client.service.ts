@@ -453,8 +453,17 @@ export class ClientService {
     }
     if (updateData.serviceSettings) {
       client.markModified('serviceSettings');
+      updateData.serviceSettings = updateData.serviceSettings.map((s: any) => {
+        const active = s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance);
+        return {
+          ...s,
+          isActive: active,
+          compliance: active,
+          recTask: active ? (s.recTask === 'Disabled' ? 'Enabled' : s.recTask || 'Enabled') : 'Disabled',
+        };
+      });
       const activeNames = updateData.serviceSettings
-        .filter((s: any) => s.compliance)
+        .filter((s: any) => s.isActive || s.compliance)
         .map((s: any) => s.serviceName);
       client.services = activeNames;
       client.markModified('services');
@@ -742,6 +751,26 @@ export class ClientService {
   }
 
   /**
+   * Update a License for Client
+   */
+  static async updateLicense(id: string, licenseId: string, data: any): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    client.licenses = (client.licenses || []).map((l: any) => {
+      if (l.id === licenseId || l._id?.toString() === licenseId) {
+        return {
+          ...l,
+          ...data,
+          id: l.id || licenseId,
+        };
+      }
+      return l;
+    });
+    client.markModified('licenses');
+    return await client.save();
+  }
+
+  /**
    * Delete a License from Client
    */
   static async deleteLicense(id: string, licenseId: string): Promise<IClientDocument> {
@@ -812,6 +841,26 @@ export class ClientService {
   }
 
   /**
+   * Update a Document In - Out movement for Client
+   */
+  static async updateDocumentInOut(id: string, docId: string, data: any): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    client.documentsInOut = (client.documentsInOut || []).map((d: any) => {
+      if (d.id === docId || d._id?.toString() === docId) {
+        return {
+          ...d,
+          ...data,
+          id: d.id || docId,
+        };
+      }
+      return d;
+    });
+    client.markModified('documentsInOut');
+    return await client.save();
+  }
+
+  /**
    * Delete a Document In - Out movement from Client
    */
   static async deleteDocumentInOut(id: string, docId: string): Promise<IClientDocument> {
@@ -831,10 +880,22 @@ export class ClientService {
       ? await Client.findById(id)
       : await Client.findOne({ $or: [{ fileNo: id }, { name: id }] });
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
-    client.serviceSettings = settings;
+    const normalizedSettings = (settings || []).map((s: any) => {
+      const active = s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance);
+      return {
+        ...s,
+        isActive: active,
+        compliance: active,
+        recTask: active ? (s.recTask === 'Disabled' ? 'Enabled' : s.recTask || 'Enabled') : 'Disabled',
+      };
+    });
+
+    client.serviceSettings = normalizedSettings;
 
     // Keep client.services in sync with enabled services
-    const activeNames = settings.filter((s: any) => s.compliance).map((s: any) => s.serviceName);
+    const activeNames = normalizedSettings
+      .filter((s: any) => s.isActive || s.compliance)
+      .map((s: any) => s.serviceName);
     client.services = activeNames;
 
     client.markModified('serviceSettings');

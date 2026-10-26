@@ -5,6 +5,7 @@ import { Plus, Search, FileText, ChevronLeft, ChevronRight, Eye, Trash2 } from "
 import { Lead } from "@/data/crmData";
 import { useQuotations, useDeleteQuotation } from "@/hooks/useQuotationsQuery";
 import { Quotation } from "@/services/quotationApi";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface QuotationTabProps {
   lead: Lead;
@@ -17,6 +18,7 @@ export const QuotationTab = memo(
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; quotationNo: string } | null>(null);
 
     const { data, isLoading } = useQuotations({
       leadId: lead.id,
@@ -47,11 +49,9 @@ export const QuotationTab = memo(
       }
     };
 
-    const handleDelete = async (id: string, quotationNo: string, e: React.MouseEvent) => {
+    const handleDelete = (id: string, quotationNo: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      if (window.confirm(`Are you sure you want to delete quotation ${quotationNo}?`)) {
-        await deleteMutation.mutateAsync(id);
-      }
+      setDeleteTarget({ id, quotationNo });
     };
 
     return (
@@ -285,6 +285,23 @@ export const QuotationTab = memo(
             </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <DiscardConfirmationModal
+          isOpen={Boolean(deleteTarget)}
+          title="Delete Quotation?"
+          message={`Are you sure you want to delete quotation ${deleteTarget?.quotationNo || ""}? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          confirmVariant="danger"
+          onConfirm={async () => {
+            if (deleteTarget) {
+              await deleteMutation.mutateAsync(deleteTarget.id);
+              setDeleteTarget(null);
+            }
+          }}
+          onCancel={() => setDeleteTarget(null)}
+        />
       </div>
     );
   }

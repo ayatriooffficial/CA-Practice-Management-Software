@@ -146,6 +146,7 @@ export interface ClientDocumentInOut {
   returnDate?: string;
   remarks?: string;
   file?: string | null;
+  fileUrl?: string;
 }
 
 export interface ClientServiceSetting {
@@ -154,6 +155,7 @@ export interface ClientServiceSetting {
   serviceName: string;
   category: string;
   compliance: boolean;
+  isActive?: boolean;
   recTask: 'Enabled' | 'Disabled' | string;
   recInvoice: 'Enabled' | 'Disabled' | string;
   frequency: string;
