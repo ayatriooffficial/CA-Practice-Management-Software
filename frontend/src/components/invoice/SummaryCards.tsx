@@ -28,7 +28,7 @@ export const SummaryCards: React.FC = () => {
         {/* Total Receipts Count */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'All' ? 'All' : 'All')}
-          className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer shadow-2xs ${statusFilter === 'All'
+          className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer shadow-2xs ${statusFilter === 'All'
               ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#3D6A9E]/40 shadow-xs'
               : 'bg-white dark:bg-[#1e293b] border-[#e5e7eb] dark:border-[#334155] hover:border-[#3D6A9E]/40'
             }`}
@@ -41,14 +41,14 @@ export const SummaryCards: React.FC = () => {
               Total Receipts
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
+          <div className="w-11 h-11 rounded-none bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
             <Receipt className="w-5 h-5" />
           </div>
         </div>
 
         {/* Receipts Value */}
         <div
-          className="flex items-center justify-between p-5 rounded-xl border bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#e9d5ff] dark:border-[#334155] transition-all cursor-pointer shadow-2xs"
+          className="flex items-center justify-between p-5 rounded-none border bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#e9d5ff] dark:border-[#334155] transition-all cursor-pointer shadow-2xs"
         >
           <div>
             <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
@@ -58,7 +58,7 @@ export const SummaryCards: React.FC = () => {
               Receipts
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
+          <div className="w-11 h-11 rounded-none bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
             <Layers className="w-5 h-5" />
           </div>
         </div>
@@ -66,7 +66,7 @@ export const SummaryCards: React.FC = () => {
         {/* Advance Amount */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'Advance' ? 'All' : 'Advance')}
-          className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer shadow-2xs ${statusFilter === 'Advance'
+          className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer shadow-2xs ${statusFilter === 'Advance'
               ? 'bg-[#fff7ed] dark:bg-[#2c1d11] border-[#fb923c] shadow-xs'
               : 'bg-[#fff7ed] dark:bg-[#2c1d11] border-[#ffedd5] dark:border-[#432818] hover:border-orange-300'
             }`}
@@ -79,7 +79,7 @@ export const SummaryCards: React.FC = () => {
               Advance Amount
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#ffedd5] dark:bg-[#ea580c]/20 flex items-center justify-center text-[#ea580c] shrink-0">
+          <div className="w-11 h-11 rounded-none bg-[#ffedd5] dark:bg-[#ea580c]/20 flex items-center justify-center text-[#ea580c] shrink-0">
             <Clock className="w-5 h-5" />
           </div>
         </div>
@@ -108,7 +108,7 @@ export const SummaryCards: React.FC = () => {
       {/* 1. All Items (Purple) */}
       <div
         onClick={() => setStatusFilter('All')}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'All'
+        className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'All'
             ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#3D6A9E] shadow-xs'
             : 'bg-[#f5f3ff]/70 dark:bg-[#1e1e38]/50 border-[#e9d5ff] dark:border-[#334155] hover:border-[#c084fc]'
           }`}
@@ -121,7 +121,7 @@ export const SummaryCards: React.FC = () => {
             {allLabel}
           </div>
         </div>
-        <div className="w-11 h-11 rounded-xl bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
+        <div className="w-11 h-11 rounded-none bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
           <FileText className="w-5 h-5" />
         </div>
       </div>
@@ -129,7 +129,7 @@ export const SummaryCards: React.FC = () => {
       {/* 2. Receivable (Pink / Red) */}
       <div
         onClick={() => setStatusFilter(statusFilter === 'Receivable' ? 'All' : 'Receivable')}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'Receivable'
+        className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'Receivable'
             ? 'bg-[#fef2f2] dark:bg-[#2b1616] border-[#f87171] shadow-xs'
             : 'bg-[#fef2f2]/70 dark:bg-[#2b1616]/50 border-[#fee2e2] dark:border-[#4c1d1d] hover:border-[#f87171]'
           }`}
@@ -147,7 +147,7 @@ export const SummaryCards: React.FC = () => {
             Receivable ({summaryStats.receivableCount})
           </div>
         </div>
-        <div className="w-11 h-11 rounded-xl bg-[#fee2e2] dark:bg-[#dc2626]/20 flex items-center justify-center text-[#dc2626] shrink-0">
+        <div className="w-11 h-11 rounded-none bg-[#fee2e2] dark:bg-[#dc2626]/20 flex items-center justify-center text-[#dc2626] shrink-0">
           <AlertCircle className="w-5 h-5" />
         </div>
       </div>
@@ -155,7 +155,7 @@ export const SummaryCards: React.FC = () => {
       {/* 3. Partially Paid (Orange) */}
       <div
         onClick={() => setStatusFilter(statusFilter === 'Partially Paid' ? 'All' : 'Partially Paid')}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'Partially Paid'
+        className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'Partially Paid'
             ? 'bg-[#fff7ed] dark:bg-[#2c1d11] border-[#fb923c] shadow-xs'
             : 'bg-[#fff7ed]/70 dark:bg-[#2c1d11]/50 border-[#ffedd5] dark:border-[#432818] hover:border-[#fb923c]'
           }`}
@@ -168,7 +168,7 @@ export const SummaryCards: React.FC = () => {
             Partially Paid ({summaryStats.partiallyPaidCount})
           </div>
         </div>
-        <div className="w-11 h-11 rounded-xl bg-[#ffedd5] dark:bg-[#ea580c]/20 flex items-center justify-center text-[#ea580c] shrink-0">
+        <div className="w-11 h-11 rounded-none bg-[#ffedd5] dark:bg-[#ea580c]/20 flex items-center justify-center text-[#ea580c] shrink-0">
           <Clock className="w-5 h-5" />
         </div>
       </div>
@@ -179,7 +179,7 @@ export const SummaryCards: React.FC = () => {
           const target = activeTab === 'proforma' ? 'Advance Paid' : 'Paid';
           setStatusFilter(statusFilter === target ? 'All' : target);
         }}
-        className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === (activeTab === 'proforma' ? 'Advance Paid' : 'Paid')
+        className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === (activeTab === 'proforma' ? 'Advance Paid' : 'Paid')
             ? 'bg-[#f0fdf4] dark:bg-[#13281c] border-[#4ade80] shadow-xs'
             : 'bg-[#f0fdf4]/70 dark:bg-[#13281c]/50 border-[#dcfce7] dark:border-[#14532d] hover:border-[#4ade80]'
           }`}
@@ -192,7 +192,7 @@ export const SummaryCards: React.FC = () => {
             {fourthCardLabel}
           </div>
         </div>
-        <div className="w-11 h-11 rounded-xl bg-[#dcfce7] dark:bg-[#16a34a]/20 flex items-center justify-center text-[#16a34a] shrink-0">
+        <div className="w-11 h-11 rounded-none bg-[#dcfce7] dark:bg-[#16a34a]/20 flex items-center justify-center text-[#16a34a] shrink-0">
           <CheckCircle2 className="w-5 h-5" />
         </div>
       </div>

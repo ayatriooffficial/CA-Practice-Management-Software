@@ -338,7 +338,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#334155] w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn transition-colors">
+      <div className="bg-white dark:bg-[#1e293b] rounded-none shadow-2xl border border-gray-200 dark:border-[#334155] w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fadeIn transition-colors">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 dark:border-[#334155] flex items-center justify-between bg-gradient-to-r from-gray-50 to-white dark:from-[#162032] dark:to-[#1e293b]">
           <div>
@@ -398,7 +398,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 rounded-lg text-xs flex items-center gap-2">
+          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 rounded-none text-xs flex items-center gap-2">
             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -1007,7 +1007,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               </div>
 
               {role === 'Admin' && (
-                <div className="p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 rounded-xl flex items-center gap-3 text-purple-900 dark:text-purple-300">
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 rounded-none flex items-center gap-3 text-purple-900 dark:text-purple-300">
                   <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -1023,7 +1023,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               )}
 
               {/* 33 Modules Permissions Matrix */}
-              <div className="border border-gray-200 dark:border-[#334155] rounded-xl overflow-hidden shadow-2xs max-h-[460px] overflow-y-auto">
+              <div className="border border-gray-200 dark:border-[#334155] rounded-none overflow-hidden shadow-2xs max-h-[460px] overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-gray-50 dark:bg-[#162032] text-gray-600 dark:text-gray-400 uppercase font-semibold sticky top-0 z-10 border-b border-gray-200 dark:border-[#334155]">
                     <tr>

@@ -16,7 +16,7 @@ export const TeamSummaryCards: React.FC<TeamSummaryCardsProps> = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6">
       {/* Active Users */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-100 dark:border-[#334155] p-4 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
+      <div className="bg-white dark:bg-[#1e293b] rounded-none border border-gray-100 dark:border-[#334155] p-4 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
         <div>
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
             {activeCount}
@@ -33,7 +33,7 @@ export const TeamSummaryCards: React.FC<TeamSummaryCardsProps> = ({
       </div>
 
       {/* Deactivated Users */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-100 dark:border-[#334155] p-4 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
+      <div className="bg-white dark:bg-[#1e293b] rounded-none border border-gray-100 dark:border-[#334155] p-4 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
         <div>
           <div className="text-2xl font-bold text-gray-500 dark:text-gray-400 leading-tight">
             {deactivatedCount}
@@ -50,7 +50,7 @@ export const TeamSummaryCards: React.FC<TeamSummaryCardsProps> = ({
       </div>
 
       {/* Resigned Users */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-100 dark:border-[#334155] p-4 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
+      <div className="bg-white dark:bg-[#1e293b] rounded-none border border-gray-100 dark:border-[#334155] p-4 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
         <div>
           <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 leading-tight">
             {resignedCount}

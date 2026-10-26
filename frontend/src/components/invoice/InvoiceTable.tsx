@@ -315,7 +315,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-hidden bg-white dark:bg-[#1e293b] select-none transition-colors">
+    <div className="w-full flex-1 flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-hidden bg-white dark:bg-[#1e293b] select-none transition-colors">
       {/* Table Container with Horizontal Scroll */}
       <div className="w-full overflow-x-auto min-h-[350px]">
         <table className="w-full text-left text-xs border-collapse">
@@ -419,7 +419,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}
-                  className="py-16 text-center text-sm font-normal text-gray-500 dark:text-gray-400 border-b border-[#dde2e8] dark:border-[#334155]"
+                  className="h-72 text-center text-sm font-normal text-gray-400 dark:text-gray-500"
                 >
                   No rows
                 </td>
@@ -560,7 +560,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
       </div>
 
       {creditNoteTarget && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreditNoteTarget(null); }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="credit-note-heading" className="w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-5 text-[var(--text-main)] shadow-xl">
+        <section role="dialog" aria-modal="true" aria-labelledby="credit-note-heading" className="w-full max-w-xl rounded-none border border-[var(--border-main)] bg-[var(--bg-surface)] p-5 text-[var(--text-main)] shadow-xl">
           <h2 id="credit-note-heading" className="text-base font-semibold">Issue credit note for {creditNoteTarget.number}</h2>
           <p className="mt-1 text-xs text-[var(--text-muted)]">Allocate each credit explicitly to the original task. Allocations cannot exceed the uncredited original amount.</p>
           <div className="mt-4 space-y-3">{(creditNoteTarget.taskAllocations || []).map((allocation) => {

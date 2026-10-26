@@ -87,7 +87,7 @@ export const LeaveView: React.FC = () => {
 
       {/* 1. ALL APPLICATIONS */}
       {subTab === 'applications' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
           <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               Leave Applications ({applications.length})
@@ -194,7 +194,7 @@ export const LeaveView: React.FC = () => {
 
       {/* 2. SUMMARY */}
       {subTab === 'summary' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs p-6 space-y-4 transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs p-6 space-y-4 transition-colors">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               Employee Leave Balances
@@ -209,7 +209,7 @@ export const LeaveView: React.FC = () => {
             </select>
           </div>
 
-          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-lg">
+          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-none">
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="text-gray-700 dark:text-gray-300 uppercase font-semibold border-b border-[#dde2e8] dark:border-[#334155]" style={{ backgroundColor: "var(--orange-havy-light)" }}>
                 <tr>
@@ -241,7 +241,7 @@ export const LeaveView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
           <form
             onSubmit={handleSaveLeave}
-            className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#334155] max-w-md w-full p-6 space-y-4"
+            className="bg-white dark:bg-[#1e293b] rounded-none shadow-2xl border border-gray-200 dark:border-[#334155] max-w-md w-full p-6 space-y-4"
           >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-[#334155]">
               <h3 className="text-base font-bold text-gray-900 dark:text-white">Assign / Apply Leave</h3>

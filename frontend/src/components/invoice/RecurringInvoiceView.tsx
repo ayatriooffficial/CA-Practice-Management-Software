@@ -359,7 +359,7 @@ export const RecurringInvoiceView: React.FC = () => {
             {paginatedData.map((item) => (
               <div
                 key={item.id}
-                className="flex flex-col justify-between p-5 rounded-xl border border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] hover:border-[#3D6A9E]/60 dark:hover:border-[#3D6A9E]/60 shadow-2xs hover:shadow-md transition-all group"
+                className="flex flex-col justify-between p-5 rounded-none border border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] hover:border-[#3D6A9E]/60 dark:hover:border-[#3D6A9E]/60 shadow-2xs hover:shadow-md transition-all group"
               >
                 <div>
                   {/* Card Header: Template ID & Frequency Badge */}
@@ -385,7 +385,7 @@ export const RecurringInvoiceView: React.FC = () => {
                   </p>
 
                   {/* Service */}
-                  <div className="mt-3 py-2 px-2.5 rounded-lg bg-gray-50 dark:bg-[#0f172a] border border-gray-100 dark:border-gray-800">
+                  <div className="mt-3 py-2 px-2.5 rounded-none bg-gray-50 dark:bg-[#0f172a] border border-gray-100 dark:border-gray-800">
                     <div className="text-[10px] uppercase font-semibold text-gray-400 dark:text-gray-500">
                       Service
                     </div>
@@ -457,7 +457,7 @@ export const RecurringInvoiceView: React.FC = () => {
         </div>
       ) : (
         // 3B. List View: Data Table matching build's table
-        <div className="flex-1 flex flex-col justify-between border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-hidden bg-white dark:bg-[#1e293b]">
+        <div className="flex-1 flex flex-col justify-between border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-hidden bg-white dark:bg-[#1e293b]">
           <div className="w-full overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead style={{ backgroundColor: "var(--orange-havy-light)" }}>

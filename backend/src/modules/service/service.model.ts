@@ -64,7 +64,7 @@ export const serviceCommentSchema = new Schema(
     id: { type: String, required: true },
     author: { type: String, required: true },
     authorInitials: { type: String, default: 'AU' },
-    avatarColor: { type: String, default: '#6366F1' },
+    avatarColor: { type: String, default: '#3D6A9E' },
     text: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
   },

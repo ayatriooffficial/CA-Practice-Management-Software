@@ -138,10 +138,7 @@ export const HomeDashboard: React.FC = () => {
         gap: '24px',
       }}
     >
-      {/* 1. Welcome Greeting Banner (Username only) */}
-      {currentUser && <ProfileBanner user={currentUser} />}
-
-      {/* 2. Drag-handle Sub-tabs Header (Attendance, TimeSheet, Sales, Notes) */}
+      {/* 1. Drag-handle Sub-tabs Header (Attendance, TimeSheet, Task, Sales, Notes) */}
       <HomeTabs
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}

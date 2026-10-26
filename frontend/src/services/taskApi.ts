@@ -384,7 +384,7 @@ export const taskApi = {
     text: string,
     author: string = 'Staff',
     authorInitials: string = 'ST',
-    avatarColor: string = '#6366F1'
+    avatarColor: string = '#3D6A9E'
   ): Promise<ApiResponse<TaskItem>> => {
     try {
       const res = await request<TaskItem>(`/tasks/${encodeURIComponent(id)}/comments`, {

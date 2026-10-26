@@ -178,7 +178,7 @@ export const EmploymentRequestView: React.FC = () => {
       </div>
 
       {/* Main Table Card */}
-      <div className="border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-x-auto bg-white dark:bg-[#1e293b]">
+      <div className="border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto bg-white dark:bg-[#1e293b]">
         <table className="w-full text-left border-collapse">
           <thead style={{ backgroundColor: "var(--orange-havy-light)" }}>
             <tr>
@@ -187,7 +187,7 @@ export const EmploymentRequestView: React.FC = () => {
               <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">STATUS</th>
               <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">TIME</th>
               <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">DATE</th>
-              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b border-[#dde2e8] dark:border-[#334155] text-right">ACTION</th>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b border-[#dde2e8] dark:border-[#334155] text-center">ACTION</th>
             </tr>
           </thead>
           <tbody className="text-xs text-gray-700 dark:text-gray-300">
@@ -257,8 +257,8 @@ export const EmploymentRequestView: React.FC = () => {
                     </td>
 
                     {/* ACTION */}
-                    <td className="py-2.5 px-3.5 whitespace-nowrap text-right border-b border-[#dde2e8] dark:border-[#334155]">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="py-2.5 px-3.5 whitespace-nowrap text-center border-b border-[#dde2e8] dark:border-[#334155]">
+                      <div className="flex items-center justify-center gap-1.5">
                         {/* Accept Button */}
                         <button
                           type="button"
@@ -346,7 +346,7 @@ export const EmploymentRequestView: React.FC = () => {
       {/* 4. Reject Confirmation Modal */}
       {requestToReject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1e293b] rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-[#334155] space-y-4">
+          <div className="bg-white dark:bg-[#1e293b] rounded-none max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-[#334155] space-y-4">
             <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/60 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />

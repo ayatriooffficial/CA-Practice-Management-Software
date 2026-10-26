@@ -63,7 +63,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
         );
         setSelectedOrgId(matched?.id || (matched as any)?._id || orgList[0].id || (orgList[0] as any)._id || '');
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, [initialData]);
 
   const selectedOrg = React.useMemo(() => {
@@ -103,15 +103,15 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
     MOCK_CLIENTS_LIST.find((c) => c.id === selectedClientId) ||
     (initialData
       ? {
-          id: initialData.clientId,
-          businessName: initialData.clientBusinessName,
-          legalName: initialData.clientLegalName || initialData.clientBusinessName,
-          group: initialData.clientGroup || 'Clients',
-          pan: initialData.clientPan || '',
-          gstin: initialData.clientGstin || '',
-          address: initialData.clientAddress || '',
-          placeOfSupply: initialData.placeOfSupply || '27-Maharashtra',
-        }
+        id: initialData.clientId,
+        businessName: initialData.clientBusinessName,
+        legalName: initialData.clientLegalName || initialData.clientBusinessName,
+        group: initialData.clientGroup || 'Clients',
+        pan: initialData.clientPan || '',
+        gstin: initialData.clientGstin || '',
+        address: initialData.clientAddress || '',
+        placeOfSupply: initialData.placeOfSupply || '27-Maharashtra',
+      }
       : undefined);
 
   // Bank Selection
@@ -227,7 +227,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
   return (
     <div className="w-full flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0f172a] p-4 sm:p-6 lg:p-8 select-none text-gray-800 dark:text-gray-200 transition-colors">
       {/* Outer Single White Card Shell as an explicit flex column with 32px gap */}
-      <div className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e5e7eb] dark:border-[#334155] shadow-xs p-7 sm:p-9 flex flex-col gap-8">
+      <div className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-[#e5e7eb] dark:border-[#334155] shadow-xs p-7 sm:p-9 flex flex-col gap-8">
 
         {/* Section 1: Top Breadcrumb & Square Bordered Close Button */}
         <div className="flex items-center justify-between pb-4 border-b border-[#f1f5f9] dark:border-[#334155]/60">
@@ -319,7 +319,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
         {/* Section 3: Two Roomy Cards: Billing Organization vs Challan To */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {/* Card 1: Billing Organization */}
-          <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+          <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
             <div className="flex flex-col gap-3.5">
               <label className="text-sm font-semibold text-gray-900 dark:text-white">
                 Billing Organization <span className="font-normal text-gray-500 text-xs">(Your details)</span>
@@ -347,7 +347,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
             </div>
 
             {/* Business Details Panel */}
-            <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50">
+            <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50">
               <div className="font-bold text-gray-900 dark:text-white text-xs">
                 Business Details
               </div>
@@ -381,7 +381,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
           </div>
 
           {/* Card 2: Challan To */}
-          <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+          <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
             <div className="flex flex-col gap-3.5">
               <label className="text-sm font-semibold text-gray-900 dark:text-white">
                 Challan To <span className="font-normal text-gray-500 text-xs">(Client's details)</span>
@@ -403,7 +403,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
 
             {/* Client Details Panel or Centered Placeholder */}
             {selectedClient ? (
-              <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
+              <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
                 <div className="flex justify-between items-center pb-1">
                   <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
                   <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
@@ -424,7 +424,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-[#dde2e8] dark:border-[#334155] py-14 px-6 text-center text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center min-h-[160px]">
+              <div className="rounded-none border border-dashed border-[#dde2e8] dark:border-[#334155] py-14 px-6 text-center text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center min-h-[160px]">
                 Select Client/Business from list
               </div>
             )}
@@ -432,9 +432,9 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
         </div>
 
         {/* Section 4: Reimbursement Items Table Section with Taller Purple Header */}
-        <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
+        <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
           {/* Taller Purple Header Bar */}
-          <div className="bg-[#6366f1] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
+          <div className="bg-[#3D6A9E] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
             <div className="col-span-5">Services</div>
             <div className="col-span-2 text-center">Quantity</div>
             <div className="col-span-2 text-center">Price</div>
@@ -567,7 +567,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
             </div>
 
             {/* Empty State Card or Selected Bank Card (24px-28px padding) */}
-            <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 sm:p-7 text-xs flex flex-col gap-4 bg-[#f9fafb] dark:bg-[#0f172a]/40 shadow-2xs">
+            <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] p-6 sm:p-7 text-xs flex flex-col gap-4 bg-[#f9fafb] dark:bg-[#0f172a]/40 shadow-2xs">
               {selectedBank ? (
                 <div className="flex flex-col gap-2 pb-2">
                   <div className="flex justify-between items-center">
@@ -606,7 +606,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
           </div>
 
           {/* Totals Card (Right 5 Cols) (24px-28px padding) - Displays ONLY Total Payable */}
-          <div className="md:col-span-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+          <div className="md:col-span-5 rounded-none border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-gray-900 dark:text-white">
                 Total Payable

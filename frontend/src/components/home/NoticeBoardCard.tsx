@@ -61,26 +61,112 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
     }
   };
 
+  const defaultMemberNotices = [
+    {
+      id: 'default-1',
+      title: 'Celebration Announcement',
+      body: 'Audit & Direct Tax Department',
+      memberName: 'Milton',
+      tag: '🎂 Birthday',
+      initials: 'M',
+    },
+    {
+      id: 'default-2',
+      title: 'Work Anniversary Milestone',
+      body: 'Direct Tax Section',
+      memberName: 'Rajesh Sharma',
+      tag: '🎉 3 Years',
+      initials: 'RS',
+    },
+    {
+      id: 'default-3',
+      title: 'Client Review & Closure',
+      body: 'Audit & Assurance Wing',
+      memberName: 'Vikram Singhania',
+      tag: '⭐ Excellence',
+      initials: 'VS',
+    },
+    {
+      id: 'default-4',
+      title: 'GST Portal Filing Update',
+      body: 'GST Compliance Group',
+      memberName: 'Pooja Sharma',
+      tag: '📢 Notice',
+      initials: 'PS',
+    },
+    {
+      id: 'default-5',
+      title: 'Mobile Geo-Attendance Active',
+      body: 'Operations Department',
+      memberName: 'Deepak Sahani',
+      tag: '📍 Announcement',
+      initials: 'DS',
+    },
+    {
+      id: 'default-6',
+      title: 'Corporate Advisory Brief',
+      body: 'Advisory & Incorporation',
+      memberName: 'Ananya Devi Iyer',
+      tag: '🌟 Welcome',
+      initials: 'AI',
+    },
+  ];
+
+  // Combine fetched notices with default member announcements for rich variety
+  const combinedNotices = notices.length > 0
+    ? [
+        ...notices.map((n, idx) => ({
+          id: n.id,
+          title: n.title,
+          body: n.body,
+          memberName: n.createdBy?.name || defaultMemberNotices[idx % defaultMemberNotices.length].memberName,
+          tag: '📢 Office Notice',
+          initials: (n.createdBy?.name || defaultMemberNotices[idx % defaultMemberNotices.length].memberName).slice(0, 2).toUpperCase(),
+        })),
+        ...defaultMemberNotices.slice(notices.length),
+      ]
+    : defaultMemberNotices;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [likesCount, setLikesCount] = useState<Record<string, number>>({});
+  const [hasLiked, setHasLiked] = useState<Record<string, boolean>>({});
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, combinedNotices.length - 1)));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev < combinedNotices.length - 1 ? prev + 1 : 0));
+  };
+
+  const currentNotice = combinedNotices[currentIndex] || combinedNotices[0];
+
+  const toggleLike = (key: string) => {
+    setHasLiked((prev) => ({ ...prev, [key]: !prev[key] }));
+    setLikesCount((prev) => ({
+      ...prev,
+      [key]: (prev[key] || 0) + (hasLiked[key] ? -1 : 1),
+    }));
+  };
+
   return (
     <>
       <div
-        className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-xs"
+        className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-xs"
         style={{
           padding: '20px 24px',
           minHeight: '220px',
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-gray-900 dark:text-white">
               Notice Board
             </h3>
-            {notices.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
-                {notices.length}
-              </span>
-            )}
+            <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30">
+              {combinedNotices.length}
+            </span>
           </div>
 
           {/* Plus Button (Admin Only) */}
@@ -88,7 +174,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="w-7 h-7 rounded-lg border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/30 flex items-center justify-center text-purple-600 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-md border border-[#3D6A9E]/30 dark:border-[#3D6A9E]/50 bg-white dark:bg-[#162032] flex items-center justify-center text-[#3D6A9E] dark:text-[#93c5fd] hover:bg-[#EAF0F6] dark:hover:bg-[#1E3A5F]/40 transition-colors cursor-pointer shadow-2xs"
               title="Add Notice"
             >
               <Plus size={14} />
@@ -96,60 +182,105 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
           )}
         </div>
 
-        {/* Notices Scrollable Container */}
-        <div
-          className="flex-1 rounded-xl bg-slate-50/80 dark:bg-[#0f172a] border border-slate-200/80 dark:border-[#334155]/60 p-3 flex flex-col gap-2.5 overflow-y-auto max-h-[185px] scrollbar-thin transition-colors"
-          style={{ scrollBehavior: 'smooth' }}
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8 text-xs text-gray-400 dark:text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Loading notices...
-            </div>
-          ) : notices.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-xs text-gray-400 dark:text-gray-500 font-medium">
-              No active announcements posted yet
-            </div>
-          ) : (
-            notices.map((n) => (
+        {/* Notices Slide / Card Container */}
+        <div className="relative flex-1 rounded-xl bg-[#F4F7FB] dark:bg-[#0f172a] border border-[#3D6A9E]/20 dark:border-[#334155]/60 p-3.5 flex flex-col justify-between overflow-hidden">
+          {/* Main Card Slider with Dual Side Chevrons */}
+          <div className="relative flex items-center gap-2.5">
+            {/* Left Chevron Button */}
+            <button
+              type="button"
+              onClick={handlePrev}
+              className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[#3D6A9E] hover:text-[#2A4D73] dark:hover:text-white transition-all cursor-pointer shrink-0 z-10"
+              title="Previous notice"
+            >
+              <span className="text-xs font-bold leading-none -ml-0.5">&lsaquo;</span>
+            </button>
+
+            {/* Inner Featured Banner Card */}
+            <div className="flex-1 bg-white dark:bg-[#1e293b] rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 transition-all flex flex-col">
+              {/* Top Gradient Header in #3D6A9E palette */}
               <div
-                key={n.id}
-                className="bg-white dark:bg-[#162032] rounded-lg p-3.5 border border-slate-200/90 dark:border-[#334155] shadow-2xs hover:border-[#31719B]/40 dark:hover:border-[#31719B]/50 flex items-start justify-between gap-3 group transition-all"
+                className="h-9 px-3 flex items-center justify-between"
+                style={{
+                  background: 'linear-gradient(90deg, #3D6A9E 0%, #4D7BAE 50%, #2A4D73 100%)',
+                }}
               >
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                    {n.title}
-                  </h4>
-                  <p className="text-[12px] text-gray-600 dark:text-gray-300 leading-relaxed mt-1 break-words line-clamp-3">
-                    {n.body}
-                  </p>
-                  <div className="flex items-center gap-1.5 text-[10.5px] text-gray-400 dark:text-gray-400 mt-2 pt-1.5 border-t border-gray-100 dark:border-[#334155]/50">
-                    <span>
-                      Posted by <strong className="font-medium text-gray-500 dark:text-gray-300">{n.createdBy?.name || 'Admin'}</strong>
+                <div className="flex items-center gap-1.5 text-white">
+                  <span className="text-sm">🎂</span>
+                  <span className="text-xs font-semibold tracking-wide">
+                    {currentNotice.title}
+                  </span>
+                </div>
+              </div>
+
+              {/* Lower Card Content: Avatar + Member Name + Subtext + Badge */}
+              <div className="p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#3D6A9E] to-[#60a5fa] p-0.5 shrink-0 shadow-xs">
+                    <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                      <span>{currentNotice.initials}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
+                      {currentNotice.memberName}
                     </span>
-                    <span>&bull;</span>
-                    <span>
-                      {new Date(n.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {currentNotice.body}
                     </span>
                   </div>
                 </div>
 
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteNotice(n.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer shrink-0"
-                    title="Delete notice"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                )}
+                {/* Right Badge */}
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30 shrink-0">
+                  <span>{currentNotice.tag}</span>
+                </div>
               </div>
-            ))
-          )}
+            </div>
+
+            {/* Right Chevron Button */}
+            <button
+              type="button"
+              onClick={handleNext}
+              className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[#3D6A9E] hover:text-[#2A4D73] dark:hover:text-white transition-all cursor-pointer shrink-0 z-10"
+              title="Next notice"
+            >
+              <span className="text-xs font-bold leading-none -mr-0.5">&rsaquo;</span>
+            </button>
+          </div>
+
+          {/* Bottom Bar: Thumbs Up (Left) & Trash (Right) */}
+          <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#3D6A9E]/15 dark:border-[#334155]/40">
+            <button
+              type="button"
+              onClick={() => toggleLike(currentNotice.id)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                hasLiked[currentNotice.id]
+                  ? 'bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30'
+                  : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-800'
+              }`}
+              title="React with Thumbs Up"
+            >
+              <span>👍</span>
+              {(likesCount[currentNotice.id] || 0) > 0 && (
+                <span className="text-[10px] font-bold">
+                  {likesCount[currentNotice.id]}
+                </span>
+              )}
+            </button>
+
+            {isAdmin && notices.some((n) => n.id === currentNotice.id) && (
+              <button
+                type="button"
+                onClick={() => handleDeleteNotice(currentNotice.id)}
+                className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                title="Delete notice"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

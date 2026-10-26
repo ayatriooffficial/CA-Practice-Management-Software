@@ -37,7 +37,7 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
 
   return (
     <div
-      className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
+      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
     >
       {/* Table Header */}
       <div

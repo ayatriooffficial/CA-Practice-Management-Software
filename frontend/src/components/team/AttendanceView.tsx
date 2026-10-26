@@ -144,7 +144,7 @@ export const AttendanceView: React.FC = () => {
 
       {/* 1. TODAY'S ATTENDANCE */}
       {subTab === 'today' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
           {/* Header Controls */}
           <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -223,7 +223,7 @@ export const AttendanceView: React.FC = () => {
 
       {/* 2. WEEKLY ATTENDANCE */}
       {subTab === 'weekly' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs p-6 space-y-6 transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs p-6 space-y-6 transition-colors">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
               Weekly Attendance
@@ -246,7 +246,7 @@ export const AttendanceView: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-lg">
+          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-none">
             <table className="w-full text-left text-xs">
               <thead className="text-gray-700 dark:text-gray-300 uppercase font-semibold border-b border-[#dde2e8] dark:border-[#334155]" style={{ backgroundColor: "var(--orange-havy-light)" }}>
                 <tr>
@@ -323,7 +323,7 @@ export const AttendanceView: React.FC = () => {
 
       {/* 3. MONTHLY ATTENDANCE */}
       {subTab === 'monthly' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card p-6 space-y-4 transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card p-6 space-y-4 transition-colors">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               Monthly Attendance (October 2026)
@@ -335,7 +335,7 @@ export const AttendanceView: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-lg">
+          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-none">
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="text-gray-700 dark:text-gray-300 uppercase font-semibold border-b border-[#dde2e8] dark:border-[#334155]" style={{ backgroundColor: "var(--orange-havy-light)" }}>
                 <tr>
@@ -394,7 +394,7 @@ export const AttendanceView: React.FC = () => {
 
       {/* 4. REGULARIZATION */}
       {subTab === 'regularization' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
           <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               Regularization Requests ({regularizations.length})

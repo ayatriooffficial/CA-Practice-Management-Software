@@ -168,7 +168,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
       </div>
 
       {/* Filter Bar */}
-      <div className="p-4 bg-white dark:bg-[#1e293b] rounded-lg border border-[#dde2e8] dark:border-[#334155] space-y-3">
+      <div className="p-4 bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {/* Search */}
           <div className="relative">
@@ -270,7 +270,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
       </div>
 
       {/* Spreadsheet Table */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden flex flex-col">
         <div className="overflow-x-auto scrollbar-slim">
           <table className="min-w-full border-separate border-spacing-0 text-left text-xs select-none">
             <thead>
@@ -449,7 +449,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
       {/* Permanent Deletion Confirmation Modal */}
       {employeeToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-[#1e293b] rounded-2xl max-w-md w-full border border-gray-200 dark:border-[#334155] shadow-2xl p-6 flex flex-col gap-4 text-left">
+          <div className="bg-white dark:bg-[#1e293b] rounded-none max-w-md w-full border border-gray-200 dark:border-[#334155] shadow-2xl p-6 flex flex-col gap-4 text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

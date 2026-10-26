@@ -183,7 +183,7 @@ export const ReimbursementView: React.FC = () => {
       </div>
 
       {expenseError && <div role="alert" className="rounded-md border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">{expenseError}</div>}
-      {showExpenseForm && <section className="grid grid-cols-1 gap-3 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-4 sm:grid-cols-2 shadow-sm" aria-label="Submit task expense">
+      {showExpenseForm && <section className="grid grid-cols-1 gap-3 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-4 sm:grid-cols-2 shadow-sm" aria-label="Submit task expense">
         <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">Task<select value={expenseTaskId} onChange={(event) => setExpenseTaskId(event.target.value)} className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2"><option value="">Select task</option>{expenseTasks.map((task) => <option key={task.taskId} value={task.taskId}>{task.taskId} · {task.clientName} · {task.serviceName}</option>)}</select></label>
         <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">Particulars<input value={expenseParticulars} onChange={(event) => setExpenseParticulars(event.target.value)} maxLength={300} className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2" /></label>
         <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">Incurred date<input type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2" /></label>
@@ -264,7 +264,7 @@ export const ReimbursementView: React.FC = () => {
       </div>
 
       {/* Reimbursement Table */}
-      <div className="border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-x-auto bg-white dark:bg-[#1e293b]">
+      <div className="border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto bg-white dark:bg-[#1e293b]">
         <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
           <thead style={{ backgroundColor: "var(--orange-havy-light)" }}>
             <tr>

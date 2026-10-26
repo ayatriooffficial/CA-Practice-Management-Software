@@ -31,7 +31,7 @@ const CATEGORIES: ReportCategory[] = [
     id: 'team',
     name: 'Team',
     icon: Users,
-    iconColor: '#6366F1',
+    iconColor: '#3D6A9E',
     iconBg: '#EEF2FF',
     reports: [
       { id: 'attendance', name: 'Attendance', description: 'Staff daily clock-in/out, hours log, and leave records' },
@@ -173,9 +173,8 @@ export default function ReportsDashboard() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`text-sm font-medium ${
-                              isInteractive ? 'text-[var(--text-main)] group-hover:text-[var(--primary)]' : 'text-[var(--text-main)]'
-                            }`}
+                            className={`text-sm font-medium ${isInteractive ? 'text-[var(--text-main)] group-hover:text-[var(--primary)]' : 'text-[var(--text-main)]'
+                              }`}
                           >
                             {report.name}
                           </span>

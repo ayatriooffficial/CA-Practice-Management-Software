@@ -317,25 +317,25 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
         {/* Right Donut Ring */}
         <div className="flex flex-col items-center justify-center shrink-0 pr-4">
           <div className="relative flex items-center justify-center w-28 h-28">
-            <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 110 110">
+            <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 110 110">
               <circle
                 cx="55"
                 cy="55"
-                r={donutRadius}
-                stroke="#e2e8f0"
-                strokeWidth="8"
+                r={42}
+                stroke="#E8F0F8"
+                strokeWidth="11"
                 fill="transparent"
-                className="dark:stroke-gray-800"
+                className="dark:stroke-[#1E3A5F]"
               />
               <circle
                 cx="55"
                 cy="55"
-                r={donutRadius}
-                stroke="#94a3b8"
-                strokeWidth="8"
+                r={42}
+                stroke="#3D6A9E"
+                strokeWidth="11"
                 fill="transparent"
-                strokeDasharray={donutCircumference}
-                strokeDashoffset={donutOffset}
+                strokeDasharray={2 * Math.PI * 42}
+                strokeDashoffset={totalMinutesWorked > 0 ? (2 * Math.PI * 42) * (1 - Math.min(1, totalMinutesWorked / ((liveStatus?.shiftHours || 9) * 60))) : 0}
                 strokeLinecap="round"
                 className="transition-all duration-500"
               />

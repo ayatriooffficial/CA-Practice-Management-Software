@@ -190,7 +190,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-4xl rounded-xl bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-4xl rounded-none bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="flex items-start justify-between px-6 pt-5 pb-3">
           <div>
@@ -437,15 +437,15 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
             {/* Invoices list or Empty State */}
             {!clientId ? (
-              <div className="rounded-lg border border-dashed border-[#dde2e8] dark:border-[#334155] py-12 text-center text-gray-400 dark:text-gray-500">
+              <div className="rounded-none border border-dashed border-[#dde2e8] dark:border-[#334155] py-12 text-center text-gray-400 dark:text-gray-500">
                 Select a client to load their pending {activeModalTab === 'reimbursement' ? 'reimbursements' : 'invoices'}
               </div>
             ) : pendingInvoices.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-[#dde2e8] dark:border-[#334155] py-8 text-center text-gray-500">
+              <div className="rounded-none border border-dashed border-[#dde2e8] dark:border-[#334155] py-8 text-center text-gray-500">
                 No pending {activeModalTab === 'reimbursement' ? 'reimbursements' : 'invoices'} found for {selectedClient?.businessName}. Full payment will be recorded as Advance.
               </div>
             ) : (
-              <div className="rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden">
+              <div className="rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead style={{ backgroundColor: "var(--orange-havy-light)" }}>
                     <tr className="border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 font-semibold">
@@ -474,7 +474,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                               value={currentAlloc === 0 ? '' : currentAlloc}
                               onChange={(e) => handleAllocationChange(doc.id, doc.balanceAmount, e.target.value)}
                               placeholder="0.00"
-                              className="w-full px-2 py-1 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold outline-none focus:border-[#31719B]"
+                              className="w-full px-2 py-1 rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold outline-none focus:border-[#31719B]"
                             />
                           </td>
                         </tr>
@@ -487,7 +487,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
             {/* Allocation Totals Summary */}
             {clientId && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] text-xs">
+              <div className="flex items-center justify-between p-3 rounded-none bg-gray-50 dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] text-xs">
                 <div>
                   <span className="text-gray-500">Allocated: </span>
                   <span className="font-semibold text-gray-800 dark:text-gray-200">
