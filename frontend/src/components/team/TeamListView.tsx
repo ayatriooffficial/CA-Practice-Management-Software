@@ -17,6 +17,7 @@ import { teamStore } from './teamStore';
 import { AddEmployeeWizard } from './AddEmployeeWizard';
 import { useAuth } from '../auth/AuthContext';
 import { Pagination } from '../ui/Pagination';
+import { TableActionDropdown } from '../ui/TableActionDropdown';
 
 interface TeamListViewProps {
   employees: EmployeeRecord[];
@@ -377,60 +378,38 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
 
-                          <div className="relative inline-block text-left">
-                            <button
-                              type="button"
-                              onClick={() => setActiveMenuId(activeMenuId === emp.id ? null : emp.id)}
-                              className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
-                              title="More Options"
-                            >
-                              <MoreVertical className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {activeMenuId === emp.id && (
-                              <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-[#1e293b] rounded-lg shadow-xl border border-[#dde2e8] dark:border-[#334155] py-1 z-30 text-left animate-in fade-in duration-100">
-                                {emp.status === 'Active' ? (
-                                  <button
-                                    onClick={() => handleToggleStatus(emp, 'Deactivated')}
-                                    className="w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <UserX className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-                                    <span>Deactivate User</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleToggleStatus(emp, 'Active')}
-                                    className="w-full px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                    <span>Reactivate User</span>
-                                  </button>
-                                )}
-
-                                {emp.status !== 'Resigned' && (
-                                  <button
-                                    onClick={() => handleToggleStatus(emp, 'Resigned')}
-                                    className="w-full px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 border-t border-[#dde2e8] dark:border-[#334155] cursor-pointer"
-                                  >
-                                    <UserX className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                    <span>Mark as Resigned</span>
-                                  </button>
-                                )}
-
-                                <button
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    setEmployeeToDelete(emp);
-                                  }}
-                                  className="w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 border-t border-[#dde2e8] dark:border-[#334155] cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                                  <span>Remove Employee</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          <TableActionDropdown
+                            align="right"
+                            buttonAriaLabel="More Options"
+                            actions={[
+                              emp.status === 'Active'
+                                ? {
+                                    label: 'Deactivate User',
+                                    icon: UserX,
+                                    onClick: () => handleToggleStatus(emp, 'Deactivated'),
+                                  }
+                                : {
+                                    label: 'Reactivate User',
+                                    icon: UserCheck,
+                                    onClick: () => handleToggleStatus(emp, 'Active'),
+                                  },
+                              ...(emp.status !== 'Resigned'
+                                ? [
+                                    {
+                                      label: 'Mark as Resigned',
+                                      icon: UserX,
+                                      onClick: () => handleToggleStatus(emp, 'Resigned'),
+                                    },
+                                  ]
+                                : []),
+                              {
+                                label: 'Remove Employee',
+                                icon: Trash2,
+                                variant: 'danger',
+                                onClick: () => setEmployeeToDelete(emp),
+                              },
+                            ]}
+                          />
                         </div>
                       </td>
                     )}
