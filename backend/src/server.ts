@@ -15,6 +15,7 @@ import { connectDatabase, disconnectDatabase } from './config/database';
 import { CounterService } from './modules/counter/counter.service';
 import { initializeFinancialIndexes } from './modules/financials/financial.model';
 import { AuthService } from './modules/auth/auth.service';
+import { AgentSchedulerService } from './modules/agentCenter/scheduler.service';
 
 let server: http.Server | null = null;
 
@@ -32,7 +33,12 @@ const startServer = async (): Promise<void> => {
     // 4. Initialize Dedicated Counters Collection
     await CounterService.initializeCounters();
 
-    // 5. Initialize Express Application
+    // 5. Start Agent Background Scheduler if enabled
+    if (process.env.ENABLE_BACKGROUND_SCHEDULER !== 'false') {
+      AgentSchedulerService.start();
+    }
+
+    // 6. Initialize Express Application
     const app = createApp();
 
     // 3. Start HTTP Server
@@ -57,6 +63,8 @@ const startServer = async (): Promise<void> => {
 // Graceful Shutdown Handler
 const handleGracefulShutdown = (signal: string) => {
   logger.warn(`🛑 Received ${signal}. Starting graceful shutdown procedure...`);
+
+  AgentSchedulerService.stop();
 
   if (server) {
     server.close(async () => {

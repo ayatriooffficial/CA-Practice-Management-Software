@@ -56,9 +56,14 @@ function configValidation(moduleName: unknown, config: unknown): { valid: boolea
   }
   const hasClientRecipient = rawRecipients.includes('Client');
   const recipientResolution = config.recipientResolution;
-  if (hasClientRecipient && moduleName !== 'Task') errors.push('Client recipients are supported only for Task workflows.');
-  if (hasClientRecipient && (!isPlainObject(recipientResolution) || recipientResolution.mode !== 'task-linked-client' || recipientResolution.relationship !== 'trigger-record')) {
-    errors.push('Client recipients must resolve to the client linked to the triggering task.');
+  if (hasClientRecipient) {
+    if (moduleName === 'Task') {
+      if (!isPlainObject(recipientResolution) || recipientResolution.mode !== 'task-linked-client' || recipientResolution.relationship !== 'trigger-record') {
+        errors.push('Client recipients must resolve to the client linked to the triggering task.');
+      }
+    } else if (recipientResolution !== undefined && !isPlainObject(recipientResolution)) {
+      errors.push('Client recipient resolution configuration must be an object.');
+    }
   }
 
   if (typeof config.channel !== 'string' || !CHANNELS.includes(config.channel as (typeof CHANNELS)[number])) {
@@ -72,7 +77,6 @@ function configValidation(moduleName: unknown, config: unknown): { valid: boolea
   if (config.templateId !== undefined && typeof config.templateId !== 'string') errors.push('Selected email template identifier must be text.');
   const knownTemplate = templateId === 'custom' || PUBLIC_DEFINITIONS.emailTemplates.some((item) => item.id === templateId);
   if (!knownTemplate) errors.push('Selected email template is unavailable.');
-  if (templateId !== 'custom' && moduleName !== 'Task') errors.push('Built-in email templates are currently available only for Task workflows.');
   if (config.subject !== undefined && typeof config.subject !== 'string') errors.push('Email subject must be text.');
   const subject = config.subject === undefined ? String(config.action || 'Notification') : typeof config.subject === 'string' ? config.subject : '';
   if (config.channel === 'Email' && !isNonEmptyString(subject)) errors.push('Email subject is required.');
@@ -107,7 +111,7 @@ function configValidation(moduleName: unknown, config: unknown): { valid: boolea
           const validChannel = CHANNELS.includes(nodeConfig.channel as (typeof CHANNELS)[number]);
           if (!validChannel) errors.push(`${rawNode.name}: choose a supported channel.`);
           if (!RECIPIENTS.includes(nodeConfig.recipient as (typeof RECIPIENTS)[number])) errors.push(`${rawNode.name}: choose a supported recipient role.`);
-          if (nodeConfig.recipient === 'Client' && (moduleName !== 'Task' || !isPlainObject(nodeConfig.recipientResolution) || nodeConfig.recipientResolution.mode !== 'task-linked-client' || nodeConfig.recipientResolution.relationship !== 'trigger-record')) errors.push(`${rawNode.name}: Client must resolve from the triggering Task's linked client.`);
+          if (nodeConfig.recipient === 'Client' && nodeConfig.recipientResolution !== undefined && !isPlainObject(nodeConfig.recipientResolution)) errors.push(`${rawNode.name}: Client resolution must be a valid configuration object.`);
           if (!ACTIONS.includes(nodeConfig.action as (typeof ACTIONS)[number])) errors.push(`${rawNode.name}: choose a supported action.`);
           if (!isNonEmptyString(nodeConfig.message) || nodeConfig.message.length > 1000) errors.push(`${rawNode.name}: message must contain 1 to 1000 characters.`);
           const nodeSubject = nodeConfig.subject === undefined ? String(nodeConfig.action || rawNode.name) : nodeConfig.subject;
@@ -116,7 +120,6 @@ function configValidation(moduleName: unknown, config: unknown): { valid: boolea
           if (typeof nodeSubject === 'string') validateTemplateVariables(nodeSubject, `${rawNode.name} subject`, errors);
           if (typeof nodeConfig.message === 'string') validateTemplateVariables(nodeConfig.message, `${rawNode.name} message`, errors);
           if (nodeConfig.templateId !== undefined && nodeConfig.templateId !== 'custom' && !PUBLIC_DEFINITIONS.emailTemplates.some((item) => item.id === nodeConfig.templateId)) errors.push(`${rawNode.name}: selected template is unavailable.`);
-          if (nodeConfig.templateId !== undefined && nodeConfig.templateId !== 'custom' && moduleName !== 'Task') errors.push(`${rawNode.name}: built-in email templates are available only for Task workflows.`);
         } else {
           const validOperators = ['equals', 'not_equals', 'contains', 'greater_than', 'less_than', 'exists'];
           if (typeof nodeConfig.field !== 'string' || !allowedFields[String(moduleName)]?.includes(nodeConfig.field)) errors.push(`${rawNode.name}: field is not available for this module.`);

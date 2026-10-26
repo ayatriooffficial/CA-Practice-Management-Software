@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { CheckSquare, CheckCircle2 } from 'lucide-react';
 import type { ParsedMessage } from '@/lib/integrations/gmail';
 import { AddTaskModal } from '@/components/tasks/AddTaskModal';
+import { HtmlEmailRenderer } from './HtmlEmailRenderer';
 
 interface ThreadViewProps {
   messages: ParsedMessage[];
@@ -312,13 +313,7 @@ export function ThreadView({
                 }}
               >
                 {message.bodyHtml ? (
-                  <div
-                    dangerouslySetInnerHTML={{ __html: message.bodyHtml }}
-                    style={{
-                      maxHeight: 600,
-                      overflowY: 'auto',
-                    }}
-                  />
+                  <HtmlEmailRenderer html={message.bodyHtml} />
                 ) : (
                   <p style={{ whiteSpace: 'pre-wrap' }}>{message.bodyText}</p>
                 )}

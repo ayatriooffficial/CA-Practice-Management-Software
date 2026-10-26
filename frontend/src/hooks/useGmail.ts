@@ -12,12 +12,13 @@ export const GMAIL_QUERY_KEYS = {
   thread: (id: string) => [...GMAIL_QUERY_KEYS.all, 'thread', id] as const,
 };
 
-export type GmailStatus = 'loading' | 'disconnected' | 'connected';
+export type GmailStatus = 'loading' | 'disconnected' | 'connected' | 'needs_reconnect';
 
 export interface UseGmailReturn {
   status: GmailStatus;
   email: string | null;
   error: string | null;
+  needsReconnect: boolean;
   threads: ThreadListItem[];
   loadingThreads: boolean;
   selectedThreadId: string | null;
@@ -103,10 +104,14 @@ export function useGmail(): UseGmailReturn {
         staleTime: 60000,
       });
       if (!mountedRef.current) return;
-      if (data.connected && data.email) {
+      if (data.connected && data.authorized && data.email) {
         setStatus('connected');
         setEmail(data.email);
         setError(null);
+      } else if (data.needsReconnect) {
+        setStatus('needs_reconnect');
+        setEmail(data.email);
+        setError(data.reason || 'Gmail authorization expired. Please reconnect to restore email sync.');
       } else {
         setStatus('disconnected');
         setEmail(null);
@@ -282,6 +287,7 @@ export function useGmail(): UseGmailReturn {
     status,
     email,
     error,
+    needsReconnect: status === 'needs_reconnect',
     threads,
     loadingThreads,
     selectedThreadId,

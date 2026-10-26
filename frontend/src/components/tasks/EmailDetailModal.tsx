@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Mail, Calendar, User, Paperclip, Loader2, ExternalLink } from 'lucide-react';
 import { useGmailThread } from '@/hooks/useGmail';
 import { LinkedEmail } from '@/data/taskData';
+import { HtmlEmailRenderer } from '@/components/email/HtmlEmailRenderer';
 
 interface EmailDetailModalProps {
   isOpen: boolean;
@@ -129,10 +130,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
                   {/* Message Body */}
                   <div className="p-5 text-xs text-[var(--text-main)] overflow-x-auto leading-relaxed">
                     {msg.bodyHtml ? (
-                      <div
-                        dangerouslySetInnerHTML={{ __html: msg.bodyHtml }}
-                        className="email-html-body max-w-none break-words"
-                      />
+                      <HtmlEmailRenderer html={msg.bodyHtml} />
                     ) : (
                       <pre className="font-sans whitespace-pre-wrap break-words text-xs text-[var(--text-main)]">
                         {msg.bodyText || '(No content)'}

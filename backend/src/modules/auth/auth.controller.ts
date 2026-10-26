@@ -26,29 +26,12 @@ function clearRefreshCookie(res: Response): void {
 }
 
 export class AuthController {
-  public static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const result = await AuthService.registerOrganization({
-        ...req.body,
-        userAgent: req.headers['user-agent'],
-        ipAddress: req.ip,
-      });
-
-      setRefreshCookie(res, result.tokens.refreshToken);
-
-      ApiResponse.created(
-        res,
-        {
-          user: result.user,
-          accessToken: result.tokens.accessToken,
-          refreshToken: result.tokens.refreshToken,
-          expiresIn: result.tokens.expiresIn || 86400,
-        },
-        'Organization and administrator account registered successfully'
-      );
-    } catch (error) {
-      next(error);
-    }
+  public static async register(_req: Request, res: Response): Promise<void> {
+    ApiResponse.error(
+      res,
+      'Organization registration is disabled. Please submit an employment request.',
+      HTTP_STATUS.FORBIDDEN
+    );
   }
 
   public static async lookup(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -309,6 +292,78 @@ export class AuthController {
       const orgId = authUser?.orgId || (req.headers['x-org-id'] as string) || (req.body.orgId as string);
       const updated = await AuthService.updateOrganization(orgId, req.body);
       ApiResponse.success(res, updated, 'Organization details updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async requestEmployment(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await AuthService.requestEmployment({
+        name: req.body.name,
+        email: req.body.email,
+        password: req.body.password,
+      });
+      ApiResponse.created(res, { request: result.request }, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async getEmploymentRequests(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userRole = (req.user?.role || '').toLowerCase();
+      if (userRole !== 'admin') {
+        ApiResponse.error(res, 'Access denied. Administrator privileges required.', HTTP_STATUS.FORBIDDEN);
+        return;
+      }
+      const status = req.query.status ? String(req.query.status).toLowerCase() : undefined;
+      const page = req.query.page ? parseInt(String(req.query.page), 10) : 1;
+      const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 10;
+      const data = await AuthService.getEmploymentRequests({ status, page, limit });
+      ApiResponse.success(res, data, 'Employment requests retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async acceptEmploymentRequest(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userRole = (req.user?.role || '').toLowerCase();
+      if (userRole !== 'admin') {
+        ApiResponse.error(res, 'Access denied. Administrator privileges required.', HTTP_STATUS.FORBIDDEN);
+        return;
+      }
+      const adminUserId = String(req.user?.userId || '');
+      const requestId = String(req.params.id);
+      const result = await AuthService.acceptEmploymentRequest(requestId, adminUserId, req.body);
+      ApiResponse.success(res, result, 'Employment request accepted successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async rejectEmploymentRequest(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userRole = (req.user?.role || '').toLowerCase();
+      if (userRole !== 'admin') {
+        ApiResponse.error(res, 'Access denied. Administrator privileges required.', HTTP_STATUS.FORBIDDEN);
+        return;
+      }
+      const adminUserId = String(req.user?.userId || '');
+      const requestId = String(req.params.id);
+      const result = await AuthService.rejectEmploymentRequest(requestId, adminUserId);
+      ApiResponse.success(res, result, 'Employment request rejected successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async getEmploymentStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = String(req.user?.userId || '');
+      const statusData = await AuthService.getEmploymentStatus(userId);
+      ApiResponse.success(res, statusData, 'Employment status retrieved successfully');
     } catch (error) {
       next(error);
     }

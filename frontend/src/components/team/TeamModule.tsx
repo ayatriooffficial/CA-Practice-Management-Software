@@ -7,6 +7,7 @@ import { TeamListView } from './TeamListView';
 import { AttendanceView } from './AttendanceView';
 import { LeaveView } from './LeaveView';
 import { ReimbursementView } from './ReimbursementView';
+import { EmploymentRequestView } from './EmploymentRequestView';
 import { teamStore } from './teamStore';
 import { EmployeeRecord } from './types';
 
@@ -17,7 +18,9 @@ export const TeamModule: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const { currentUser } = useAuth();
-  const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const isEmployee = roleLower === 'employee';
+  const isAdmin = roleLower === 'admin';
 
   const loadData = async () => {
     setEmployees(teamStore.getEmployees());
@@ -79,6 +82,8 @@ export const TeamModule: React.FC = () => {
       {currentTab === 'leave' && !isEmployee && <LeaveView />}
 
       {currentTab === 'reimbursement' && !isEmployee && <ReimbursementView />}
+
+      {currentTab === 'employment-requests' && isAdmin && <EmploymentRequestView />}
     </div>
   );
 };

@@ -35,6 +35,19 @@ export interface AgentModuleDefinition {
   triggers: TriggerDefinition[];
 }
 
+export interface IntegrationStatus {
+  email: {
+    configured: boolean;
+    provider: string;
+    details: string;
+  };
+  whatsApp: {
+    configured: boolean;
+    provider: string;
+    details: string;
+  };
+}
+
 export interface AgentDefinitions {
   modules: Record<AgentModule, AgentModuleDefinition>;
   recipients: AgentRecipient[];
@@ -42,6 +55,7 @@ export interface AgentDefinitions {
   actions: AgentAction[];
   emailTemplates: AgentEmailTemplate[];
   templateVariables: string[];
+  integrations?: IntegrationStatus;
 }
 
 export interface AgentEmailTemplate {
@@ -102,9 +116,9 @@ export interface ProviderResult {
   recipient?: string;
   recipientData?: { name: string; address: string };
   provider?: string;
-  mode?: 'mock';
-  status: 'simulated' | 'failed';
-  simulated: true;
+  mode?: 'mock' | 'real';
+  status: 'simulated' | 'failed' | 'delivered';
+  simulated: boolean;
   executionId?: string;
   timestamp?: string;
   subject?: string | null;
@@ -113,8 +127,8 @@ export interface ProviderResult {
 }
 
 export interface AgentExecutionResult {
-  simulated: true;
-  executionMode: 'mock';
+  simulated: boolean;
+  executionMode: 'mock' | 'real';
   label: string;
   message: string;
   trigger: string;

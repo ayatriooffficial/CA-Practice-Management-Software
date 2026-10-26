@@ -7,11 +7,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Building2,
   Lock,
   Eye,
   EyeOff,
-  UserCheck,
+  User,
+  Mail,
 } from "lucide-react";
 import { authService } from "./authService";
 
@@ -19,47 +19,33 @@ export const SignupForm: React.FC = () => {
   const router = useRouter();
 
   // Form inputs
-  const [firmName, setFirmName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Overall form state
+  // Form state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [conflictModal, setConflictModal] = useState<{
-    isOpen: boolean;
-    conflictingFields: string[];
-    message: string;
-  } | null>(null);
   const [confirmationData, setConfirmationData] = useState<{
-    firmName: string;
     name: string;
     email: string;
-    mobile: string;
   } | null>(null);
 
-  // Form validations
+  // Validations
   const cleanEmail = email.trim().toLowerCase();
   const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
-  const cleanMobile = mobile.replace(/\D/g, "");
-  const isValidMobileFormat = /^[6-9]\d{9}$/.test(cleanMobile);
   const isValidPassword = password.length >= 6;
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   const isFormComplete =
-    firmName.trim().length > 0 &&
     name.trim().length > 0 &&
     isValidEmailFormat &&
-    isValidMobileFormat &&
     isValidPassword &&
     passwordsMatch;
 
-  // Handle final registration submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
@@ -74,63 +60,33 @@ export const SignupForm: React.FC = () => {
       return;
     }
 
-    // 4-field duplicate check (Person name, Org name, Contact number, Email)
-    const dupCheck = authService.checkOrganizationDuplicates({
-      firmName: firmName.trim(),
-      name: name.trim(),
-      email: cleanEmail,
-      mobile: cleanMobile,
-      password,
-    });
-
-    if (dupCheck.hasConflict) {
-      setConflictModal({
-        isOpen: true,
-        conflictingFields: dupCheck.conflictingFields,
-        message: dupCheck.message,
-      });
-      return;
-    }
-
     if (!isFormComplete || isSubmitting) return;
 
     setIsSubmitting(true);
 
     try {
-      const res = await authService.registerOrganization({
-        firmName: firmName.trim(),
+      const res = await authService.requestEmployment({
         name: name.trim(),
         email: cleanEmail,
-        mobile: cleanMobile,
         password: password.trim(),
       });
 
       if (res.success) {
         setConfirmationData({
-          firmName: firmName.trim(),
           name: name.trim(),
           email: cleanEmail,
-          mobile: cleanMobile,
         });
       } else {
-        if (res.conflictingFields && res.conflictingFields.length > 0) {
-          setConflictModal({
-            isOpen: true,
-            conflictingFields: res.conflictingFields,
-            message: res.message,
-          });
-        } else {
-          setSubmitError(res.message);
-        }
+        setSubmitError(res.message);
       }
-    } catch {
-      setSubmitError("Failed to register organization. Please try again.");
+    } catch (err: any) {
+      setSubmitError(err?.message || "Failed to submit employment request. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // If organization registered, show confirmation step card
+  // If request submitted, show confirmation card
   if (confirmationData) {
     return (
       <div className="w-full bg-white dark:bg-gray-800/80 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 text-center space-y-6 shadow-xs animate-in fade-in duration-300">
@@ -140,41 +96,27 @@ export const SignupForm: React.FC = () => {
 
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            Registration Completed
+            Request Submitted
           </span>
           <h3 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white mt-1">
-            Organization Created!
+            Employment Request Sent!
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Your firm workspace and administrator account are ready. Sign in with your email and password.
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
+            Your employment request has been sent to the administrator. You can sign in with your email and password to track the status of your request.
           </p>
         </div>
 
-        {/* Firm Details Box */}
         <div className="bg-gray-50 dark:bg-gray-900/60 rounded-xl p-4 text-left border border-gray-200 dark:border-gray-700/60 space-y-2 text-xs">
           <div className="flex justify-between py-1 border-b border-gray-200/60 dark:border-gray-800">
-            <span className="text-gray-500">Firm Name</span>
-            <span className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-[#6d55f4]" />
-              {confirmationData.firmName}
-            </span>
-          </div>
-          <div className="flex justify-between py-1 border-b border-gray-200/60 dark:border-gray-800">
-            <span className="text-gray-500">Primary Contact</span>
+            <span className="text-gray-500">Applicant Name</span>
             <span className="font-semibold text-gray-900 dark:text-white">
               {confirmationData.name}
             </span>
           </div>
-          <div className="flex justify-between py-1 border-b border-gray-200/60 dark:border-gray-800">
-            <span className="text-gray-500">Registered Email</span>
+          <div className="flex justify-between py-1">
+            <span className="text-gray-500">Email Address</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">
               {confirmationData.email}
-            </span>
-          </div>
-          <div className="flex justify-between py-1">
-            <span className="text-gray-500">Contact Number</span>
-            <span className="font-semibold text-gray-900 dark:text-white">
-              +91 {confirmationData.mobile}
             </span>
           </div>
         </div>
@@ -186,7 +128,7 @@ export const SignupForm: React.FC = () => {
           }}
           className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] transition-all shadow-sm hover:shadow cursor-pointer flex items-center justify-center gap-2"
         >
-          <span>Sign In to Your Workspace</span>
+          <span>Go to Sign In</span>
         </button>
       </div>
     );
@@ -194,45 +136,34 @@ export const SignupForm: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[20px]">
-      {/* 1. Firm Name Field */}
-      <div className="flex flex-col gap-[6px]">
-        <label
-          htmlFor="signup-firm"
-          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
-        >
-          Firm Name <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="signup-firm"
-          type="text"
-          value={firmName}
-          onChange={(e) => setFirmName(e.target.value)}
-          placeholder="ABC & Associates"
-          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
-          required
-        />
-      </div>
-
-      {/* 2. Contact Name Field */}
+      {/* 1. Name Field */}
       <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-name"
           className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
         >
-          Contact Person Name <span className="text-red-500">*</span>
+          Full Name <span className="text-red-500">*</span>
         </label>
-        <input
-          id="signup-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. CA John Doe"
-          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
-          required
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <User className="w-4 h-4" />
+          </div>
+          <input
+            id="signup-name"
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setSubmitError(null);
+            }}
+            placeholder="e.g. John Doe"
+            className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+            required
+          />
+        </div>
       </div>
 
-      {/* 3. Email Field */}
+      {/* 2. Email Field */}
       <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-email"
@@ -240,52 +171,32 @@ export const SignupForm: React.FC = () => {
         >
           Work Email <span className="text-red-500">*</span>
         </label>
-        <input
-          id="signup-email"
-          type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setSubmitError(null);
-          }}
-          placeholder="name@firm.com or Gmail"
-          className="w-full h-[44px] px-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
-          required
-        />
-      </div>
-
-      {/* 4. Mobile Number Field */}
-      <div className="flex flex-col gap-[6px]">
-        <label
-          htmlFor="signup-mobile"
-          className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
-        >
-          Mobile Number <span className="text-red-500">*</span>
-        </label>
-        <div className="relative flex items-center">
-          <span className="absolute left-3.5 text-gray-400 font-medium text-[14px] select-none">
-            +91
-          </span>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <Mail className="w-4 h-4" />
+          </div>
           <input
-            id="signup-mobile"
-            type="tel"
-            maxLength={10}
-            value={mobile}
-            onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
-            placeholder="9876543210"
-            className="w-full h-[44px] pl-12 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+            id="signup-email"
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setSubmitError(null);
+            }}
+            placeholder="name@example.com"
+            className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
             required
           />
         </div>
       </div>
 
-      {/* 5. Password Field */}
+      {/* 3. Password Field */}
       <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-password"
           className="block text-[14px] font-medium text-[#374151] dark:text-gray-300"
         >
-          Create Password <span className="text-red-500">*</span>
+          Password <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -313,7 +224,7 @@ export const SignupForm: React.FC = () => {
         </div>
       </div>
 
-      {/* 6. Confirm Password Field */}
+      {/* 4. Confirm Password Field */}
       <div className="flex flex-col gap-[6px]">
         <label
           htmlFor="signup-confirm-password"
@@ -375,10 +286,10 @@ export const SignupForm: React.FC = () => {
         {isSubmitting ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Creating Organization...</span>
+            <span>Submitting Request...</span>
           </>
         ) : (
-          <span>Create Organization</span>
+          <span>Request Employment</span>
         )}
       </button>
 
@@ -392,47 +303,6 @@ export const SignupForm: React.FC = () => {
           Sign In
         </Link>
       </div>
-
-      {/* Conflict Modal */}
-      {conflictModal?.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-gray-700 space-y-4">
-            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
-              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-gray-900 dark:text-white">
-                  Account Conflict
-                </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Existing details detected in system
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-              {conflictModal.message}
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setConflictModal(null)}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
-              >
-                Change Details
-              </button>
-              <Link
-                href={`/login?email=${encodeURIComponent(cleanEmail)}`}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] rounded-lg transition-colors shadow-xs"
-              >
-                Sign In Instead
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </form>
   );
 };

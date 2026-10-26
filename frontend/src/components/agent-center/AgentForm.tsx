@@ -137,7 +137,8 @@ function getCondition(config: AgentConfigDraft, trigger?: TriggerDefinition): nu
 }
 
 function previewText(message: string, module: AgentModule, recipient: AgentRecipient, selectedTask?: TaskItem) {
-  const roleName = recipient === 'Assigned user' ? 'Milton' : recipient === 'Task owner' ? 'Manager' : 'Client';
+  if (!message) return '';
+  const roleName = recipient === 'Assigned user' ? 'Milton' : recipient === 'Task owner' ? 'Manager' : recipient === 'Client' ? 'Ayatrio Practice' : recipient;
   const task = selectedTask || {
     id: 'TASK-1001',
     taskId: 'TASK-1001',
@@ -150,39 +151,61 @@ function previewText(message: string, module: AgentModule, recipient: AgentRecip
     reviewerName: 'Sample Reviewer',
     creatorName: 'Likith S',
   };
-  const sampleEvent: Record<string, unknown> = module === 'Task'
-    ? {
-        task: {
-          id: task.taskId || task.id,
-          taskName: task.taskName,
-          clientName: task.clientName,
-          priority: task.priority,
-          status: task.status,
-          targetDueDate: task.targetDueDate,
-          assigneeName: task.assigneeName,
-          reviewerName: task.reviewerName,
-          creatorName: task.creatorName,
-        },
-      }
-    : module === 'DSC'
-      ? { dsc: { id: 'DSC-2001', holder: 'Sample User', expiryDate: '2026-02-01' } }
-      : { license: { id: 'LIC-3001', name: 'Sample Trade License', expiryDate: '2026-02-01' } };
 
-  const recipientData: Record<AgentRecipient, { name: string; address: string }> = {
-    Client: { name: 'Ayatrio Practice', address: 'client@example.test' },
-    'Assigned user': { name: roleName, address: 'milton@example.test' },
-    'Task owner': { name: 'Manager', address: 'manager@example.test' },
-    'Account administrator': { name: 'Account Administrator', address: 'admin@example.test' },
-    'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test' },
+  const recipientData: Record<AgentRecipient, { name: string; address: string; email: string; mobile: string }> = {
+    Client: { name: 'Ayatrio Practice', address: 'client@example.test', email: 'client@example.test', mobile: '+91 98765 43210' },
+    'Assigned user': { name: roleName, address: 'milton@example.test', email: 'milton@example.test', mobile: '+91 98765 43211' },
+    'Task owner': { name: 'Manager', address: 'manager@example.test', email: 'manager@example.test', mobile: '+91 98765 43212' },
+    'Account administrator': { name: 'Account Administrator', address: 'admin@example.test', email: 'admin@example.test', mobile: '+91 98765 43213' },
+    'Responsible person': { name: 'Responsible Person', address: 'responsible@example.test', email: 'responsible@example.test', mobile: '+91 98765 43214' },
   };
 
-  const client = module === 'Task' ? { name: task.clientName, email: selectedTask ? undefined : 'client@example.test' } : undefined;
-  const variables = {
-    ...sampleEvent,
-    event: sampleEvent[module.toLowerCase()] || {},
-    recipient: recipientData[recipient],
+  const client = {
+    name: task.clientName || 'Ayatrio Practice',
+    email: 'client@example.test',
+    mobile: '+91 98765 43210',
+  };
+
+  const taskObj = {
+    id: task.taskId || task.id,
+    taskId: task.taskId || task.id,
+    taskName: task.taskName,
+    clientName: task.clientName,
+    priority: task.priority,
+    status: task.status,
+    targetDueDate: task.targetDueDate,
+    assigneeName: task.assigneeName,
+    reviewerName: task.reviewerName,
+    creatorName: task.creatorName,
+  };
+
+  const dscObj = {
+    id: 'DSC-2001',
+    dscId: '#S00184',
+    holder: 'Sample User',
+    name: 'Sample User DSC',
+    vendor: 'eMudhra',
+    certificateClass: 'Class 3',
+    expiryDate: '2026-02-01',
+  };
+
+  const licenseObj = {
+    id: 'LIC-3001',
+    licenseNo: 'LIC-78902',
+    name: 'Sample Trade License',
+    owner: client.name,
+    expiryDate: '2026-02-01',
+  };
+
+  const variables: Record<string, unknown> = {
+    task: taskObj,
+    dsc: dscObj,
+    license: licenseObj,
+    event: module === 'DSC' ? dscObj : module === 'License' ? licenseObj : taskObj,
+    recipient: recipientData[recipient] || recipientData['Assigned user'],
     client,
-    agent: { name: 'Task Agent' },
+    agent: { name: `${module} Agent` },
+    trigger: `${module} Event`,
     your_firm_name: 'Ayatrio Practice',
     expense_name: 'Design Assets',
     expense_amount: '₹ 15,000',
@@ -215,7 +238,7 @@ function graphIsValid(graph: WorkflowGraph, module: AgentModule, definitions: Ag
     if (node.type === 'condition') {
       if (!outputs.some((item) => item.sourceHandle === 'true') || !outputs.some((item) => item.sourceHandle === 'false') || outputs.length !== 2) return false;
       if (!node.config.field || !node.config.operator || (node.config.operator !== 'exists' && String(node.config.value ?? '').trim() === '')) return false;
-    } else if (!node.config.message || !node.config.recipient || !definitions.recipients.includes(node.config.recipient as AgentRecipient) || !definitions.channels.includes(node.config.channel as AgentChannel) || !definitions.actions.includes(node.config.action as AgentAction) || String(node.config.message).trim().length > 1000 || (node.config.channel === 'Email' && (!String(node.config.subject || '').trim() || String(node.config.subject).length > 200)) || unsupportedVariables(`${String(node.config.subject || node.config.action || '')}\n${String(node.config.message || '')}`, definitions.templateVariables).length > 0 || (node.config.recipient === 'Client' && module !== 'Task')) return false;
+    } else if (!node.config.message || !node.config.recipient || !definitions.recipients.includes(node.config.recipient as AgentRecipient) || !definitions.channels.includes(node.config.channel as AgentChannel) || !definitions.actions.includes(node.config.action as AgentAction) || String(node.config.message).trim().length > 1000 || (node.config.channel === 'Email' && (!String(node.config.subject || '').trim() || String(node.config.subject).length > 200)) || unsupportedVariables(`${String(node.config.subject || node.config.action || '')}\n${String(node.config.message || '')}`, definitions.templateVariables).length > 0) return false;
     if (node.type === 'action' && outputs.length > 1) return false;
   }
   if (nodes.length && !nodes.some((node) => node.type === 'action')) return false;
@@ -322,6 +345,25 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   const definitions = PUBLIC_DEFINITIONS;
+
+  const integrationsQuery = useQuery({
+    queryKey: ['agent-center-integrations'],
+    queryFn: async () => {
+      try {
+        const response = await request<{ email: { configured: boolean; provider: string }; whatsApp: { configured: boolean; provider: string } }>('/agent-center/integrations/status');
+        if (response.success && response.data) return response.data;
+      } catch {}
+      return {
+        email: { configured: false, provider: 'SMTP' },
+        whatsApp: { configured: false, provider: 'Meta Cloud API' },
+      };
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const emailConfigured = Boolean(integrationsQuery.data?.email?.configured);
+  const whatsAppConfigured = Boolean(integrationsQuery.data?.whatsApp?.configured);
 
   const previewTasksQuery = useQuery({
     queryKey: ['agent-center-preview-tasks'],
@@ -478,7 +520,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   );
 
   const showRecipientResultCards = Boolean(
-    (previewOpen && hasValidPreviewConfig) || isWorkflowCompleted
+    previewOpen || isWorkflowCompleted
   );
 
   const lifecycleStatus: AgentStatus | undefined = agentQuery.data?.status;
@@ -546,7 +588,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
   async function persistDraft(progressToSave: WorkflowStageProgress = confirmedSteps, nameOverride?: string) {
     const currentId = savedAgentId || agentId;
-    const effectiveName = nameOverride !== undefined ? nameOverride : name.trim() || `Task Agents Draft`;
+    const effectiveName = nameOverride !== undefined ? nameOverride : name.trim() || `${module} Agents Draft`;
     if (!name.trim() && nameOverride) {
       setName(nameOverride);
     }
@@ -584,7 +626,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
     setLocalError('');
     setNotice(null);
 
-    const effectiveName = name.trim() || `Task Agents Draft`;
+    const effectiveName = name.trim() || `${module} Agents Draft`;
     if (!name.trim()) setName(effectiveName);
     if (effectiveName.length > 100 || description.length > 500) {
       setLocalError('Check the agent name and description length before saving this stage.');
@@ -692,7 +734,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
     if (busyRef.current) return;
     setLocalError('');
     setNotice(null);
-    const effectiveName = name.trim() || `Task Agents`;
+    const effectiveName = name.trim() || `${module} Agents`;
     if (effectiveName.length > 100) {
       setLocalError('Agent name must be 100 characters or fewer.');
       return;
@@ -885,7 +927,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                 {definitions.recipients.map((recipient) => {
                   const selected = selectedRecipients.includes(recipient);
                   const isClient = recipient === 'Client';
-                  const unavailable = isClient && module !== 'Task';
+                  const unavailable = false;
                   const displayLabel = formatRecipientLabel(recipient);
 
                   return (
@@ -915,7 +957,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                         <p className="text-sm font-semibold text-slate-800">{displayLabel}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {isClient
-                            ? 'Resolves from the triggering Task’s linked client in this practice.'
+                            ? `Resolves from the triggering ${module}’s linked client in this practice.`
                             : recipient === 'Assigned user'
                               ? 'Assigned team member or staff on this task.'
                               : recipient === 'Task owner'
@@ -975,6 +1017,33 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                                 ? 'WhatsApp Business messaging (simulated)'
                                 : 'In-app notification badge'}
                           </p>
+                          <div className="mt-1">
+                            {channel === 'Email' ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  emailConfigured
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {emailConfigured ? 'Connected' : 'Kindly integrate email'}
+                              </span>
+                            ) : channel === 'WhatsApp' ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  whatsAppConfigured
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {whatsAppConfigured ? 'Connected' : 'Kindly integrate WhatsApp'}
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                Ready
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <span
@@ -1039,11 +1108,18 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-cyan-500"
                   >
                     <option value="custom">Custom Email Template</option>
-                    {(module === 'Task' ? definitions.emailTemplates : []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
+                    {definitions.emailTemplates
+                      .filter((t) => {
+                        if (module === 'Task') return !t.id.startsWith('dsc-') && !t.id.startsWith('license-');
+                        if (module === 'DSC') return t.id.startsWith('dsc-');
+                        if (module === 'License') return t.id.startsWith('license-');
+                        return true;
+                      })
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}
@@ -1060,7 +1136,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                     maxLength={200}
                     disabled={readOnly || busy}
                     onChange={(e) => patchConfig({ subject: e.target.value })}
-                    placeholder="e.g. Reminder: {{task.taskName}} is due"
+                    placeholder={
+                      module === 'DSC'
+                        ? 'e.g. Urgent: DSC for {{dsc.holder}} is expiring'
+                        : module === 'License'
+                          ? 'e.g. Reminder: License {{license.name}} is expiring'
+                          : 'e.g. Reminder: {{task.taskName}} is due'
+                    }
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-cyan-500"
                   />
                 </div>
@@ -1104,20 +1186,31 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                       maxLength={1000}
                       disabled={readOnly || busy}
                       onChange={(e) => patchConfig({ message: e.target.value })}
-                      placeholder="Dear {{recipient.name}},&#10;&#10;Task {{task.taskName}} is approaching its due date..."
+                      placeholder={
+                        module === 'DSC'
+                          ? 'Dear {{recipient.name}},&#10;&#10;DSC for {{dsc.holder}} (ID: {{dsc.dscId}}) expires on {{dsc.expiryDate}}...'
+                          : module === 'License'
+                            ? 'Dear {{recipient.name}},&#10;&#10;License {{license.name}} (No: {{license.licenseNo}}) for {{client.name}} expires on {{license.expiryDate}}...'
+                            : 'Dear {{recipient.name}},&#10;&#10;Task {{task.taskName}} is approaching its due date...'
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs md:text-sm text-slate-800 outline-none focus:border-cyan-500 font-sans"
                     />
                     {/* Template variable pills */}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-slate-400 mr-1">Insert:</span>
-                      {[
-                        'task.taskName',
-                        'task.targetDueDate',
-                        'task.priority',
-                        'task.status',
-                        'client.name',
-                        'recipient.name',
-                      ].map((tag) => (
+                      {(module === 'DSC'
+                        ? ['dsc.holder', 'dsc.expiryDate', 'dsc.dscId', 'dsc.vendor', 'recipient.name', 'agent.name']
+                        : module === 'License'
+                          ? ['license.name', 'license.owner', 'license.expiryDate', 'license.licenseNo', 'client.name', 'recipient.name']
+                          : [
+                              'task.taskName',
+                              'task.targetDueDate',
+                              'task.priority',
+                              'task.status',
+                              'client.name',
+                              'recipient.name',
+                            ]
+                      ).map((tag) => (
                         <button
                           key={tag}
                           type="button"
@@ -1195,7 +1288,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             ) : (
               <>
                 <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                Done
+                {stepKey === 'event'
+                  ? 'Select Recipients >'
+                  : stepKey === 'recipient'
+                    ? 'Select Channel >'
+                    : stepKey === 'channel'
+                      ? 'Configure Action >'
+                      : 'Done'}
               </>
             )}
           </button>
@@ -1207,7 +1306,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] bg-slate-50 font-sans">
       {/* 1. TOP HEADER & BREADCRUMB (Matches Turia Reference) */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 z-20">
+      <header className="bg-white border-b border-slate-200 px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-4 z-20">
         <div>
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
@@ -1220,20 +1319,9 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             <span className="text-slate-700 font-semibold">{agentId ? 'Edit Agents' : 'Create Agents'}</span>
           </div>
 
-          {/* Title & Editable Name */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Task Agents</h1>
-            <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name your agent (optional)"
-                maxLength={100}
-                disabled={readOnly || busy}
-                className="text-xs md:text-sm font-medium text-slate-700 bg-transparent border-b border-dashed border-slate-300 hover:border-purple-500 focus:border-purple-600 outline-none px-1 py-0.5 transition-colors"
-                title="Agent Name"
-              />
-            </div>
+          {/* Title matching Turia screenshot */}
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{module} Agents</h1>
           </div>
         </div>
 
@@ -1251,13 +1339,6 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           <button
             type="button"
             onClick={() => {
-              if (!hasValidPreviewConfig && !previewOpen) {
-                setNotice({
-                  type: 'info',
-                  text: 'Configure a trigger, recipients, channel, and message to preview notification cards.',
-                });
-                return;
-              }
               setPreviewOpen((open) => !open);
             }}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 text-xs md:text-sm font-medium transition-colors"
@@ -1279,14 +1360,14 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
       {/* Notice Banner */}
       {notice && (
-        <div className="px-6 pt-3">
+        <div className="px-4 md:px-5 pt-3">
           <NoticeBanner type={notice.type}>{notice.text}</NoticeBanner>
         </div>
       )}
 
       {/* 2. TURIA WORKFLOW CANVAS (Subtle Dotted Grid) */}
       <main
-        className="relative flex-1 w-full overflow-x-auto overflow-y-auto min-h-[920px] p-6 md:p-10 select-none"
+        className="relative flex-1 w-full overflow-x-auto overflow-y-auto min-h-[920px] p-4 md:p-6 select-none"
         style={{
           backgroundColor: '#FFFFFF',
           backgroundImage: 'radial-gradient(#CBD5E1 1.2px, transparent 1.2px)',
@@ -1300,25 +1381,12 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
         >
           {/* A. FOUR HORIZONTALLY CONNECTED WORKFLOW CARDS */}
           <div className="relative pt-6 pb-4 w-full flex justify-center">
-            {/* Horizontal Purple Dotted Line Connecting all 4 Cards Behind them */}
-            <div
-              className="absolute top-[68px] left-[calc(50%-420px)] w-[840px] border-t-2 border-dashed border-purple-400 z-0 pointer-events-none"
-              style={{ strokeDasharray: '4 4' }}
-            />
+            {/* Cards and In-Between Dotted Connector Lines Row (Centered Midpoint Alignment) */}
+            <div className="relative z-10 flex items-center justify-center">
+              {/* Outer Left Lead-In Dotted Line */}
+              <div className="w-8 md:w-12 h-0 border-t-2 border-dashed border-[#CBD5E1] shrink-0" />
 
-            {/* Funnel accent above Card 2 (RECIPIENT) matching Turia screenshot */}
-            <svg
-              className="absolute top-[16px] left-[calc(50%-146px)] w-[64px] h-[36px] pointer-events-none z-0"
-              viewBox="0 0 64 36"
-              fill="none"
-            >
-              <path d="M 6 0 C 6 18, 32 18, 32 36" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="3 3" />
-              <path d="M 58 0 C 58 18, 32 18, 32 36" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="3 3" />
-            </svg>
-
-            {/* Workflow Cards */}
-            <div className="relative z-10 flex items-start gap-10 md:gap-14">
-              {STEPS.map((step) => {
+              {STEPS.map((step, index) => {
                 const isActive = activeStep === step.key && activePanelOpen;
                 const isConfirmed = isStepConfirmed(step.key);
                 const isUnlocked = isWorkflowStageUnlocked(step.key, confirmedSteps);
@@ -1368,7 +1436,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                 } else if (step.key === 'channel') {
                   if (selectedChannel) {
                     title = selectedChannel;
-                    subtitle = 'Delivery channel';
+                    if (selectedChannel === 'Email') {
+                      subtitle = emailConfigured ? 'Connected' : 'Kindly integrate email';
+                    } else if (selectedChannel === 'WhatsApp') {
+                      subtitle = whatsAppConfigured ? 'Connected' : 'Kindly integrate WhatsApp';
+                    } else {
+                      subtitle = 'In-app notification';
+                    }
                   }
                 } else if (step.key === 'action') {
                   if (isConfirmed || (actionStepValid && selectedAction)) {
@@ -1378,93 +1452,107 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                 }
 
                 return (
-                  <div key={step.key} className="relative flex flex-col items-center">
-                    {/* The Workflow Card */}
-                    <div
-                      onClick={() => {
-                        if (isUnlocked) handleCardClick(step.key);
-                      }}
-                      className={`relative w-64 min-w-[240px] max-w-[270px] bg-white rounded-2xl border-2 p-5 shadow-xs transition-all ${
-                        isUnlocked
-                          ? 'cursor-pointer hover:shadow-md'
-                          : 'opacity-40 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50/50 shadow-none'
-                      } ${
-                        isUnlocked && (isActive || isConfirmed) ? borderColor : 'border-slate-200'
-                      } ${isActive ? 'ring-2 ring-purple-300 ring-offset-2 shadow-md' : ''}`}
-                    >
-                      {/* Green Completion Checkmark Overlapping Upper-Right Corner */}
-                      {isConfirmed && (
-                        <span
-                          className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs border-2 border-white z-20"
-                          title="Stage completed"
-                        >
-                          <Check className="h-3.5 w-3.5 stroke-[3]" />
-                        </span>
-                      )}
-
-                      {/* Step Label Badge with Icon */}
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
-                            isUnlocked ? badgeStyle : 'bg-slate-100 text-slate-400 border-slate-200'
-                          }`}
-                        >
-                          {step.icon}
-                          {step.label}
-                        </span>
-                        {!isUnlocked && (
-                          <span className="text-slate-400" title="Locked stage">
-                            <Lock className="h-3.5 w-3.5" />
+                  <React.Fragment key={step.key}>
+                    {/* The Card Wrapper */}
+                    <div className="relative flex flex-col items-center shrink-0">
+                      {/* Uniform 220px x 92px Workflow Card */}
+                      <div
+                        onClick={() => {
+                          if (isUnlocked) handleCardClick(step.key);
+                        }}
+                        className={`relative w-[220px] h-[92px] bg-white rounded-xl border-2 p-3.5 shadow-xs transition-all flex flex-col justify-between shrink-0 ${
+                          isUnlocked
+                            ? 'cursor-pointer hover:shadow-md'
+                            : 'opacity-40 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50/50 shadow-none'
+                        } ${
+                          isUnlocked && (isActive || isConfirmed) ? borderColor : 'border-slate-200'
+                        } ${isActive ? 'ring-2 ring-purple-300 ring-offset-2 shadow-md' : ''}`}
+                      >
+                        {/* Green Completion Checkmark Overlapping Upper-Right Corner */}
+                        {isConfirmed && (
+                          <span
+                            className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs border-2 border-white z-20"
+                            title="Stage completed"
+                          >
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
                           </span>
                         )}
+
+                        {/* Step Label Badge with Icon */}
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
+                              isUnlocked ? badgeStyle : 'bg-slate-100 text-slate-400 border-slate-200'
+                            }`}
+                          >
+                            {step.icon}
+                            {step.label}
+                          </span>
+                          {!isUnlocked && (
+                            <span className="text-slate-400" title="Locked stage">
+                              <Lock className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <div className="overflow-hidden">
+                          <h3
+                            className={`text-sm font-bold truncate leading-snug ${
+                              isUnlocked ? 'text-slate-800' : 'text-slate-400'
+                            }`}
+                            title={title}
+                          >
+                            {title}
+                          </h3>
+                          <p
+                            className={`text-xs truncate leading-tight mt-0.5 ${
+                              isUnlocked ? 'text-slate-500' : 'text-slate-400'
+                            }`}
+                            title={subtitle}
+                          >
+                            {subtitle}
+                          </p>
+                        </div>
                       </div>
 
-                      {/* Title */}
-                      <h3
-                        className={`mt-3 text-sm md:text-base font-bold truncate ${
-                          isUnlocked ? 'text-slate-800' : 'text-slate-400'
-                        }`}
-                        title={title}
-                      >
-                        {title}
-                      </h3>
-
-                      {/* Subtitle */}
-                      <p
-                        className={`mt-1 text-xs truncate ${
-                          isUnlocked ? 'text-slate-500' : 'text-slate-400'
-                        }`}
-                        title={subtitle}
-                      >
-                        {subtitle}
-                      </p>
+                      {/* Card-Anchored Configuration Panel */}
+                      {isActive && (
+                        <div
+                          className={`absolute top-[calc(100%+16px)] z-30 w-[320px] md:w-[340px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 text-left ${
+                            step.key === 'event'
+                              ? 'left-0'
+                              : step.key === 'recipient'
+                                ? 'left-1/2 -translate-x-1/2'
+                                : step.key === 'channel'
+                                  ? 'left-1/2 -translate-x-1/2'
+                                  : 'right-0'
+                          }`}
+                        >
+                          {renderPanelContent(step.key)}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Card-Anchored Configuration Panel */}
-                    {isActive && (
-                      <div
-                        className={`absolute top-[calc(100%+16px)] z-30 w-[440px] md:w-[480px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 text-left ${
-                          step.key === 'event'
-                            ? 'left-0'
-                            : step.key === 'recipient'
-                              ? 'left-1/2 -translate-x-1/2'
-                              : step.key === 'channel'
-                                ? 'left-1/2 -translate-x-1/2'
-                                : 'right-0'
-                        }`}
-                      >
-                        {renderPanelContent(step.key)}
-                      </div>
+                    {/* Dotted Connector Line Strictly In Gap Between Cards (Vertical Midpoint) */}
+                    {index < STEPS.length - 1 && (
+                      <div className="w-12 md:w-16 h-0 border-t-2 border-dashed border-[#CBD5E1] shrink-0" />
                     )}
-                  </div>
+                  </React.Fragment>
                 );
               })}
+
+              {/* Outer Right Lead-Out Dotted Line */}
+              <div className="w-8 md:w-12 h-0 border-t-2 border-dashed border-[#CBD5E1] shrink-0" />
             </div>
           </div>
 
           {/* C. RECIPIENT PREVIEW CARDS BELOW CARD 4 (ACTION) */}
-          {showRecipientResultCards && selectedRecipients.length > 0 && (() => {
-            const count = selectedRecipients.length;
+          {showRecipientResultCards && (() => {
+            const previewRecipients = (selectedRecipients.length > 0
+              ? selectedRecipients
+              : ['Assigned user']) as AgentRecipient[];
+            const count = previewRecipients.length;
             const cardWidth = 350;
             const gap = 24;
             const totalWidth = count * cardWidth + (count - 1) * gap;
@@ -1472,6 +1560,13 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             const marginRightCalc = count === 1
               ? 'max(16px, calc(50% - 638px))'
               : 'max(16px, calc(50% - 596px))';
+
+            const defaultSampleMessage =
+              module === 'DSC'
+                ? 'Hello {{recipient.name}},\n\nThis is a notification that the Digital Signature Certificate for {{dsc.holder}} (ID: {{dsc.dscId}}) will expire on {{dsc.expiryDate}}. Please arrange for renewal.\n\nRegards,\n{{agent.name}}'
+                : module === 'License'
+                  ? 'Hello {{recipient.name}},\n\nThis is a reminder that the license {{license.name}} (No: {{license.licenseNo}}) for {{client.name}} will expire on {{license.expiryDate}}.\n\nRegards,\n{{agent.name}}'
+                  : 'Hello {{recipient.name}},\n\n{{task.taskName}} for {{client.name}} is due on {{task.targetDueDate}}. Please review the task in your portal.\n\nRegards,\n{{agent.name}}';
 
             return (
               <div className="relative mt-2 flex flex-col items-center z-10 transition-all duration-300 w-full">
@@ -1489,7 +1584,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
                   {/* Recipient Cards Row */}
                   <div className="flex flex-nowrap items-start justify-end gap-6 w-full">
-                    {selectedRecipients.map((recipient) => {
+                    {previewRecipients.map((recipient) => {
                       const roleLabel = formatRecipientLabel(recipient);
                       const channelLabel = selectedChannel || 'EMAIL';
                       const renderedSubject = previewText(
@@ -1499,7 +1594,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
                         selectedPreviewTask
                       );
                       const renderedBody = previewText(
-                        message,
+                        message || defaultSampleMessage,
                         module,
                         recipient,
                         selectedPreviewTask
@@ -1587,6 +1682,23 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           >
             <Maximize2 className="h-4 w-4" />
           </button>
+        </div>
+
+        {/* 4. BOTTOM-RIGHT MINIMAP THUMBNAIL */}
+        <div className="fixed bottom-6 right-6 z-40 w-44 h-28 bg-white rounded-lg border-2 border-slate-800 shadow-md p-2 flex flex-col justify-between overflow-hidden pointer-events-none">
+          <div className="w-full flex items-center justify-between gap-1 pt-2">
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.event || activeStep === 'event' ? 'border-orange-500 bg-orange-50' : 'border-slate-300 bg-slate-100'}`} />
+            <div className="w-2 h-0 border-t border-dashed border-slate-400" />
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.recipient || activeStep === 'recipient' ? 'border-purple-500 bg-purple-50' : 'border-slate-300 bg-slate-100'}`} />
+            <div className="w-2 h-0 border-t border-dashed border-slate-400" />
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.channel || activeStep === 'channel' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-100'}`} />
+            <div className="w-2 h-0 border-t border-dashed border-slate-400" />
+            <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.action || activeStep === 'action' ? 'border-cyan-500 bg-cyan-50' : 'border-slate-300 bg-slate-100'}`} />
+          </div>
+          {activePanelOpen && (
+            <div className="w-10 h-10 border border-slate-300 bg-slate-50 rounded-xs self-start ml-0.5 mb-1" />
+          )}
+          <div className="absolute right-1 bottom-1 border border-slate-400/40 bg-slate-200/30 w-16 h-12 rounded-xs" />
         </div>
       </main>
     </div>

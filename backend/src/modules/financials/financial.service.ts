@@ -6,6 +6,7 @@ import { FinancialInvoice, TaskExpense, FinancialTimeEntry } from './financial.m
 import { IInvoiceAllocation } from './financial.interface';
 import { aggregateEmployeeCosts, aggregatePeriodFacts, calculateProfitPaise, calculateTimeCostPaise } from './financial.calculation';
 import { generateProfitabilityReportPdf, ProfitabilityPdfRow } from './pdf.generator';
+import { AgentExecutionService } from '../agentCenter/execution.service';
 
 export interface FinancialUserContext {
   userId: string;
@@ -59,11 +60,12 @@ export class FinancialService {
 
   private static async assertEmployee(employeeId: string, orgId: string): Promise<{
     _id: mongoose.Types.ObjectId;
+    name?: string;
     internalCostRatePaisePerHour?: number | null;
   }> {
     if (!mongoose.Types.ObjectId.isValid(employeeId)) throw AppError.badRequest('A valid employee is required');
     const employee = await UserModel.findOne({ _id: employeeId, orgId, status: 'active' })
-      .select('_id +internalCostRatePaisePerHour')
+      .select('_id name +internalCostRatePaisePerHour')
       .lean();
     if (!employee) throw AppError.badRequest('Employee is not active in your organization');
     return employee;
@@ -235,7 +237,7 @@ export class FinancialService {
     const costPaise = calculateTimeCostPaise(input.durationSeconds, employee.internalCostRatePaisePerHour);
     if (!Number.isSafeInteger(costPaise)) throw AppError.badRequest('The recorded labor cost exceeds supported monetary precision');
     try {
-      return await FinancialTimeEntry.create({
+      const createdTime = await FinancialTimeEntry.create({
         orgId: ctx.orgId,
         taskId: input.taskId,
         employeeId: employee._id,
@@ -246,6 +248,32 @@ export class FinancialService {
         idempotencyKey: input.idempotencyKey,
         createdBy: ctx.userId,
       });
+
+      // Dispatch Timesheet Log Added event asynchronously
+      void Task.findOne({ _id: input.taskId, orgId: ctx.orgId }).lean().exec().then((taskDoc) => {
+        if (taskDoc) {
+          const taskObj = {
+            id: String(taskDoc._id),
+            taskId: taskDoc.taskId,
+            taskName: taskDoc.taskName,
+            clientId: taskDoc.clientId,
+            clientName: taskDoc.clientName,
+            status: taskDoc.status,
+            priority: taskDoc.priority,
+            targetDueDate: taskDoc.targetDueDate,
+            assigneeId: taskDoc.assigneeId,
+            assigneeName: taskDoc.assigneeName,
+          };
+          void AgentExecutionService.dispatchTaskEvent(
+            ctx.orgId,
+            'Timesheet Log Added',
+            taskObj,
+            `timesheet:${String(createdTime._id)}`
+          ).catch(() => []);
+        }
+      });
+
+      return createdTime;
     } catch (error) {
       if (isDuplicateKey(error)) {
         const duplicate = await FinancialTimeEntry.findOne({ orgId: ctx.orgId, idempotencyKey: input.idempotencyKey });
@@ -273,7 +301,7 @@ export class FinancialService {
     await this.assertTasks([input.taskId], ctx.orgId);
     const employee = await this.assertEmployee(ctx.userId, ctx.orgId);
     try {
-      return await TaskExpense.create({
+      const createdExpense = await TaskExpense.create({
         orgId: ctx.orgId,
         taskId: input.taskId,
         employeeId: employee._id,
@@ -284,6 +312,37 @@ export class FinancialService {
         idempotencyKey: input.idempotencyKey,
         createdBy: ctx.userId,
       });
+
+      // Dispatch Expense Added event asynchronously
+      void Task.findOne({ _id: input.taskId, orgId: ctx.orgId }).lean().exec().then((taskDoc) => {
+        if (taskDoc) {
+          const taskObj = {
+            id: String(taskDoc._id),
+            taskId: taskDoc.taskId,
+            taskName: taskDoc.taskName,
+            clientId: taskDoc.clientId,
+            clientName: taskDoc.clientName,
+            status: taskDoc.status,
+            priority: taskDoc.priority,
+            targetDueDate: taskDoc.targetDueDate,
+            assigneeId: taskDoc.assigneeId,
+            assigneeName: taskDoc.assigneeName,
+            expense_name: input.particulars,
+            expense_amount: (input.amountPaise / 100).toFixed(2),
+            reviewer_name: employee.name || 'Team Member',
+            your_firm_name: 'CA Practice Firm',
+            task_status: taskDoc.status,
+          };
+          void AgentExecutionService.dispatchTaskEvent(
+            ctx.orgId,
+            'Expense Added',
+            taskObj,
+            `expense:${String(createdExpense._id)}`
+          ).catch(() => []);
+        }
+      });
+
+      return createdExpense;
     } catch (error) {
       if (isDuplicateKey(error)) {
         const duplicate = await TaskExpense.findOne({ orgId: ctx.orgId, idempotencyKey: input.idempotencyKey });

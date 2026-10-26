@@ -5,6 +5,7 @@ import { Plus, Mail, MessageCircle, MoreVertical, Calendar, Clock, User, Phone, 
 import { Lead, LeadFollowUpTask } from "@/data/crmData";
 import { useLeadTasks, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useLeadsQuery";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { ComposeModal } from "@/components/email/ComposeModal";
 
 interface LeadTasksTabProps {
   lead: Lead;
@@ -18,6 +19,14 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
   const deleteTaskMutation = useDeleteLeadTask();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({
+    to: "",
+    subject: "",
+    body: "",
+  });
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Helper date formatter
   const formatTaskDate = (d?: string | Date) => {
@@ -56,13 +65,47 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
     window.open(`https://wa.me/${intlNumber}`, "_blank");
   };
 
-  const handleEmailClick = (email?: string) => {
-    const targetEmail = email || lead.email;
-    if (!targetEmail) {
-      alert("No email address available.");
-      return;
+  const handleOpenEmailCompose = (task: any) => {
+    const to = task?.contactEmail || lead.email || "";
+    const clientName = lead.fullName || lead.businessName || "Client";
+    const taskTitle = task?.title || "Follow-up consultation";
+    const subject = `Follow-up: ${taskTitle} - ${lead.businessName || clientName}`;
+    const notesContent = task?.notes ? `Notes: ${task.notes}\n\n` : "";
+
+    const body = `Dear ${clientName},
+
+I hope this email finds you well.
+
+I am following up regarding: ${taskTitle}.
+
+${notesContent}Please let us know if you have any questions or when would be a convenient time to connect.
+
+Best regards,
+Ayatrio Practice`;
+
+    setComposeData({ to, subject, body });
+    setIsComposeOpen(true);
+  };
+
+  const handleSendEmail = async (params: {
+    to: string;
+    cc?: string;
+    subject: string;
+    body: string;
+  }) => {
+    setSendingEmail(true);
+    try {
+      const { send } = await import("@/lib/integrations/gmail");
+      await send(params);
+      return { success: true };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to send email.",
+      };
+    } finally {
+      setSendingEmail(false);
     }
-    window.location.href = `mailto:${targetEmail}?subject=Follow-up%20Ayatrio%20Services`;
   };
 
   return (
@@ -297,7 +340,7 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
                   <span className="text-[11px] font-medium text-gray-400">Contact via</span>
                   <button
                     type="button"
-                    onClick={() => handleEmailClick(task.contactEmail)}
+                    onClick={() => handleOpenEmailCompose(task)}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                   >
                     <Mail className="w-3.5 h-3.5 text-[#31719B]" />
@@ -335,6 +378,19 @@ export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasks
         }}
         onCancel={() => setDeleteTaskId(null)}
       />
+
+      {/* Compose Email Modal */}
+      {isComposeOpen && (
+        <ComposeModal
+          initialTo={composeData.to}
+          initialSubject={composeData.subject}
+          initialHtmlBody={composeData.body}
+          onClose={() => setIsComposeOpen(false)}
+          onSend={handleSendEmail}
+          sending={sendingEmail}
+          zIndex={60}
+        />
+      )}
     </div>
   );
 });

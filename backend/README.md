@@ -17,6 +17,7 @@ An enterprise-ready, high-speed, secure backend engineered with **TypeScript**, 
    - [5.5 Drive Document & Verification Schema](#55-drive-document--verification-schema)
    - [5.6 Statutory Notice Schema](#56-statutory-notice-schema)
    - [5.7 Compliance Matrix Schema](#57-compliance-matrix-schema)
+   - [5.8 Integration Schema & Global Practice Credentials](#58-integration-schema--global-practice-credentials)
 6. [API Endpoints Reference](#6-api-endpoints-reference)
    - [6.1 Task Endpoints (`/api/v1/tasks`)](#61-task-endpoints-apiv1tasks)
    - [6.2 Service Endpoints (`/api/v1/services`)](#62-service-endpoints-apiv1services)
@@ -26,7 +27,8 @@ An enterprise-ready, high-speed, secure backend engineered with **TypeScript**, 
    - [6.6 Notice Endpoints (`/api/v1/notices`)](#66-notice-endpoints-apiv1notices)
    - [6.7 Compliance Endpoints (`/api/v1/compliance`)](#67-compliance-endpoints-apiv1compliance)
    - [6.8 Portal Sync Endpoints (`/api/v1/sync`)](#68-portal-sync-endpoints-apiv1sync)
-   - [6.9 System Health](#69-system-health)
+   - [6.9 Integration Endpoints (`/api/v1/integrations`)](#69-integration-endpoints-apiv1integrations)
+   - [6.10 System Health](#610-system-health)
 7. [Getting Started & Execution](#7-getting-started--execution)
 8. [Environment Configuration](#8-environment-configuration)
 
@@ -117,7 +119,14 @@ backend/
 │   │   │   ├── compliance.service.ts
 │   │   │   ├── compliance.controller.ts
 │   │   │   └── compliance.routes.ts
-│   │   └── sync/                  # Portal Synchronization Engine
+│   │   ├── sync/                  # Portal Synchronization Engine
+│   │   │   └── ...
+│   │   └── integration/           # Global Integration & Practice Credentials
+│   │       ├── integration.interface.ts
+│   │       ├── integration.model.ts
+│   │       ├── integration.service.ts
+│   │       ├── integration.controller.ts
+│   │       └── integration.routes.ts
 │   │       ├── sync.interface.ts
 │   │       ├── sync.model.ts
 │   │       ├── sync.validation.ts
@@ -217,6 +226,11 @@ All entities implement our Mongoose `softDeletePlugin`:
 - **Compliance Entry Model (`compliance-entry.model.ts`)**:
   - `itemId`, `clientId`, `periodKey` (`M04`–`M03`, `Q1`–`Q4`, `ANNUAL`), `financialYear`, `status` (`filed`, `pending`, `missed`), `filedDate`, `acknowledgmentNumber`, `documents`.
 
+### 5.8 Integration Schema & Global Practice Credentials
+- **Integration Model (`integration.model.ts`)**:
+  - `provider` (`'google'`), `email`, `refreshToken`, `accessToken`, `expiryDate`, `scope`.
+  - Securely stores practice-wide refresh tokens in MongoDB to power the global Practice Inbox without relying on client-side session cookies.
+
 ---
 
 ## 6. API Endpoints Reference
@@ -286,6 +300,10 @@ All entities implement our Mongoose `softDeletePlugin`:
 | `DELETE` | `/leads/:id` | Soft-delete lead |
 | `POST` | `/leads/:id/restore` | Restore soft-deleted lead |
 | `POST` | `/leads/:id/convert` | Atomic convert lead into client record |
+| `GET` | `/leads/:id/tasks` | Get all follow-up tasks for a lead |
+| `POST` | `/leads/:id/tasks` | Create a new lead follow-up task |
+| `PATCH` | `/leads/:id/tasks/:taskId` | Update lead follow-up task |
+| `DELETE` | `/leads/:id/tasks/:taskId` | Soft-delete a lead follow-up task |
 
 ### 6.6 Notice Endpoints (`/api/v1/notices`)
 
@@ -318,7 +336,15 @@ All entities implement our Mongoose `softDeletePlugin`:
 | `GET` | `/sync/jobs` | Monitor status of active portal sync jobs |
 | `GET` | `/sync/activity` | Recent sync job logs and activity history |
 
-### 6.9 System Health
+### 6.9 Integration Endpoints (`/api/v1/integrations`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/integrations/:provider` | Retrieve active global provider credentials and status (e.g., `google`) |
+| `POST` | `/integrations/:provider` | Upsert global OAuth tokens and provider configurations into MongoDB |
+| `DELETE` | `/integrations/:provider` | Remove provider integration and disconnect practice inbox |
+
+### 6.10 System Health
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |

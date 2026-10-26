@@ -45,40 +45,40 @@ describe('Agent Center graph validation and test traversal', () => {
     assert.equal(AgentCenterService.validateConfig('Task', { ...baseConfig, workflowGraph: cyclic }).valid, false);
   });
 
-  it('rejects malformed graphs even when saving a draft and blocks unavailable triggers', () => {
+  it('rejects malformed graphs even when saving a draft and blocks invalid triggers and conditions', () => {
     const invalidDraft = createAgentSchema.safeParse({
       name: 'Draft workflow', module: 'Task', config: { workflowGraph: { nodes: [{ id: 'x', type: 'condition', name: 'Check', config: {} }], edges: [] } }, saveDraft: true,
     });
     assert.equal(invalidDraft.success, false);
 
-    const unavailable = AgentCenterService.validateConfig('DSC', {
+    const invalidTrigger = AgentCenterService.validateConfig('DSC', {
       ...baseConfig,
-      trigger: 'DSC expiry approaching',
-      conditions: { daysBeforeExpiry: 30 },
+      trigger: 'Non existent trigger',
     });
-    assert.equal(unavailable.valid, false);
-    assert.match(unavailable.errors.join(' '), /scheduler/i);
-    const dueDateApproaching = AgentCenterService.validateConfig('Task', {
+    assert.equal(invalidTrigger.valid, false);
+    assert.match(invalidTrigger.errors.join(' '), /not available/i);
+
+    const invalidCondition = AgentCenterService.validateConfig('DSC', {
       ...baseConfig,
-      trigger: 'Due Date Approaching',
-      conditions: { daysBeforeDue: 2 },
+      trigger: 'DSC Expiry Approaching',
+      conditions: { daysBeforeExpiry: -5 },
     });
-    assert.equal(dueDateApproaching.valid, false);
-    assert.match(dueDateApproaching.errors.join(' '), /scheduler configuration required/i);
+    assert.equal(invalidCondition.valid, false);
+    assert.match(invalidCondition.errors.join(' '), /whole number/i);
   });
 
-  it('takes the true or false branch using the event record', () => {
+  it('takes the true or false branch using the event record', async () => {
     const graph = branchGraph();
     const firstNode = graph.nodes[0] as WorkflowNode;
     assert.equal(compareCondition(firstNode, { task: { priority: 'High' } }).result, true);
     assert.equal(compareCondition(firstNode, { task: { priority: 'Low' } }).result, false);
 
-    const trueRun = runGraph(graph, { previewOnly: true, task: { priority: 'High' } });
+    const trueRun = await runGraph(graph, { previewOnly: true, task: { priority: 'High' } });
     assert.equal(trueRun.trace[0]?.branch, 'true');
     assert.equal(trueRun.results.length, 1);
     assert.equal(trueRun.results[0]?.simulated, true);
 
-    const falseRun = runGraph(graph, { previewOnly: true, task: { priority: 'Low' } });
+    const falseRun = await runGraph(graph, { previewOnly: true, task: { priority: 'Low' } });
     assert.equal(falseRun.trace[0]?.branch, 'false');
     assert.equal(falseRun.results.length, 0);
   });
@@ -110,7 +110,7 @@ describe('Agent Center graph validation and test traversal', () => {
     assert.equal(AgentCenterService.validateConfig('Task', { ...baseConfig, templateId: 'unlisted-template' }).valid, false);
   });
 
-  it('traverses linear action nodes using their persisted next connections', () => {
+  it('traverses linear action nodes using their persisted next connections', async () => {
     const linear: WorkflowGraph = {
       nodes: [
         { id: 'first', type: 'action', name: 'First', config: { channel: 'Email', recipient: 'Assigned user', action: 'Send notification', subject: 'First', message: 'Hello' } },
@@ -122,7 +122,7 @@ describe('Agent Center graph validation and test traversal', () => {
       ],
     };
     assert.equal(AgentCenterService.validateConfig('Task', { ...baseConfig, workflowGraph: linear }).valid, true);
-    const run = runGraph(linear, { previewOnly: true, task: { taskName: 'Tax filing' } });
+    const run = await runGraph(linear, { previewOnly: true, task: { taskName: 'Tax filing' } });
     assert.deepEqual(run.trace.map((item) => item.nodeId), ['first', 'second']);
     assert.equal(run.results.length, 2);
     assert.equal(run.results[0]?.status, 'simulated');

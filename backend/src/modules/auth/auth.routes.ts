@@ -34,10 +34,18 @@ router.get('/organizations', optionalAuthenticate, AuthController.getAllOrganiza
 router.patch('/organization', authenticate, AuthController.updateOrganization);
 
 // Team Member Management Endpoints
-router.get('/team', AuthController.getTeamMembers);
-router.post('/team', AuthController.createTeamMember);
-router.patch('/team/:id', AuthController.updateTeamMember);
-router.delete('/team/:id', AuthController.deleteTeamMember);
+router.get('/team', optionalAuthenticate, AuthController.getTeamMembers);
+router.post('/team', authenticate, AuthController.createTeamMember);
+router.patch('/team/:id', authenticate, AuthController.updateTeamMember);
+router.delete('/team/:id', authenticate, AuthController.deleteTeamMember);
+
+// Employment Request Endpoints
+router.post('/employment-request', AuthController.requestEmployment);
+router.get('/employment-status', authenticate, AuthController.getEmploymentStatus);
+router.get('/employment-requests', authenticate, AuthController.getEmploymentRequests);
+router.post('/employment-requests/:id/accept', authenticate, AuthController.acceptEmploymentRequest);
+router.post('/employment-requests/:id/reject', authenticate, AuthController.rejectEmploymentRequest);
+router.post('/organization/register', AuthController.register);
 
 export const authRoutes = router;
 

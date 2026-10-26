@@ -30,97 +30,104 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 
-export function getRedirectUri(): string {
-  return (
-    process.env.GOOGLE_REDIRECT_URI ||
-    'http://localhost:3000/api/auth/google/callback'
-  );
+export const BACKEND_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:5001/api/v1';
+
+export function getRedirectUri(request?: NextRequest): string {
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    return process.env.GOOGLE_REDIRECT_URI;
+  }
+  if (request?.nextUrl?.origin) {
+    return `${request.nextUrl.origin}/api/auth/google/callback`;
+  }
+  return 'http://localhost:3000/api/auth/google/callback';
 }
 
-export function generateAuthUrl(state: string): string {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error('Missing GOOGLE_CLIENT_ID');
+/* ── Authorized Practice Email ─────────────────────────────────────── */
+export const AUTHORIZED_PRACTICE_EMAIL =
+  process.env.AUTHORIZED_PRACTICE_EMAIL || 'searchaicloud@gmail.com';
+
+export async function fetchBackendAuthConfig(): Promise<{
+  clientId: string | null;
+  authorizedEmail: string;
+  redirectUri: string;
+  configured: boolean;
+}> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google/auth-config`, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch Google auth config from backend:', err);
+  }
+
+  return {
+    clientId: process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || null,
+    authorizedEmail: AUTHORIZED_PRACTICE_EMAIL,
+    redirectUri: getRedirectUri(),
+    configured: Boolean(process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID),
+  };
+}
+
+export function generateAuthUrl(
+  state: string,
+  loginHint = AUTHORIZED_PRACTICE_EMAIL,
+  clientIdOverride?: string,
+  redirectUriOverride?: string,
+): string {
+  const clientId =
+    clientIdOverride ||
+    process.env.GOOGLE_CLIENT_ID ||
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!clientId) throw new Error('Missing GOOGLE_CLIENT_ID in server environment');
+
+  const redirectUri = redirectUriOverride || getRedirectUri();
+
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: SCOPES.join(' '),
     access_type: 'offline',
     prompt: 'consent',
     state,
+    login_hint: loginHint,
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-export async function exchangeCodeForTokens(code: string): Promise<{
-  access_token: string;
-  refresh_token?: string;
-  scope?: string;
-  token_type?: string;
-  expiry_date?: number;
+export async function exchangeCodeForTokens(
+  code: string,
+  redirectUri?: string,
+): Promise<{
+  email: string;
+  provider: string;
+  connected: boolean;
 }> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
-  }
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch(`${BACKEND_API_URL}/integrations/google/exchange`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: getRedirectUri(),
-      grant_type: 'authorization_code',
+      redirectUri: redirectUri || getRedirectUri(),
     }),
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error_description || data.error || 'Failed to exchange authorization code');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || data.error?.message || 'Failed to exchange authorization code on backend');
   }
 
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    scope: data.scope,
-    token_type: data.token_type,
-    expiry_date: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-  };
-}
-
-export async function refreshAccessToken(refreshToken: string): Promise<{
-  access_token: string;
-  expiry_date?: number;
-}> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
-  }
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error_description || data.error || 'Failed to refresh token');
-  }
-
-  return {
-    access_token: data.access_token,
-    expiry_date: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-  };
+  return data.data;
 }
 
 /* ── Session helpers using AES-256-GCM ──────────────────────────────── */
@@ -186,6 +193,60 @@ export function clearStateCookie(response: NextResponse): void {
   });
 }
 
+export async function saveGlobalIntegrationTokens(data: {
+  email: string;
+  refreshToken: string;
+  accessToken?: string;
+  expiryDate?: number;
+  scope?: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json().catch(() => ({}));
+    return res.ok && Boolean(json.success);
+  } catch (err) {
+    console.error('Failed to save global integration tokens to backend:', err);
+    return false;
+  }
+}
+
+export async function getGlobalIntegration(): Promise<{
+  provider: string;
+  email: string;
+  connected: boolean;
+  authorized?: boolean;
+  needsReconnect?: boolean;
+  updatedAt: string;
+} | null> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.success && json.data ? json.data : null;
+  } catch (err) {
+    console.error('Failed to fetch global integration from backend:', err);
+    return null;
+  }
+}
+
+export async function removeGlobalIntegration(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Failed to remove global integration from backend:', err);
+    return false;
+  }
+}
+
 /* ── Authenticated client helper ───────────────────────────────────── */
 export interface AuthenticatedClient {
   accessToken: string;
@@ -195,27 +256,34 @@ export interface AuthenticatedClient {
 export async function getAuthenticatedClient(
   request?: NextRequest,
 ): Promise<AuthenticatedClient | null> {
-  const session = await getSessionFromCookie(request);
-  if (!session?.access_token && !session?.refresh_token) return null;
-
-  let accessToken = session.access_token;
-  const isExpired = session.expiry_date ? Date.now() >= session.expiry_date - 60000 : false;
-
-  if ((!accessToken || isExpired) && session.refresh_token) {
-    try {
-      const refreshed = await refreshAccessToken(session.refresh_token);
-      accessToken = refreshed.access_token;
-      session.access_token = accessToken;
-      if (refreshed.expiry_date) session.expiry_date = refreshed.expiry_date;
-    } catch {
-      // Refresh failed, continue with existing if present
+  // Check mock dev token for development testing
+  if (process.env.NODE_ENV !== 'production') {
+    const session = await getSessionFromCookie(request);
+    if (session?.access_token === 'mock_token') {
+      return {
+        accessToken: 'mock_token',
+        email: session.email || 'practice@ayatrio.com',
+      };
     }
   }
 
-  if (!accessToken) return null;
+  // Fetch valid, auto-refreshed access token from the backend server
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/google/access-token`, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data?.accessToken) {
+        return {
+          accessToken: json.data.accessToken,
+          email: json.data.email || AUTHORIZED_PRACTICE_EMAIL,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching valid access token from backend:', err);
+  }
 
-  return {
-    accessToken,
-    email: session.email || '',
-  };
+  return null;
 }

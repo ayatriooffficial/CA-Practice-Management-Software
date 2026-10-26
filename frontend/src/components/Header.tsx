@@ -178,12 +178,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               <span
                 suppressHydrationWarning
                 className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
-                  (currentUser.role || "").toLowerCase() === "employee"
+                  (currentUser.role || "").toLowerCase() === "pending" || (currentUser.status || "").toLowerCase() === "pending"
                     ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
+                    : (currentUser.role || "").toLowerCase() === "employee"
+                    ? "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300"
                     : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300"
                 }`}
               >
-                {currentUser.role}
+                {(currentUser.role || "").toLowerCase() === "pending" || (currentUser.status || "").toLowerCase() === "pending"
+                  ? "PENDING"
+                  : currentUser.role}
               </span>
             )}
           </Link>

@@ -3,8 +3,11 @@ import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AgentCenterService } from './agent.service';
 import { AgentExecutionService } from './execution.service';
+import { isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
+import { AgentSchedulerService } from './scheduler.service';
 import { getPublicDefinitions } from './definitions';
 import { AppError } from '../../shared/utils/apiError';
+import { MailService } from '../../shared/utils/mailService';
 
 function organizationId(req: Request): string {
   if (!req.user?.orgId) throw AppError.unauthorized('Organization context is required.');
@@ -13,7 +16,60 @@ function organizationId(req: Request): string {
 
 export class AgentCenterController {
   static definitions = asyncHandler(async (_req: Request, res: Response) => {
-    return ApiResponse.success(res, getPublicDefinitions(), 'Agent definitions fetched successfully');
+    const defs = getPublicDefinitions();
+    const emailStatus = await MailService.getStatus();
+    const whatsappConfigured = isWhatsAppConfigured();
+    const withIntegrations = {
+      ...defs,
+      integrations: {
+        email: {
+          configured: emailStatus.authorized,
+          statusText: emailStatus.statusText,
+          provider: emailStatus.provider,
+          email: emailStatus.email,
+          needsReconnect: emailStatus.needsReconnect,
+          error: emailStatus.error,
+        },
+        whatsapp: {
+          configured: whatsappConfigured,
+          statusText: whatsappConfigured ? 'Connected' : 'Kindly integrate WhatsApp',
+        },
+      },
+    };
+    return ApiResponse.success(res, withIntegrations, 'Agent definitions fetched successfully');
+  });
+
+  static integrationsStatus = asyncHandler(async (_req: Request, res: Response) => {
+    const emailStatus = await MailService.getStatus();
+    const whatsappConfigured = isWhatsAppConfigured();
+    return ApiResponse.success(res, {
+      email: {
+        configured: emailStatus.authorized,
+        statusText: emailStatus.statusText,
+        provider: emailStatus.provider,
+        email: emailStatus.email,
+        needsReconnect: emailStatus.needsReconnect,
+        error: emailStatus.error,
+      },
+      whatsapp: {
+        configured: whatsappConfigured,
+        statusText: whatsappConfigured ? 'Connected' : 'Kindly integrate WhatsApp',
+      },
+    }, 'Integration statuses retrieved');
+  });
+
+  static schedulerTick = asyncHandler(async (req: Request, res: Response) => {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.authorization;
+    const isCronAuthorized = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+    const isUserAuthorized = Boolean(req.user?.orgId);
+
+    if (!isCronAuthorized && !isUserAuthorized) {
+      throw AppError.unauthorized('Unauthorized scheduler invocation.');
+    }
+
+    const summary = await AgentSchedulerService.tick();
+    return ApiResponse.success(res, summary, 'Scheduler tick executed');
   });
 
   static list = asyncHandler(async (req: Request, res: Response) => {
@@ -57,12 +113,30 @@ export class AgentCenterController {
 
   static testRun = asyncHandler(async (req: Request, res: Response) => {
     const idempotencyKey = req.get('Idempotency-Key') || undefined;
+    const { failRecipient, mode, testEmail, messageId } = req.body || {};
+    const isLive = mode === 'live' || Boolean(testEmail) || Boolean(messageId);
+
     const run = await AgentExecutionService.run(req.params.id as string, {
       idempotencyKey,
-      failRecipient: typeof req.body?.failRecipient === 'string' ? req.body.failRecipient : undefined,
+      failRecipient: typeof failRecipient === 'string' ? failRecipient : undefined,
       orgId: organizationId(req),
+      runType: isLive ? 'actual' : 'test',
+      testRecipientEmail: typeof testEmail === 'string' ? testEmail.trim() : undefined,
+      externalExecutionId: typeof messageId === 'string' ? messageId.trim() : undefined,
     });
-    return ApiResponse.created(res, run, 'Simulated test run recorded. No real notification was sent.');
+
+    const isTestEmailSend = Boolean(testEmail);
+    const message = isTestEmailSend
+      ? run.status === 'success'
+        ? `Test email successfully dispatched to ${testEmail}.`
+        : `Execution recorded: ${run.errorMessage || run.result?.message || 'Email delivery failed.'}`
+      : isLive
+        ? run.status === 'success'
+          ? 'Live agent execution completed.'
+          : `Execution recorded: ${run.errorMessage || run.result?.message || 'Execution failed.'}`
+        : 'Simulated test run recorded. No real notification was sent.';
+
+    return ApiResponse.created(res, run, message);
   });
 
   static agentHistory = asyncHandler(async (req: Request, res: Response) => {

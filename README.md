@@ -22,6 +22,8 @@ An enterprise-grade, full-stack practice management and corporate compliance pla
    - [17-Tab Client Detail Suite & Statutory Sub-Modals](#3-17-tab-client-detail-suite--statutory-sub-modals)
    - [Enhanced Services Catalog & Cross-Task Synchronization](#4-enhanced-services-catalog--cross-task-synchronization)
    - [Firm Team Management Directory](#5-firm-team-management-directory)
+   - [Global Practice Inbox & MongoDB Integration Engine](#6-global-practice-inbox--mongodb-integration-engine)
+   - [Lead Tasks & Quick Follow-Up Communication](#7-lead-tasks--quick-follow-up-communication)
 3. [Google Drive Cloud Storage & File Verification Engine](#-google-drive-cloud-storage--file-verification-engine)
    - [OAuth 2.0 Integration & Storage Quota](#1-oauth-20-cloud-sync--quota)
    - [8 Standardized CA Practice Categories](#2-8-standardized-ca-practice-categories)
@@ -49,6 +51,7 @@ An enterprise-grade, full-stack practice management and corporate compliance pla
    - [Notices API (`/api/v1/notices`)](#notices-apiv1notices)
    - [Compliance API (`/api/v1/compliance`)](#compliance-apiv1compliance)
    - [Portal Sync API (`/api/v1/sync`)](#portal-sync-apiv1sync)
+   - [Integrations API (`/api/v1/integrations`)](#integrations-apiv1integrations)
    - [Gmail Integration API (`/api/gmail`)](#gmail-integration-apigmail)
    - [Health Check (`/api/v1/health`)](#health-check-apiv1health)
 7. [Environment Variables Reference](#-environment-variables-reference)
@@ -186,6 +189,18 @@ Expanded the Client module with an enterprise drilldown view ([`ClientDetailView
 ### 5. Firm Team Management Directory
 - Dedicated team directory (`frontend/src/app/team/page.tsx` & `teamData.ts`) displaying firm members, leadership roles (Partners, Senior Managers, Audit Seniors, Tax Associates, Article Assistants), department assignments, active task counts, and contact information.
 
+### 6. Global Practice Inbox & MongoDB Integration Engine
+- **Firm-Wide Shared Credentials**: Securely stores the practice Gmail refresh token in MongoDB (`integrations` collection), enabling all authorized team members to view and send client correspondence from the shared practice email without requiring individual Google logins or browser session cookies.
+- **Strict Single-Account Guard**: Enforces `login_hint: searchaicloud@gmail.com` during Google OAuth authorization and verifies the returned email upon callback, rejecting any personal or unauthorized Google accounts.
+- **Auto-Thread Selection on Inbox Load**: Automatically queries and displays the latest conversation thread when the practice inbox loads.
+- **Sandboxed HTML Email Body Renderer (`HtmlEmailRenderer`)**: Encapsulates external email HTML and CSS inside an auto-resizing sandboxed iframe, preventing third-party styling (such as forced white text or inverted backgrounds) from bleeding into the CRM navigation shell and themes.
+
+### 7. Lead Tasks & Quick Follow-Up Communication
+- **Lead Tasks Suite (`LeadTasksTab.tsx`)**: Provides comprehensive follow-up task scheduling with title, due dates, times, assignees, priorities, contact methods, and status tracking directly within each lead's profile.
+- **In-App Quick Email Composition**: Clicking "Contact via Email" opens the Gmail `ComposeModal` prefilled with the lead's email, subject line, and a standard polite follow-up message formatted in clean plain text without raw HTML tags.
+- **Direct WhatsApp Messaging**: Instant one-click redirect to WhatsApp Web with normalized international phone formatting.
+- **Direct Quotation Mailing**: One-click "Email Quotation" trigger from the Quotation view modal (`QuotationViewModal.tsx`), populating a clean plain-text message with itemized fees, quote reference, and total amount.
+
 ---
 
 ## ☁️ Google Drive Cloud Storage & File Verification Engine
@@ -302,8 +317,9 @@ Ayatrio implements custom, responsive, drag-resizable column borders across all 
 
 ### 4. Leads Pipeline (`/leads`)
 - **Stage Tracking**: `New`, `Contacted`, `Qualified`, `Proposal`, and `Converted`.
-- **Lead-to-Client Conversion**: Instant one-click conversion modal ([`ConvertLeadModal.tsx`](file:///e:/Job%20Task/Ayatrio/frontend/src/components/leads/ConvertLeadModal.tsx)) which provisions a client record while archiving the lead.
+- **Lead-to-Client Conversion**: Instant one-click conversion modal ([`ConvertLeadModal.tsx`](file:///d:/Ayatrio/Final_CRM/CA-Practice-Management-Software/frontend/src/components/leads/ConvertLeadModal.tsx)) which provisions a client record while archiving the lead.
 - **Attachment Uploads**: PAN, Aadhaar, and DIN attachments upload directly into categorized Google Drive folders.
+- **Lead Follow-Up Tasks & Direct Outreach**: Full task timeline management with one-click "Contact via Email" (`ComposeModal`) and WhatsApp quick-launch links.
 
 ### 5. Drive Document Repository (`/drive`)
 - **Dual View Modes**: Switch between responsive Grid view (with image thumbnail banners) and detailed Table view.
@@ -344,11 +360,13 @@ Ayatrio implements custom, responsive, drag-resizable column borders across all 
 - **Financial Year Switcher**: Toggle between active assessment periods (`2025-26`, `2026-27`) with persistent client filtering.
 
 ### 10. Gmail Integration & Client Communication (`/email`)
-- **OAuth 2.0 Google Workspace / Gmail Sync**: Secure token-based integration allowing CA practitioners to link their practice Google accounts.
+- **Global Practice Inbox**: MongoDB-backed OAuth 2.0 integration allowing the entire practice to communicate through a single authorized Google account (`searchaicloud@gmail.com`).
 - **Two-Pane Responsive Inbox**: Split layout featuring a searchable Thread List on the left and full conversation history / message inspector on the right.
+- **Auto-Thread Selection**: Automatically loads and highlights the latest conversation upon entering the inbox.
+- **Sandboxed Style Isolation**: Renders email message bodies inside dynamically sized iframes, preventing incoming email styles from altering CRM typography or color schemes.
 - **Client Correspondence Search**: Real-time search across subject lines, sender names, and body text with unread status indicators.
-- **Compose & Direct Reply Modal**: In-app modal supporting rich-text composition, CC/BCC headers, subject line generation, and immediate transmission through the Gmail API.
-- **Token Management & Disconnect**: Safe session disconnection and token revocation with zero storage of Google account passwords.
+- **Compose & Direct Reply Modal**: In-app modal supporting rich-text composition, CC/BCC headers, subject line generation, quotation email templates, and immediate transmission through the Gmail API.
+- **Global Disconnect & Token Management**: Allows administrators to revoke integration tokens and clear practice credentials from MongoDB in a single action.
 
 ---
 
@@ -430,6 +448,10 @@ All endpoints are versioned under `/api/v1` and return standard JSON structures:
 | `DELETE` | `/leads/:id` | Soft-delete lead |
 | `POST` | `/leads/:id/restore` | Restore soft-deleted lead |
 | `POST` | `/leads/:id/convert` | Convert lead into a Client record and archive lead |
+| `GET` | `/leads/:id/tasks` | Get all follow-up tasks for a lead |
+| `POST` | `/leads/:id/tasks` | Create a follow-up task for a lead |
+| `PATCH` | `/leads/:id/tasks/:taskId` | Update a lead follow-up task |
+| `DELETE` | `/leads/:id/tasks/:taskId` | Soft-delete a lead follow-up task |
 
 ### Notices (`/api/v1/notices`)
 
@@ -461,6 +483,14 @@ All endpoints are versioned under `/api/v1` and return standard JSON structures:
 | `POST` | `/sync/clients` | Trigger batch statutory sync jobs across GSTN, TRACES, and Income Tax portals |
 | `GET` | `/sync/jobs` | Monitor status of active and historical background portal crawl jobs |
 | `GET` | `/sync/activity` | Audit log of recent synchronization requests and portal results |
+
+### Integrations (`/api/v1/integrations`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/integrations/:provider` | Retrieve global integration status and credentials (e.g., `google`) |
+| `POST` | `/integrations/:provider` | Upsert global OAuth tokens and provider settings into MongoDB |
+| `DELETE` | `/integrations/:provider` | Remove global provider integration and disconnect practice inbox |
 
 ### Gmail Integration (`/api/gmail`)
 
@@ -509,6 +539,7 @@ All endpoints are versioned under `/api/v1` and return standard JSON structures:
 | `NEXT_PUBLIC_API_URL` | Optional | `http://localhost:5000/api/v1` | Base address for backend API calls |
 | `GOOGLE_CLIENT_ID` | **Required for Gmail** | — | Google Cloud OAuth 2.0 Web Client ID |
 | `GOOGLE_CLIENT_SECRET` | **Required for Gmail** | — | Google Cloud OAuth 2.0 Web Client Secret |
+| `AUTHORIZED_PRACTICE_EMAIL` | Optional | `searchaicloud@gmail.com` | Strict authorized email address for global practice Gmail integration |
 
 ---
 

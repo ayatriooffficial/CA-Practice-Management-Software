@@ -4,7 +4,10 @@
 
 export interface GmailStatusData {
   connected: boolean;
+  authorized?: boolean;
   email: string | null;
+  needsReconnect?: boolean;
+  reason?: string;
 }
 
 /** Check whether Gmail is connected and return email if so. */
