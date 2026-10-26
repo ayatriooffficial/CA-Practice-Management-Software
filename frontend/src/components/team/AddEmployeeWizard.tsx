@@ -370,7 +370,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${isCompleted
                     ? 'bg-emerald-500 text-white'
                     : isCurrent
-                      ? 'bg-[#3D6A9E] text-white shadow-md shadow-[#3D6A9E]/20'
+                      ? 'bg-[#31719B] text-white shadow-md shadow-[#31719B]/20'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                     }`}
                 >
@@ -383,7 +383,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   )}
                 </div>
                 <div className="hidden sm:block text-left">
-                  <div className={`text-xs font-semibold ${isCurrent ? 'text-[#3D6A9E] dark:text-[#60a5fa]' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <div className={`text-xs font-semibold ${isCurrent ? 'text-[#31719B] dark:text-[#60a5fa]' : 'text-gray-700 dark:text-gray-300'}`}>
                     {st.title}
                   </div>
                   <div className="text-[10px] text-gray-400">{st.sub}</div>
@@ -1144,7 +1144,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-5 py-2 text-xs font-semibold text-white bg-[#3D6A9E] rounded-lg hover:bg-[#315782] transition-colors shadow-sm shadow-[#3D6A9E]/20 cursor-pointer"
+                className="px-5 py-2 text-xs font-semibold text-white bg-[#31719B] rounded-lg hover:bg-[#27597b] transition-colors shadow-sm shadow-[#31719B]/20 cursor-pointer"
               >
                 Next
               </button>

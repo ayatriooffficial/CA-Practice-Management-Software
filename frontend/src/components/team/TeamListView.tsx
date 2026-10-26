@@ -1,6 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  Plus,
+  RotateCcw,
+  X,
+  Pencil,
+  Trash2,
+  MoreVertical,
+  UserX,
+  UserCheck,
+} from 'lucide-react';
 import { EmployeeRecord, TeamRole, UserStatus, getRoleRank } from './types';
 import { teamStore } from './teamStore';
 import { AddEmployeeWizard } from './AddEmployeeWizard';
@@ -131,12 +142,58 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
   };
 
   return (
-    <div className="p-6 space-y-4">
-      {/* Filter and Action Bar */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="text-sm font-bold text-gray-900 dark:text-white pr-2">
-            Users List <span className="text-gray-400 font-normal">({filtered.length})</span>
+    <div className="w-full flex flex-col space-y-4 px-1">
+      {/* Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white py-2">
+            Users ({filtered.length})
+          </h1>
+        </div>
+
+        {!isEmployee && (
+          <div className="flex items-center gap-3 py-2">
+            <button
+              type="button"
+              onClick={handleOpenAddUser}
+              className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Users</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="p-4 bg-white dark:bg-[#1e293b] rounded-lg border border-[#dde2e8] dark:border-[#334155] space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search name, email, phone..."
+              className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs text-[#000000] dark:text-white outline-none focus:border-[#31719B]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Department Filter */}
@@ -146,9 +203,9 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
               setSelectedDept(e.target.value);
               setCurrentPage(1);
             }}
-            className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+            className="h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-medium text-gray-700 dark:text-gray-200 outline-none focus:border-[#31719B]"
           >
-            <option value="All Dept">All Dept</option>
+            <option value="All Dept">All Departments</option>
             <option value="Audit & Taxation">Audit & Taxation</option>
             <option value="Audit">Audit</option>
             <option value="Taxation">Taxation</option>
@@ -164,7 +221,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                 setSelectedRole(e.target.value);
                 setCurrentPage(1);
               }}
-              className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+              className="h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-medium text-gray-700 dark:text-gray-200 outline-none focus:border-[#31719B]"
             >
               <option value="All Roles">All Roles</option>
               <option value="Admin">Admin</option>
@@ -182,7 +239,7 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                 setSelectedStatus(e.target.value as 'All' | UserStatus);
                 setCurrentPage(1);
               }}
-              className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+              className="h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-medium text-gray-700 dark:text-gray-200 outline-none focus:border-[#31719B]"
             >
               <option value="All">All Status</option>
               <option value="Active">Active</option>
@@ -190,86 +247,79 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
               <option value="Resigned">Resigned</option>
             </select>
           )}
-        </div>
 
-        {/* Right side search + Add Button */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 sm:w-64">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
+          {/* Reset Filters */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedDept('All Dept');
+                setSelectedRole('All Roles');
+                setSelectedStatus('All');
                 setCurrentPage(1);
               }}
-              placeholder="Search name, email, phone..."
-              className="w-full text-xs pl-8 pr-3 py-2 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#3D6A9E]/20 focus:border-[#3D6A9E]"
-            />
-            <svg
-              className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+              className="flex items-center gap-1.5 h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-
-          {!isEmployee && (
-            <button
-              onClick={handleOpenAddUser}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm transition-all bg-[#3D6A9E] text-white hover:bg-[#315782] shadow-[#3D6A9E]/20 cursor-pointer"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Add Users</span>
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
             </button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs transition-colors">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-gray-50 dark:bg-[#162032] text-gray-500 dark:text-gray-400 uppercase font-semibold border-b border-gray-200 dark:border-[#334155] select-none">
-              <tr>
-                <th className="py-3 px-3 w-8">
-                  <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] cursor-pointer" />
+      {/* Spreadsheet Table */}
+      <div className="bg-white dark:bg-[#1e293b] shadow-card rounded-lg border border-[#dde2e8] dark:border-[#334155] overflow-hidden flex flex-col">
+        <div className="overflow-x-auto scrollbar-slim">
+          <table className="min-w-full border-separate border-spacing-0 text-left text-xs select-none">
+            <thead>
+              <tr
+                className="text-gray-700 dark:text-gray-300"
+                style={{ backgroundColor: "var(--orange-havy-light)" }}
+              >
+                <th className="sticky left-0 z-30 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center" style={{ backgroundColor: "var(--orange-havy-light)" }}>
+                  <input type="checkbox" className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer" />
                 </th>
-                <th className="py-3 px-4">Name</th>
-                <th className="py-3 px-3">Role</th>
-                <th className="py-3 px-4">Designation</th>
-                <th className="py-3 px-4">Department</th>
-                <th className="py-3 px-3 text-center">Clients</th>
-                <th className="py-3 px-3 text-center">Tasks</th>
-                <th className="py-3 px-3 text-center">Recurring</th>
-                <th className="py-3 px-4">Phone No</th>
-                <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4">Last Punch-In</th>
-                <th className="py-3 px-3">Status</th>
-                {!isEmployee && <th className="py-3 px-3 text-center">Action</th>}
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Name</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Role</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Designation</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Department</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap">Clients</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap">Tasks</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap">Recurring</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Phone No</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Email</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Last Punch-In</th>
+                <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Status</th>
+                {!isEmployee && (
+                  <th
+                    scope="col"
+                    className="sticky right-0 z-30 w-28 min-w-[112px] max-w-[112px] px-3 py-3 font-semibold text-[#000000] dark:text-white border-l border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap"
+                    style={{ backgroundColor: "var(--orange-havy-light)" }}
+                  >
+                    Action
+                  </th>
+                )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
+            <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isEmployee ? 12 : 13} className="py-12 text-center text-gray-400">
+                  <td colSpan={isEmployee ? 12 : 13} className="py-16 text-center text-gray-400 font-medium">
                     No team members found matching your filters.
                   </td>
                 </tr>
               ) : (
                 paginatedEmployees.map((emp) => (
                   <tr key={emp.id} className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors">
-                    <td className="py-3 px-3">
-                      <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] cursor-pointer" />
+                    <td className="sticky left-0 z-20 px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
+                      <input type="checkbox" className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer" />
                     </td>
 
                     {/* Name + Initials */}
-                    <td className="py-3 px-4">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-900 dark:text-white font-medium whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#1e293b] text-[#3D6A9E] dark:text-[#60a5fa] font-bold text-[11px] flex items-center justify-center border border-[#3D6A9E]/20">
+                        <div className="w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#1e293b] text-[#31719B] dark:text-[#3D88BF] font-bold text-[11px] flex items-center justify-center border border-[#31719B]/20">
                           {emp.initials}
                         </div>
                         <span className="font-semibold text-gray-900 dark:text-white">{emp.name}</span>
@@ -277,117 +327,112 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
                     </td>
 
                     {/* Role */}
-                    <td className="py-3 px-3">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full font-medium text-[11px] border ${getRoleBadgeStyle(emp.role)}`}>
                         {emp.role}
                       </span>
                     </td>
 
                     {/* Designation */}
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{emp.designation || '-'}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap">{emp.designation || '-'}</td>
 
                     {/* Department */}
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{emp.department || '-'}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap">{emp.department || '-'}</td>
 
                     {/* Clients */}
-                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300">{emp.clientsCount || '-'}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{emp.clientsCount || '-'}</td>
 
                     {/* Tasks */}
-                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300">{emp.tasksCount || '-'}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{emp.tasksCount || '-'}</td>
 
                     {/* Recurring */}
-                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300">{emp.recurringCount || '-'}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{emp.recurringCount || '-'}</td>
 
                     {/* Phone */}
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{emp.mobile}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 whitespace-nowrap">{emp.mobile}</td>
 
                     {/* Email */}
-                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{emp.email}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-400 whitespace-nowrap">{emp.email}</td>
 
                     {/* Last Punch In */}
-                    <td className="py-3 px-4 text-gray-500 dark:text-gray-400">{emp.lastPunchIn || 'Never'}</td>
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-500 dark:text-gray-400 whitespace-nowrap">{emp.lastPunchIn || 'Never'}</td>
 
                     {/* Status */}
-                    <td className="py-3 px-3">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full font-medium text-[11px] border ${getStatusBadgeStyle(emp.status)}`}>
                         {emp.status}
                       </span>
                     </td>
 
-                    {/* Actions - completely hidden for Employee */}
+                    {/* Sticky Actions */}
                     {!isEmployee && (
-                      <td className="py-3 px-3 text-center relative">
-                        <button
-                          onClick={() => setActiveMenuId(activeMenuId === emp.id ? null : emp.id)}
-                          className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#334155] transition-colors cursor-pointer"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
-
-                      {/* Dropdown Menu */}
-                      {activeMenuId === emp.id && (
-                        <div className="absolute right-4 mt-1 w-44 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-gray-200 dark:border-[#334155] py-1.5 z-20 text-left animate-fadeIn">
+                      <td className="sticky right-0 z-20 w-28 min-w-[112px] max-w-[112px] px-2 py-2 border-l border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
+                        <div className="flex items-center justify-center gap-1">
                           <button
+                            type="button"
                             onClick={() => handleEdit(emp)}
-                            className="w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] flex items-center gap-2 cursor-pointer"
+                            className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] dark:hover:text-[#3D88BF] transition-colors cursor-pointer"
+                            title="Edit Employee"
                           >
-                            <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Edit Employee
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
 
-                          {emp.status === 'Active' ? (
+                          <div className="relative inline-block text-left">
                             <button
-                              onClick={() => handleToggleStatus(emp, 'Deactivated')}
-                              className="w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] flex items-center gap-2 cursor-pointer"
+                              type="button"
+                              onClick={() => setActiveMenuId(activeMenuId === emp.id ? null : emp.id)}
+                              className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                              title="More Options"
                             >
-                              <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                              </svg>
-                              Deactivate User
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
-                          ) : (
-                            <button
-                              onClick={() => handleToggleStatus(emp, 'Active')}
-                              className="w-full px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer"
-                            >
-                              <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Reactivate User
-                            </button>
-                          )}
 
-                          {emp.status !== 'Resigned' && (
-                            <button
-                              onClick={() => handleToggleStatus(emp, 'Resigned')}
-                              className="w-full px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 border-t border-gray-100 dark:border-[#334155] cursor-pointer"
-                            >
-                              <svg className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                              </svg>
-                              Mark as Resigned
-                            </button>
-                          )}
+                            {/* Dropdown Menu */}
+                            {activeMenuId === emp.id && (
+                              <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-[#1e293b] rounded-lg shadow-xl border border-[#dde2e8] dark:border-[#334155] py-1 z-30 text-left animate-in fade-in duration-100">
+                                {emp.status === 'Active' ? (
+                                  <button
+                                    onClick={() => handleToggleStatus(emp, 'Deactivated')}
+                                    className="w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155] flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <UserX className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                                    <span>Deactivate User</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleToggleStatus(emp, 'Active')}
+                                    className="w-full px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    <span>Reactivate User</span>
+                                  </button>
+                                )}
 
-                          <button
-                            onClick={() => {
-                              setActiveMenuId(null);
-                              setEmployeeToDelete(emp);
-                            }}
-                            className="w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 border-t border-gray-100 dark:border-[#334155] cursor-pointer"
-                          >
-                            <svg className="w-3.5 h-3.5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Remove Employee
-                          </button>
+                                {emp.status !== 'Resigned' && (
+                                  <button
+                                    onClick={() => handleToggleStatus(emp, 'Resigned')}
+                                    className="w-full px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 border-t border-[#dde2e8] dark:border-[#334155] cursor-pointer"
+                                  >
+                                    <UserX className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span>Mark as Resigned</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    setActiveMenuId(null);
+                                    setEmployeeToDelete(emp);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 border-t border-[#dde2e8] dark:border-[#334155] cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                                  <span>Remove Employee</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </td>
+                      </td>
                     )}
                   </tr>
                 ))
@@ -396,19 +441,21 @@ export const TeamListView: React.FC<TeamListViewProps> = ({
           </table>
         </div>
 
-        {/* Pagination Footer matching Clients table */}
-        <Pagination
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalItems={filtered.length}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setCurrentPage(1);
-          }}
-          showPageSize={true}
-          pageSizeOptions={[10, 25, 50]}
-        />
+        {/* Pagination Footer */}
+        <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+          <Pagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={filtered.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            showPageSize={true}
+            pageSizeOptions={[10, 25, 50]}
+          />
+        </div>
       </div>
 
       {/* Add / Edit Wizard Modal */}

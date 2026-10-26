@@ -150,7 +150,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
   const actionButtonText = activeTab === 'receipts' ? '+ Record Payment' : '+ Add';
 
   return (
-    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 px-6 py-3.5 bg-white dark:bg-[#1e293b] border-y border-[#e5e7eb] dark:border-[#334155] select-none transition-colors">
+    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 py-1 select-none transition-colors">
       {/* Left Toolbar Controls */}
       <div className="flex items-center gap-2.5 flex-wrap">
         {/* Date Range Dropdown */}
@@ -162,7 +162,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
               setIsCurrencyOpen(false);
               setIsMoreMenuOpen(false);
             }}
-            className="h-10 flex items-center gap-2 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] cursor-pointer shadow-2xs"
+            className="h-10 flex items-center gap-2 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] cursor-pointer shadow-2xs"
           >
             <Calendar className="w-3.5 h-3.5 text-gray-500" />
             <span>{dateRange}</span>
@@ -170,7 +170,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
           </button>
 
           {isDateRangeOpen && (
-            <div className="absolute left-0 mt-1 w-44 rounded-lg shadow-lg bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 mt-1 w-44 rounded-md shadow-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
               {DATE_RANGES.map((range) => (
                 <button
                   key={range}
@@ -180,7 +180,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
                     setIsDateRangeOpen(false);
                   }}
                   className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${dateRange === range
-                      ? 'bg-[#eeedfd] dark:bg-[#3D6A9E]/20 text-[#3D6A9E] font-semibold'
+                      ? 'bg-[#EEF2FF] dark:bg-[#162032] text-[#31719B] dark:text-[#60a5fa] font-semibold'
                       : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155]'
                     }`}
                 >
@@ -192,7 +192,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
         </div>
 
         {/* Financial Year Stepper */}
-        <div className="h-10 flex items-center border border-[#dde2e8] dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] overflow-hidden shadow-2xs">
+        <div className="h-10 flex items-center border border-[#dde2e8] dark:border-[#475569] rounded-md bg-white dark:bg-[#0f172a] overflow-hidden shadow-2xs">
           <button
             type="button"
             onClick={handlePrevFy}
@@ -225,14 +225,14 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
               setIsDateRangeOpen(false);
               setIsMoreMenuOpen(false);
             }}
-            className="h-10 flex items-center gap-2 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] cursor-pointer shadow-2xs"
+            className="h-10 flex items-center gap-2 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] cursor-pointer shadow-2xs"
           >
             <span>{currencyFilter}</span>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
           </button>
 
           {isCurrencyOpen && (
-            <div className="absolute left-0 mt-1 w-40 rounded-lg shadow-lg bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 mt-1 w-40 rounded-md shadow-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
               {CURRENCIES.map((curr) => (
                 <button
                   key={curr}
@@ -242,7 +242,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
                     setIsCurrencyOpen(false);
                   }}
                   className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${currencyFilter === curr
-                      ? 'bg-[#eeedfd] dark:bg-[#3D6A9E]/20 text-[#3D6A9E] font-semibold'
+                      ? 'bg-[#EEF2FF] dark:bg-[#162032] text-[#31719B] dark:text-[#60a5fa] font-semibold'
                       : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#334155]'
                     }`}
                 >
@@ -253,15 +253,29 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
           )}
         </div>
 
+        {/* Status Filter Dropdown */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-10 px-3 text-xs rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#31719B]"
+        >
+          <option value="All">All Status</option>
+          <option value="Receivable">Receivable</option>
+          <option value="Partially Paid">Partially Paid</option>
+          <option value="Paid">Paid</option>
+          <option value="Overdue">Overdue</option>
+          <option value="Void">Void</option>
+        </select>
+
         {/* Clear Filter Indicator if active */}
         {statusFilter !== 'All' && (
           <button
             type="button"
             onClick={() => setStatusFilter('All')}
-            className="h-10 flex items-center gap-1.5 px-3 rounded-lg bg-[#fee2e2] dark:bg-[#451a1a] text-red-600 dark:text-red-300 text-xs font-semibold hover:bg-red-200 cursor-pointer transition-colors"
+            className="h-10 flex items-center gap-1.5 px-3 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-[#dde2e8] dark:border-[#475569] text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Clear filter: {statusFilter}</span>
+            <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
+            <span>Reset Status</span>
           </button>
         )}
       </div>
@@ -276,15 +290,16 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#3D6A9E] focus:ring-1 focus:ring-[#3D6A9E] shadow-2xs"
+            className="w-full h-10 pl-9 pr-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B] shadow-2xs"
           />
         </div>
 
-        {/* Primary Purple Action Button */}
+        {/* Primary Action Button */}
         <button
           type="button"
           onClick={onAddNew}
-          className="h-10 flex items-center gap-1 px-4 rounded-lg bg-[#3D6A9E] hover:bg-[#685dd8] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
+          style={{ backgroundColor: "var(--premium-blue-dark)" }}
+          className="h-10 flex items-center gap-1 px-4 rounded-md text-white text-xs font-semibold shadow-xs hover:opacity-95 transition-all cursor-pointer whitespace-nowrap active:scale-98"
         >
           {actionButtonText}
         </button>
@@ -298,14 +313,14 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
               setIsDateRangeOpen(false);
               setIsCurrencyOpen(false);
             }}
-            className="w-10 h-10 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1e293b] flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+            className="w-10 h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1e293b] flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
             title="More Options"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
 
           {isMoreMenuOpen && (
-            <div className="absolute right-0 mt-1 w-48 rounded-lg shadow-lg bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 mt-1 w-48 rounded-md shadow-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
               <button
                 type="button"
                 onClick={() => {

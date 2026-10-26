@@ -32,8 +32,8 @@ export const InvoiceTabsHeader: React.FC = () => {
   const { activeTab, setActiveTab } = useInvoice();
 
   return (
-    <div className="w-full bg-white dark:bg-[#1e293b] border-b border-[#e5e7eb] dark:border-[#334155] px-6 select-none transition-colors">
-      <nav className="flex items-center gap-2 md:gap-6 overflow-x-auto no-scrollbar h-12" aria-label="Invoice Modules">
+    <div className="w-full bg-white dark:bg-[#1e293b] border-b border-[#dde2e8] dark:border-[#334155] px-4 select-none transition-colors">
+      <nav className="flex items-center gap-2 md:gap-6 overflow-x-auto no-scrollbar h-11" aria-label="Invoice Modules">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -43,8 +43,8 @@ export const InvoiceTabsHeader: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 h-full px-3.5 text-[13px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${isActive
-                  ? 'text-[#3D6A9E] dark:text-[#8276f2]'
+              className={`relative flex items-center gap-2 h-full px-3 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${isActive
+                  ? 'text-[#31719B] dark:text-[#3D88BF]'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
             >
@@ -54,7 +54,7 @@ export const InvoiceTabsHeader: React.FC = () => {
               {/* Active Tab Underline */}
               {isActive && (
                 <div
-                  className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t bg-[#3D6A9E] dark:bg-[#8276f2]"
+                  className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t bg-[#31719B] dark:bg-[#3D88BF]"
                 />
               )}
             </button>

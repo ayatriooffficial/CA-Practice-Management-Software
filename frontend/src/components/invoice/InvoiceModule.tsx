@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { InvoiceProvider, useInvoice } from './InvoiceContext';
 import { InvoiceTabsHeader } from './InvoiceTabsHeader';
-import { SummaryCards } from './SummaryCards';
 import { InvoiceToolbar } from './InvoiceToolbar';
 import { InvoiceTable } from './InvoiceTable';
 import { AddInvoiceForm } from './AddInvoiceForm';
@@ -128,26 +127,23 @@ const InvoiceContent: React.FC = () => {
 
   // Standard List / Analytics View
   return (
-    <div className="w-full flex-1 flex flex-col min-h-[calc(100vh-var(--header-height))] bg-white dark:bg-[#0f172a] select-none transition-colors">
+    <div className="w-full flex-1 flex flex-col space-y-4 animate-in fade-in duration-150">
       {/* Top 5 Tabs Header */}
       <InvoiceTabsHeader />
-      {invoiceLoadError && activeTab !== 'analytics' && <div role="alert" className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">{invoiceLoadError}</div>}
+      {invoiceLoadError && activeTab !== 'analytics' && <div role="alert" className="mx-4 mt-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">{invoiceLoadError}</div>}
 
       {activeTab === 'analytics' ? (
         <AnalyticsView />
       ) : activeTab === 'recurring' ? (
         <RecurringInvoiceView />
       ) : (
-        <>
-          {/* Summary Stat Cards */}
-          <SummaryCards />
-
+        <div className="w-full flex flex-col space-y-4 px-2">
           {/* Action Toolbar */}
           <InvoiceToolbar onAddNew={handleAddNew} />
 
           {/* Data Table */}
           <InvoiceTable onView={handleView} onEdit={handleEdit} />
-        </>
+        </div>
       )}
 
       {/* Record Payment Modal */}
