@@ -1,25 +1,82 @@
-import React, { useState, useMemo } from "react";
-import { Plus, Trash2, ExternalLink, FileText, Search, Eye, Edit3 } from "lucide-react";
-import { ClientLicense } from "@/data/crmData";
+import React, { useState, useMemo, useRef } from "react";
+import { Plus, Trash2, ExternalLink, FileText, Search, Eye, Edit3, Upload, Loader2 } from "lucide-react";
+import { Client, ClientLicense } from "@/data/crmData";
 import { getAvatarBadge } from "./utils";
 import { usePermission } from "../../team/usePermission";
 import { TableActionDropdown, DropdownActionItem } from "@/components/ui/TableActionDropdown";
+import { driveApi, DocumentCategory } from "@/services/driveApi";
+import { clientApi } from "@/services/clientApi";
 
 export interface ClientLicensesTabProps {
+  client?: Client;
   licenses: ClientLicense[];
   setIsAddLicenseOpen: (open: boolean) => void;
   handleDeleteLicense: (licId: string, licName: string) => Promise<void>;
   onEditLicense?: (lic: ClientLicense) => void;
+  onClientUpdated?: (client: Client) => void;
 }
 
 export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
+  client,
   licenses,
   setIsAddLicenseOpen,
   handleDeleteLicense,
   onEditLicense,
+  onClientUpdated,
 }) => {
   const { canDelete } = usePermission();
   const [search, setSearch] = useState("");
+  const [uploadingLicId, setUploadingLicId] = useState<string | null>(null);
+  const [targetLicForUpload, setTargetLicForUpload] = useState<ClientLicense | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerUpload = (lic: ClientLicense) => {
+    setTargetLicForUpload(lic);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !targetLicForUpload || !client) return;
+
+    setUploadingLicId(targetLicForUpload.id || null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", DocumentCategory.COMPLIANCE_MCA);
+      formData.append(
+        "description",
+        `License Document: ${targetLicForUpload.name} (${targetLicForUpload.licenseNo || "No Lic No"})`
+      );
+      formData.append("clientName", client.name);
+      if (client.id) formData.append("clientId", client.id);
+      formData.append("uploadedBy", "Staff");
+
+      const driveRes = await driveApi.uploadDocument(formData);
+      const uploadedFileUrl =
+        driveRes.data?.webViewLink ||
+        driveRes.data?.previewUrl ||
+        (driveRes.data?.driveFileId ? driveApi.getDownloadUrl(driveRes.data.driveFileId) : "");
+
+      const updatePayload = {
+        name: targetLicForUpload.name,
+        file: file.name,
+        fileUrl: uploadedFileUrl,
+        driveFileId: driveRes.data?.driveFileId || null,
+      };
+
+      const res = await clientApi.updateLicense(client.id, targetLicForUpload.id || "", updatePayload);
+      if (res.data && onClientUpdated) {
+        onClientUpdated(res.data);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to upload license to Google Drive");
+    } finally {
+      setUploadingLicId(null);
+      setTargetLicForUpload(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const filteredLicenses = useMemo(() => {
     if (!search.trim()) return licenses;
@@ -156,23 +213,32 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
                         href={lic.fileUrl || lic.file || "#"}
                         target="_blank"
                         rel="noreferrer"
-                        title={`View ${lic.file || lic.name} on Google Drive`}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 text-[11px] transition-colors cursor-pointer"
+                        title={`View ${lic.name} license on Google Drive`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 text-[11px] transition-colors cursor-pointer"
                       >
                         <FileText className="w-3.5 h-3.5 shrink-0" />
                         <span className="max-w-[85px] truncate font-semibold">View File</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
-                    ) : lic.file ? (
-                      <span
-                        title={lic.file}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[11px]"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span className="max-w-[75px] truncate">{lic.file}</span>
-                      </span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <button
+                        type="button"
+                        onClick={() => triggerUpload(lic)}
+                        disabled={uploadingLicId === lic.id}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-dashed border-[#31719B]/40 hover:border-[#31719B] text-[#31719B] dark:text-[#60a5fa] hover:bg-blue-50/50 dark:hover:bg-blue-950/30 text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {uploadingLicId === lic.id ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3 h-3" />
+                            <span>Upload File</span>
+                          </>
+                        )}
+                      </button>
                     )}
                   </td>
 
@@ -184,21 +250,25 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
                   {/* Three-dots Action Menu */}
                   <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
                     {(() => {
-                      const docTarget =
+                      const licenseTarget =
                         lic.fileUrl ||
-                        (lic.file && (lic.file.startsWith("http") || lic.file.startsWith("/")) ? lic.file : null) ||
-                        (lic.url && lic.url !== "-" ? lic.url : null);
+                        (lic.file && (lic.file.startsWith("http") || lic.file.startsWith("/")) ? lic.file : null);
 
                       const actions: DropdownActionItem[] = [
                         {
-                          label: "View Document",
+                          label: "View License",
                           icon: Eye,
-                          disabled: !docTarget,
+                          disabled: !licenseTarget,
                           onClick: () => {
-                            if (docTarget) {
-                              window.open(docTarget, "_blank", "noopener,noreferrer");
+                            if (licenseTarget) {
+                              window.open(licenseTarget, "_blank", "noopener,noreferrer");
                             }
                           },
+                        },
+                        {
+                          label: "Upload License File",
+                          icon: Upload,
+                          onClick: () => triggerUpload(lic),
                         },
                         {
                           label: "Edit",
@@ -223,6 +293,15 @@ export const ClientLicensesTab: React.FC<ClientLicensesTabProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Hidden file input for uploading license document to Google Drive */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </div>
   );
 };

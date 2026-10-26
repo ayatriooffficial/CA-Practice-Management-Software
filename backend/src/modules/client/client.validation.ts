@@ -42,6 +42,8 @@ export const licenseItemSchema = z.object({
   expiryDate: z.string().optional().default(''),
   url: z.string().optional().default(''),
   file: z.string().nullable().optional(),
+  fileUrl: z.string().nullable().optional(),
+  driveFileId: z.string().nullable().optional(),
   remarks: z.string().optional().default(''),
 });
 

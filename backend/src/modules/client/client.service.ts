@@ -735,6 +735,7 @@ export class ClientService {
   static async addLicense(id: string, data: any): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    const fileUrl = data.fileUrl || (data.file && (data.file.startsWith('http') || data.file.startsWith('/')) ? data.file : null);
     const newLicense = {
       id: data.id || `lic-${Date.now()}`,
       name: data.name,
@@ -743,6 +744,8 @@ export class ClientService {
       expiryDate: data.expiryDate || '-',
       url: data.url || '-',
       file: data.file || null,
+      fileUrl: fileUrl,
+      driveFileId: data.driveFileId || null,
       remarks: data.remarks || '',
     };
     client.licenses = client.licenses || [];
@@ -775,6 +778,8 @@ export class ClientService {
         return {
           ...l,
           ...data,
+          fileUrl: data.fileUrl !== undefined ? data.fileUrl : l.fileUrl,
+          driveFileId: data.driveFileId !== undefined ? data.driveFileId : l.driveFileId,
           id: l.id || licenseId,
         };
       }

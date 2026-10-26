@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, X } from 'lucide-react';
 
 export interface DiscardConfirmationModalProps {
@@ -28,7 +29,13 @@ export default function DiscardConfirmationModal({
   cancelText,
   confirmVariant = 'danger',
 }: DiscardConfirmationModalProps) {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const handleCancel = () => {
     if (onCancel) onCancel();
@@ -43,9 +50,9 @@ export default function DiscardConfirmationModal({
   const resolvedConfirmText = confirmText || (onConfirm && !onDiscard ? "Confirm" : "Discard");
   const resolvedCancelText = cancelText || (onCancel && !onKeepEditing ? "Cancel" : "Keep Editing");
 
-  return (
-    /* Outer Overlay */
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+  const modalContent = (
+    /* Outer Overlay - Whole Screen */
+    <div className="fixed inset-0 z-[99999] w-screen h-screen flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
       {/* Modal Card */}
       <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e293b] p-6 shadow-2xl transition-all border border-[#dde2e8] dark:border-[#334155] animate-in zoom-in-95 duration-150 relative">
         {/* Close X */}
@@ -100,6 +107,8 @@ export default function DiscardConfirmationModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 export { DiscardConfirmationModal, DiscardConfirmationModal as ConfirmationModal };

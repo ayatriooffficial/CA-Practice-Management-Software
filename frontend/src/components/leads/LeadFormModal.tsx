@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useId, useMemo } from "react";
+import React, { useState, useEffect, useId, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Upload,
@@ -33,6 +34,11 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
   onClose,
 }) => {
   const isEditing = Boolean(lead?.id);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [formData, setFormData] = useState<Partial<Lead>>(() => {
     if (lead) {
@@ -370,9 +376,11 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  const modalContent = (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="fixed inset-0 z-[9990] w-screen h-screen flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
         <div
           className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-[#111827] dark:text-[#f8fafc]"
           role="dialog"
@@ -1181,4 +1189,6 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
       />
     </>
   );
+
+  return createPortal(modalContent, document.body);
 };

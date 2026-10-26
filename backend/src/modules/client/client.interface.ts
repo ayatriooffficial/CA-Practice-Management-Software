@@ -43,6 +43,8 @@ export interface IClientLicense {
   expiryDate?: string;
   url?: string;
   file?: string | null;
+  fileUrl?: string | null;
+  driveFileId?: string | null;
   remarks?: string;
 }
 

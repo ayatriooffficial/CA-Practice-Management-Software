@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import {
   Service,
@@ -176,12 +177,19 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
     }
   };
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-service-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9990] w-screen h-screen flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
     >
       <div
         className="relative w-full max-w-5xl my-auto bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col max-h-[92vh] overflow-hidden"
@@ -716,4 +724,6 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
       />
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

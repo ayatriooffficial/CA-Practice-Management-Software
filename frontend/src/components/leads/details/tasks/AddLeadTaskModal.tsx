@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Check } from "lucide-react";
 import { Lead } from "@/data/crmData";
 import { TeamMember } from "@/data/teamData";
@@ -18,6 +19,11 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
   taskToEdit,
   onClose,
 }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const createMutation = useCreateLeadTask();
   const updateMutation = useUpdateLeadTask();
 
@@ -150,15 +156,16 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
         contactPhone: lead.mobile,
       };
 
+      const targetLeadId = lead.id || (lead as any)._id;
       if (taskToEdit) {
         await updateMutation.mutateAsync({
-          leadId: lead.id,
+          leadId: targetLeadId,
           taskId: taskToEdit.id || taskToEdit._id,
           data: payload,
         });
       } else {
         await createMutation.mutateAsync({
-          leadId: lead.id,
+          leadId: targetLeadId,
           data: payload,
         });
       }
@@ -171,8 +178,10 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 overflow-y-auto">
+  if (!mounted) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[9990] w-screen h-screen bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
@@ -397,4 +406,6 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

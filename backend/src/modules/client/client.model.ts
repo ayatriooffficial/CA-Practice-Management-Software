@@ -44,6 +44,22 @@ const recurringSchema = new Schema<IRecurringFile>(
   { _id: true }
 );
 
+export const licenseSchema = new Schema(
+  {
+    id: { type: String },
+    name: { type: String, required: true },
+    licenseNo: { type: String, default: '-' },
+    issuedDate: { type: String, default: '-' },
+    expiryDate: { type: String, default: '-' },
+    url: { type: String, default: '-' },
+    file: { type: String, default: null },
+    fileUrl: { type: String, default: null },
+    driveFileId: { type: String, default: null },
+    remarks: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 export const serviceSettingSchema = new Schema(
   {
     id: { type: String },
@@ -209,7 +225,7 @@ const clientSchema = new Schema<IClientDocument>(
       default: [],
     },
     licenses: {
-      type: [Schema.Types.Mixed],
+      type: [licenseSchema],
       default: [],
     },
     dscs: {

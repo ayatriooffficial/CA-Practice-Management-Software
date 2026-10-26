@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { X, Paperclip, Loader2, Mail, AlertCircle } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
@@ -42,6 +43,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [errorMessage, setErrorMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const clearError = (field: string) => {
     if (errors[field]) {
@@ -234,39 +240,19 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
 
-    const selectedClient = clients.find(
+    let selectedClient = clients.find(
       (c) =>
         (c.id && c.id === clientId) ||
         ((c as any)._id && (c as any)._id === clientId) ||
         (c.fileNo && c.fileNo === clientId) ||
         (c.name && c.name.toLowerCase() === clientId.toLowerCase())
     );
-    if (!clientId || !selectedClient) {
-      errs.clientId = "Please select a client from the database.";
+    if (!selectedClient && clients.length > 0) {
+      selectedClient = clients[0];
     }
 
-    if (!serviceId) {
-      errs.serviceId = "Service selection is required.";
-    }
-
-    if (!taskName.trim()) {
-      errs.taskName = "Task Name is required.";
-    }
-
-    if (!assigneeId) {
-      errs.assigneeId = "Assignee is required.";
-    }
-
-    if (!startDate) {
-      errs.startDate = "Start Date is required.";
-    }
-
-    if (!targetDueDate) {
-      errs.targetDueDate = "Target Due Date is required.";
-    }
-
-    if (!endDate) {
-      errs.endDate = "End Date is required.";
+    if (!selectedClient && clients.length === 0 && !isLoadingClients) {
+      errs.clientId = "Please select or create a client first.";
     }
 
     if (startDate && targetDueDate && new Date(startDate) > new Date(targetDueDate)) {
@@ -444,14 +430,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-task-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9990] w-screen h-screen flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
     >
       <div className="relative w-full max-w-5xl bg-[var(--bg-surface)] text-[var(--text-main)] rounded-lg shadow-2xl border border-[var(--border-main)] overflow-hidden my-6">
         {/* Header */}
@@ -489,43 +475,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </div>
         )}
 
-        {/* Requirement Warning & Validation Banner */}
-        {(errorMessage || Object.keys(errors).length > 0) && (
+        {/* Error Banner */}
+        {errorMessage && (
           <div
             id="task-form-error-banner"
-            className="mx-6 mt-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+            className="mx-6 mt-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-3.5 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200 flex items-center gap-2.5"
           >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 flex items-center gap-2">
-                    <span>Required Fields & Validation Warnings</span>
-                    {Object.keys(errors).length > 0 && (
-                      <span className="text-xs bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full font-semibold">
-                        {Object.keys(errors).length} requirement{Object.keys(errors).length > 1 ? "s" : ""} need attention
-                      </span>
-                    )}
-                  </h4>
-                </div>
-
-                {errorMessage && (
-                  <p className="text-xs font-semibold text-rose-800 dark:text-rose-200">
-                    {errorMessage}
-                  </p>
-                )}
-
-                {Object.keys(errors).length > 0 && (
-                  <ul className="list-disc list-inside text-xs space-y-1 text-rose-700 dark:text-rose-300 pt-1">
-                    {Object.entries(errors).map(([key, msg]) => (
-                      <li key={key} className="font-medium">
-                        {msg}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span className="text-xs font-medium text-rose-800 dark:text-rose-200">{errorMessage}</span>
           </div>
         )}
 
@@ -1044,4 +1001,6 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       />
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

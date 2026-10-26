@@ -156,10 +156,12 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
     case "Licenses":
       return (
         <ClientLicensesTab
+          client={client}
           licenses={client.licenses || []}
           setIsAddLicenseOpen={setIsAddLicenseOpen}
           handleDeleteLicense={handleDeleteLicense}
           onEditLicense={onEditLicense}
+          onClientUpdated={onClientUpdated}
         />
       );
 

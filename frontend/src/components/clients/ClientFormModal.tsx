@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Building,
@@ -237,6 +238,11 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
     );
   }, [formData, client]);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const handleCloseAttempt = () => {
     if (isDirty) {
       setShowDiscardConfirm(true);
@@ -245,9 +251,11 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  const modalContent = (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="fixed inset-0 z-[9990] w-screen h-screen flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
         <div
           className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-[#111827] dark:text-[#f8fafc]"
           role="dialog"
@@ -880,4 +888,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
       />
     </>
   );
+
+  return createPortal(modalContent, document.body);
 };
