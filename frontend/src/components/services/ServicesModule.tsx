@@ -31,6 +31,7 @@ import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
 import {
@@ -324,17 +325,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
   return (
     <div className="w-full flex flex-col gap-y-4 animate-in fade-in duration-150">
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[#31719B]/30 bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white animate-in slide-in-from-top-2 duration-200">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white"
-            style={{ backgroundColor: "var(--premium-blue-dark)" }}
-          >
-            <Check className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-sm font-semibold">{toastMessage}</span>
-        </div>
-      )}
+      <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Header Row */}
       <div className="flex flex-wrap items-center justify-between px-4">

@@ -31,6 +31,7 @@ import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Select } from "@/components/ui/Select";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 
 // Dynamically split heavy form and detail drawer from the critical table route
 const ClientForm = dynamic(
@@ -345,17 +346,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
   return (
     <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
       {/* Toast Feedback */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[#31719B]/30 bg-white dark:bg-[#1e293b] text-[#000000] dark:text-white animate-in slide-in-from-top-2 duration-200">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white"
-            style={{ backgroundColor: "var(--premium-blue-dark)" }}
-          >
-            <Check className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-sm font-semibold">{toastMessage}</span>
-        </div>
-      )}
+      <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Header Row */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-1">

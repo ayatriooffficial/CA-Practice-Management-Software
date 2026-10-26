@@ -40,6 +40,7 @@ import { IDocumentItem, DocumentCategory, driveApi } from "@/services/driveApi";
 import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
 import { taskApi } from "@/services/taskApi";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 
 interface TaskInfoPanelProps {
   task: TaskItem;
@@ -728,14 +729,7 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
       {timerError && <p role="alert" className="text-xs text-red-600">{timerError}</p>}
 
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="p-2 rounded bg-gray-900 text-white text-xs flex items-center justify-between shadow-lg animate-fade-in">
-          <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>{toastMessage}</span>
-          </div>
-        </div>
-      )}
+      <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* TAB 1: INFO */}
       {activeRightTab === "Info" && (

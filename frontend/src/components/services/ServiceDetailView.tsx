@@ -37,6 +37,7 @@ import { clientApi } from "@/services/clientApi";
 import { Client, ClientServiceSetting } from "@/data/crmData";
 import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
 import { ServiceDetailViewTabs, AddSubTaskModal, ServiceTabType } from "./ServiceDetailViewTabs";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 import { useToggleClientServiceMutation } from "@/hooks/useServices";
 
 interface ServiceDetailViewProps {
@@ -436,14 +437,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
   return (
     <div className="w-full gap-y-4 animate-in fade-in duration-150">
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[var(--primary)]/30 bg-[var(--bg-surface)] text-[var(--text-main)] animate-in slide-in-from-top-2 duration-200">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white bg-[var(--primary)]">
-            <Check className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-sm font-semibold">{toastMessage}</span>
-        </div>
-      )}
+      <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* 1. Header Card matching Screenshot 1 */}
       <div className="bg-[var(--bg-surface)]  p-5 shadow-xs gap-y-4">

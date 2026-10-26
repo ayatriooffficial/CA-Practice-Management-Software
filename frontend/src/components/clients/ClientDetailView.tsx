@@ -38,6 +38,7 @@ import { clientApi } from "@/services/clientApi";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
 import { ClientDetailViewTabs } from "./ClientDetailViewTabs";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 import { AddLicenseModal } from "./modals/AddLicenseModal";
 import { AddDocumentInOutModal } from "./modals/AddDocumentInOutModal";
 import { AddDscModal } from "./modals/AddDscModal";
@@ -606,17 +607,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   return (
     <div className="w-full flex flex-col  animate-in fade-in duration-200">
       {/* Toast */}
-      {toastMsg && (
-        <div className="fixed top-20 right-6 z-60 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border border-[#31719B]/30 bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white animate-in slide-in-from-top-2 duration-200">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white"
-            style={{ backgroundColor: "var(--premium-blue-dark)" }}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-xs font-semibold">{toastMsg}</span>
-        </div>
-      )}
+      <ToastNotification message={toastMsg} onClose={() => setToastMsg(null)} />
 
       {/* Top Client Header Bar matching Screenshots 1-4 */}
       <div className="bg-white dark:bg-[#1e293b] border-b border-[#dde2e8] dark:border-[#334155] px-6 py-4 flex flex-wrap items-center justify-between gap-4">

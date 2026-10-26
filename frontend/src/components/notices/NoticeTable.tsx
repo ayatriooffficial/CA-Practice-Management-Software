@@ -16,6 +16,7 @@ import { SummaryCards, type SummaryCardItem } from "@/components/common/SummaryC
 import { isNoticeClosed } from "@/lib/statusConfig";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 
 export interface ColumnDef {
   id: string;
@@ -300,17 +301,7 @@ export const NoticeTable: React.FC<NoticeTableProps> = ({
 
   return (
     <div className="flex flex-col gap-4 p-6 w-full flex-1" style={{ backgroundColor: "var(--bg-app)" }}>
-      {toastMessage && (
-        <div
-          className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg text-xs font-semibold shadow-dropdown"
-          style={{
-            backgroundColor: "var(--text-main)",
-            color: "var(--text-inverse)",
-          }}
-        >
-          {toastMessage}
-        </div>
-      )}
+      <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Summary Cards */}
       <SummaryCards

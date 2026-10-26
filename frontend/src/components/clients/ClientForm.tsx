@@ -1723,7 +1723,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
       {/* GSTIN Autofill Dialog */}
       {showGstinModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="w-full max-w-lg rounded-2xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden">
             <div
               className="px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between"
