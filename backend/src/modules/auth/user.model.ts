@@ -9,7 +9,6 @@ const userSchema = new Schema<IUserDocument>(
       type: Schema.Types.ObjectId,
       ref: 'Organization',
       required: true,
-      index: true,
     },
     firmName: {
       type: String,

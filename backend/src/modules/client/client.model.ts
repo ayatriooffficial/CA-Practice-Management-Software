@@ -95,25 +95,21 @@ const clientSchema = new Schema<IClientDocument>(
       type: String,
       required: [true, 'Client/Entity name is required'],
       trim: true,
-      index: true,
     },
     fileNo: {
       type: String,
       required: [true, 'File Number is required'],
       trim: true,
-      index: true,
     },
     type: {
       type: String,
       required: [true, 'Client constitution type is required'],
       trim: true,
-      index: true,
     },
     mobile: {
       type: String,
       required: [true, 'Mobile number is required'],
       trim: true,
-      index: true,
     },
     secondaryMobile: {
       type: String,
@@ -124,7 +120,6 @@ const clientSchema = new Schema<IClientDocument>(
       type: String,
       trim: true,
       lowercase: true,
-      index: true,
       default: '',
     },
     address: {
@@ -159,17 +154,14 @@ const clientSchema = new Schema<IClientDocument>(
       type: String,
       required: [true, 'Client practice group is required'],
       trim: true,
-      index: true,
     },
     tags: {
       type: [String],
       default: [],
-      index: true,
     },
     active: {
       type: Boolean,
       default: true,
-      index: true,
     },
     services: {
       type: [String],
@@ -183,7 +175,6 @@ const clientSchema = new Schema<IClientDocument>(
       type: String,
       trim: true,
       uppercase: true,
-      index: true,
       default: '',
     },
     dob: {
@@ -251,17 +242,14 @@ const clientSchema = new Schema<IClientDocument>(
     orgId: {
       type: String,
       default: null,
-      index: true,
     },
     userId: {
       type: String,
       default: null,
-      index: true,
     },
     createdBy: {
       type: String,
       default: null,
-      index: true,
     },
   },
   {
@@ -284,12 +272,18 @@ const clientSchema = new Schema<IClientDocument>(
 // Apply Soft Delete Plugin
 clientSchema.plugin(softDeletePlugin);
 
-// Compound and Search Indexes
+// Compound and Search Indexes (Production Strategy)
+// 1. Primary lookups
 clientSchema.index({ fileNo: 1, isDeleted: 1 });
 clientSchema.index({ mobile: 1, isDeleted: 1 });
 clientSchema.index({ pan: 1, isDeleted: 1 });
-clientSchema.index({ group: 1, active: 1, isDeleted: 1 });
+
+// 2. Listing & Filters (ESR pattern: isDeleted, filter field, createdAt sort)
+clientSchema.index({ isDeleted: 1, createdAt: -1 });
 clientSchema.index({ type: 1, isDeleted: 1 });
+clientSchema.index({ group: 1, active: 1, isDeleted: 1 });
+clientSchema.index({ active: 1, isDeleted: 1 });
+clientSchema.index({ orgId: 1, isDeleted: 1, createdAt: -1 });
 clientSchema.index(
   {
     name: 'text',

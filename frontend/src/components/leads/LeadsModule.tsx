@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -29,6 +29,8 @@ import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { hydrateLeads } from "@/store/features/leads/leadSlice";
 import {
   useLeads,
   useCreateLead,
@@ -96,14 +98,46 @@ const DEFAULT_HIDDEN = new Set([
 
 export { ALL_LEAD_COLUMNS };
 
-export const LeadsModule: React.FC = () => {
+export interface LeadsInitialData {
+  leads: Lead[];
+  pagination?: {
+    page: number;
+    limit: number;
+    totalDocs: number;
+    totalPages: number;
+    hasNextPage?: boolean;
+    hasPrevPage?: boolean;
+  };
+}
+
+interface LeadsModuleProps {
+  initialData?: LeadsInitialData;
+}
+
+export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
   const { canDelete, canAddEdit } = usePermission();
+  const dispatch = useAppDispatch();
+  const isLoaded = useAppSelector((state) => state.leads.isLoaded);
+
+  // If server passed pre-rendered data and store is not populated yet, prime the store immediately
+  useEffect(() => {
+    if (initialData && !isLoaded && initialData.leads?.length > 0) {
+      dispatch(
+        hydrateLeads({
+          leads: initialData.leads,
+          pagination: initialData.pagination as any,
+          params: { page: 1, limit: initialData.pagination?.limit || 10 },
+        })
+      );
+    }
+  }, [dispatch, initialData, isLoaded]);
+
   // Query parameters state
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [sortKey, setSortKey] = useState<keyof Lead | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [pageSize, setPageSize] = useState<number>(15);
+  const [pageSize, setPageSize] = useState<number>(initialData?.pagination?.limit || 10);
   const [page, setPage] = useState<number>(1);
   const [showDeleted, setShowDeleted] = useState(false);
 
@@ -127,7 +161,7 @@ export const LeadsModule: React.FC = () => {
     minWidth: 80,
   });
 
-  // TanStack Query Hooks
+  // Query Hooks
   const queryParams = useMemo(
     () => ({
       page,
@@ -572,17 +606,69 @@ export const LeadsModule: React.FC = () => {
 
             <tbody>
               {isLoading && leads.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={visibleColumns.length + 2}
-                    className="py-16 text-center text-gray-400 font-medium"
+                Array.from({ length: 8 }).map((_, rIdx) => (
+                  <tr
+                    key={`lead-shimmer-${rIdx}`}
+                    className={`border-b border-[#dde2e8] dark:border-[#334155] ${
+                      rIdx % 2 === 0
+                        ? "bg-white dark:bg-[#1e293b]"
+                        : "bg-[#fafafa] dark:bg-[#192437]"
+                    }`}
                   >
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-[#31719B]" />
-                      <span>Loading real-time leads from server...</span>
-                    </div>
-                  </td>
-                </tr>
+                    {/* Frozen Checkbox Cell */}
+                    <td className="sticky left-0 z-20 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
+                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+
+                    {/* Party Full Name */}
+                    <td
+                      className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
+                      style={{
+                        width: `${getColumnWidth("fullName")}px`,
+                        minWidth: `${getColumnWidth("fullName")}px`,
+                        maxWidth: `${getColumnWidth("fullName")}px`,
+                      }}
+                    >
+                      <div className="h-3.5 w-3/4 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+
+                    {/* Dynamic Columns */}
+                    {dynamicColumns.map((col: LeadColumnDef) => {
+                      const colWidth = getColumnWidth(col.key as string);
+                      return (
+                        <td
+                          key={col.key as string}
+                          className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
+                          style={{
+                            width: `${colWidth}px`,
+                            minWidth: `${colWidth}px`,
+                            maxWidth: `${colWidth}px`,
+                          }}
+                        >
+                          <div
+                            className="h-3.5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer"
+                            style={{
+                              width:
+                                col.key === "pipelineStage"
+                                  ? "60%"
+                                  : col.key === "leadScore"
+                                  ? "40%"
+                                  : "55%",
+                            }}
+                          />
+                        </td>
+                      );
+                    })}
+
+                    {/* Actions Cell */}
+                    <td className="sticky right-0 z-20 px-3 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : leads.length === 0 ? (
                 <tr>
                   <td

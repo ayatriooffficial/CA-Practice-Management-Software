@@ -7,7 +7,6 @@ import { useCreateQuotation } from "@/hooks/useQuotationsQuery";
 import { QuotationItem, QuotationBankDetails } from "@/services/quotationApi";
 import { organizationApi } from "@/services/organizationApi";
 import { serviceApi } from "@/services/serviceApi";
-import { appSyncService } from "@/services/appSyncService";
 
 interface AddQuotationModalProps {
   lead: Lead;
@@ -90,25 +89,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
       taxRate: number;
       description?: string;
     }>
-  >(() => {
-    try {
-      const initial = appSyncService.getServices();
-      return (initial || []).map((s) => {
-        const rawTax = String(s.taxRate || "18").replace("%", "").trim();
-        return {
-          id: s.id || (s as any)._id || s.name,
-          name: s.name,
-          category: s.category || "General",
-          hsn: s.sacCode || "998311",
-          price: Number(s.professionalFee) || 0,
-          taxRate: Number(rawTax) || 18,
-          description: s.description || "",
-        };
-      });
-    } catch {
-      return [];
-    }
-  });
+  >([]);
 
   // Group backend services by category for clean optgroups in dropdown
   const servicesByCategory = useMemo(() => {
@@ -122,57 +103,24 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   }, [orgServices]);
 
   // Line Items State
-  const [items, setItems] = useState<QuotationItem[]>(() => {
-    try {
-      const initial = appSyncService.getServices();
-      if (initial && initial.length > 0) {
-        const first = initial[0];
-        const rawTax = String(first.taxRate || "18").replace("%", "").trim();
-        const taxRate = Number(rawTax) || 18;
-        const price = Number(first.professionalFee) || 0;
-        const tax = (price * taxRate) / 100;
-        return [
-          {
-            id: "item-1",
-            serviceId: first.id || (first as any)._id,
-            serviceName: first.name,
-            hsnSac: first.sacCode || "998311",
-            quantity: 1,
-            price: price,
-            discountType: "percentage",
-            discountValue: 0,
-            taxRate: taxRate,
-            sgst: tax / 2,
-            cgst: tax / 2,
-            igst: 0,
-            amount: price,
-            total: price + tax,
-            description: first.description || "",
-            isReimbursement: false,
-          },
-        ];
-      }
-    } catch {}
-    return [
-      {
-        id: "item-1",
-        serviceName: "",
-        hsnSac: "998311",
-        quantity: 1,
-        price: 0,
-        discountType: "percentage",
-        discountValue: 0,
-        taxRate: 18,
-        sgst: 0,
-        cgst: 0,
-        igst: 0,
-        amount: 0,
-        total: 0,
-        description: "",
-        isReimbursement: false,
-      },
-    ];
-  });
+  const [items, setItems] = useState<QuotationItem[]>([
+    {
+      id: "item-1",
+      serviceId: "",
+      serviceName: "",
+      hsnSac: "998311",
+      quantity: 1,
+      price: 0,
+      discountType: "percentage",
+      discountValue: 0,
+      taxRate: 18,
+      sgst: 0,
+      cgst: 0,
+      igst: 0,
+      amount: 0,
+      total: 0,
+    },
+  ]);
 
   // Calculations
   const calculateItem = (item: QuotationItem): QuotationItem => {

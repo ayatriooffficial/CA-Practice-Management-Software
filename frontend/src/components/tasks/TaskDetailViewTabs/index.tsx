@@ -53,6 +53,20 @@ export interface TaskDetailViewTabsProps {
   onTaskUpdated?: (updatedTask: TaskItem) => void;
 }
 
+const TaskSubTabSkeleton: React.FC = () => (
+  <div className="w-full space-y-3 p-3 animate-in fade-in duration-100">
+    <div className="flex items-center justify-between">
+      <div className="h-5 w-36 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+      <div className="h-7 w-20 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+    </div>
+    <div className="space-y-2">
+      <div className="h-14 bg-gray-100 dark:bg-gray-800/60 rounded-lg border border-[var(--border-main)] animate-pulse" />
+      <div className="h-14 bg-gray-100 dark:bg-gray-800/60 rounded-lg border border-[var(--border-main)] animate-pulse" />
+      <div className="h-14 bg-gray-100 dark:bg-gray-800/60 rounded-lg border border-[var(--border-main)] animate-pulse" />
+    </div>
+  </div>
+);
+
 export const TaskDetailViewTabs: React.FC<TaskDetailViewTabsProps> = ({
   activeSubTab,
   task,
@@ -80,70 +94,78 @@ export const TaskDetailViewTabs: React.FC<TaskDetailViewTabsProps> = ({
   handleSendComment,
   onTaskUpdated,
 }) => {
-  if (activeSubTab === "Linked Emails") {
-    return (
-      <TaskLinkedEmailsTab
-        task={task}
-        onTaskUpdated={onTaskUpdated}
-      />
-    );
-  }
+  const renderTab = () => {
+    if (activeSubTab === "Linked Emails") {
+      return (
+        <TaskLinkedEmailsTab
+          task={task}
+          onTaskUpdated={onTaskUpdated}
+        />
+      );
+    }
 
-  if (activeSubTab === "Checklist") {
-    return (
-      <TaskChecklistTab
-        checklist={task.checklist}
-        isAddChecklistInline={isAddChecklistInline}
-        setIsAddChecklistInline={setIsAddChecklistInline}
-        checklistTitle={checklistTitle}
-        setChecklistTitle={setChecklistTitle}
-        handleAddChecklist={handleAddChecklist}
-        handleToggleChecklist={handleToggleChecklist}
-        handleDeleteChecklist={handleDeleteChecklist}
-      />
-    );
-  }
+    if (activeSubTab === "Checklist") {
+      return (
+        <TaskChecklistTab
+          checklist={task.checklist}
+          isAddChecklistInline={isAddChecklistInline}
+          setIsAddChecklistInline={setIsAddChecklistInline}
+          checklistTitle={checklistTitle}
+          setChecklistTitle={setChecklistTitle}
+          handleAddChecklist={handleAddChecklist}
+          handleToggleChecklist={handleToggleChecklist}
+          handleDeleteChecklist={handleDeleteChecklist}
+        />
+      );
+    }
 
-  if (activeSubTab === "Document Request") {
-    return (
-      <TaskDocumentRequestTab
-        documentRequests={task.documentRequests}
-        isAddDocInline={isAddDocInline}
-        setIsAddDocInline={setIsAddDocInline}
-        docTitle={docTitle}
-        setDocTitle={setDocTitle}
-        handleAddDocRequest={handleAddDocRequest}
-        handleToggleDocRequest={handleToggleDocRequest}
-        handleDeleteDocRequest={handleDeleteDocRequest}
-        handleUploadDocFile={handleUploadDocFile}
-        handleUploadGeneralFile={handleUploadGeneralFile}
-        uploadingDocId={uploadingDocId}
-        uploadError={uploadError}
-      />
-    );
-  }
+    if (activeSubTab === "Document Request") {
+      return (
+        <TaskDocumentRequestTab
+          documentRequests={task.documentRequests}
+          isAddDocInline={isAddDocInline}
+          setIsAddDocInline={setIsAddDocInline}
+          docTitle={docTitle}
+          setDocTitle={setDocTitle}
+          handleAddDocRequest={handleAddDocRequest}
+          handleToggleDocRequest={handleToggleDocRequest}
+          handleDeleteDocRequest={handleDeleteDocRequest}
+          handleUploadDocFile={handleUploadDocFile}
+          handleUploadGeneralFile={handleUploadGeneralFile}
+          uploadingDocId={uploadingDocId}
+          uploadError={uploadError}
+        />
+      );
+    }
 
-  if (activeSubTab === "Task Summary") {
+    if (activeSubTab === "Task Summary") {
+      return (
+        <TaskSummaryTab
+          task={task}
+          handleToggleChecklist={handleToggleChecklist}
+          handleToggleDocRequest={handleToggleDocRequest}
+          commentText={commentText}
+          setCommentText={setCommentText}
+          isSendingComment={isSendingComment}
+          handleSendComment={handleSendComment}
+        />
+      );
+    }
+
     return (
-      <TaskSummaryTab
-        task={task}
-        handleToggleChecklist={handleToggleChecklist}
-        handleToggleDocRequest={handleToggleDocRequest}
+      <TaskCommentsTab
+        comments={task.comments || []}
         commentText={commentText}
         setCommentText={setCommentText}
         isSendingComment={isSendingComment}
         handleSendComment={handleSendComment}
       />
     );
-  }
+  };
 
   return (
-    <TaskCommentsTab
-      comments={task.comments || []}
-      commentText={commentText}
-      setCommentText={setCommentText}
-      isSendingComment={isSendingComment}
-      handleSendComment={handleSendComment}
-    />
+    <React.Suspense fallback={<TaskSubTabSkeleton />}>
+      {renderTab()}
+    </React.Suspense>
   );
 };

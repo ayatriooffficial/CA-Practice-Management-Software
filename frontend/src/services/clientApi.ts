@@ -44,7 +44,7 @@ export const clientApi = {
 
       const query = searchParams.toString();
       const res = await request<Client[]>(`/clients${query ? `?${query}` : ''}`);
-      if (res && res.data && res.data.length > 0) {
+      if (res && res.data) {
         res.data = res.data.map((c: any) => ({
           ...c,
           id: c.id || c._id?.toString() || c._id,
@@ -55,23 +55,11 @@ export const clientApi = {
       // Offline fallback
     }
 
-    const { appSyncService } = await import('./appSyncService');
-    const localClients = appSyncService.getClients();
-    let filtered = [...localClients];
-    if (params.search?.trim()) {
-      const q = params.search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.fileNo && c.fileNo.toLowerCase().includes(q)) ||
-          (c.pan && c.pan.toLowerCase().includes(q))
-      );
-    }
     return {
       success: true,
       statusCode: 200,
-      data: filtered,
-      message: 'Clients retrieved (synced storage)',
+      data: [],
+      message: 'Clients retrieved',
     };
   },
 
@@ -82,90 +70,37 @@ export const clientApi = {
     } catch {
       // Offline fallback
     }
-    const { appSyncService } = await import('./appSyncService');
-    const all = appSyncService.getClients();
+
     return {
       success: true,
       statusCode: 200,
       message: 'Client stats retrieved',
       data: {
-        totalClients: all.length,
-        activeClients: all.filter((c) => c.active).length,
-        inactiveClients: all.filter((c) => !c.active).length,
+        totalClients: 0,
+        activeClients: 0,
+        inactiveClients: 0,
         totalDeleted: 0,
-        byType: [
-          { type: 'private-limited', count: all.filter((c) => c.type === 'private-limited').length },
-          { type: 'individual', count: all.filter((c) => c.type === 'individual').length },
-        ],
-        topGroups: [
-          { group: 'Corporate', count: all.filter((c) => c.group === 'Corporate').length },
-          { group: 'Retail', count: all.filter((c) => c.group === 'Retail').length },
-        ],
+        byType: [],
+        topGroups: [],
       },
     };
   },
 
   getClientById: async (id: string, includeDeleted = false): Promise<ApiResponse<Client>> => {
-    try {
-      const res = await request<Client>(`/clients/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
-      if (res && res.data) {
-        const c: any = res.data;
-        c.id = c.id || c._id?.toString() || c._id;
-        return res;
-      }
-    } catch {
-      // Offline fallback
-    }
-    const { appSyncService } = await import('./appSyncService');
-    const client = appSyncService.getClients().find((c) => c.id === id || c.fileNo === id);
-    if (client) {
-      return {
-        success: true,
-        statusCode: 200,
-        message: 'Client retrieved',
-        data: client,
-      };
+    const res = await request<Client>(`/clients/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
+    if (res && res.data) {
+      const c: any = res.data;
+      c.id = c.id || c._id?.toString() || c._id;
+      return res;
     }
     throw new Error('Client not found');
   },
 
   createClient: async (payload: Partial<Client>): Promise<ApiResponse<Client>> => {
-    try {
-      const res = await request<Client>('/clients', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (res && res.data) {
-        const { appSyncService } = await import('./appSyncService');
-        appSyncService.saveClient(res.data);
-        return res;
-      }
-    } catch (err: any) {
-      if ((err instanceof ApiError && err.statusCode > 0) || (err?.statusCode && err.statusCode > 0)) {
-        throw err;
-      }
-      console.warn('Backend server unreachable, falling back to local storage:', err);
-    }
-    const { appSyncService } = await import('./appSyncService');
-    const newClient: Client = {
-      id: payload.id || `client-${Date.now()}`,
-      fileNo: payload.fileNo || `CLI-${Math.floor(1000 + Math.random() * 9000)}`,
-      name: payload.name || 'New Client',
-      type: payload.type || 'individual',
-      group: payload.group || 'General',
-      active: payload.active ?? true,
-      email: payload.email || '',
-      mobile: payload.mobile || '',
-      pan: payload.pan || '',
-      ...payload,
-    } as Client;
-    appSyncService.saveClient(newClient);
-    return {
-      success: true,
-      statusCode: 201,
-      data: newClient,
-      message: 'Client created (synced)',
-    };
+    return request<Client>('/clients', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   updateClient: async (id: string, payload: Partial<Client>): Promise<ApiResponse<Client>> => {

@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -193,24 +192,63 @@ export default function ProfitabilityReport() {
 
   const rangeError = from && to && from > to ? 'Start Date must be on or before End Date.' : '';
 
-  const query = useQuery({
-    queryKey: ['reports', 'profitability', from, to],
-    queryFn: ({ signal }) => profitabilityReportApi.getRows(from, to, signal),
-    enabled: Boolean(from && to && !rangeError),
-    staleTime: 30_000,
-  });
+  const [reportData, setReportData] = useState<ProfitabilityReportResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [queryError, setQueryError] = useState<any>(null);
+
+  useEffect(() => {
+    if (!from || !to || rangeError) return;
+    let active = true;
+    const controller = new AbortController();
+    setIsLoading(true);
+    profitabilityReportApi.getRows(from, to, controller.signal)
+      .then((data) => {
+        if (active) {
+          setReportData(data);
+          setQueryError(null);
+        }
+      })
+      .catch((err) => {
+        if (active && err.name !== 'AbortError') {
+          setQueryError(err);
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [from, to, rangeError]);
+
+  const query = {
+    data: reportData,
+    isLoading,
+    error: queryError,
+    isError: Boolean(queryError),
+    refetch: () => {
+      if (from && to && !rangeError) {
+        setIsLoading(true);
+        profitabilityReportApi.getRows(from, to)
+          .then((data) => setReportData(data))
+          .catch(setQueryError)
+          .finally(() => setIsLoading(false));
+      }
+    },
+  };
 
   const filteredRows = useMemo(() => {
     const rows = query.data?.rows || [];
     const term = search.trim().toLocaleLowerCase();
     if (!term) return rows;
-    return rows.filter((row) =>
+    return rows.filter((row: ProfitabilityTaskRow) =>
       [
         row.clientName,
         row.taskId,
         row.serviceName,
         row.assigneeName,
-        ...row.employeeCosts.map((employee) => employee.employeeName),
+        ...row.employeeCosts.map((employee: any) => employee.employeeName),
       ].some((value) => value.toLocaleLowerCase().includes(term))
     );
   }, [query.data?.rows, search]);
@@ -602,7 +640,7 @@ export default function ProfitabilityReport() {
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
-                  {paginatedRows.map((row) => {
+                  {paginatedRows.map((row: ProfitabilityTaskRow) => {
                     const isRowDownloading = downloadingClient === (row.clientId || row.clientName);
                     return (
                       <tr

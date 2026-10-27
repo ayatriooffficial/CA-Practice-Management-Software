@@ -500,7 +500,7 @@ export default function AgentList() {
                         <td className="py-4 px-5">
                           <div className="flex flex-wrap gap-1">
                             {recipients.length > 0 ? (
-                              recipients.map((r) => (
+                              recipients.map((r: any) => (
                                 <span
                                   key={String(r)}
                                   className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700"

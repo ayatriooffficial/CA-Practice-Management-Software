@@ -12,8 +12,8 @@ export const subTaskSchema = new Schema(
     percentage: { type: Number, default: 0 },
     completed: { type: Boolean, default: false },
     timeSpent: { type: String, default: '00:00:00' },
-    taskId: { type: String, default: null, index: true },
-    serviceId: { type: String, default: null, index: true },
+    taskId: { type: String, default: null },
+    serviceId: { type: String, default: null },
   },
   { _id: false }
 );
@@ -24,8 +24,8 @@ export const checklistSchema = new Schema(
     title: { type: String, required: true },
     completed: { type: Boolean, default: false },
     isMandatory: { type: Boolean, default: true },
-    taskId: { type: String, default: null, index: true },
-    serviceId: { type: String, default: null, index: true },
+    taskId: { type: String, default: null },
+    serviceId: { type: String, default: null },
   },
   { _id: false }
 );
@@ -43,8 +43,8 @@ export const documentRequestSchema = new Schema(
     isMandatory: { type: Boolean, default: true },
     fileUrl: { type: String, default: '' },
     receivedAt: { type: Date, default: null },
-    taskId: { type: String, default: null, index: true },
-    serviceId: { type: String, default: null, index: true },
+    taskId: { type: String, default: null },
+    serviceId: { type: String, default: null },
   },
   { _id: false }
 );
@@ -126,7 +126,6 @@ const serviceSchema = new Schema<IServiceDocument>(
       type: String,
       required: [true, 'Service Category is required'],
       trim: true,
-      index: true,
     },
     frequency: {
       type: String,
@@ -158,7 +157,6 @@ const serviceSchema = new Schema<IServiceDocument>(
     isRecurring: {
       type: Boolean,
       default: false,
-      index: true,
     },
     recurringSchedule: {
       type: recurringScheduleSchema,
@@ -246,7 +244,6 @@ const serviceSchema = new Schema<IServiceDocument>(
       type: String,
       enum: ['Active', 'Inactive', 'Draft'],
       default: 'Active',
-      index: true,
     },
     orgId: {
       type: String,
@@ -281,11 +278,13 @@ const serviceSchema = new Schema<IServiceDocument>(
 // Apply soft delete plugin
 serviceSchema.plugin(softDeletePlugin);
 
-// Compound indexes for high-speed queries
+// Compound indexes for high-speed queries (Production Strategy)
+serviceSchema.index({ isDeleted: 1, createdAt: -1 });
 serviceSchema.index({ category: 1, isDeleted: 1 });
 serviceSchema.index({ isRecurring: 1, isDeleted: 1 });
 serviceSchema.index({ status: 1, isDeleted: 1 });
-serviceSchema.index({ createdAt: -1, isDeleted: 1 });
+serviceSchema.index({ frequency: 1, isDeleted: 1 });
+serviceSchema.index({ orgId: 1, isDeleted: 1, createdAt: -1 });
 
 // Full text search index
 serviceSchema.index(

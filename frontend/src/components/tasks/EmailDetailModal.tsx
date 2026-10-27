@@ -102,7 +102,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
             </div>
           ) : (
             <div className="space-y-6">
-              {messages.map((msg, idx) => (
+              {messages.map((msg: any, idx: number) => (
                 <div
                   key={msg.id || idx}
                   className="rounded-xl border border-[var(--border-main)] bg-[var(--bg-card)] shadow-xs overflow-hidden"
@@ -145,7 +145,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
                         <Paperclip className="w-3.5 h-3.5" /> Attachments ({msg.attachments.length})
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {msg.attachments.map((att, aIdx) => (
+                        {msg.attachments.map((att: any, aIdx: number) => (
                           <div
                             key={aIdx}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] text-[var(--text-main)]"

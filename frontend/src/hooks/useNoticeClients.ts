@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Portal } from '@/types/notices';
 import { noticeApi, type NoticeClient } from '@/services/noticeApi';
 
@@ -13,23 +13,39 @@ export interface UseNoticeClientsOptions {
   sort?: string;
 }
 
-export const NOTICE_CLIENT_QUERY_KEYS = {
-  all: ['notice-clients'] as const,
-  list: (params: UseNoticeClientsOptions) => [...NOTICE_CLIENT_QUERY_KEYS.all, params] as const,
-};
-
 export function useNoticeClients(options: UseNoticeClientsOptions = {}) {
-  const query = useQuery({
-    queryKey: NOTICE_CLIENT_QUERY_KEYS.list(options),
-    queryFn: () => noticeApi.getClients(options).then((response) => response.data),
-  });
+  const [data, setData] = useState<{
+    data: NoticeClient[];
+    counts: { all: number; notices: number; issues: number; gst: number; it: number; tds: number };
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
+
+  const optionsKey = useMemo(() => JSON.stringify(options), [options]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await noticeApi.getClients(options);
+      setData(response.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [optionsKey]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return {
-    clients: query.data?.data ?? [],
-    counts: query.data?.counts ?? { all: 0, notices: 0, issues: 0, gst: 0, it: 0, tds: 0 },
-    loading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    clients: data?.data ?? [],
+    counts: data?.counts ?? { all: 0, notices: 0, issues: 0, gst: 0, it: 0, tds: 0 },
+    loading,
+    error,
+    refetch: fetchData,
   };
 }
 

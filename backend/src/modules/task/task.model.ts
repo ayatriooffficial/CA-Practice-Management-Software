@@ -129,7 +129,6 @@ export const taskSchema = new Schema<ITaskDocument>(
       type: String,
       required: [true, 'Assignee name is required'],
       trim: true,
-      index: true,
     },
     assigneeInitials: {
       type: String,
@@ -209,7 +208,6 @@ export const taskSchema = new Schema<ITaskDocument>(
         'Cancelled',
       ],
       default: 'Pending',
-      index: true,
     },
     description: {
       type: String,
@@ -310,9 +308,13 @@ export const taskSchema = new Schema<ITaskDocument>(
 
 taskSchema.plugin(softDeletePlugin);
 
-// Compound indexes for optimal query speeds
-taskSchema.index({ status: 1, category: 1 });
-taskSchema.index({ assigneeName: 1, status: 1 });
-taskSchema.index({ createdAt: -1 });
+// Compound indexes for optimal query speeds (Production Strategy)
+taskSchema.index({ taskId: 1 }, { unique: true });
+taskSchema.index({ isDeleted: 1, createdAt: -1 });
+taskSchema.index({ status: 1, category: 1, isDeleted: 1 });
+taskSchema.index({ assigneeName: 1, status: 1, isDeleted: 1 });
+taskSchema.index({ clientId: 1, isDeleted: 1 });
+taskSchema.index({ targetDueDate: 1, isDeleted: 1 });
+taskSchema.index({ orgId: 1, isDeleted: 1, createdAt: -1 });
 
 export const Task = model<ITaskDocument, ISoftDeleteModel<ITaskDocument>>('Task', taskSchema);

@@ -1,269 +1,343 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { leadApi, LeadQueryParams, ConvertLeadPayload } from '@/services/leadApi';
+import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchLeadsRequest,
+  fetchLeadStatsRequest,
+  createLeadRequest,
+  updateLeadRequest,
+  deleteLeadRequest,
+  convertLeadRequest,
+  fetchLeadByIdRequest,
+} from '@/store/features/leads/leadSlice';
+import { fetchClientsRequest } from '@/store/features/clients/clientSlice';
+import { LeadQueryParams, ConvertLeadPayload, leadApi } from '@/services/leadApi';
 import { Lead } from '@/data/crmData';
-import { localSyncManager, SYNC_KEYS } from '@/services/localSyncManager';
-
-export const LEAD_QUERY_KEYS = {
-  all: ['leads'] as const,
-  lists: () => [...LEAD_QUERY_KEYS.all, 'list'] as const,
-  list: (params: LeadQueryParams) => [...LEAD_QUERY_KEYS.lists(), params] as const,
-  details: () => [...LEAD_QUERY_KEYS.all, 'detail'] as const,
-  detail: (id: string) => [...LEAD_QUERY_KEYS.details(), id] as const,
-  stats: () => [...LEAD_QUERY_KEYS.all, 'stats'] as const,
-};
 
 /**
- * Fetch paginated, filtered, and searched leads with local-first cache
+ * Fetch paginated, filtered, and searched leads using Redux Toolkit & Saga
+ * In-memory caching: Fetches once per parameter configuration, renders instantly from state on tab returns.
  */
 export function useLeads(params: LeadQueryParams = {}) {
-  return useQuery({
-    queryKey: LEAD_QUERY_KEYS.list(params),
-    queryFn: async () => {
-      try {
-        const response = await leadApi.getLeads(params);
-        if (response.data && Array.isArray(response.data)) {
-          // Sync server response directly to local storage cache
-          localSyncManager.setCached(SYNC_KEYS.LEADS, response.data);
-        }
-        return {
-          leads: response.data || [],
-          pagination: response.pagination || {
-            page: params.page || 1,
-            limit: params.limit || 15,
-            totalDocs: response.data?.length || 0,
-            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / (params.limit || 15))),
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        };
-      } catch (error) {
-        // Fallback to real local cache (zero dummy data)
-        const cached = localSyncManager.getCached<Lead>(SYNC_KEYS.LEADS);
-        return {
-          leads: cached,
-          pagination: {
-            page: 1,
-            limit: params.limit || 15,
-            totalDocs: cached.length,
-            totalPages: Math.max(1, Math.ceil(cached.length / (params.limit || 15))),
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        };
-      }
+  const dispatch = useAppDispatch();
+  const { items, pagination, loading, error, isLoaded, currentParams } = useAppSelector(
+    (state) => state.leads
+  );
+
+  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
+
+  useEffect(() => {
+    const isSameParams = JSON.stringify(currentParams) === paramsKey;
+
+    // If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
+    if (isLoaded && isSameParams) {
+      return;
+    }
+
+    dispatch(fetchLeadsRequest(params));
+  }, [dispatch, paramsKey, isLoaded, currentParams]);
+
+  const refetch = useCallback(() => {
+    dispatch(fetchLeadsRequest(params));
+  }, [dispatch, params]);
+
+  return {
+    data: {
+      leads: items,
+      pagination,
     },
-    placeholderData: keepPreviousData,
-    staleTime: 60 * 1000,
-  });
+    isLoading: loading && !isLoaded,
+    isFetching: loading,
+    error: error ? new Error(error) : null,
+    refetch,
+  };
 }
 
 /**
  * Fetch lead conversion and pipeline metrics
  */
 export function useLeadStats() {
-  return useQuery({
-    queryKey: LEAD_QUERY_KEYS.stats(),
-    queryFn: async () => {
-      const response = await leadApi.getLeadStats();
-      return response.data;
-    },
-    staleTime: 2 * 60 * 1000,
-  });
+  const dispatch = useAppDispatch();
+  const { stats, loading, error } = useAppSelector((state) => state.leads);
+
+  useEffect(() => {
+    dispatch(fetchLeadStatsRequest());
+  }, [dispatch]);
+
+  return {
+    data: stats,
+    isLoading: loading,
+    error: error ? new Error(error) : null,
+    refetch: () => dispatch(fetchLeadStatsRequest()),
+  };
 }
 
 /**
- * Mutation: Create new lead (with local cache update)
+ * Mutation: Create new lead via Redux Saga
  */
 export function useCreateLead() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.leads.mutating);
 
-  return useMutation({
-    mutationFn: (newLead: Partial<Lead>) => leadApi.createLead(newLead),
-    onSuccess: (res) => {
-      if (res?.data) {
-        localSyncManager.upsertItem(SYNC_KEYS.LEADS, res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    (newLead: Partial<Lead>) => {
+      return new Promise<{ data: Lead }>((resolve, reject) => {
+        dispatch(
+          createLeadRequest({
+            data: newLead,
+            onSuccess: (lead) => resolve({ data: lead }),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (newLead: Partial<Lead>) => mutateAsync(newLead),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
- * Mutation: Update existing lead (with local cache update)
+ * Mutation: Update existing lead via Redux Saga
  */
 export function useUpdateLead() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.leads.mutating);
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Lead> }) =>
-      leadApi.updateLead(id, data),
-    onSuccess: (res, variables) => {
-      if (res?.data) {
-        localSyncManager.upsertItem(SYNC_KEYS.LEADS, res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    ({ id, data }: { id: string; data: Partial<Lead> }) => {
+      return new Promise<{ data: Lead }>((resolve, reject) => {
+        dispatch(
+          updateLeadRequest({
+            id,
+            data,
+            onSuccess: (lead) => resolve({ data: lead }),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (payload: { id: string; data: Partial<Lead> }) => mutateAsync(payload),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
- * Mutation: Soft delete lead (with local cache update)
+ * Mutation: Soft delete lead via Redux Saga
  */
 export function useDeleteLead() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.leads.mutating);
 
-  return useMutation({
-    mutationFn: (id: string) => leadApi.softDeleteLead(id),
-    onSuccess: (_, id) => {
-      localSyncManager.removeItem(SYNC_KEYS.LEADS, id);
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    (id: string) => {
+      return new Promise<void>((resolve, reject) => {
+        dispatch(
+          deleteLeadRequest({
+            id,
+            onSuccess: () => resolve(),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (id: string) => mutateAsync(id),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
  * Mutation: Restore soft-deleted lead
  */
 export function useRestoreLead() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => leadApi.restoreLead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async (id: string) => {
+      const res = await leadApi.restoreLead(id);
+      dispatch(fetchLeadsRequest());
+      return res;
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
- * Mutation: Convert Lead to Client
+ * Mutation: Convert Lead to Client via Redux Saga
  */
 export function useConvertLead() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.leads.mutating);
 
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: ConvertLeadPayload }) =>
-      leadApi.convertLead(id, payload),
-    onSuccess: () => {
-      // Invalidate both leads and clients to maintain state synchronization
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.stats() });
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+  const mutateAsync = useCallback(
+    ({ id, payload }: { id: string; payload: ConvertLeadPayload }) => {
+      return new Promise<any>((resolve, reject) => {
+        dispatch(
+          convertLeadRequest({
+            id,
+            payload,
+            onSuccess: (res) => {
+              dispatch(fetchClientsRequest());
+              resolve(res);
+            },
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (payload: { id: string; payload: ConvertLeadPayload }) => mutateAsync(payload),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
  * Fetch single lead details
  */
 export function useLeadById(id: string | null | undefined) {
-  return useQuery({
-    queryKey: LEAD_QUERY_KEYS.detail(id || ''),
-    queryFn: async () => {
-      if (!id) return null;
-      const res = await leadApi.getLeadById(id);
-      return res.data;
-    },
-    enabled: Boolean(id),
-    staleTime: 30 * 1000,
-  });
+  const dispatch = useAppDispatch();
+  const leadFromStore = useAppSelector((state) =>
+    id ? state.leads.items.find((l) => l.id === id) || state.leads.selectedLead : null
+  );
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchLeadByIdRequest(id));
+    }
+  }, [dispatch, id]);
+
+  return {
+    data: leadFromStore,
+    isLoading: false,
+    refetch: () => id && dispatch(fetchLeadByIdRequest(id)),
+  };
 }
 
 /**
  * Fetch lead follow-up tasks
  */
 export function useLeadTasks(leadId: string | null | undefined) {
-  return useQuery({
-    queryKey: ['lead-tasks', leadId],
-    queryFn: async () => {
-      if (!leadId) return [];
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchTasks = useCallback(async () => {
+    if (!leadId) return;
+    setLoading(true);
+    try {
       const res = await leadApi.getLeadTasks(leadId);
-      return res.data || [];
-    },
-    enabled: Boolean(leadId),
-    staleTime: 30 * 1000,
-  });
+      setTasks(res.data || []);
+    } catch {
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  return {
+    data: tasks,
+    isLoading: loading,
+    refetch: fetchTasks,
+  };
 }
 
 /**
  * Mutation: Create lead follow-up task
  */
 export function useCreateLeadTask() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ leadId, data }: { leadId: string; data: any }) =>
-      leadApi.createLeadTask(leadId, data),
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['lead-tasks', vars.leadId] });
+  return {
+    mutateAsync: async ({ leadId, data }: { leadId: string; data: any }) => {
+      return leadApi.createLeadTask(leadId, data);
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
  * Mutation: Update lead follow-up task
  */
 export function useUpdateLeadTask() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ leadId, taskId, data }: { leadId: string; taskId: string; data: any }) =>
-      leadApi.updateLeadTask(leadId, taskId, data),
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['lead-tasks', vars.leadId] });
+  return {
+    mutateAsync: async ({
+      leadId,
+      taskId,
+      data,
+    }: {
+      leadId: string;
+      taskId: string;
+      data: any;
+    }) => {
+      return leadApi.updateLeadTask(leadId, taskId, data);
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
  * Mutation: Delete lead follow-up task
  */
 export function useDeleteLeadTask() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ leadId, taskId }: { leadId: string; taskId: string }) =>
-      leadApi.deleteLeadTask(leadId, taskId),
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['lead-tasks', vars.leadId] });
+  return {
+    mutateAsync: async ({ leadId, taskId }: { leadId: string; taskId: string }) => {
+      return leadApi.deleteLeadTask(leadId, taskId);
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
  * Mutation: Add detail note to lead
  */
 export function useAddLeadNote() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ leadId, note, author }: { leadId: string; note: string; author?: string }) =>
-      leadApi.addLeadNote(leadId, note, author),
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.detail(vars.leadId) });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async ({
+      leadId,
+      note,
+      author,
+    }: {
+      leadId: string;
+      note: string;
+      author?: string;
+    }) => {
+      const res = await leadApi.addLeadNote(leadId, note, author);
+      if (leadId) {
+        dispatch(fetchLeadByIdRequest(leadId));
+      }
+      return res;
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
  * Mutation: Delete detail note from lead
  */
 export function useDeleteLeadNote() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ leadId, noteId }: { leadId: string; noteId: string }) =>
-      leadApi.deleteLeadNote(leadId, noteId),
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.detail(vars.leadId) });
-      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEYS.lists() });
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async ({ leadId, noteId }: { leadId: string; noteId: string }) => {
+      const res = await leadApi.deleteLeadNote(leadId, noteId);
+      if (leadId) {
+        dispatch(fetchLeadByIdRequest(leadId));
+      }
+      return res;
     },
-  });
+    isPending: false,
+  };
 }
-

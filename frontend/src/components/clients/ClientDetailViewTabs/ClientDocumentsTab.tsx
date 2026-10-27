@@ -23,7 +23,6 @@ import { Service } from "@/data/serviceData";
 import { getAvatarBadge } from "./utils";
 import { taskApi } from "@/services/taskApi";
 import { serviceApi } from "@/services/serviceApi";
-import { appSyncService } from "@/services/appSyncService";
 import { driveApi, IDocumentItem } from "@/services/driveApi";
 import { usePermission } from "../../team/usePermission";
 import { TableActionDropdown, DropdownActionItem } from "@/components/ui/TableActionDropdown";

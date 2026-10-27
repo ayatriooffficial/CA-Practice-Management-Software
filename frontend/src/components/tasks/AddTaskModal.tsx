@@ -11,7 +11,6 @@ import { teamStore } from "@/components/team/teamStore";
 import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail } from "@/data/taskData";
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
-import { appSyncService } from "@/services/appSyncService";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 export interface AddTaskInitialData {

@@ -1,117 +1,221 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { agentCenterApi } from '@/services/agentCenterApi';
-import { AgentConfigDraft, AgentFilters, AgentModule } from '@/types/agentCenter';
+"use client";
 
-export const AGENT_CENTER_KEYS = {
-  all: ['agent-center'] as const,
-  lists: () => [...AGENT_CENTER_KEYS.all, 'list'] as const,
-  list: (filters: AgentFilters = {}) => [...AGENT_CENTER_KEYS.lists(), filters] as const,
-  detail: (id: string) => [...AGENT_CENTER_KEYS.all, 'detail', id] as const,
-  history: () => [...AGENT_CENTER_KEYS.all, 'history'] as const,
-  agentHistory: (id: string) => [...AGENT_CENTER_KEYS.history(), id] as const,
-};
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { agentCenterApi } from '@/services/agentCenterApi';
+import { Agent, AgentConfigDraft, AgentFilters, AgentModule, AgentRun } from '@/types/agentCenter';
 
 export function useAgents(filters: AgentFilters = {}, enabled = true) {
-  return useQuery({
-    queryKey: AGENT_CENTER_KEYS.list(filters),
-    queryFn: () => agentCenterApi.listAgents(filters),
-    staleTime: 30 * 1000,
-    enabled,
-    retry: false,
-  });
+  const [data, setData] = useState<Agent[]>([]);
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [error, setError] = useState<any>(null);
+
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
+  const refetch = useCallback(async () => {
+    if (!enabled) return;
+    setIsLoading(true);
+    try {
+      const res = await agentCenterApi.listAgents(filters);
+      setData(res);
+      setError(null);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [enabled, filtersKey]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
 }
 
 export function useAgent(id: string) {
-  return useQuery({
-    queryKey: AGENT_CENTER_KEYS.detail(id),
-    queryFn: () => agentCenterApi.getAgent(id),
-    enabled: Boolean(id),
-  });
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(id));
+  const [error, setError] = useState<any>(null);
+
+  const refetch = useCallback(async () => {
+    if (!id) return;
+    setIsLoading(true);
+    try {
+      const res = await agentCenterApi.getAgent(id);
+      setData(res);
+      setError(null);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
 }
 
 export function useAgentHistory(id: string) {
-  return useQuery({
-    queryKey: AGENT_CENTER_KEYS.agentHistory(id),
-    queryFn: () => agentCenterApi.getAgentHistory(id),
-    enabled: Boolean(id),
-  });
+  const [data, setData] = useState<AgentRun[]>([]);
+  const [isLoading, setIsLoading] = useState(Boolean(id));
+  const [error, setError] = useState<any>(null);
+
+  const refetch = useCallback(async () => {
+    if (!id) return;
+    setIsLoading(true);
+    try {
+      const res = await agentCenterApi.getAgentHistory(id);
+      setData(res);
+      setError(null);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
 }
 
 export function useAgentGlobalHistory(limit = 100) {
-  return useQuery({
-    queryKey: [...AGENT_CENTER_KEYS.history(), 'global', limit],
-    queryFn: () => agentCenterApi.getHistory(limit),
-  });
-}
+  const [data, setData] = useState<AgentRun[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
 
-function invalidateAgentData(queryClient: ReturnType<typeof useQueryClient>, id?: string) {
-  void queryClient.invalidateQueries({ queryKey: AGENT_CENTER_KEYS.lists() });
-  void queryClient.invalidateQueries({ queryKey: AGENT_CENTER_KEYS.history() });
-  if (id) void queryClient.invalidateQueries({ queryKey: AGENT_CENTER_KEYS.detail(id) });
-  if (id) void queryClient.invalidateQueries({ queryKey: AGENT_CENTER_KEYS.agentHistory(id) });
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await agentCenterApi.getHistory(limit);
+      setData(res);
+      setError(null);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [limit]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
 }
 
 export function useCreateAgent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: { name: string; module: AgentModule; description: string; config: AgentConfigDraft; saveDraft?: boolean }) => agentCenterApi.createAgent(payload),
-    onSuccess: () => invalidateAgentData(queryClient),
-  });
+  const [isPending, setIsPending] = useState(false);
+  return {
+    mutateAsync: async (payload: { name: string; module: AgentModule; description: string; config: AgentConfigDraft; saveDraft?: boolean }) => {
+      setIsPending(true);
+      try {
+        return await agentCenterApi.createAgent(payload);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    isPending,
+  };
 }
 
 export function useUpdateAgent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<{ name: string; module: AgentModule; description: string; config: AgentConfigDraft; saveDraft: boolean }> }) => agentCenterApi.updateAgent(id, payload),
-    onSuccess: (agent) => invalidateAgentData(queryClient, agent.id),
-  });
+  const [isPending, setIsPending] = useState(false);
+  return {
+    mutateAsync: async ({ id, payload }: { id: string; payload: Partial<{ name: string; module: AgentModule; description: string; config: AgentConfigDraft; saveDraft: boolean }> }) => {
+      setIsPending(true);
+      try {
+        return await agentCenterApi.updateAgent(id, payload);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    isPending,
+  };
 }
 
 export function usePublishAgent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => agentCenterApi.publishAgent(id),
-    onSuccess: (agent) => invalidateAgentData(queryClient, agent.id),
-  });
+  const [isPending, setIsPending] = useState(false);
+  return {
+    mutateAsync: async (id: string) => {
+      setIsPending(true);
+      try {
+        return await agentCenterApi.publishAgent(id);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    isPending,
+  };
 }
 
 export function useDisableAgent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => agentCenterApi.disableAgent(id),
-    onSuccess: (agent) => invalidateAgentData(queryClient, agent.id),
-  });
+  const [isPending, setIsPending] = useState(false);
+  return {
+    mutateAsync: async (id: string) => {
+      setIsPending(true);
+      try {
+        return await agentCenterApi.disableAgent(id);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    isPending,
+  };
 }
 
 export function useDeleteAgent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => agentCenterApi.deleteAgent(id),
-    onSuccess: () => invalidateAgentData(queryClient),
-  });
+  const [isPending, setIsPending] = useState(false);
+  return {
+    mutateAsync: async (id: string) => {
+      setIsPending(true);
+      try {
+        return await agentCenterApi.deleteAgent(id);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    isPending,
+  };
 }
 
 export function useTestRunAgent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (variables: string | { id: string; testEmail?: string; mode?: 'test' | 'live'; failRecipient?: string; messageId?: string }) => {
-      const id = typeof variables === 'string' ? variables : variables.id;
-      const options = typeof variables === 'string' ? undefined : {
-        testEmail: variables.testEmail,
-        mode: variables.mode,
-        failRecipient: variables.failRecipient,
-        messageId: variables.messageId,
-      };
-      return agentCenterApi.testRunAgent(id, options);
+  const [isPending, setIsPending] = useState(false);
+  return {
+    mutateAsync: async (variables: string | { id: string; testEmail?: string; mode?: 'test' | 'live'; failRecipient?: string; messageId?: string }) => {
+      setIsPending(true);
+      try {
+        const id = typeof variables === 'string' ? variables : variables.id;
+        const options = typeof variables === 'string' ? undefined : {
+          testEmail: variables.testEmail,
+          mode: variables.mode,
+          failRecipient: variables.failRecipient,
+          messageId: variables.messageId,
+        };
+        return await agentCenterApi.testRunAgent(id, options);
+      } finally {
+        setIsPending(false);
+      }
     },
-    onSuccess: (run) => invalidateAgentData(queryClient, run.agentId),
-  });
+    isPending,
+  };
 }
 
 export function useIntegrationsStatus() {
-  return useQuery({
-    queryKey: ['agentCenter', 'integrationsStatus'],
-    queryFn: () => agentCenterApi.getIntegrationsStatus(),
-    staleTime: 15000,
-  });
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    agentCenterApi.getIntegrationsStatus()
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  return { data, isLoading };
 }

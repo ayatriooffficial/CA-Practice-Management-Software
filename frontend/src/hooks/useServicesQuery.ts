@@ -1,182 +1,181 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { serviceApi, ServiceQueryParams } from '@/services/serviceApi';
+import { useEffect, useCallback, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchServicesRequest,
+  fetchServiceStatsRequest,
+  createServiceRequest,
+  updateServiceRequest,
+  deleteServiceRequest,
+} from '@/store/features/services/serviceSlice';
+import { fetchClientsRequest } from '@/store/features/clients/clientSlice';
+import { ServiceQueryParams, serviceApi } from '@/services/serviceApi';
 import { Service } from '@/data/serviceData';
-import { localSyncManager, SYNC_KEYS } from '@/services/localSyncManager';
-
-export const SERVICE_QUERY_KEYS = {
-  all: ['services'] as const,
-  lists: () => [...SERVICE_QUERY_KEYS.all, 'list'] as const,
-  list: (params: ServiceQueryParams) => [...SERVICE_QUERY_KEYS.lists(), params] as const,
-  details: () => [...SERVICE_QUERY_KEYS.all, 'detail'] as const,
-  detail: (id: string) => [...SERVICE_QUERY_KEYS.details(), id] as const,
-  stats: () => [...SERVICE_QUERY_KEYS.all, 'stats'] as const,
-};
 
 /**
- * Fetch paginated, filtered, and searched services with local-first cache
+ * Fetch paginated, filtered, and searched services using Redux Toolkit & Saga
+ * In-memory caching: Fetches once per parameter configuration, renders instantly from state on tab returns.
  */
 export function useServices(params: ServiceQueryParams = {}) {
-  return useQuery({
-    queryKey: SERVICE_QUERY_KEYS.list(params),
-    queryFn: async () => {
-      try {
-        const response = await serviceApi.getServices(params);
-        if (response.data && Array.isArray(response.data)) {
-          localSyncManager.setCached(SYNC_KEYS.SERVICES, response.data);
-        }
-        return {
-          services: response.data || [],
-          pagination: response.pagination || {
-            page: params.page || 1,
-            limit: params.limit || 10,
-            totalDocs: response.data?.length || 0,
-            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / (params.limit || 10))),
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        };
-      } catch (error) {
-        // Fallback to real local cache (zero dummy data)
-        let filtered = localSyncManager.getCached<Service>(SYNC_KEYS.SERVICES);
-        if (params.search?.trim()) {
-          const q = params.search.toLowerCase().trim();
-          filtered = filtered.filter(
-            (s) =>
-              s.name.toLowerCase().includes(q) ||
-              s.category.toLowerCase().includes(q) ||
-              (s.sacCode && s.sacCode.toLowerCase().includes(q))
-          );
-        }
-        if (params.category) {
-          filtered = filtered.filter((s) => s.category === params.category);
-        }
-        if (params.frequency) {
-          filtered = filtered.filter((s) => s.frequency === params.frequency);
-        }
-        if (params.difficulty) {
-          filtered = filtered.filter((s) => s.difficulty === params.difficulty);
-        }
-        if (params.isRecurring !== undefined) {
-          filtered = filtered.filter((s) => s.isRecurring === params.isRecurring);
-        }
-        if (params.status) {
-          filtered = filtered.filter((s) => s.status === params.status);
-        }
+  const dispatch = useAppDispatch();
+  const { items, pagination, loading, error, isLoaded, currentParams } = useAppSelector(
+    (state) => state.services
+  );
 
-        const page = params.page || 1;
-        const limit = params.limit || 10;
-        const start = (page - 1) * limit;
-        const paginated = filtered.slice(start, start + limit);
+  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
 
-        return {
-          services: paginated,
-          pagination: {
-            page,
-            limit,
-            totalDocs: filtered.length,
-            totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
-            hasNextPage: start + limit < filtered.length,
-            hasPrevPage: page > 1,
-          },
-        };
-      }
+  useEffect(() => {
+    const isSameParams = JSON.stringify(currentParams) === paramsKey;
+
+    // If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
+    if (isLoaded && isSameParams) {
+      return;
+    }
+
+    dispatch(fetchServicesRequest(params));
+  }, [dispatch, paramsKey, isLoaded, currentParams]);
+
+  const refetch = useCallback(() => {
+    dispatch(fetchServicesRequest(params));
+  }, [dispatch, params]);
+
+  return {
+    data: {
+      services: items,
+      pagination,
     },
-    placeholderData: keepPreviousData,
-    staleTime: 60 * 1000,
-  });
+    isLoading: loading && !isLoaded,
+    isFetching: loading,
+    error: error ? new Error(error) : null,
+    refetch,
+  };
 }
 
 /**
  * Fetch service catalog analytics
  */
 export function useServiceStats() {
-  return useQuery({
-    queryKey: SERVICE_QUERY_KEYS.stats(),
-    queryFn: async () => {
-      const response = await serviceApi.getServiceStats();
-      return response.data;
-    },
-    staleTime: 2 * 60 * 1000,
-  });
+  const dispatch = useAppDispatch();
+  const { stats, loading, error } = useAppSelector((state) => state.services);
+
+  useEffect(() => {
+    dispatch(fetchServiceStatsRequest());
+  }, [dispatch]);
+
+  return {
+    data: stats,
+    isLoading: loading,
+    error: error ? new Error(error) : null,
+    refetch: () => dispatch(fetchServiceStatsRequest()),
+  };
 }
 
 /**
- * Mutation: Create new service (with local cache update)
+ * Mutation: Create new service via Redux Saga
  */
 export function useCreateService() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.services.mutating);
 
-  return useMutation({
-    mutationFn: (newService: Partial<Service>) => serviceApi.createService(newService),
-    onSuccess: (res) => {
-      if (res?.data) {
-        localSyncManager.upsertItem(SYNC_KEYS.SERVICES, res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    (newService: Partial<Service>) => {
+      return new Promise<{ data: Service }>((resolve, reject) => {
+        dispatch(
+          createServiceRequest({
+            data: newService,
+            onSuccess: (service) => resolve({ data: service }),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (newService: Partial<Service>) => mutateAsync(newService),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
- * Mutation: Update existing service (with local cache update)
+ * Mutation: Update existing service via Redux Saga
  */
 export function useUpdateService() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.services.mutating);
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Service> }) =>
-      serviceApi.updateService(id, data),
-    onSuccess: (res, variables) => {
-      if (res?.data) {
-        localSyncManager.upsertItem(SYNC_KEYS.SERVICES, res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    ({ id, data }: { id: string; data: Partial<Service> }) => {
+      return new Promise<{ data: Service }>((resolve, reject) => {
+        dispatch(
+          updateServiceRequest({
+            id,
+            data,
+            onSuccess: (service) => resolve({ data: service }),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (payload: { id: string; data: Partial<Service> }) => mutateAsync(payload),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
- * Mutation: Soft delete service (with local cache update)
+ * Mutation: Soft delete service via Redux Saga
  */
 export function useDeleteService() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.services.mutating);
 
-  return useMutation({
-    mutationFn: (id: string) => serviceApi.softDeleteService(id),
-    onSuccess: (_, id) => {
-      localSyncManager.removeItem(SYNC_KEYS.SERVICES, id);
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    (id: string) => {
+      return new Promise<void>((resolve, reject) => {
+        dispatch(
+          deleteServiceRequest({
+            id,
+            onSuccess: () => resolve(),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (id: string) => mutateAsync(id),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
  * Mutation: Restore soft-deleted service
  */
 export function useRestoreService() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => serviceApi.restoreService(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.stats() });
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async (id: string) => {
+      const res = await serviceApi.restoreService(id);
+      dispatch(fetchServicesRequest());
+      return res;
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
  * Mutation: Toggle client recurring service compliance status
  */
 export function useToggleClientServiceMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async ({
       serviceId,
       clientId,
       enabled,
@@ -184,12 +183,12 @@ export function useToggleClientServiceMutation() {
       serviceId: string;
       clientId: string;
       enabled: boolean;
-    }) => serviceApi.toggleClientService(serviceId, clientId, enabled),
-    onSuccess: (_, variables) => {
-      // Refresh services, clients, and compliance queries
-      queryClient.invalidateQueries({ queryKey: SERVICE_QUERY_KEYS.all });
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['compliance'] });
+    }) => {
+      const res = await serviceApi.toggleClientService(serviceId, clientId, enabled);
+      dispatch(fetchServicesRequest());
+      dispatch(fetchClientsRequest());
+      return res;
     },
-  });
+    isPending: false,
+  };
 }

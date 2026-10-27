@@ -35,7 +35,7 @@ export const LinkEmailModal: React.FC<LinkEmailModalProps> = ({
     if (!searchTerm.trim()) return threads;
     const term = searchTerm.toLowerCase();
     return threads.filter(
-      (t) =>
+      (t: ThreadListItem) =>
         t.subject?.toLowerCase().includes(term) ||
         t.from?.toLowerCase().includes(term) ||
         t.snippet?.toLowerCase().includes(term),
@@ -145,7 +145,7 @@ export const LinkEmailModal: React.FC<LinkEmailModalProps> = ({
               </p>
             </div>
           ) : (
-            filteredThreads.map((thread) => {
+            filteredThreads.map((thread: ThreadListItem) => {
               const alreadyLinked = isThreadAlreadyLinked(thread.id);
               const isSelected = selectedThread?.id === thread.id;
 

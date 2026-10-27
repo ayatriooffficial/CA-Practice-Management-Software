@@ -6,7 +6,6 @@ import {
   INITIAL_TASKS,
   LinkedEmail,
 } from '@/data/taskData';
-import { localSyncManager, SYNC_KEYS } from './localSyncManager';
 
 export interface TaskQueryParams {
   page?: number;
@@ -26,15 +25,14 @@ export interface TaskQueryParams {
   clientName?: string;
 }
 
-function getStoredTasks(): TaskItem[] {
-  return localSyncManager.getCached<TaskItem>(SYNC_KEYS.TASKS);
-}
+let fallbackTasks: TaskItem[] = [];
 
-let fallbackTasks: TaskItem[] = getStoredTasks();
+function getStoredTasks(): TaskItem[] {
+  return fallbackTasks;
+}
 
 function saveStoredTasks(tasks: TaskItem[]): void {
   fallbackTasks = tasks;
-  localSyncManager.setCached(SYNC_KEYS.TASKS, tasks);
 }
 
 export const taskApi = {

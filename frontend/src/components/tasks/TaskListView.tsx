@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Zap,
@@ -36,6 +36,7 @@ import { usePermission } from "@/components/team/usePermission";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
+import { useTasks, useTaskStats } from "@/hooks/useTasksQuery";
 
 interface TaskListViewProps {
   onOpenAddTask: () => void;
@@ -54,20 +55,6 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
   const employeeName = currentUser?.name || "";
 
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [stats, setStats] = useState<TaskStats>({
-    wip: 0,
-    pending: 0,
-    inProgress: 0,
-    sentForReview: 0,
-    requestChanges: 0,
-    overdue: 0,
-    completed: 0,
-    readyToBill: 0,
-    cancelled: 0,
-    allTasks: 0,
-  });
-
   // Filters
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
   const [selectedQuickFilter, setSelectedQuickFilter] = useState<string>("All Tasks");
@@ -80,7 +67,6 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   const [selectedPeriod, setSelectedPeriod] = useState<string>("All Period");
   const [search, setSearch] = useState<string>("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   // Bulk Delete State & Toast
@@ -157,41 +143,54 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
     document.removeEventListener("mouseup", onMouseUp);
   };
 
-  // Fetch tasks and KPI stats
-  const fetchTasks = async () => {
-    setIsLoading(true);
-    try {
-      const activeAssignee = isEmployee
-        ? (currentUser?.name || employeeName)
-        : selectedAssignee;
+  const activeAssignee = isEmployee
+    ? (currentUser?.name || employeeName)
+    : selectedAssignee;
 
-      const [tasksRes, statsRes] = await Promise.all([
-        taskApi.getTasks({
-          category: selectedCategory,
-          quickFilter: selectedQuickFilter,
-          status: selectedStatusFilter || undefined,
-          assigneeName: activeAssignee,
-          department: selectedDept,
-          period: selectedPeriod !== "All Period" ? selectedPeriod : undefined,
-          search,
-          sortBy: selectedSort === "Created Date" ? "createdAt" : "targetDueDate",
-          sortOrder: "desc",
-        }),
-        taskApi.getTaskStats(selectedCategory),
-      ]);
+  const taskQueryParams = useMemo(
+    () => ({
+      category: selectedCategory,
+      quickFilter: selectedQuickFilter,
+      status: selectedStatusFilter || undefined,
+      assigneeName: activeAssignee,
+      department: selectedDept,
+      period: selectedPeriod !== "All Period" ? selectedPeriod : undefined,
+      search,
+      sortBy: (selectedSort === "Created Date" ? "createdAt" : "targetDueDate") as "createdAt" | "targetDueDate",
+      sortOrder: "desc" as const,
+    }),
+    [
+      selectedCategory,
+      selectedQuickFilter,
+      selectedStatusFilter,
+      activeAssignee,
+      selectedDept,
+      selectedPeriod,
+      search,
+      selectedSort,
+    ]
+  );
 
-      if (tasksRes.data) {
-        setTasks(tasksRes.data);
-      }
-      if (statsRes.data) {
-        setStats(statsRes.data);
-      }
-    } catch {
-      // Handled in api fallback
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: taskData, isLoading, refetch: fetchTasks } = useTasks(taskQueryParams);
+  const { data: statsData } = useTaskStats(selectedCategory);
+
+  const tasks = useMemo(() => taskData?.tasks || [], [taskData?.tasks]);
+  const stats = useMemo(
+    () =>
+      statsData || {
+        wip: 0,
+        pending: 0,
+        inProgress: 0,
+        sentForReview: 0,
+        requestChanges: 0,
+        overdue: 0,
+        completed: 0,
+        readyToBill: 0,
+        cancelled: 0,
+        allTasks: 0,
+      },
+    [statsData]
+  );
 
   const handleGenerateInvoice = (task: TaskItem) => {
     const trackedHrs = Number(task.trackedHours) || 3.5;
@@ -252,7 +251,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   const displayTasks = isEmployee
-    ? tasks.filter((t) => {
+    ? tasks.filter((t: TaskItem) => {
         const myName = (currentUser?.name || employeeName).toLowerCase().trim();
         const tAssignee = (t.assigneeName || "").toLowerCase().trim();
         const myId = currentUser?.id || (currentUser as any)?._id;
@@ -268,19 +267,6 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
       setSelectedAssignee(currentUser?.name || employeeName);
     }
   }, [isEmployee, currentUser?.name, employeeName]);
-
-  useEffect(() => {
-    fetchTasks();
-  }, [
-    selectedCategory,
-    selectedQuickFilter,
-    selectedStatusFilter,
-    selectedDept,
-    selectedAssignee,
-    selectedSort,
-    selectedPeriod,
-    search,
-  ]);
 
   useEffect(() => {
     teamStore
@@ -327,7 +313,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedTaskIds(tasks.map((t) => t.id));
+      setSelectedTaskIds(tasks.map((t: TaskItem) => t.id));
     } else {
       setSelectedTaskIds([]);
     }
@@ -802,14 +788,69 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
             </thead>
 
             <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-main)]">
-              {displayTasks.length === 0 ? (
+              {isLoading && displayTasks.length === 0 ? (
+                Array.from({ length: 8 }).map((_, rIdx) => (
+                  <tr
+                    key={`task-shimmer-${rIdx}`}
+                    className={rIdx % 2 === 0 ? "bg-[var(--bg-surface)]" : "bg-[var(--bg-muted)]"}
+                  >
+                    {/* Checkbox */}
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="w-3.5 h-3.5 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* ID */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-3 w-12 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Task Name */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-3.5 w-3/4 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Business Name */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-3.5 w-2/3 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* PAN */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-3 w-16 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Legal Name */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-3.5 w-1/2 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Assignee */}
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                        <div className="h-3 w-14 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                      </div>
+                    </td>
+                    {/* Target Date */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-3 w-16 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Priority */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-4 w-12 rounded-full bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Status */}
+                    <td className="py-2.5 px-3">
+                      <div className="h-4 w-16 rounded-full bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                    {/* Actions */}
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+                  </tr>
+                ))
+              ) : displayTasks.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-[var(--text-placeholder)] text-xs">
                     No tasks found matching your filters.
                   </td>
                 </tr>
               ) : (
-                displayTasks.map((task) => {
+                displayTasks.map((task: TaskItem) => {
                   const isChecked = selectedTaskIds.includes(task.id);
                   const isHexId = (val?: string) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(val));
                   const properClientName =

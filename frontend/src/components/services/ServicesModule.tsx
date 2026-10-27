@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -34,6 +34,8 @@ import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { hydrateServices } from "@/store/features/services/serviceSlice";
 import {
   useServices,
   useCreateService,
@@ -53,14 +55,43 @@ const ServiceDetailView = dynamic(
   { ssr: false }
 );
 
+export interface ServicesInitialData {
+  services: Service[];
+  pagination?: {
+    page: number;
+    limit: number;
+    totalDocs: number;
+    totalPages: number;
+    hasNextPage?: boolean;
+    hasPrevPage?: boolean;
+  };
+}
+
 interface ServicesModuleProps {
   initialMode?: "list" | "create";
+  initialData?: ServicesInitialData;
 }
 
 export const ServicesModule: React.FC<ServicesModuleProps> = ({
   initialMode = "list",
+  initialData,
 }) => {
   const { canDelete, canAddEdit } = usePermission();
+  const dispatch = useAppDispatch();
+  const isLoaded = useAppSelector((state) => state.services.isLoaded);
+
+  // If server passed pre-rendered data and store is not populated yet, prime the store immediately
+  useEffect(() => {
+    if (initialData && !isLoaded && initialData.services?.length > 0) {
+      dispatch(
+        hydrateServices({
+          services: initialData.services,
+          pagination: initialData.pagination as any,
+          params: { page: 1, limit: initialData.pagination?.limit || 10 },
+        })
+      );
+    }
+  }, [dispatch, initialData, isLoaded]);
   // Page View Mode ("list", "detail", or full second page "create")
   const [viewMode, setViewMode] = useState<"list" | "create" | "detail">(initialMode);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -570,17 +601,61 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
             </thead>
 
             <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={ALL_SERVICE_COLUMNS.length + 2} className="px-6 py-16 text-center">
-                    <div className="flex flex-col items-center justify-center gap-3">
-                      <Loader2 className="w-7 h-7 animate-spin text-[#31719B]" />
-                      <span className="text-sm font-medium text-gray-500">
-                        Loading service catalog...
-                      </span>
-                    </div>
-                  </td>
-                </tr>
+              {isLoading && services.length === 0 ? (
+                Array.from({ length: 8 }).map((_, rIdx) => (
+                  <tr
+                    key={`service-shimmer-${rIdx}`}
+                    className={`border-b border-[#dde2e8] dark:border-[#334155] ${
+                      rIdx % 2 === 0
+                        ? "bg-white dark:bg-[#1e293b]"
+                        : "bg-[#fafafa] dark:bg-[#192437]"
+                    }`}
+                  >
+                    {/* Frozen Checkbox Cell */}
+                    <td className="sticky left-0 z-20 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
+                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+
+                    {/* Columns */}
+                    {ALL_SERVICE_COLUMNS.map((col) => {
+                      const colKey = col.key as string;
+                      const colWidth = getColumnWidth(colKey);
+                      return (
+                        <td
+                          key={colKey}
+                          className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
+                          style={{
+                            width: `${colWidth}px`,
+                            minWidth: `${colWidth}px`,
+                            maxWidth: `${colWidth}px`,
+                          }}
+                        >
+                          <div
+                            className="h-3.5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer"
+                            style={{
+                              width:
+                                colKey === "serviceName"
+                                  ? "75%"
+                                  : colKey === "status"
+                                  ? "50%"
+                                  : colKey === "frequency"
+                                  ? "60%"
+                                  : "55%",
+                            }}
+                          />
+                        </td>
+                      );
+                    })}
+
+                    {/* Actions Cell */}
+                    <td className="sticky right-0 z-20 px-3 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : services.length === 0 ? (
                 <tr>
                   <td colSpan={ALL_SERVICE_COLUMNS.length + 2} className="px-6 py-16 text-center">

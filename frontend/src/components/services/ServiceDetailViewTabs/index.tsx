@@ -76,6 +76,20 @@ export interface ServiceDetailViewTabsProps {
   showToast: (msg: string) => void;
 }
 
+const ServiceTabSkeleton: React.FC = () => (
+  <div className="w-full space-y-4 animate-in fade-in duration-100 p-2">
+    <div className="flex items-center justify-between">
+      <div className="h-6 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+      <div className="h-8 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="h-32 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-[var(--border-main)] animate-pulse" />
+      <div className="h-32 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-[var(--border-main)] animate-pulse" />
+    </div>
+    <div className="h-48 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-[var(--border-main)] animate-pulse" />
+  </div>
+);
+
 export const ServiceDetailViewTabs: React.FC<ServiceDetailViewTabsProps> = ({
   activeTab,
   service,
@@ -115,84 +129,92 @@ export const ServiceDetailViewTabs: React.FC<ServiceDetailViewTabsProps> = ({
   isSavingSop,
   showToast,
 }) => {
-  switch (activeTab) {
-    case "Sub Tasks":
-      return (
-        <ServiceSubTasksTab
-          subTasks={subTasks}
-          handleSyncToTasks={handleSyncToTasks}
-          isSyncing={isSyncing}
-          setIsAddSubTaskOpen={setIsAddSubTaskOpen}
-          handleDeleteSubTask={handleDeleteSubTask}
-          showToast={showToast}
-        />
-      );
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "Sub Tasks":
+        return (
+          <ServiceSubTasksTab
+            subTasks={subTasks}
+            handleSyncToTasks={handleSyncToTasks}
+            isSyncing={isSyncing}
+            setIsAddSubTaskOpen={setIsAddSubTaskOpen}
+            handleDeleteSubTask={handleDeleteSubTask}
+            showToast={showToast}
+          />
+        );
 
-    case "Checklist":
-      return (
-        <ServiceChecklistTab
-          checklist={checklist}
-          isAddChecklistInline={isAddChecklistInline}
-          setIsAddChecklistInline={setIsAddChecklistInline}
-          checklistTitle={checklistTitle}
-          setChecklistTitle={setChecklistTitle}
-          handleAddChecklist={handleAddChecklist}
-          handleDeleteChecklist={handleDeleteChecklist}
-          handleSyncToTasks={handleSyncToTasks}
-          isSyncing={isSyncing}
-          showToast={showToast}
-        />
-      );
+      case "Checklist":
+        return (
+          <ServiceChecklistTab
+            checklist={checklist}
+            isAddChecklistInline={isAddChecklistInline}
+            setIsAddChecklistInline={setIsAddChecklistInline}
+            checklistTitle={checklistTitle}
+            setChecklistTitle={setChecklistTitle}
+            handleAddChecklist={handleAddChecklist}
+            handleDeleteChecklist={handleDeleteChecklist}
+            handleSyncToTasks={handleSyncToTasks}
+            isSyncing={isSyncing}
+            showToast={showToast}
+          />
+        );
 
-    case "Document Request":
-      return (
-        <ServiceDocumentRequestTab
-          documentRequests={documentRequests}
-          isAddDocInline={isAddDocInline}
-          setIsAddDocInline={setIsAddDocInline}
-          docTitle={docTitle}
-          setDocTitle={setDocTitle}
-          docDescription={docDescription}
-          setDocDescription={setDocDescription}
-          handleAddDocumentRequest={handleAddDocumentRequest}
-          handleDeleteDocumentRequest={handleDeleteDocumentRequest}
-          handleSyncToTasks={handleSyncToTasks}
-          isSyncing={isSyncing}
-          showToast={showToast}
-        />
-      );
+      case "Document Request":
+        return (
+          <ServiceDocumentRequestTab
+            documentRequests={documentRequests}
+            isAddDocInline={isAddDocInline}
+            setIsAddDocInline={setIsAddDocInline}
+            docTitle={docTitle}
+            setDocTitle={setDocTitle}
+            docDescription={docDescription}
+            setDocDescription={setDocDescription}
+            handleAddDocumentRequest={handleAddDocumentRequest}
+            handleDeleteDocumentRequest={handleDeleteDocumentRequest}
+            handleSyncToTasks={handleSyncToTasks}
+            isSyncing={isSyncing}
+            showToast={showToast}
+          />
+        );
 
-    case "Clients":
-      return (
-        <ServiceClientsTab
-          clients={clients}
-          filteredClients={filteredClients}
-          clientSearch={clientSearch}
-          setClientSearch={setClientSearch}
-          selectedDeptFilter={selectedDeptFilter}
-          setSelectedDeptFilter={setSelectedDeptFilter}
-          isClientsLoading={isClientsLoading}
-          service={service}
-          handleToggleClientService={handleToggleClientService}
-          pendingClientId={pendingClientId}
-        />
-      );
+      case "Clients":
+        return (
+          <ServiceClientsTab
+            clients={clients}
+            filteredClients={filteredClients}
+            clientSearch={clientSearch}
+            setClientSearch={setClientSearch}
+            selectedDeptFilter={selectedDeptFilter}
+            setSelectedDeptFilter={setSelectedDeptFilter}
+            isClientsLoading={isClientsLoading}
+            service={service}
+            handleToggleClientService={handleToggleClientService}
+            pendingClientId={pendingClientId}
+          />
+        );
 
-    case "SOP":
-      return (
-        <ServiceSopTab
-          service={service}
-          sopContent={sopContent}
-          setSopContent={setSopContent}
-          handleSaveSop={handleSaveSop}
-          isSavingSop={isSavingSop}
-        />
-      );
+      case "SOP":
+        return (
+          <ServiceSopTab
+            service={service}
+            sopContent={sopContent}
+            setSopContent={setSopContent}
+            handleSaveSop={handleSaveSop}
+            isSavingSop={isSavingSop}
+          />
+        );
 
-    case "Overview":
-      return <ServiceOverviewTab service={service} />;
+      case "Overview":
+        return <ServiceOverviewTab service={service} />;
 
-    default:
-      return null;
-  }
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <React.Suspense fallback={<ServiceTabSkeleton />}>
+      {renderTabContent()}
+    </React.Suspense>
+  );
 };

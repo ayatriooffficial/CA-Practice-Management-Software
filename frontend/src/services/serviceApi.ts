@@ -42,33 +42,18 @@ export const serviceApi = {
 
       const query = searchParams.toString();
       const res = await request<Service[]>(`/services${query ? `?${query}` : ''}`);
-      if (res && res.data && res.data.length > 0) {
+      if (res && res.data) {
         return res;
       }
     } catch {
       // Offline fallback
     }
 
-    const { appSyncService } = await import('./appSyncService');
-    const localServices = appSyncService.getServices();
-    let filtered = [...localServices];
-    if (params.search?.trim()) {
-      const q = params.search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (s) => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-      );
-    }
-    if (params.category && params.category !== 'All Categories') {
-      filtered = filtered.filter((s) => s.category === params.category);
-    }
-    if (params.frequency) {
-      filtered = filtered.filter((s) => s.frequency === params.frequency);
-    }
     return {
       success: true,
       statusCode: 200,
-      data: filtered,
-      message: 'Services retrieved (synced storage)',
+      data: [],
+      message: 'Services retrieved',
     };
   },
 
@@ -79,75 +64,32 @@ export const serviceApi = {
     } catch {
       // Offline fallback
     }
-    const { appSyncService } = await import('./appSyncService');
-    const all = appSyncService.getServices();
+
     return {
       success: true,
       statusCode: 200,
       message: 'Service stats retrieved',
       data: {
-        totalServices: all.length,
-        activeServices: all.filter((s) => s.status === 'Active').length,
-        recurringServices: all.filter((s) => s.isRecurring).length,
-        categoriesCount: Array.from(new Set(all.map((s) => s.category))).length,
-        avgFee: Math.round(
-          all.reduce((acc, s) => acc + (s.professionalFee || 0), 0) / (all.length || 1)
-        ),
+        totalServices: 0,
+        activeServices: 0,
+        recurringServices: 0,
+        categoriesCount: 0,
+        avgFee: 0,
       },
     };
   },
 
   getServiceById: async (id: string, includeDeleted = false): Promise<ApiResponse<Service>> => {
-    try {
-      const res = await request<Service>(`/services/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
-      if (res && res.data) return res;
-    } catch {
-      // Offline fallback
-    }
-    const { appSyncService } = await import('./appSyncService');
-    const s = appSyncService.getServices().find((item) => item.id === id || item.name === id);
-    if (s) {
-      return {
-        success: true,
-        statusCode: 200,
-        message: 'Service retrieved',
-        data: s,
-      };
-    }
+    const res = await request<Service>(`/services/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
+    if (res && res.data) return res;
     throw new Error('Service not found');
   },
 
   createService: async (payload: Partial<Service>): Promise<ApiResponse<Service>> => {
-    try {
-      const res = await request<Service>('/services', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (res && res.data) {
-        const { appSyncService } = await import('./appSyncService');
-        appSyncService.saveService(res.data);
-        return res;
-      }
-    } catch {
-      // Offline fallback
-    }
-    const { appSyncService } = await import('./appSyncService');
-    const newService: Service = {
-      id: payload.id || `srv-${Date.now()}`,
-      name: payload.name || 'New Service',
-      category: payload.category || 'GST',
-      frequency: payload.frequency || 'Monthly',
-      status: payload.status || 'Active',
-      isRecurring: payload.isRecurring ?? true,
-      ...payload,
-    } as Service;
-    appSyncService.saveService(newService);
-    return {
-      success: true,
-      statusCode: 201,
-      data: newService,
-      message: 'Service created (synced)',
-    };
+    return request<Service>('/services', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   updateService: async (id: string, payload: Partial<Service>): Promise<ApiResponse<Service>> => {

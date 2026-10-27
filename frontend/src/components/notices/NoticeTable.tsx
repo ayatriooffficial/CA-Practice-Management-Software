@@ -206,7 +206,7 @@ export const NoticeTable: React.FC<NoticeTableProps> = ({
   }, [notices, selectedStatus, searchQuery, sortBy, clientMap, portal]);
 
   const clientGroups = useMemo(() => {
-    const allPortalClientIds = Array.from(new Set(notices.map((n) => n.clientId)));
+    const allPortalClientIds = Array.from(new Set(notices.map((n: Notice) => n.clientId)));
     const grouped = new Map<string, Notice[]>();
     for (const n of filteredNotices) {
       const list = grouped.get(n.clientId) || [];

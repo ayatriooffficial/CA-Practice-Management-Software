@@ -1,152 +1,181 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { clientApi, ClientQueryParams } from '@/services/clientApi';
+import { useEffect, useCallback, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchClientsRequest,
+  fetchClientStatsRequest,
+  createClientRequest,
+  updateClientRequest,
+  deleteClientRequest,
+} from '@/store/features/clients/clientSlice';
+import { ClientQueryParams } from '@/services/clientApi';
 import { Client } from '@/data/crmData';
-import { localSyncManager, SYNC_KEYS } from '@/services/localSyncManager';
-
-export const CLIENT_QUERY_KEYS = {
-  all: ['clients'] as const,
-  lists: () => [...CLIENT_QUERY_KEYS.all, 'list'] as const,
-  list: (params: ClientQueryParams) => [...CLIENT_QUERY_KEYS.lists(), params] as const,
-  details: () => [...CLIENT_QUERY_KEYS.all, 'detail'] as const,
-  detail: (id: string) => [...CLIENT_QUERY_KEYS.details(), id] as const,
-  stats: () => [...CLIENT_QUERY_KEYS.all, 'stats'] as const,
-};
+import { clientApi } from '@/services/clientApi';
 
 /**
- * Fetch paginated, filtered, and searched clients with local-first cache
+ * Fetch paginated, filtered, and searched clients using Redux Toolkit & Saga
+ * In-memory caching: Fetches once per parameter configuration, renders instantly from state on tab returns.
  */
 export function useClients(params: ClientQueryParams = {}) {
-  return useQuery({
-    queryKey: CLIENT_QUERY_KEYS.list(params),
-    queryFn: async () => {
-      try {
-        const response = await clientApi.getClients(params);
-        if (response.data && Array.isArray(response.data)) {
-          localSyncManager.setCached(SYNC_KEYS.CLIENTS, response.data);
-        }
-        return {
-          clients: response.data || [],
-          pagination: response.pagination || {
-            page: params.page || 1,
-            limit: params.limit || 10,
-            totalDocs: response.data?.length || 0,
-            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / (params.limit || 10))),
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        };
-      } catch (error) {
-        // Fallback to real local cache (zero dummy data)
-        const cached = localSyncManager.getCached<Client>(SYNC_KEYS.CLIENTS);
-        return {
-          clients: cached,
-          pagination: {
-            page: 1,
-            limit: params.limit || 10,
-            totalDocs: cached.length,
-            totalPages: Math.max(1, Math.ceil(cached.length / (params.limit || 10))),
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        };
-      }
+  const dispatch = useAppDispatch();
+  const { items, pagination, loading, error, isLoaded, currentParams } = useAppSelector(
+    (state) => state.clients
+  );
+
+  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
+
+  useEffect(() => {
+    const isSameParams = JSON.stringify(currentParams) === paramsKey;
+
+    // If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
+    if (isLoaded && isSameParams) {
+      return;
+    }
+
+    dispatch(fetchClientsRequest(params));
+  }, [dispatch, paramsKey, isLoaded, currentParams]);
+
+  const refetch = useCallback(() => {
+    dispatch(fetchClientsRequest(params));
+  }, [dispatch, params]);
+
+  return {
+    data: {
+      clients: items,
+      pagination,
     },
-    placeholderData: keepPreviousData,
-    staleTime: 60 * 1000,
-  });
+    isLoading: loading && !isLoaded,
+    isFetching: loading,
+    error: error ? new Error(error) : null,
+    refetch,
+  };
 }
 
 /**
- * Fetch client practice overview statistics
+ * Fetch client practice overview statistics using Redux
  */
 export function useClientStats() {
-  return useQuery({
-    queryKey: CLIENT_QUERY_KEYS.stats(),
-    queryFn: async () => {
-      const response = await clientApi.getClientStats();
-      return response.data;
-    },
-    staleTime: 2 * 60 * 1000,
-  });
+  const dispatch = useAppDispatch();
+  const { stats, loading, error } = useAppSelector((state) => state.clients);
+
+  useEffect(() => {
+    dispatch(fetchClientStatsRequest());
+  }, [dispatch]);
+
+  return {
+    data: stats,
+    isLoading: loading,
+    error: error ? new Error(error) : null,
+    refetch: () => dispatch(fetchClientStatsRequest()),
+  };
 }
 
 /**
- * Mutation: Register new client (with local cache update)
+ * Mutation: Register new client via Redux Saga
  */
 export function useCreateClient() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.clients.mutating);
 
-  return useMutation({
-    mutationFn: (newClient: Partial<Client>) => clientApi.createClient(newClient),
-    onSuccess: (res) => {
-      if (res?.data) {
-        localSyncManager.upsertItem(SYNC_KEYS.CLIENTS, res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    (newClient: Partial<Client>) => {
+      return new Promise<{ data: Client }>((resolve, reject) => {
+        dispatch(
+          createClientRequest({
+            data: newClient,
+            onSuccess: (client) => resolve({ data: client }),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (newClient: Partial<Client>) => mutateAsync(newClient),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
- * Mutation: Update client details (with local cache update)
+ * Mutation: Update client details via Redux Saga
  */
 export function useUpdateClient() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.clients.mutating);
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Client> }) =>
-      clientApi.updateClient(id, data),
-    onSuccess: (res, variables) => {
-      if (res?.data) {
-        localSyncManager.upsertItem(SYNC_KEYS.CLIENTS, res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    ({ id, data }: { id: string; data: Partial<Client> }) => {
+      return new Promise<{ data: Client }>((resolve, reject) => {
+        dispatch(
+          updateClientRequest({
+            id,
+            data,
+            onSuccess: (client) => resolve({ data: client }),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (payload: { id: string; data: Partial<Client> }) => mutateAsync(payload),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
- * Mutation: Soft delete client (with local cache update)
+ * Mutation: Soft delete client via Redux Saga
  */
 export function useDeleteClient() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const mutating = useAppSelector((state) => state.clients.mutating);
 
-  return useMutation({
-    mutationFn: (id: string) => clientApi.softDeleteClient(id),
-    onSuccess: (_, id) => {
-      localSyncManager.removeItem(SYNC_KEYS.CLIENTS, id);
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
+  const mutateAsync = useCallback(
+    (id: string) => {
+      return new Promise<void>((resolve, reject) => {
+        dispatch(
+          deleteClientRequest({
+            id,
+            onSuccess: () => resolve(),
+          })
+        );
+      });
     },
-  });
+    [dispatch]
+  );
+
+  return {
+    mutate: (id: string) => mutateAsync(id),
+    mutateAsync,
+    isPending: mutating,
+  };
 }
 
 /**
  * Mutation: Restore soft-deleted client
  */
 export function useRestoreClient() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => clientApi.restoreClient(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.stats() });
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async (id: string) => {
+      const res = await clientApi.restoreClient(id);
+      dispatch(fetchClientsRequest());
+      return res;
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
- * Mutation: Add subdocument entry to customerFiles (promoter, statutory, recurring)
+ * Mutation: Add subdocument entry to customerFiles
  */
 export function useAddCustomerFile() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async ({
       clientId,
       fileType,
       itemData,
@@ -154,22 +183,22 @@ export function useAddCustomerFile() {
       clientId: string;
       fileType: 'promoter' | 'statutory' | 'recurring';
       itemData: Record<string, unknown>;
-    }) => clientApi.addCustomerFile(clientId, fileType, itemData),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.detail(variables.clientId) });
+    }) => {
+      const res = await clientApi.addCustomerFile(clientId, fileType, itemData);
+      dispatch(fetchClientsRequest());
+      return res;
     },
-  });
+    isPending: false,
+  };
 }
 
 /**
  * Mutation: Remove subdocument entry from customerFiles
  */
 export function useRemoveCustomerFile() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
+  const dispatch = useAppDispatch();
+  return {
+    mutateAsync: async ({
       clientId,
       fileType,
       itemId,
@@ -177,10 +206,11 @@ export function useRemoveCustomerFile() {
       clientId: string;
       fileType: 'promoter' | 'statutory' | 'recurring';
       itemId: string | number;
-    }) => clientApi.removeCustomerFile(clientId, fileType, itemId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CLIENT_QUERY_KEYS.detail(variables.clientId) });
+    }) => {
+      const res = await clientApi.removeCustomerFile(clientId, fileType, itemId);
+      dispatch(fetchClientsRequest());
+      return res;
     },
-  });
+    isPending: false,
+  };
 }

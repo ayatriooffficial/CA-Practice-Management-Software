@@ -45,19 +45,16 @@ const leadSchema = new Schema<ILeadDocument>(
       type: String,
       required: [true, 'Mobile number is required'],
       trim: true,
-      index: true,
     },
     email: {
       type: String,
       trim: true,
       lowercase: true,
-      index: true,
     },
     pan: {
       type: String,
       trim: true,
       uppercase: true,
-      index: true,
     },
     panAttachment: {
       type: String,
@@ -153,7 +150,6 @@ const leadSchema = new Schema<ILeadDocument>(
     pipelineStage: {
       type: String,
       default: 'new_lead',
-      index: true,
     },
     leadScore: {
       score: { type: Number, default: null },
@@ -252,11 +248,13 @@ const leadSchema = new Schema<ILeadDocument>(
 // Apply Soft Delete Plugin
 leadSchema.plugin(softDeletePlugin);
 
-// Compound and Search Indexes
+// Compound and Search Indexes (Production Strategy)
+leadSchema.index({ isDeleted: 1, createdAt: -1 });
 leadSchema.index({ mobile: 1, isDeleted: 1 });
 leadSchema.index({ email: 1, isDeleted: 1 });
 leadSchema.index({ pan: 1, isDeleted: 1 });
-leadSchema.index({ status: 1, isDeleted: 1 });
+leadSchema.index({ pipelineStage: 1, isDeleted: 1 });
+leadSchema.index({ orgId: 1, isDeleted: 1, createdAt: -1 });
 leadSchema.index(
   {
     fullName: 'text',

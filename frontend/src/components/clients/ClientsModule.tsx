@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -46,6 +46,8 @@ const ClientDetailView = dynamic(
 import { Pagination } from "@/components/ui/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { hydrateClients } from "@/store/features/clients/clientSlice";
 import {
   useClients,
   useCreateClient,
@@ -56,16 +58,45 @@ import {
 
 export { CLIENT_COLUMNS };
 
+export interface ClientsInitialData {
+  clients: Client[];
+  pagination?: {
+    page: number;
+    limit: number;
+    totalDocs: number;
+    totalPages: number;
+    hasNextPage?: boolean;
+    hasPrevPage?: boolean;
+  };
+}
+
 interface ClientsModuleProps {
   initialMode?: "list" | "create" | "detail";
+  initialData?: ClientsInitialData;
 }
 
 export const ClientsModule: React.FC<ClientsModuleProps> = ({
   initialMode = "list",
+  initialData,
 }) => {
   const [viewMode, setViewMode] = useState<"list" | "create" | "detail">(initialMode);
 
   const { canDelete, canAddEdit } = usePermission();
+  const dispatch = useAppDispatch();
+  const isLoaded = useAppSelector((state) => state.clients.isLoaded);
+
+  // If server passed pre-rendered data and store is not populated yet, prime the store immediately
+  useEffect(() => {
+    if (initialData && !isLoaded && initialData.clients?.length > 0) {
+      dispatch(
+        hydrateClients({
+          clients: initialData.clients,
+          pagination: initialData.pagination as any,
+          params: { page: 1, limit: initialData.pagination?.limit || 10 },
+        })
+      );
+    }
+  }, [dispatch, initialData, isLoaded]);
   // Filters State
   const [draftSearch, setDraftSearch] = useState("");
   const debouncedSearch = useDebounce(draftSearch, 300);
@@ -371,8 +402,8 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
                 setPage(1);
               }}
               className={`flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border transition-all cursor-pointer ${showDeleted
-                  ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300"
-                  : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
+                ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300"
+                : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
                 }`}
               title="Toggle deleted records"
             >
@@ -589,17 +620,63 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
 
             <tbody>
               {isLoading && clients.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={visibleColumns.length + 2}
-                    className="py-16 text-center text-gray-400 font-medium"
+                Array.from({ length: 6 }).map((_, rIdx) => (
+                  <tr
+                    key={`client-shimmer-${rIdx}`}
+                    className={`border-b border-[#dde2e8] dark:border-[#334155] ${rIdx % 2 === 0
+                      ? "bg-white dark:bg-[#1e293b]"
+                      : "bg-[#fafafa] dark:bg-[#192437]"
+                      }`}
                   >
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-[#31719B]" />
-                      <span>Loading real-time clients from server...</span>
-                    </div>
-                  </td>
-                </tr>
+                    {/* Frozen Checkbox Cell */}
+                    <td className="sticky left-0 z-20 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
+                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                    </td>
+
+                    {/* Columns */}
+                    {visibleColumns.map((col: ClientColumnDef) => {
+                      const colWidth = getColumnWidth(col.id);
+                      return (
+                        <td
+                          key={col.id}
+                          className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
+                          style={{
+                            width: `${colWidth}px`,
+                            minWidth: `${colWidth}px`,
+                            maxWidth: `${colWidth}px`,
+                          }}
+                        >
+                          <div
+                            className="rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer"
+                            style={{
+                              width:
+                                col.id === "photo"
+                                  ? "26px"
+                                  : col.id === "name"
+                                    ? "75%"
+                                    : col.id === "fileNo"
+                                      ? "55%"
+                                      : col.id === "tags"
+                                        ? "65%"
+                                        : "50%",
+                              height: col.id === "photo" ? "26px" : "13px",
+                              borderRadius: col.id === "photo" ? "9999px" : "4px",
+                              margin: col.id === "photo" ? "0 auto" : undefined,
+                            }}
+                          />
+                        </td>
+                      );
+                    })}
+
+                    {/* Actions Cell */}
+                    <td className="sticky right-0 z-20 px-3 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : clients.length === 0 ? (
                 <tr>
                   <td

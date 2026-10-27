@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   Bookmark,
   Check,
@@ -346,41 +345,57 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
   const definitions = PUBLIC_DEFINITIONS;
 
-  const integrationsQuery = useQuery({
-    queryKey: ['agent-center-integrations'],
-    queryFn: async () => {
-      try {
-        const response = await request<{ email: { configured: boolean; provider: string }; whatsApp: { configured: boolean; provider: string } }>('/agent-center/integrations/status');
-        if (response.success && response.data) return response.data;
-      } catch {}
-      return {
-        email: { configured: false, provider: 'SMTP' },
-        whatsApp: { configured: false, provider: 'Meta Cloud API' },
-      };
-    },
-    staleTime: 60_000,
-    retry: false,
+  const [integrationsData, setIntegrationsData] = useState<{
+    email: { configured: boolean; provider: string };
+    whatsApp: { configured: boolean; provider: string };
+  }>({
+    email: { configured: false, provider: 'SMTP' },
+    whatsApp: { configured: false, provider: 'Meta Cloud API' },
   });
 
-  const emailConfigured = Boolean(integrationsQuery.data?.email?.configured);
-  const whatsAppConfigured = Boolean(integrationsQuery.data?.whatsApp?.configured);
+  useEffect(() => {
+    let active = true;
+    request<{ email: { configured: boolean; provider: string }; whatsApp: { configured: boolean; provider: string } }>('/agent-center/integrations/status')
+      .then((response) => {
+        if (active && response.success && response.data) {
+          setIntegrationsData(response.data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const previewTasksQuery = useQuery({
-    queryKey: ['agent-center-preview-tasks'],
-    queryFn: async () => {
-      const response = await request<TaskItem[]>('/tasks?limit=100&sortBy=updatedAt&sortOrder=desc');
-      if (!response.success || !Array.isArray(response.data)) {
-        throw new Error(response.message || 'Unable to load authorized Tasks for preview.');
-      }
-      return response.data;
-    },
-    enabled: previewOpen && module === 'Task',
-    staleTime: 60_000,
-    retry: false,
-  });
+  const emailConfigured = Boolean(integrationsData.email?.configured);
+  const whatsAppConfigured = Boolean(integrationsData.whatsApp?.configured);
 
-  const selectedPreviewTask = previewTasksQuery.data?.find(
-    (task) => task.id === selectedPreviewTaskId || task.taskId === selectedPreviewTaskId
+  const [previewTasks, setPreviewTasks] = useState<TaskItem[]>([]);
+  const [loadingPreviewTasks, setLoadingPreviewTasks] = useState(false);
+
+  useEffect(() => {
+    if (!previewOpen || module !== 'Task') return;
+    let active = true;
+    setLoadingPreviewTasks(true);
+    request<TaskItem[]>('/tasks?limit=100&sortBy=updatedAt&sortOrder=desc')
+      .then((response) => {
+        if (active && response.success && Array.isArray(response.data)) {
+          setPreviewTasks(response.data);
+        }
+      })
+      .catch(() => {
+        if (active) setPreviewTasks([]);
+      })
+      .finally(() => {
+        if (active) setLoadingPreviewTasks(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [previewOpen, module]);
+
+  const selectedPreviewTask = previewTasks.find(
+    (task: any) => task.id === selectedPreviewTaskId || task.taskId === selectedPreviewTaskId
   );
 
   // Hydrate from existing agent record

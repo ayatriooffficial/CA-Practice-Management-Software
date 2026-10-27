@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
-import { QueryProvider } from "@/providers/QueryProvider";
+import { StoreProvider } from "@/store/StoreProvider";
 
 export const metadata: Metadata = {
   title: "Turia Practice - CA Practice Management Software",
@@ -16,9 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <QueryProvider>
+        <StoreProvider>
           <AppShell>{children}</AppShell>
-        </QueryProvider>
+        </StoreProvider>
       </body>
     </html>
   );

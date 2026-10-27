@@ -1,60 +1,40 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAppDispatch } from '@/store/hooks';
 import { taskApi } from '@/services/taskApi';
-import { LinkedEmail, TaskItem } from '@/data/taskData';
-
-export const TASK_QUERY_KEYS = {
-  all: ['tasks'] as const,
-  lists: () => [...TASK_QUERY_KEYS.all, 'list'] as const,
-  details: () => [...TASK_QUERY_KEYS.all, 'detail'] as const,
-  detail: (id: string) => [...TASK_QUERY_KEYS.details(), id] as const,
-};
+import { LinkedEmail } from '@/data/taskData';
+import { fetchTaskByIdRequest, fetchTasksRequest } from '@/store/features/tasks/taskSlice';
 
 export function useLinkEmailToTask() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
 
-  return useMutation({
-    mutationFn: async ({ taskId, email }: { taskId: string; email: LinkedEmail }) => {
+  return {
+    mutateAsync: async ({ taskId, email }: { taskId: string; email: LinkedEmail }) => {
       const res = await taskApi.linkEmailToTask(taskId, email);
       if (!res.success && res.message) {
         throw new Error(res.message);
       }
+      dispatch(fetchTaskByIdRequest(taskId));
+      dispatch(fetchTasksRequest());
       return res.data;
     },
-    onSuccess: (data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.detail(variables.taskId) });
-      void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.lists() });
-      if (data?.id) {
-        void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.detail(data.id) });
-      }
-      if (data?.taskId) {
-        void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.detail(data.taskId) });
-      }
-    },
-  });
+    isPending: false,
+  };
 }
 
 export function useUnlinkEmailFromTask() {
-  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
 
-  return useMutation({
-    mutationFn: async ({ taskId, messageId }: { taskId: string; messageId: string }) => {
+  return {
+    mutateAsync: async ({ taskId, messageId }: { taskId: string; messageId: string }) => {
       const res = await taskApi.unlinkEmailFromTask(taskId, messageId);
       if (!res.success && res.message) {
         throw new Error(res.message);
       }
+      dispatch(fetchTaskByIdRequest(taskId));
+      dispatch(fetchTasksRequest());
       return res.data;
     },
-    onSuccess: (data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.detail(variables.taskId) });
-      void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.lists() });
-      if (data?.id) {
-        void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.detail(data.id) });
-      }
-      if (data?.taskId) {
-        void queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.detail(data.taskId) });
-      }
-    },
-  });
+    isPending: false,
+  };
 }
