@@ -1,16 +1,18 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
-import { Info, MoreVertical, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import {
+  FileText,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  Hash,
+  Sliders,
+  FileCheck2,
+  Calendar,
+} from "lucide-react";
 
 export interface InvoiceSettingsTabProps {
-  accountBusinessName: string;
-  bankName: string;
-  accountNumber: string;
-  ifscCode: string;
-  upiId: string;
-  accountType: string;
   invoiceGenMode: "Automatically" | "Manually";
   setInvoiceGenMode: (val: "Automatically" | "Manually") => void;
   invoicePrefix: string;
@@ -23,26 +25,17 @@ export interface InvoiceSettingsTabProps {
   setShowQuantity: (val: boolean) => void;
   showHsnSac: boolean;
   setShowHsnSac: (val: boolean) => void;
-  invoiceSignatureUrl: string | null;
-  setInvoiceSignatureUrl: (val: string | null) => void;
   defaultInvoiceNote: string;
   setDefaultInvoiceNote: (val: string) => void;
-  autoReminder: boolean;
-  setAutoReminder: (val: boolean) => void;
-  ccInvoiceMail: string;
-  setCcInvoiceMail: (val: string) => void;
+  termsAndConditions?: string;
+  setTermsAndConditions?: (val: string) => void;
+  defaultDueDays?: string;
+  setDefaultDueDays?: (val: string) => void;
   onPrevious: () => void;
-  onSkip: () => void;
   onNext: () => void;
 }
 
 export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
-  accountBusinessName,
-  bankName,
-  accountNumber,
-  ifscCode,
-  upiId,
-  accountType,
   invoiceGenMode,
   setInvoiceGenMode,
   invoicePrefix,
@@ -55,134 +48,65 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
   setShowQuantity,
   showHsnSac,
   setShowHsnSac,
-  invoiceSignatureUrl,
-  setInvoiceSignatureUrl,
   defaultInvoiceNote,
   setDefaultInvoiceNote,
-  autoReminder,
-  setAutoReminder,
-  ccInvoiceMail,
-  setCcInvoiceMail,
+  termsAndConditions = "1. Interest @ 18% p.a. will be levied on overdue payments.\n2. All disputes are subject to local jurisdiction.\n3. Payment should be made in favor of our primary bank account or via UPI.",
+  setTermsAndConditions,
+  defaultDueDays = "15",
+  setDefaultDueDays,
   onPrevious,
-  onSkip,
   onNext,
 }) => {
-  const router = useRouter();
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-200">
       <div>
-        <h3 className="text-base font-bold text-[var(--text-main)]">Invoice Settings</h3>
-        <h4 className="text-xs font-semibold text-[var(--text-muted)] mt-1 uppercase tracking-wider">
-          Bank Accounts
-        </h4>
+        <h3 className="text-base sm:text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+          <FileText className="w-5 h-5 text-[var(--primary)]" />
+          <span>Document & Invoice Settings</span>
+        </h3>
+        <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          Configure automated numbering sequences, table column visibility, and legal terms on invoices.
+        </p>
       </div>
 
-      {/* Bank Accounts Table */}
-      <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden shadow-xs">
-        <table className="w-full text-left border-collapse text-xs">
-          <thead className="bg-[var(--bg-hover)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-semibold">
-            <tr>
-              <th className="py-3 px-4">Account Business Name</th>
-              <th className="py-3 px-4">Bank Name</th>
-              <th className="py-3 px-4">Account No</th>
-              <th className="py-3 px-4">IFSC Code</th>
-              <th className="py-3 px-4">UPI</th>
-              <th className="py-3 px-4">Account Type</th>
-              <th className="py-3 px-4 text-center">Primary</th>
-              <th className="py-3 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border-subtle)] bg-[var(--bg-surface)]">
-            <tr>
-              <td className="py-3.5 px-4 font-medium text-[var(--text-main)]">
-                {accountBusinessName || "Primary Operating Account"}
-              </td>
-              <td className="py-3.5 px-4 text-[var(--text-main)]">
-                {bankName || "ICICI Bank"}
-              </td>
-              <td className="py-3.5 px-4 font-mono text-[var(--text-muted)]">
-                {accountNumber || "025201537599"}
-              </td>
-              <td className="py-3.5 px-4 font-mono text-[var(--text-muted)]">
-                {ifscCode || "ICIC0000252"}
-              </td>
-              <td className="py-3.5 px-4 font-mono text-[var(--text-muted)]">
-                {upiId || "kidmoras@okicici"}
-              </td>
-              <td className="py-3.5 px-4">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-[var(--primary)] dark:text-[#60a5fa] border border-blue-200 dark:border-blue-800">
-                  {accountType}
-                </span>
-              </td>
-              <td className="py-3.5 px-4 text-center">
-                <input
-                  type="radio"
-                  name="primary_account"
-                  defaultChecked
-                  className="w-4 h-4 text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)] cursor-pointer"
-                />
-              </td>
-              <td className="py-3.5 px-4 text-right">
-                <button
-                  type="button"
-                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)]"
-                >
-                  <MoreVertical className="w-4 h-4 inline" />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Table Footer */}
-        <div className="py-2.5 px-4 bg-[var(--bg-hover)] border-t border-[var(--border-subtle)] flex items-center justify-end gap-4 text-xs text-[var(--text-muted)]">
-          <span>Rows per page: 50 ▾</span>
-          <span>1-1 of 1</span>
-          <div className="flex items-center gap-1">
-            <button type="button" disabled className="p-1 opacity-50 cursor-not-allowed">
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button type="button" disabled className="p-1 opacity-50 cursor-not-allowed">
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+      {/* 1. Invoice Number Generation Mode */}
+      <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Hash className="w-4 h-4 text-[var(--primary)]" />
+            <span className="text-xs font-bold text-[var(--text-main)]">
+              Invoice Number Generation
+            </span>
           </div>
-        </div>
-      </div>
 
-      {/* Invoice Number Generation */}
-      <div className="space-y-4 pt-3">
-        <div className="flex items-center gap-6">
-          <span className="text-[13px] font-semibold text-[var(--text-main)]">
-            Invoice Number Generated By
-          </span>
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[var(--text-main)]">
-            <input
-              type="radio"
-              name="inv_gen"
-              checked={invoiceGenMode === "Automatically"}
-              onChange={() => setInvoiceGenMode("Automatically")}
-              className="text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)]"
-            />
-            <span>Automatically</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[var(--text-main)]">
-            <input
-              type="radio"
-              name="inv_gen"
-              checked={invoiceGenMode === "Manually"}
-              onChange={() => setInvoiceGenMode("Manually")}
-              className="text-[var(--primary)] accent-[var(--primary)] focus:ring-[var(--primary)]"
-            />
-            <span>Manually</span>
-          </label>
-          <Info className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)]">
+              <input
+                type="radio"
+                name="inv_gen_mode"
+                checked={invoiceGenMode === "Automatically"}
+                onChange={() => setInvoiceGenMode("Automatically")}
+                className="text-[var(--primary)] accent-[var(--primary)] cursor-pointer"
+              />
+              <span>Automatically</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)]">
+              <input
+                type="radio"
+                name="inv_gen_mode"
+                checked={invoiceGenMode === "Manually"}
+                onChange={() => setInvoiceGenMode("Manually")}
+                className="text-[var(--primary)] accent-[var(--primary)] cursor-pointer"
+              />
+              <span>Manually</span>
+            </label>
+          </div>
         </div>
 
         {/* Invoice Format Inputs */}
-        <div>
-          <span className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-            Invoice Format
+        <div className="pt-2 border-t border-[var(--border-subtle)]">
+          <span className="block text-[11px] font-semibold text-[var(--text-muted)] mb-2 uppercase tracking-wider">
+            Sequential Numbering Format
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
             <div>
@@ -192,9 +116,9 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
               <input
                 type="text"
                 value={invoicePrefix}
-                onChange={(e) => setInvoicePrefix(e.target.value)}
+                onChange={(e) => setInvoicePrefix(e.target.value.toUpperCase())}
                 placeholder="MA"
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] uppercase"
               />
             </div>
 
@@ -206,7 +130,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
                 type="text"
                 value={invoiceFY}
                 onChange={(e) => setInvoiceFY(e.target.value)}
-                placeholder="25-26"
+                placeholder="2024-25"
                 className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
               />
             </div>
@@ -226,178 +150,160 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
 
             <div>
               <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
-                Invoice number preview
+                Next Invoice Preview
               </label>
-              <div className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] text-xs font-mono font-bold text-[var(--text-main)] flex items-center">
-                {invoicePrefix}/{invoiceFY}/{invoiceNextNum}
+              <div className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-blue-50/60 dark:bg-blue-950/20 text-xs font-mono font-bold text-[var(--primary)] dark:text-blue-300 flex items-center justify-between">
+                <span>
+                  {invoicePrefix}/{invoiceFY}/{invoiceNextNum}
+                </span>
+                <span className="text-[10px] uppercase font-sans font-semibold opacity-70">
+                  Sample
+                </span>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Details to show in the invoice */}
-        <div className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
-          <span className="block text-xs font-semibold text-[var(--text-muted)]">
-            Details to show in the invoice
+      {/* 2. Details to show on the invoice */}
+      <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+        <div className="flex items-center gap-2">
+          <Sliders className="w-4 h-4 text-[var(--primary)]" />
+          <span className="text-xs font-bold text-[var(--text-main)]">
+            Invoice Table Column Visibility
           </span>
-          <div className="flex flex-wrap items-center gap-6 text-xs text-[var(--text-main)]">
-            <label className="flex items-center gap-2 cursor-pointer font-medium">
-              <span>Quantity</span>
-              <button
-                type="button"
-                onClick={() => setShowQuantity(!showQuantity)}
-                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showQuantity ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    showQuantity ? "translate-x-3" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer font-medium">
-              <span>HSN/SAC Code</span>
-              <button
-                type="button"
-                onClick={() => setShowHsnSac(!showHsnSac)}
-                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showHsnSac ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    showHsnSac ? "translate-x-3" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </label>
-          </div>
         </div>
 
-        {/* Invoice Signature Upload */}
-        <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
-          <span className="block text-xs font-semibold text-[var(--text-muted)]">
-            Invoice Signature
-          </span>
-          <div className="flex items-start gap-4">
-            <label className="px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[var(--primary)] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
-              <Upload className="w-3.5 h-3.5" />
-              <span>Upload Signature</span>
-              <input
-                type="file"
-                accept="image/png, image/jpeg"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    setInvoiceSignatureUrl(url);
-                  }
-                }}
-              />
-            </label>
-
-            <div className="w-20 h-16 rounded-lg border-2 border-dashed border-[var(--border-subtle)] bg-[var(--bg-hover)] flex items-center justify-center overflow-hidden">
-              {invoiceSignatureUrl ? (
-                <img
-                  src={invoiceSignatureUrl}
-                  alt="Signature Preview"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <span className="text-[10px] text-[var(--text-muted)] text-center px-1">
-                  Preview
-                </span>
-              )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {/* Quantity Toggle */}
+          <div className="p-3 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-[var(--text-main)] block">
+                Item Quantity Column
+              </span>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Useful when billing hours, service units, or audit sessions.
+              </span>
             </div>
-          </div>
-          <span className="block text-[11px] text-[var(--text-muted)]">
-            Max File Size: 1MB (JPG or PNG)
-          </span>
-        </div>
-
-        {/* Default Invoice Note */}
-        <div className="pt-3 border-t border-[var(--border-subtle)]">
-          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-            Default Invoice Note
-          </label>
-          <textarea
-            rows={3}
-            value={defaultInvoiceNote}
-            onChange={(e) => setDefaultInvoiceNote(e.target.value)}
-            placeholder="Type Invoice Note"
-            className="w-full p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
-          />
-        </div>
-
-        {/* Set CC to Invoice Mail */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-          <div>
-            <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
-              Set Automatic Reminder{" "}
-              <Info className="w-3 h-3 inline text-[var(--text-muted)]" />
-            </label>
-            <select
-              value={autoReminder ? "Yes" : "No"}
-              onChange={(e) => setAutoReminder(e.target.value === "Yes")}
-              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
+            <button
+              type="button"
+              onClick={() => setShowQuantity(!showQuantity)}
+              className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                showQuantity ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
+              }`}
             >
-              <option value="No">Disabled</option>
-              <option value="Yes">Send 3 days before due date</option>
-            </select>
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  showQuantity ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
-              Set CC to Invoice Mail
-            </label>
-            <input
-              type="email"
-              value={ccInvoiceMail}
-              onChange={(e) => setCcInvoiceMail(e.target.value)}
-              placeholder="accounts@firm.com"
-              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
-            />
+          {/* HSN/SAC Toggle */}
+          <div className="p-3 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-[var(--text-main)] block">
+                HSN / SAC Code Column
+              </span>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Required for statutory GST compliance (e.g. 998211, 998231).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowHsnSac(!showHsnSac)}
+              className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                showHsnSac ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  showHsnSac ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Step 3 Actions */}
+      {/* 3. Due Date & Payment Term */}
+      <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-[var(--primary)]" />
+          <span className="text-xs font-bold text-[var(--text-main)]">
+            Default Payment Term
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
+              Invoice Due Date Window
+            </label>
+            <select
+              value={defaultDueDays}
+              onChange={(e) => setDefaultDueDays?.(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
+            >
+              <option value="0">Due Upon Receipt (Immediate)</option>
+              <option value="7">Net 7 Days</option>
+              <option value="15">Net 15 Days (Recommended for CA Practices)</option>
+              <option value="30">Net 30 Days</option>
+              <option value="45">Net 45 Days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Default Invoice Note & Terms & Conditions */}
+      <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-4">
+        <div>
+          <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+            Default Invoice Note
+          </label>
+          <textarea
+            rows={2}
+            value={defaultInvoiceNote}
+            onChange={(e) => setDefaultInvoiceNote(e.target.value)}
+            placeholder="Type default note visible to client on the bottom of the invoice..."
+            className="w-full p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+            Standard Terms & Conditions
+          </label>
+          <textarea
+            rows={3}
+            value={termsAndConditions}
+            onChange={(e) => setTermsAndConditions?.(e.target.value)}
+            placeholder="Legal terms, bank transfer conditions, jurisdiction..."
+            className="w-full p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-mono text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]"
+          />
+        </div>
+      </div>
+
+      {/* Navigation Footer */}
       <div className="pt-6 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onPrevious}
-          className="px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-main)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+          className="px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1.5 cursor-pointer"
         >
-          Previous
+          <ChevronLeft className="w-3.5 h-3.5" />
+          <span>Previous: Branding</span>
         </button>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onSkip}
-            className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
-          >
-            Skip
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-main)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onNext}
-            className="px-6 py-2.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-sm font-semibold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <span>Save & Next</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onNext}
+          className="px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+        >
+          <span>Next: Invoice Sharing</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

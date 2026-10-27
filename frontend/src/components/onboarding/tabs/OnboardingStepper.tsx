@@ -1,78 +1,78 @@
 "use client";
 
 import React from "react";
-import { Check } from "lucide-react";
+import {
+  Building2,
+  CreditCard,
+  Palette,
+  FileText,
+  Share2,
+  CheckCircle2,
+} from "lucide-react";
 
-interface StepItem {
+export interface StepItem {
   id: number;
   label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description?: string;
 }
 
-const STEPS: StepItem[] = [
-  { id: 1, label: "Organization profile" },
-  { id: 2, label: "Bank Account" },
-  { id: 3, label: "Invoice" },
-  { id: 4, label: "Business Hours" },
-  { id: 5, label: "Integration" },
+export const ONBOARDING_SECTIONS: StepItem[] = [
+  { id: 1, label: "Firm Details", icon: Building2 },
+  { id: 2, label: "Bank & Payments", icon: CreditCard },
+  { id: 3, label: "Branding", icon: Palette },
+  { id: 4, label: "Document Settings", icon: FileText },
+  { id: 5, label: "Invoice Sharing", icon: Share2 },
 ];
 
 interface OnboardingStepperProps {
   currentStep: number;
   onSelectStep: (stepId: number) => void;
+  completedSteps?: number[];
 }
 
 export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
   currentStep,
   onSelectStep,
+  completedSteps = [],
 }) => {
   return (
-    <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] px-4 sm:px-6 py-4 shadow-xs">
-      <div className="flex items-center justify-between max-w-4xl mx-auto relative">
-        {STEPS.map((step, idx) => {
-          const isPast = currentStep > step.id;
-          const isCurrent = currentStep === step.id;
+    <div className="w-full space-y-2">
+      {/* Subtitle text matching Image 1 */}
+      <p className="text-center text-xs text-[var(--text-muted)] font-medium">
+        Configure your firm identity, banking, branding, and document preferences.
+      </p>
+
+      {/* Pill Segmented Navigation Bar matching Image 1 */}
+      <div className="bg-[#f1f5f9] dark:bg-[#1e293b]/70 p-1.5 rounded-2xl border border-[var(--border-subtle)] flex items-center justify-between sm:justify-start gap-1 overflow-x-auto scrollbar-slim shadow-xs">
+        {ONBOARDING_SECTIONS.map((section) => {
+          const Icon = section.icon;
+          const isActive = currentStep === section.id;
+          const isDone = completedSteps.includes(section.id) || currentStep > section.id;
 
           return (
-            <div key={step.id} className="flex-1 flex flex-col items-center relative group">
-              {/* Connecting line */}
-              {idx > 0 && (
-                <div
-                  className={`absolute top-3.5 -left-1/2 w-full h-[2px] transition-colors duration-300 ${
-                    currentStep >= step.id ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)]"
-                  }`}
-                  style={{ zIndex: 0 }}
-                />
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => onSelectStep(section.id)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 py-2 px-3.5 sm:px-5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none ${
+                isActive
+                  ? "bg-white dark:bg-[#0f172a] text-[#4F46E5] dark:text-[#818cf8] shadow-sm font-bold scale-[1.01]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/40 dark:hover:bg-slate-800/40"
+              }`}
+            >
+              <Icon
+                className={`w-4 h-4 transition-colors ${
+                  isActive
+                    ? "text-[#4F46E5] dark:text-[#818cf8]"
+                    : "text-gray-400 dark:text-gray-500"
+                }`}
+              />
+              <span>{section.label}</span>
+              {isDone && !isActive && (
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 ml-0.5" />
               )}
-
-              {/* Step circle */}
-              <button
-                type="button"
-                onClick={() => onSelectStep(step.id)}
-                className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
-                  isPast
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : isCurrent
-                    ? "bg-[var(--primary)] text-white ring-4 ring-[var(--primary)]/20 shadow-xs"
-                    : "bg-[var(--bg-hover)] text-[var(--text-muted)] border border-[var(--border-subtle)]"
-                }`}
-              >
-                {isPast ? <Check className="w-4 h-4 stroke-[2.5]" /> : step.id}
-              </button>
-
-              {/* Step Label */}
-              <span
-                onClick={() => onSelectStep(step.id)}
-                className={`mt-2 text-[11px] sm:text-xs font-medium text-center whitespace-nowrap cursor-pointer transition-colors ${
-                  isCurrent
-                    ? "text-[var(--primary)] dark:text-[var(--primary-hover)] font-semibold"
-                    : isPast
-                    ? "text-[var(--text-main)]"
-                    : "text-[var(--text-muted)]"
-                }`}
-              >
-                {step.label}
-              </span>
-            </div>
+            </button>
           );
         })}
       </div>

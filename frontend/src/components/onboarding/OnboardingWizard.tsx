@@ -4,27 +4,27 @@ import React, { useState, useEffect, useMemo } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
 import { useAuth } from "../auth/AuthContext";
-import { DaySchedule, DEFAULT_DAYS } from "./tabs/types";
 import { OnboardingHeader } from "./tabs/OnboardingHeader";
 import { OnboardingStepper } from "./tabs/OnboardingStepper";
 import { OrganizationProfileTab } from "./tabs/OrganizationProfileTab";
 import { BankAccountTab } from "./tabs/BankAccountTab";
+import { BrandingTab, DEFAULT_DOCUMENT_COLORS, DocumentColorSetting } from "./tabs/BrandingTab";
 import { InvoiceSettingsTab } from "./tabs/InvoiceSettingsTab";
-import { BusinessHoursTab } from "./tabs/BusinessHoursTab";
-import { IntegrationTab } from "./tabs/IntegrationTab";
+import { InvoiceSharingTab } from "./tabs/InvoiceSharingTab";
 import { CompletionModal } from "./tabs/CompletionModal";
 
 export const OnboardingWizard: React.FC = () => {
   const { currentUser, refreshProfile } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState<boolean>(false);
 
-  // --- Step 1: Organization Profile State ---
+  // --- Section 1: Firm Details (Organization Profile) State ---
   const [businessName, setBusinessName] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
@@ -48,7 +48,7 @@ export const OnboardingWizard: React.FC = () => {
   const [providentFundNumber, setProvidentFundNumber] = useState("");
   const [esiRegistrationNumber, setEsiRegistrationNumber] = useState("");
 
-  // --- Step 2: Bank Account State ---
+  // --- Section 2: Bank & Payments State ---
   const [bankName, setBankName] = useState("");
   const [accountBusinessName, setAccountBusinessName] = useState("");
   const [ifscCode, setIfscCode] = useState("");
@@ -58,30 +58,35 @@ export const OnboardingWizard: React.FC = () => {
   const [bankDescription, setBankDescription] = useState("");
   const [upiId, setUpiId] = useState("");
 
-  // --- Step 3: Invoice Settings State ---
+  // --- Section 3: Branding State (Matches Image 4 & 5) ---
+  const [template, setTemplate] = useState<"classic" | "modern" | "minimal">("classic");
+  const [documentColors, setDocumentColors] = useState<DocumentColorSetting[]>(DEFAULT_DOCUMENT_COLORS);
+  const [firmLogoUrl, setFirmLogoUrl] = useState<string | null>(null);
+  const [digitalSignatureUrl, setDigitalSignatureUrl] = useState<string | null>(null);
+  const [showCaLogo, setShowCaLogo] = useState<boolean>(true);
+
+  // --- Section 4: Document Settings State ---
   const [invoiceGenMode, setInvoiceGenMode] = useState<"Automatically" | "Manually">("Automatically");
   const [invoicePrefix, setInvoicePrefix] = useState("MA");
-  const [invoiceFY, setInvoiceFY] = useState("25-26");
+  const [invoiceFY, setInvoiceFY] = useState("2024-25");
   const [invoiceNextNum, setInvoiceNextNum] = useState("001");
-  const [showQuantity, setShowQuantity] = useState(true);
-  const [showHsnSac, setShowHsnSac] = useState(true);
-  const [invoiceSignatureUrl, setInvoiceSignatureUrl] = useState<string | null>(null);
-  const [defaultInvoiceNote, setDefaultInvoiceNote] = useState("");
-  const [autoReminder, setAutoReminder] = useState(false);
+  const [showQuantity, setShowQuantity] = useState<boolean>(true);
+  const [showHsnSac, setShowHsnSac] = useState<boolean>(true);
+  const [defaultInvoiceNote, setDefaultInvoiceNote] = useState(
+    "Thank you for your business. Please make payment within the due date."
+  );
+  const [termsAndConditions, setTermsAndConditions] = useState(
+    "1. Interest @ 18% p.a. will be levied on overdue payments.\n2. All disputes are subject to local jurisdiction.\n3. Payment should be made in favor of our primary bank account or via UPI."
+  );
+  const [defaultDueDays, setDefaultDueDays] = useState("15");
+
+  // --- Section 5: Invoice Sharing State ---
+  const [autoReminder, setAutoReminder] = useState<boolean>(true);
   const [ccInvoiceMail, setCcInvoiceMail] = useState("");
+  const [enableWhatsAppSharing, setEnableWhatsAppSharing] = useState<boolean>(true);
+  const [enableClientPortal, setEnableClientPortal] = useState<boolean>(true);
 
-  // --- Step 4: Business Hours State ---
-  const [shiftName, setShiftName] = useState("General Shift");
-  const [schedules, setSchedules] = useState<DaySchedule[]>(DEFAULT_DAYS);
-  const [gracePeriod, setGracePeriod] = useState("15");
-  const [enableAutoLogout, setEnableAutoLogout] = useState(true);
-  const [autoLogoutAfter, setAutoLogoutAfter] = useState("08:00 PM");
-
-  // --- Step 5: Integration State ---
-  const [selectedApp, setSelectedApp] = useState<"gmail" | "outlook">("gmail");
-  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
-
-  // Load existing organization profile on mount
+  // Load existing organization and invoice settings on mount
   useEffect(() => {
     let isMounted = true;
     const fetchOrg = async () => {
@@ -137,7 +142,7 @@ export const OnboardingWizard: React.FC = () => {
             setAccountBusinessName(org.name || "Medappa & Associates");
           }
 
-          // Compute suggested invoice prefix from firm name
+          // Compute suggested invoice prefix from firm initials
           const initials = (org.name || "Medappa & Associates")
             .split(" ")
             .map((w) => w[0])
@@ -146,6 +151,37 @@ export const OnboardingWizard: React.FC = () => {
             .join("")
             .toUpperCase();
           if (initials) setInvoicePrefix(initials);
+
+          // Restore Invoice & Branding Settings if previously saved
+          const invSettings = org.invoiceSettings;
+          if (invSettings) {
+            if (invSettings.template) setTemplate(invSettings.template);
+            if (Array.isArray(invSettings.documentColors)) setDocumentColors(invSettings.documentColors);
+            if (invSettings.firmLogoUrl) setFirmLogoUrl(invSettings.firmLogoUrl);
+            if (invSettings.digitalSignatureUrl) setDigitalSignatureUrl(invSettings.digitalSignatureUrl);
+            if (typeof invSettings.showCaLogo === "boolean") setShowCaLogo(invSettings.showCaLogo);
+            if (invSettings.invoiceGenMode) setInvoiceGenMode(invSettings.invoiceGenMode);
+            if (invSettings.invoicePrefix) setInvoicePrefix(invSettings.invoicePrefix);
+            if (invSettings.invoiceFY) setInvoiceFY(invSettings.invoiceFY);
+            if (invSettings.invoiceNextNum) setInvoiceNextNum(invSettings.invoiceNextNum);
+            if (typeof invSettings.showQuantity === "boolean") setShowQuantity(invSettings.showQuantity);
+            if (typeof invSettings.showHsnSac === "boolean") setShowHsnSac(invSettings.showHsnSac);
+            if (invSettings.defaultInvoiceNote) setDefaultInvoiceNote(invSettings.defaultInvoiceNote);
+            if (invSettings.termsAndConditions) setTermsAndConditions(invSettings.termsAndConditions);
+            if (invSettings.defaultDueDays) setDefaultDueDays(invSettings.defaultDueDays);
+            if (typeof invSettings.autoReminder === "boolean") setAutoReminder(invSettings.autoReminder);
+            if (invSettings.ccInvoiceMail) setCcInvoiceMail(invSettings.ccInvoiceMail);
+            if (typeof invSettings.enableWhatsAppSharing === "boolean")
+              setEnableWhatsAppSharing(invSettings.enableWhatsAppSharing);
+            if (typeof invSettings.enableClientPortal === "boolean")
+              setEnableClientPortal(invSettings.enableClientPortal);
+          }
+
+          if (org.onboardingStep) {
+            const step = Math.min(Math.max(org.onboardingStep, 1), 5);
+            setCurrentStep(step);
+            setCompletedSteps(Array.from({ length: step - 1 }, (_, i) => i + 1));
+          }
         }
       } catch (err) {
         console.warn("Could not fetch organization details:", err);
@@ -164,15 +200,15 @@ export const OnboardingWizard: React.FC = () => {
   const progressPercent = useMemo(() => {
     switch (currentStep) {
       case 1:
-        return 0;
+        return 15;
       case 2:
-        return 20;
+        return 35;
       case 3:
-        return 40;
-      case 4:
         return 60;
-      case 5:
+      case 4:
         return 80;
+      case 5:
+        return 95;
       default:
         return 100;
     }
@@ -182,18 +218,29 @@ export const OnboardingWizard: React.FC = () => {
     return Math.max(0, 6 - currentStep);
   }, [currentStep]);
 
-  // Derived business hours calculations
-  const totalWeeklyHours = useMemo(() => {
-    return schedules
-      .filter((s) => s.enabled)
-      .reduce((acc, curr) => acc + (curr.hours || 0), 0);
-  }, [schedules]);
+  // Helper to compile full invoiceSettings payload
+  const buildInvoiceSettingsPayload = () => ({
+    template,
+    documentColors,
+    firmLogoUrl,
+    digitalSignatureUrl,
+    showCaLogo,
+    invoiceGenMode,
+    invoicePrefix,
+    invoiceFY,
+    invoiceNextNum,
+    showQuantity,
+    showHsnSac,
+    defaultInvoiceNote,
+    termsAndConditions,
+    defaultDueDays,
+    autoReminder,
+    ccInvoiceMail,
+    enableWhatsAppSharing,
+    enableClientPortal,
+  });
 
-  const totalMonthlyHours = useMemo(() => {
-    return Math.round(totalWeeklyHours * 4.333);
-  }, [totalWeeklyHours]);
-
-  // Handle saving Step 1: Organization Profile
+  // Handle saving Step 1: Firm Details (Organization Profile)
   const handleSaveOrganization = async () => {
     setIsSaving(true);
     setErrorMessage(null);
@@ -226,15 +273,17 @@ export const OnboardingWizard: React.FC = () => {
         professionalTaxNumber: professionalTaxNumber.trim(),
         providentFundNumber: providentFundNumber.trim(),
         esiRegistrationNumber: esiRegistrationNumber.trim(),
+        invoiceSettings: buildInvoiceSettingsPayload(),
         onboardingStep: 2,
       };
 
       await organizationApi.updateOrganization(payload);
       await refreshProfile();
-      setSuccessNotice("Organization profile saved successfully.");
+      setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
+      setSuccessNotice("Firm details saved successfully.");
       setCurrentStep(2);
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to save organization profile. Please try again.");
+      setErrorMessage(err.message || "Failed to save firm details. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -251,7 +300,7 @@ export const OnboardingWizard: React.FC = () => {
         paymentDetails: {
           paymentMode: "Bank Transfer",
           currency: currency.includes("INR") ? "INR" : "INR",
-          terms: "Payment due within 15 days of invoice date.",
+          terms: `Payment due within ${defaultDueDays} days of invoice date.`,
           isDefault: true,
           bankDetails: {
             bankName: bankName.trim(),
@@ -264,10 +313,12 @@ export const OnboardingWizard: React.FC = () => {
             qrCodeUrl: "",
           },
         },
+        invoiceSettings: buildInvoiceSettingsPayload(),
         onboardingStep: 3,
       };
 
       await organizationApi.updateOrganization(payload);
+      setCompletedSteps((prev) => Array.from(new Set([...prev, 2])));
       setSuccessNotice("Bank account details saved successfully.");
       setCurrentStep(3);
     } catch (err: any) {
@@ -277,14 +328,67 @@ export const OnboardingWizard: React.FC = () => {
     }
   };
 
-  // Handle final completion
+  // Handle saving Step 3: Branding
+  const handleSaveBranding = async (advanceToNext: boolean = false) => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    try {
+      const payload: Partial<OrganizationDetails> = {
+        invoiceSettings: buildInvoiceSettingsPayload(),
+        onboardingStep: advanceToNext ? 4 : 3,
+      };
+
+      await organizationApi.updateOrganization(payload);
+      setCompletedSteps((prev) => Array.from(new Set([...prev, 3])));
+      setSuccessNotice("Professional branding preferences saved successfully.");
+      if (advanceToNext) {
+        setCurrentStep(4);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to save branding preferences. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle saving Step 4: Document Settings
+  const handleSaveDocumentSettings = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    try {
+      const payload: Partial<OrganizationDetails> = {
+        invoiceSettings: buildInvoiceSettingsPayload(),
+        onboardingStep: 5,
+      };
+
+      await organizationApi.updateOrganization(payload);
+      setCompletedSteps((prev) => Array.from(new Set([...prev, 4])));
+      setSuccessNotice("Document & numbering settings saved successfully.");
+      setCurrentStep(5);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to save document settings. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle final completion in Step 5: Invoice Sharing
   const handleFinalSubmit = async () => {
     setIsSaving(true);
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
     try {
       await organizationApi.updateOrganization({
+        invoiceSettings: buildInvoiceSettingsPayload(),
         onboardingStep: 5,
         onboardingCompleted: true,
       });
+      setCompletedSteps([1, 2, 3, 4, 5]);
       setIsCompletedModalOpen(true);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to complete onboarding. Please try again.");
@@ -305,8 +409,8 @@ export const OnboardingWizard: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-[var(--bg-app)] text-[var(--text-main)] px-4 flex flex-col justify-between font-sans">
-      <div className=" w-full mx-auto space-y-6">
+    <div className="w-full bg-[var(--bg-app)] text-[var(--text-main)] px-3 sm:px-6 py-4 flex flex-col justify-between font-sans">
+      <div className="w-full max-w-5xl mx-auto space-y-6">
         {/* Top Progress Banner Card */}
         <OnboardingHeader
           businessName={businessName}
@@ -314,10 +418,11 @@ export const OnboardingWizard: React.FC = () => {
           stepsRemaining={stepsRemaining}
         />
 
-        {/* Horizontal Stepper */}
+        {/* Section Navigation Pill Bar matching Image 1 */}
         <OnboardingStepper
           currentStep={currentStep}
           onSelectStep={(stepId) => setCurrentStep(stepId)}
+          completedSteps={completedSteps}
         />
 
         {/* Global Feedback Banners */}
@@ -334,8 +439,9 @@ export const OnboardingWizard: React.FC = () => {
           </div>
         )}
 
-        {/* Active Step Content Container */}
-        <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-6 sm:p-8 shadow-xs">
+        {/* Active Section Content Container */}
+        <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-5 sm:p-8 shadow-xs">
+          {/* Section 1: 🏢 Firm Details */}
           {currentStep === 1 && (
             <OrganizationProfileTab
               businessName={businessName}
@@ -388,6 +494,7 @@ export const OnboardingWizard: React.FC = () => {
             />
           )}
 
+          {/* Section 2: 💳 Bank & Payments */}
           {currentStep === 2 && (
             <BankAccountTab
               bankName={bankName}
@@ -413,14 +520,30 @@ export const OnboardingWizard: React.FC = () => {
             />
           )}
 
+          {/* Section 3: 🎨 Branding (Matches Image 4 & 5) */}
           {currentStep === 3 && (
+            <BrandingTab
+              firmName={businessName}
+              template={template}
+              setTemplate={setTemplate}
+              documentColors={documentColors}
+              setDocumentColors={setDocumentColors}
+              firmLogoUrl={firmLogoUrl}
+              setFirmLogoUrl={setFirmLogoUrl}
+              digitalSignatureUrl={digitalSignatureUrl}
+              setDigitalSignatureUrl={setDigitalSignatureUrl}
+              showCaLogo={showCaLogo}
+              setShowCaLogo={setShowCaLogo}
+              isSaving={isSaving}
+              onSave={() => handleSaveBranding(false)}
+              onPrevious={() => setCurrentStep(2)}
+              onNext={() => handleSaveBranding(true)}
+            />
+          )}
+
+          {/* Section 4: 📄 Document Settings */}
+          {currentStep === 4 && (
             <InvoiceSettingsTab
-              accountBusinessName={accountBusinessName}
-              bankName={bankName}
-              accountNumber={accountNumber}
-              ifscCode={ifscCode}
-              upiId={upiId}
-              accountType={accountType}
               invoiceGenMode={invoiceGenMode}
               setInvoiceGenMode={setInvoiceGenMode}
               invoicePrefix={invoicePrefix}
@@ -433,50 +556,31 @@ export const OnboardingWizard: React.FC = () => {
               setShowQuantity={setShowQuantity}
               showHsnSac={showHsnSac}
               setShowHsnSac={setShowHsnSac}
-              invoiceSignatureUrl={invoiceSignatureUrl}
-              setInvoiceSignatureUrl={setInvoiceSignatureUrl}
               defaultInvoiceNote={defaultInvoiceNote}
               setDefaultInvoiceNote={setDefaultInvoiceNote}
+              termsAndConditions={termsAndConditions}
+              setTermsAndConditions={setTermsAndConditions}
+              defaultDueDays={defaultDueDays}
+              setDefaultDueDays={setDefaultDueDays}
+              onPrevious={() => setCurrentStep(3)}
+              onNext={handleSaveDocumentSettings}
+            />
+          )}
+
+          {/* Section 5: 🔗 Invoice Sharing */}
+          {currentStep === 5 && (
+            <InvoiceSharingTab
               autoReminder={autoReminder}
               setAutoReminder={setAutoReminder}
               ccInvoiceMail={ccInvoiceMail}
               setCcInvoiceMail={setCcInvoiceMail}
-              onPrevious={() => setCurrentStep(2)}
-              onSkip={() => setCurrentStep(4)}
-              onNext={() => setCurrentStep(4)}
-            />
-          )}
-
-          {currentStep === 4 && (
-            <BusinessHoursTab
-              shiftName={shiftName}
-              setShiftName={setShiftName}
-              schedules={schedules}
-              setSchedules={setSchedules}
-              totalWeeklyHours={totalWeeklyHours}
-              totalMonthlyHours={totalMonthlyHours}
-              gracePeriod={gracePeriod}
-              setGracePeriod={setGracePeriod}
-              enableAutoLogout={enableAutoLogout}
-              setEnableAutoLogout={setEnableAutoLogout}
-              autoLogoutAfter={autoLogoutAfter}
-              setAutoLogoutAfter={setAutoLogoutAfter}
-              onPrevious={() => setCurrentStep(3)}
-              onSkip={() => setCurrentStep(5)}
-              onNext={() => setCurrentStep(5)}
-            />
-          )}
-
-          {currentStep === 5 && (
-            <IntegrationTab
-              selectedApp={selectedApp}
-              setSelectedApp={setSelectedApp}
-              isGoogleConnected={isGoogleConnected}
-              setIsGoogleConnected={setIsGoogleConnected}
-              isSaving={isSaving}
+              enableWhatsAppSharing={enableWhatsAppSharing}
+              setEnableWhatsAppSharing={setEnableWhatsAppSharing}
+              enableClientPortal={enableClientPortal}
+              setEnableClientPortal={setEnableClientPortal}
               onPrevious={() => setCurrentStep(4)}
-              onSkip={() => handleFinalSubmit()}
-              onSubmit={handleFinalSubmit}
+              onComplete={handleFinalSubmit}
+              isSaving={isSaving}
             />
           )}
         </div>
