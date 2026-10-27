@@ -559,11 +559,12 @@ export const taskApi = {
     );
   },
 
-  getTaskTemplates: async (params?: { search?: string; category?: string }): Promise<ApiResponse<TaskTemplateItem[]>> => {
+  getTaskTemplates: async (params?: { search?: string; category?: string; frequency?: string }): Promise<ApiResponse<TaskTemplateItem[]>> => {
     try {
       const searchParams = new URLSearchParams();
       if (params?.search?.trim()) searchParams.set('search', params.search.trim());
-      if (params?.category && params.category !== 'All Categories') searchParams.set('category', params.category);
+      if (params?.category && params.category !== 'All Categories' && params.category !== 'All') searchParams.set('category', params.category);
+      if (params?.frequency && params.frequency !== 'All Frequencies' && params.frequency !== 'All') searchParams.set('frequency', params.frequency);
       const query = searchParams.toString();
       const endpoint = query ? `/tasks/templates?${query}` : '/tasks/templates';
       return await request<TaskTemplateItem[]>(endpoint);

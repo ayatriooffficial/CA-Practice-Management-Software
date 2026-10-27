@@ -106,7 +106,7 @@ export default function TaskPage() {
               {!isEmployee && canAddEdit("task_manager") && (
                 <>
                   <Link
-                    href="/task/templates/new"
+                    href="/task/templates"
                     style={{ backgroundColor: "var(--primary)" }}
                     className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
                   >

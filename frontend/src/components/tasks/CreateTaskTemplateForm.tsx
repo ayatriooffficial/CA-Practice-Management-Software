@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
   X,
@@ -26,6 +26,7 @@ import {
   TASK_DEPARTMENTS,
   TaskPriority,
   TaskTemplateChecklistItem,
+  TaskTemplateItem,
 } from "@/data/taskData";
 
 const FREQUENCY_OPTIONS = [
@@ -49,26 +50,67 @@ const ACCENT_COLORS = [
   "#EC4899", // Pink
 ];
 
-export const CreateTaskTemplateForm: React.FC = () => {
+export interface CreateTaskTemplateFormProps {
+  templateId?: string;
+  initialTemplate?: TaskTemplateItem | null;
+  onSuccess?: (template: TaskTemplateItem) => void;
+  onCancel?: () => void;
+}
+
+export const CreateTaskTemplateForm: React.FC<CreateTaskTemplateFormProps> = ({
+  templateId,
+  initialTemplate,
+  onSuccess,
+  onCancel,
+}) => {
   const router = useRouter();
 
-  const [templateName, setTemplateName] = useState("");
-  const [taskTitle, setTaskTitle] = useState("");
-  const [category, setCategory] = useState("GST");
-  const [priority, setPriority] = useState<TaskPriority>("Medium");
-  const [estimatedHours, setEstimatedHours] = useState("");
-  const [defaultAssigneeId, setDefaultAssigneeId] = useState("");
-  const [defaultReviewerId, setDefaultReviewerId] = useState("");
+  const [templateName, setTemplateName] = useState(initialTemplate?.templateName || "");
+  const [taskTitle, setTaskTitle] = useState(initialTemplate?.taskTitle || "");
+  const [category, setCategory] = useState(initialTemplate?.category || initialTemplate?.department || "GST");
+  const [priority, setPriority] = useState<TaskPriority>(initialTemplate?.priority || "Medium");
+  const [estimatedHours, setEstimatedHours] = useState(initialTemplate?.estimatedHours || "");
+  const [defaultAssigneeId, setDefaultAssigneeId] = useState(initialTemplate?.defaultAssigneeId || "");
+  const [defaultReviewerId, setDefaultReviewerId] = useState(initialTemplate?.defaultReviewerId || "");
   const [labels, setLabels] = useState("");
-  const [frequency, setFrequency] = useState("One-time");
+  const [frequency, setFrequency] = useState(initialTemplate?.frequency || "One-time");
   const [accentColor, setAccentColor] = useState("#3B82F6");
-  const [description, setDescription] = useState("");
-  const [checklist, setChecklist] = useState<TaskTemplateChecklistItem[]>([]);
+  const [description, setDescription] = useState(initialTemplate?.description || "");
+  const [checklist, setChecklist] = useState<TaskTemplateChecklistItem[]>(initialTemplate?.checklist || []);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const searchParams = useSearchParams();
+  const urlEditId = searchParams?.get("edit") || undefined;
+  const effectiveId = templateId || initialTemplate?.id || initialTemplate?._id || urlEditId;
+  const isEditing = Boolean(effectiveId);
+
+  // If templateId or urlEditId is provided but initialTemplate isn't, fetch template details
+  useEffect(() => {
+    const idToFetch = templateId || urlEditId;
+    if (idToFetch && !initialTemplate) {
+      taskApi.getTaskTemplateById(idToFetch).then((res) => {
+        if (res.data) {
+          const tpl = res.data;
+          setTemplateName(tpl.templateName || "");
+          setTaskTitle(tpl.taskTitle || "");
+          setCategory(tpl.category || tpl.department || "GST");
+          setPriority(tpl.priority || "Medium");
+          setEstimatedHours(tpl.estimatedHours || "");
+          setDefaultAssigneeId(tpl.defaultAssigneeId || "");
+          setDefaultReviewerId(tpl.defaultReviewerId || "");
+          setFrequency(tpl.frequency || "One-time");
+          setDescription(tpl.description || "");
+          if (tpl.checklist) {
+            setChecklist(tpl.checklist);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [templateId, urlEditId, initialTemplate]);
 
   // Load team members
   useEffect(() => {
@@ -177,11 +219,21 @@ export const CreateTaskTemplateForm: React.FC = () => {
         checklist: cleanChecklist,
       };
 
-      const res = await taskApi.createTaskTemplate(payload);
-      if (res.data || res.success) {
-        router.push("/task");
+      let res;
+      if (effectiveId) {
+        res = await taskApi.updateTaskTemplate(effectiveId, payload);
       } else {
-        setErrorMessage(res.message || "Failed to create task template");
+        res = await taskApi.createTaskTemplate(payload);
+      }
+
+      if (res.data || res.success) {
+        if (onSuccess && res.data) {
+          onSuccess(res.data);
+        } else {
+          router.push("/task/templates");
+        }
+      } else {
+        setErrorMessage(res.message || "Failed to save task template");
       }
     } catch (err: any) {
       setErrorMessage(
@@ -192,6 +244,14 @@ export const CreateTaskTemplateForm: React.FC = () => {
     }
   };
 
+  const handleClose = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      router.push("/task/templates");
+    }
+  };
+
   return (
     <div className="w-full max-w-[720px] bg-[var(--bg-surface)] text-[var(--text-main)] rounded-lg shadow-2xl border border-[var(--border-main)] overflow-hidden animate-in fade-in duration-150">
       {/* 1. Header matching Reference Screenshot */}
@@ -199,12 +259,12 @@ export const CreateTaskTemplateForm: React.FC = () => {
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
           <h2 className="text-sm font-semibold text-[var(--text-main)]">
-            Create template
+            {isEditing ? "Edit template" : "Create template"}
           </h2>
         </div>
         <button
           type="button"
-          onClick={() => router.push("/task")}
+          onClick={handleClose}
           className="text-[var(--text-subtle)] hover:text-[var(--text-main)] p-1 rounded-md transition-colors"
           aria-label="Close"
         >
@@ -525,7 +585,7 @@ export const CreateTaskTemplateForm: React.FC = () => {
         <div className="pt-3 border-t border-[var(--border-main)] flex items-center justify-end gap-2.5">
           <button
             type="button"
-            onClick={() => router.push("/task")}
+            onClick={handleClose}
             className="px-4 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
           >
             Cancel
@@ -537,7 +597,7 @@ export const CreateTaskTemplateForm: React.FC = () => {
             style={{ backgroundColor: "var(--primary)" }}
             className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
           >
-            {isSubmitting ? "Saving..." : "Create template"}
+            {isSubmitting ? "Saving..." : isEditing ? "Save changes" : "Create template"}
           </button>
         </div>
       </form>

@@ -18,6 +18,8 @@ export interface AddTaskInitialData {
   taskName?: string;
   description?: string;
   linkedEmail?: LinkedEmail;
+  clientId?: string;
+  templateId?: string;
 }
 
 interface AddTaskModalProps {
@@ -102,9 +104,12 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedTemplateId("");
+      setSelectedTemplateId(initialData?.templateId || "");
       setCustomChecklist(null);
       if (initialData) {
+        if (initialData.clientId) {
+          setClientId(initialData.clientId);
+        }
         if (initialData.taskName) {
           setTaskName(initialData.taskName);
         }
@@ -131,6 +136,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           setClients(realClients);
           if (realClients.length > 0) {
             setClientId((prev) => {
+              if (initialData?.clientId) {
+                const matched = realClients.find(
+                  (c: any) =>
+                    c.id === initialData.clientId ||
+                    c._id === initialData.clientId ||
+                    c.fileNo === initialData.clientId
+                );
+                if (matched) return matched.id || (matched as any)._id || matched.fileNo;
+              }
               const exists = realClients.some(
                 (c: any) =>
                   (c.id && c.id === prev) ||
@@ -201,6 +215,32 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       .then((res) => {
         if (isMounted && res.data) {
           setTemplates(res.data);
+          if (initialData?.templateId) {
+            const tpl = res.data.find(
+              (t) => t.id === initialData.templateId || t._id === initialData.templateId
+            );
+            if (tpl) {
+              setSelectedTemplateId(initialData.templateId);
+              if (tpl.taskTitle) setTaskName(tpl.taskTitle);
+              if (tpl.department || tpl.category) setDepartment(tpl.department || tpl.category || "GST");
+              if (tpl.priority) setPriority(tpl.priority);
+              if (tpl.frequency) setFrequency(tpl.frequency);
+              if (tpl.defaultAssigneeId) setAssigneeId(tpl.defaultAssigneeId);
+              if (tpl.defaultReviewerId) setReviewerId(tpl.defaultReviewerId);
+              if (tpl.billingType) setBillingType(tpl.billingType);
+              if (tpl.description) setDescription(tpl.description);
+              if (tpl.checklist && tpl.checklist.length > 0) {
+                setCustomChecklist(
+                  tpl.checklist.map((item, idx) => ({
+                    id: item.id || `c_${Date.now()}_${idx}`,
+                    title: item.title,
+                    completed: false,
+                    isMandatory: item.isMandatory !== false,
+                  }))
+                );
+              }
+            }
+          }
         }
       })
       .catch(() => { })

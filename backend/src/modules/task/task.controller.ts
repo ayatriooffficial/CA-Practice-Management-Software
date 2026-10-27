@@ -168,7 +168,8 @@ export class TaskController {
     const userCtx = getUserContextFromRequest(req);
     const search = req.query.search as string | undefined;
     const category = req.query.category as string | undefined;
-    const templates = await TaskService.getAllTemplates({ search, category }, userCtx);
+    const frequency = req.query.frequency as string | undefined;
+    const templates = await TaskService.getAllTemplates({ search, category, frequency }, userCtx);
     return ApiResponse.success(res, templates, ResponseMessages.SUCCESS);
   });
 

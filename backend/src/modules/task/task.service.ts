@@ -1298,7 +1298,7 @@ export class TaskService {
    * Retrieve all task templates
    */
   static async getAllTemplates(
-    query: { search?: string; category?: string } = {},
+    query: { search?: string; category?: string; frequency?: string } = {},
     userCtx?: { userId?: string | null; orgId?: string | null } | null
   ): Promise<ITaskTemplateDocument[]> {
     const andClauses: any[] = [{ isDeleted: false }];
@@ -1309,8 +1309,11 @@ export class TaskService {
         $or: [{ orgId }, { orgId: null }, { orgId: { $exists: false } }],
       });
     }
-    if (query.category && query.category !== 'All') {
+    if (query.category && query.category !== 'All' && query.category !== 'All Categories') {
       andClauses.push({ category: query.category });
+    }
+    if (query.frequency && query.frequency !== 'All' && query.frequency !== 'All Frequencies') {
+      andClauses.push({ frequency: query.frequency });
     }
     if (query.search?.trim()) {
       const q = query.search.trim();
