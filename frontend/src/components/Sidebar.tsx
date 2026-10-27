@@ -22,6 +22,7 @@ import {
   ReceiptText,
   Folder,
   Grip,
+  KeyRound,
   X,
   Building,
   Moon,
@@ -50,6 +51,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "proposal", label: "Proposal", href: "/proposal", icon: FileText },
   { id: "leads", label: "Leads", href: "/leads", icon: UserCheck },
   { id: "client", label: "Client", href: "/client", icon: Users },
+  { id: "dsc", label: "DSC", href: "/dsc", icon: KeyRound },
   { id: "groups", label: "Groups", href: "/groups", icon: UserRoundGroup },
   { id: "services", label: "Services", href: "/services", icon: ShoppingCart },
   { id: "task", label: "Task", href: "/task", icon: ClipboardList },
@@ -76,6 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     if (id === "registry") return true;
     if (id === "task") return canView("task_manager");
     if (id === "client") return canView("clients");
+    if (id === "dsc") return canView("digital_signature");
     if (id === "leads") return canView("leads");
     if (id === "services") return canView("services");
     if (id === "groups") return canView("groups");

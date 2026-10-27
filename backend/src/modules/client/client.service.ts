@@ -850,6 +850,50 @@ export class ClientService {
   }
 
   /**
+   * Fetch all global DSCs across all clients using an aggregation pipeline
+   */
+  static async getAllGlobalDscs(
+    userCtx?: { userId: string | null; orgId?: string | null } | string | null
+  ): Promise<any[]> {
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    const matchStage: Record<string, any> = {
+      isDeleted: { $ne: true },
+      dscs: { $exists: true, $not: { $size: 0 } },
+    };
+
+    if (orgId) {
+      matchStage.$or = [{ orgId }, { orgId: String(orgId) }];
+    }
+
+    return await Client.aggregate([
+      { $match: matchStage },
+      { $unwind: '$dscs' },
+      {
+        $project: {
+          _id: { $ifNull: ['$dscs._id', '$dscs.id'] },
+          id: { $ifNull: ['$dscs.id', { $toString: '$dscs._id' }] },
+          dscId: '$dscs.dscId',
+          name: '$dscs.name',
+          issuedDate: '$dscs.issuedDate',
+          expiryDate: '$dscs.expiryDate',
+          binNumber: '$dscs.binNumber',
+          vendor: '$dscs.vendor',
+          class: '$dscs.class',
+          location: '$dscs.location',
+          status: '$dscs.status',
+          remarks: '$dscs.remarks',
+          clientId: '$_id',
+          clientName: { $ifNull: ['$name', '$companyName'] },
+          clientFileNo: '$fileNo',
+        },
+      },
+      {
+        $sort: { expiryDate: 1, issuedDate: -1 },
+      },
+    ]);
+  }
+
+  /**
    * Add a Document In - Out movement to Client
    */
   static async addDocumentInOut(id: string, data: any): Promise<IClientDocument> {

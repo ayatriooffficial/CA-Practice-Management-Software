@@ -233,6 +233,16 @@ export class ClientController {
   });
 
   /**
+   * Get all global DSCs across all clients
+   * GET /api/v1/clients/dscs/all
+   */
+  static getAllGlobalDscs = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const dscs = await ClientService.getAllGlobalDscs(userCtx);
+    return ApiResponse.success(res, dscs, 'All DSCs retrieved successfully');
+  });
+
+  /**
    * Add a Document In - Out movement to client
    * POST /api/v1/clients/:id/documents-in-out
    */

@@ -36,6 +36,9 @@ const customerFilePayloadSchema = z.union([
 // Client Statistics & Overview
 router.get('/stats', ClientController.getClientStats);
 
+// Global DSCs across all clients (must be before /:id)
+router.route('/dscs/all').get(ClientController.getAllGlobalDscs);
+
 // List Clients (Pagination, Search, Advanced Filters)
 router.get(
   '/',
