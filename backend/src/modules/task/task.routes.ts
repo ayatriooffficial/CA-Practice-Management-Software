@@ -12,12 +12,26 @@ import {
   linkedEmailSchema,
   emailMessageIdParamSchema,
 } from './task.validation';
+import {
+  templateIdParamSchema,
+  createTaskTemplateSchema,
+  updateTaskTemplateSchema,
+} from './taskTemplate.validation';
 
 const router = Router();
 
 router.get('/stats', TaskController.getTaskStats);
 router.get('/summary-matrix', TaskController.getTaskSummaryMatrix);
 router.get('/profitability-report', authenticate, validateRequest({ query: profitabilityReportQuerySchema }), TaskController.getProfitabilityReport);
+
+// Template routes must be registered before /:id parameterized routes
+router.get('/templates', TaskController.getAllTemplates);
+router.get('/templates/:id', validateRequest({ params: templateIdParamSchema }), TaskController.getTemplateById);
+router.post('/templates', validateRequest({ body: createTaskTemplateSchema }), TaskController.createTemplate);
+router.put('/templates/:id', validateRequest({ params: templateIdParamSchema, body: updateTaskTemplateSchema }), TaskController.updateTemplate);
+router.patch('/templates/:id', validateRequest({ params: templateIdParamSchema, body: updateTaskTemplateSchema }), TaskController.updateTemplate);
+router.delete('/templates/:id', validateRequest({ params: templateIdParamSchema }), TaskController.deleteTemplate);
+
 router.get('/', TaskController.getAllTasks);
 router.get('/:id', validateRequest({ params: taskIdParamSchema }), TaskController.getTaskById);
 router.post('/', validateRequest({ body: createTaskSchema }), TaskController.createTask);

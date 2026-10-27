@@ -163,4 +163,39 @@ export class TaskController {
     const task = await TaskService.unlinkEmail(id, messageId);
     return ApiResponse.success(res, task, 'Email unlinked from task successfully');
   });
+
+  static getAllTemplates = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const search = req.query.search as string | undefined;
+    const category = req.query.category as string | undefined;
+    const templates = await TaskService.getAllTemplates({ search, category }, userCtx);
+    return ApiResponse.success(res, templates, ResponseMessages.SUCCESS);
+  });
+
+  static getTemplateById = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const id = String(req.params.id);
+    const template = await TaskService.getTemplateById(id, userCtx);
+    return ApiResponse.success(res, template, ResponseMessages.SUCCESS);
+  });
+
+  static createTemplate = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const template = await TaskService.createTemplate(req.body, userCtx);
+    return ApiResponse.success(res, template, 'Task template created successfully', HttpStatus.CREATED);
+  });
+
+  static updateTemplate = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const id = String(req.params.id);
+    const template = await TaskService.updateTemplate(id, req.body, userCtx);
+    return ApiResponse.success(res, template, 'Task template updated successfully');
+  });
+
+  static deleteTemplate = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const id = String(req.params.id);
+    await TaskService.deleteTemplate(id, userCtx);
+    return ApiResponse.success(res, null, 'Task template deleted successfully');
+  });
 }
