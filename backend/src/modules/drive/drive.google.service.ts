@@ -219,7 +219,22 @@ export class GoogleDriveService {
     provider: 'google-drive' | 'local-fallback';
   }> {
     if (!this.isConfigured || !this.driveClient) {
-      throw AppError.badRequest('Google Drive is not configured. Local file storage is disabled.');
+      const ext = path.extname(sanitizedFileName);
+      const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const fileId = `local_${uniqueSuffix}`;
+      const targetDir = path.join(this.localUploadsDir, category.toLowerCase());
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      const localFilePath = path.join(targetDir, `${uniqueSuffix}${ext}`);
+      fs.writeFileSync(localFilePath, file.buffer);
+      return {
+        fileId,
+        folderId: 'local_folder',
+        webViewLink: `/api/v1/drive/${fileId}/preview`,
+        webContentLink: `/api/v1/drive/${fileId}/download`,
+        provider: 'local-fallback',
+      };
     }
 
     const defaultCategoryFolder = await this.ensureCategoryFolder(category);
