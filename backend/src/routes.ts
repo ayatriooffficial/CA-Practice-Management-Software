@@ -15,6 +15,7 @@ import { attendanceRoutes } from './modules/attendance/attendance.routes';
 import { quotationRoutes } from './modules/quotation/quotation.routes';
 import { integrationRoutes } from './modules/integration/integration.routes';
 import { pdfSignerRoutes } from './modules/pdfSigner/pdfSigner.routes';
+import { documentRoutes } from './modules/document/document.routes';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 
@@ -56,5 +57,6 @@ router.use('/financials', financialRoutes);
 router.use('/quotations', optionalAuthenticate, quotationRoutes);
 router.use('/integrations', optionalAuthenticate, integrationRoutes);
 router.use('/pdf-signer', optionalAuthenticate, pdfSignerRoutes);
+router.use('/documents', optionalAuthenticate, documentRoutes);
 
 export const appRouter = router;

@@ -229,6 +229,8 @@ export const CreateTaskTemplateForm: React.FC<CreateTaskTemplateFormProps> = ({
       if (res.data || res.success) {
         if (onSuccess && res.data) {
           onSuccess(res.data);
+        } else if (onSuccess) {
+          onSuccess((res.data || { ...payload, id: `tpl_${Date.now()}` }) as any);
         } else {
           router.push("/task/templates");
         }

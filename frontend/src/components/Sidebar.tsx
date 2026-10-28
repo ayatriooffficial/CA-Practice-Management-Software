@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   FileText,
+  Files,
   UserCheck,
   Users,
   Network,
@@ -57,6 +58,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "invoice", label: "Invoice", href: "/invoice", icon: ReceiptText },
   { id: "team", label: "Team", href: "/team", icon: UsersRound },
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
+  { id: "documents", label: "Documents", href: "/documents", icon: Files },
   { id: "registry", label: "Registry", href: "/registry", icon: Grip },
 ];
 
@@ -73,6 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     if (id === "invoice") return !isEmployee && canView("invoice");
     if (id === "proposal") return !isEmployee && canView("proposals");
     if (id === "reports") return true;
+    if (id === "documents") return true;
     if (id === "registry") return true;
     if (id === "task") return canView("task_manager");
     if (id === "client") return canView("clients");
@@ -104,7 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             const isActive =
               pathname === item.href ||
               (item.id === "reports" && pathname.startsWith("/reports/")) ||
-              (item.id === "dsc" && pathname.startsWith("/dsc"));
+              (item.id === "dsc" && pathname.startsWith("/dsc")) ||
+              (item.id === "documents" && (pathname === "/documents" || pathname === "/document" || pathname.startsWith("/documents/")));
 
             return (
               <Link
@@ -306,7 +310,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                 const isActive =
                   pathname === item.href ||
                   (item.id === "reports" && pathname.startsWith("/reports/")) ||
-                  (item.id === "dsc" && pathname.startsWith("/dsc"));
+                  (item.id === "dsc" && pathname.startsWith("/dsc")) ||
+                  (item.id === "documents" && (pathname === "/documents" || pathname === "/document" || pathname.startsWith("/documents/")));
 
                 return (
                   <Link
