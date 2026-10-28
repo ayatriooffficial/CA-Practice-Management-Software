@@ -1883,14 +1883,16 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   </div>
                 </div>
 
-                {/* Preview Viewport with Adjustable Height & Width */}
+                {/* Preview Viewport with Adjustable Height & Width - Vertical Scroll with Hidden Scrollbar */}
                 <div
                   ref={previewCardRef}
                   style={{
                     height: isHeightAuto ? 'auto' : `${previewHeight}px`,
                     maxHeight: isHeightAuto ? 'none' : `${previewHeight}px`,
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
                   }}
-                  className="w-full overflow-y-auto overflow-x-auto rounded-sm shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-75 relative"
+                  className="w-full overflow-y-auto overflow-x-hidden no-scrollbar rounded-xl shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-75 relative"
                 >
                   <div className="w-full">
                     {renderInvoiceLivePreview()}
@@ -1987,9 +1989,15 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               </div>
             </div>
 
-            {/* Big Window Modal Body: Proper full invoice view */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-100/70 dark:bg-gray-950/70">
-              <div id="invoice-printable-root-modal" className="max-w-4xl mx-auto shadow-lg rounded-sm overflow-hidden border border-gray-200/90 dark:border-gray-800 bg-white">
+            {/* Big Window Modal Body: Proper full invoice view - Vertical Scroll with Hidden Scrollbar */}
+            <div
+              style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }}
+              className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar p-4 sm:p-6 md:p-8 bg-gray-100/70 dark:bg-gray-950/70"
+            >
+              <div id="invoice-printable-root-modal" className="max-w-4xl mx-auto shadow-lg rounded-xl overflow-hidden border border-gray-200/90 dark:border-gray-800 bg-white">
                 {renderInvoiceLivePreview()}
               </div>
             </div>
