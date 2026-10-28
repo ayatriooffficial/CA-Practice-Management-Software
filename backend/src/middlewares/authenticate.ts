@@ -24,18 +24,28 @@ const DEV_FALLBACK_ORG_ID = '6ad9e23bf460aa2e6102c0c6';
  * reads live role & status from DB, and blocks pending/rejected accounts from non-whitelisted routes.
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const authHeader = req.headers.authorization;
+  let token: string | undefined;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query && typeof req.query.token === 'string') {
+    token = req.query.token;
+  } else if ((req as any).cookies) {
+    token =
+      (req as any).cookies.turia_access_token ||
+      (req as any).cookies.token ||
+      (req as any).cookies.accessToken;
+  }
+
+  if (!token) {
     ApiResponse.error(
       res,
-      'Access denied. No authentication token provided.',
+      'Access denied. No authentication token provided. Please log in to view this resource.',
       HTTP_STATUS.UNAUTHORIZED
     );
     return;
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = JwtService.verifyAccessToken(token);
@@ -116,10 +126,21 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
  * Attaches user if valid token exists, but blocks pending users from receiving feature module data.
  */
 export const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const authHeader = req.headers.authorization;
+  let token: string | undefined;
 
+  const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
+    token = authHeader.split(' ')[1];
+  } else if (req.query && typeof req.query.token === 'string') {
+    token = req.query.token;
+  } else if ((req as any).cookies) {
+    token =
+      (req as any).cookies.turia_access_token ||
+      (req as any).cookies.token ||
+      (req as any).cookies.accessToken;
+  }
+
+  if (token) {
     try {
       const decoded = JwtService.verifyAccessToken(token);
 

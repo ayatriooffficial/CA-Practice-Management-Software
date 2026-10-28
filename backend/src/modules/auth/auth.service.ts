@@ -1061,7 +1061,30 @@ export class AuthService {
     if (!orgObj.pan) orgObj.pan = '';
     if (!orgObj.lutNumber) orgObj.lutNumber = '';
 
+    if (orgObj.invoiceSettings) {
+      if (orgObj.invoiceSettings.firmLogoUrl) {
+        orgObj.invoiceSettings.firmLogoUrl = this.sanitizeRelativeUrl(orgObj.invoiceSettings.firmLogoUrl);
+      }
+      if (orgObj.invoiceSettings.digitalSignatureUrl) {
+        orgObj.invoiceSettings.digitalSignatureUrl = this.sanitizeRelativeUrl(orgObj.invoiceSettings.digitalSignatureUrl);
+      }
+    }
+
     return orgObj;
+  }
+
+  /**
+   * Helper to strip protocol and host from stored drive URLs, saving only relative path in DB
+   * e.g. "http://localhost:5000/api/v1/drive/..." -> "/api/v1/drive/..."
+   */
+  public static sanitizeRelativeUrl(url: any): any {
+    if (typeof url !== 'string') return url;
+    const trimmed = url.trim();
+    const match = trimmed.match(/^https?:\/\/[^/]+(\/api\/v1\/.*)$/i);
+    if (match) {
+      return match[1];
+    }
+    return trimmed;
   }
 
   /**
@@ -1073,11 +1096,23 @@ export class AuthService {
       const primary = await this.getOrganization();
       return [primary];
     }
-    return orgs.map((org: any, index: number) => ({
-      ...org,
-      id: String(org._id),
-      priority: index === 0 ? 'Primary' : 'Secondary',
-    }));
+    return orgs.map((org: any, index: number) => {
+      const copy = { ...org };
+      if (copy.invoiceSettings) {
+        copy.invoiceSettings = { ...copy.invoiceSettings };
+        if (copy.invoiceSettings.firmLogoUrl) {
+          copy.invoiceSettings.firmLogoUrl = this.sanitizeRelativeUrl(copy.invoiceSettings.firmLogoUrl);
+        }
+        if (copy.invoiceSettings.digitalSignatureUrl) {
+          copy.invoiceSettings.digitalSignatureUrl = this.sanitizeRelativeUrl(copy.invoiceSettings.digitalSignatureUrl);
+        }
+      }
+      return {
+        ...copy,
+        id: String(org._id),
+        priority: index === 0 ? 'Primary' : 'Secondary',
+      };
+    });
   }
 
   /**
@@ -1090,6 +1125,15 @@ export class AuthService {
     }
     if (!org) {
       org = await OrganizationModel.findOne();
+    }
+
+    if (updates.invoiceSettings && typeof updates.invoiceSettings === 'object' && !Array.isArray(updates.invoiceSettings)) {
+      if (updates.invoiceSettings.firmLogoUrl) {
+        updates.invoiceSettings.firmLogoUrl = this.sanitizeRelativeUrl(updates.invoiceSettings.firmLogoUrl);
+      }
+      if (updates.invoiceSettings.digitalSignatureUrl) {
+        updates.invoiceSettings.digitalSignatureUrl = this.sanitizeRelativeUrl(updates.invoiceSettings.digitalSignatureUrl);
+      }
     }
 
     if (org) {

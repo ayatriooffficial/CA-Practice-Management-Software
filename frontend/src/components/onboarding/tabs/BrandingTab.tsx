@@ -19,6 +19,7 @@ import { CaIndiaLogo } from "@/components/ui/CaIndiaLogo";
 import { InvoiceLivePreview } from "./InvoiceLivePreview";
 import { organizationApi } from "@/services/organizationApi";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 
 export interface DocumentColorSetting {
   id: string;
@@ -157,14 +158,16 @@ export const BrandingTab: React.FC<BrandingTabProps> = ({
       const response = await driveApi.uploadDocument(formData);
       if (response && response.data) {
         const driveDoc = response.data;
-        const permanentUrl = driveApi.getPreviewUrl(driveDoc.driveFileId || driveDoc._id);
-        setFirmLogoUrl(permanentUrl);
+        // Store only relative path in DB (environment-agnostic, never localhost)
+        const relativeUrl = `/api/v1/drive/${driveDoc.driveFileId || driveDoc._id}/preview`;
+        const displayUrl = getDirectFilePreviewUrl(relativeUrl);
+        setFirmLogoUrl(displayUrl);
         setLogoUploadSuccess(true);
 
-        // Auto-save permanent Google Drive preview URL to organization invoiceSettings
+        // Auto-save relative URL to organization invoiceSettings
         await organizationApi.updateOrganization({
           invoiceSettings: {
-            firmLogoUrl: permanentUrl,
+            firmLogoUrl: relativeUrl,
           },
         });
       }
@@ -209,14 +212,16 @@ export const BrandingTab: React.FC<BrandingTabProps> = ({
       const response = await driveApi.uploadDocument(formData);
       if (response && response.data) {
         const driveDoc = response.data;
-        const permanentUrl = driveApi.getPreviewUrl(driveDoc.driveFileId || driveDoc._id);
-        setDigitalSignatureUrl(permanentUrl);
+        // Store only relative path in DB (environment-agnostic, never localhost)
+        const relativeUrl = `/api/v1/drive/${driveDoc.driveFileId || driveDoc._id}/preview`;
+        const displayUrl = getDirectFilePreviewUrl(relativeUrl);
+        setDigitalSignatureUrl(displayUrl);
         setSignatureUploadSuccess(true);
 
-        // Auto-save permanent Google Drive preview URL to organization invoiceSettings
+        // Auto-save relative URL to organization invoiceSettings
         await organizationApi.updateOrganization({
           invoiceSettings: {
-            digitalSignatureUrl: permanentUrl,
+            digitalSignatureUrl: relativeUrl,
           },
         });
       }
@@ -1085,7 +1090,7 @@ export const BrandingTab: React.FC<BrandingTabProps> = ({
                 <div className="flex flex-col items-center gap-2">
                   <div className="p-1 rounded-xl bg-white border border-gray-100 dark:border-gray-800 shadow-xs">
                     <img
-                      src={firmLogoUrl}
+                      src={getDirectFilePreviewUrl(firmLogoUrl)}
                       alt="Firm Logo"
                       crossOrigin="anonymous"
                       className="max-h-16 object-contain rounded"
@@ -1147,7 +1152,7 @@ export const BrandingTab: React.FC<BrandingTabProps> = ({
                 <div className="flex flex-col items-center gap-2">
                   <div className="p-1 rounded-xl bg-white border border-gray-100 dark:border-gray-800 shadow-xs">
                     <img
-                      src={digitalSignatureUrl}
+                      src={getDirectFilePreviewUrl(digitalSignatureUrl)}
                       alt="Digital Signature"
                       crossOrigin="anonymous"
                       className="max-h-16 object-contain rounded"

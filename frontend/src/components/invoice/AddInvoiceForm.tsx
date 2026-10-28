@@ -38,6 +38,7 @@ import { Client } from '@/data/crmData';
 import { Service } from '@/data/serviceData';
 import { organizationApi, OrganizationDetails } from '@/services/organizationApi';
 import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from '@/components/onboarding/tabs/InvoiceLivePreview';
+import { getDirectFilePreviewUrl } from '@/utils/filePreview';
 
 interface AddInvoiceFormProps {
   type: 'invoice' | 'proforma';
@@ -1275,7 +1276,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-gray-400">Logo:</span>
                           <img
-                            src={firmLogoUrl}
+                            src={getDirectFilePreviewUrl(firmLogoUrl)}
                             alt="Billing Logo"
                             className="h-6 w-auto max-w-[80px] object-contain rounded border border-gray-200 dark:border-gray-700 bg-white"
                           />

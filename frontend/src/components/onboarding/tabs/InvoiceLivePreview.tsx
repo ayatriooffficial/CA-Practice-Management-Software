@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { Mail, Phone } from "lucide-react";
 import QRCode from "qrcode";
 import { CaIndiaLogo } from "@/components/ui/CaIndiaLogo";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 
 export interface DynamicUpiQrCodeProps {
   upiId?: string;
@@ -1074,7 +1075,7 @@ export const InvoiceLivePreview: React.FC<InvoiceLivePreviewProps> = ({
             <div className="flex items-center gap-2.5 sm:gap-3.5">
               {firmLogoUrl ? (
                 <img
-                  src={firmLogoUrl}
+                  src={getDirectFilePreviewUrl(firmLogoUrl)}
                   alt={firmName}
                   crossOrigin="anonymous"
                   className="w-10 h-10 sm:w-11 sm:h-11 object-contain"
@@ -1732,7 +1733,7 @@ export const InvoiceLivePreview: React.FC<InvoiceLivePreviewProps> = ({
                 <div className="flex flex-col items-center min-w-[180px]">
                   {digitalSignatureUrl ? (
                     <img
-                      src={digitalSignatureUrl}
+                      src={getDirectFilePreviewUrl(digitalSignatureUrl)}
                       alt="Digital Signature"
                       crossOrigin="anonymous"
                       className="h-10 object-contain mb-1"
@@ -1770,7 +1771,7 @@ export const InvoiceLivePreview: React.FC<InvoiceLivePreviewProps> = ({
               <div className="flex flex-col items-center min-w-[170px]">
                 {digitalSignatureUrl ? (
                   <img
-                    src={digitalSignatureUrl}
+                    src={getDirectFilePreviewUrl(digitalSignatureUrl)}
                     alt="Digital Signature"
                     crossOrigin="anonymous"
                     className="h-8 object-contain mb-0.5"

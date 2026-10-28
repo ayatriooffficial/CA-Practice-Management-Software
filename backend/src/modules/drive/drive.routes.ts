@@ -8,16 +8,18 @@ import {
   documentIdParamSchema,
 } from './drive.validation';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
+import { authenticate } from '../../middlewares/authenticate';
 
 const router = Router();
 
 // 1. Service Status & Storage Analytics
 router.get('/status', DriveController.getDriveStatus);
-router.get('/stats', DriveController.getCategoryStats);
+router.get('/stats', authenticate, DriveController.getCategoryStats);
 
 // 2. File Verification Only (Dry-run without saving)
 router.post(
   '/verify',
+  authenticate,
   uploadMiddleware.single('file'),
   DriveController.verifyDocumentOnly
 );
@@ -25,6 +27,7 @@ router.post(
 // 3. Upload & Verify File (Routes to Google Drive Category Folder)
 router.post(
   '/upload',
+  authenticate,
   mutationRateLimiter,
   uploadMiddleware.single('file'),
   validateRequest({ body: uploadDocumentBodySchema }),
@@ -34,32 +37,37 @@ router.post(
 // 4. List Documents (Category filter, text search, pagination)
 router.get(
   '/',
+  authenticate,
   validateRequest({ query: queryDocumentsSchema }),
   DriveController.getDocuments
 );
 
-// 5. Download Document Stream
+// 5. Download Document Stream (Strict authentication required)
 router.get(
   '/:id/download',
+  authenticate,
   DriveController.downloadDocument
 );
 
-// 6. Preview Document Inline Stream (images, PDFs)
+// 6. Preview Document Inline Stream (Strict authentication required)
 router.get(
   '/:id/preview',
+  authenticate,
   DriveController.previewDocument
 );
 
-// 6. Get Document Metadata
+// 7. Get Document Metadata
 router.get(
   '/:id',
+  authenticate,
   validateRequest({ params: documentIdParamSchema }),
   DriveController.getDocumentById
 );
 
-// 7. Delete Document (Google Drive & Database soft-delete)
+// 8. Delete Document (Google Drive & Database soft-delete)
 router.delete(
   '/:id',
+  authenticate,
   validateRequest({ params: documentIdParamSchema }),
   DriveController.deleteDocument
 );
