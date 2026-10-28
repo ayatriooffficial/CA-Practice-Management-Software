@@ -22,6 +22,8 @@ import {
   GripHorizontal,
   Minus,
   RotateCcw,
+  Search,
+  ChevronDown,
 } from 'lucide-react';
 import { ServiceItem, InvoiceRecord } from './types';
 import { FIRM_DETAILS } from './mockData';
@@ -84,6 +86,58 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
     active: true,
     address: initialData.clientAddress || '',
   } as unknown as Client : undefined);
+
+  // Client Search & Dropdown State
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [showAllClients, setShowAllClients] = useState(false);
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+  const clientSearchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        clientDropdownRef.current &&
+        !clientDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsClientDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isClientDropdownOpen) {
+      setTimeout(() => {
+        clientSearchInputRef.current?.focus();
+      }, 50);
+    } else {
+      setClientSearchQuery('');
+      setShowAllClients(false);
+    }
+  }, [isClientDropdownOpen]);
+
+  const filteredClients = clientSearchQuery.trim()
+    ? clients.filter((c) => {
+        const query = clientSearchQuery.toLowerCase();
+        return (
+          (c.name && c.name.toLowerCase().includes(query)) ||
+          (c.legalName && c.legalName.toLowerCase().includes(query)) ||
+          (c.pan && c.pan.toLowerCase().includes(query)) ||
+          (c.fileNo && c.fileNo.toLowerCase().includes(query)) ||
+          ((c as any).phone && String((c as any).phone).toLowerCase().includes(query)) ||
+          ((c as any).email && String((c as any).email).toLowerCase().includes(query)) ||
+          (c.group && c.group.toLowerCase().includes(query))
+        );
+      })
+    : clients;
+
+  const displayedClients = clientSearchQuery.trim()
+    ? filteredClients
+    : showAllClients
+    ? filteredClients
+    : filteredClients.slice(0, 5);
 
   const [serviceCatalog, setServiceCatalog] = useState<Service[]>([]);
 
@@ -971,18 +1025,143 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                       {titlePrefix} To <span className="font-normal text-gray-500 text-xs">(Client's details)</span>
                     </label>
 
-                    <select
-                      value={selectedClientId}
-                      onChange={(e) => { setSelectedClientId(e.target.value); setTaskAllocations([]); }}
-                      className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
-                    >
-                      <option value="">Select Client/Business from list</option>
-                      {clients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.name} ({client.type})
-                        </option>
-                      ))}
-                    </select>
+                    {/* Searchable Client Combobox (Shows initial 5, search filter) */}
+                    <div ref={clientDropdownRef} className="relative w-full">
+                      <button
+                        type="button"
+                        disabled={isView}
+                        onClick={() => setIsClientDropdownOpen((prev) => !prev)}
+                        className={`w-full h-11 px-3.5 rounded-lg border text-xs flex items-center justify-between text-left transition-colors outline-none cursor-pointer ${
+                          isClientDropdownOpen
+                            ? "border-[#3D6A9E] ring-2 ring-[#3D6A9E]/15 bg-white dark:bg-[#0f172a]"
+                            : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] hover:border-[#3D6A9E]/60"
+                        } ${isView ? "cursor-default opacity-80" : ""}`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className={selectedClient ? "font-semibold text-gray-800 dark:text-gray-100 truncate" : "text-gray-400 dark:text-gray-500"}>
+                            {selectedClient ? `${selectedClient.name} ${selectedClient.type ? `(${selectedClient.type})` : ''}` : "Select Client/Business from list"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          {selectedClient && !isView && (
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedClientId('');
+                                setTaskAllocations([]);
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                              title="Clear client selection"
+                            >
+                              <X className="w-3 h-3" />
+                            </span>
+                          )}
+                          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${isClientDropdownOpen ? "rotate-180" : ""}`} />
+                        </div>
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {isClientDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-80">
+                          {/* Search Input Bar */}
+                          <div className="p-2.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/70 dark:bg-[#0f172a]/50">
+                            <div className="relative">
+                              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              <input
+                                ref={clientSearchInputRef}
+                                type="text"
+                                value={clientSearchQuery}
+                                onChange={(e) => setClientSearchQuery(e.target.value)}
+                                placeholder="Search client by name, legal name, PAN..."
+                                className="w-full h-8.5 pl-8.5 pr-7 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] placeholder:text-gray-400"
+                              />
+                              {clientSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => setClientSearchQuery('')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded cursor-pointer"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Client List */}
+                          <div className="overflow-y-auto max-h-56 divide-y divide-gray-50 dark:divide-gray-800 p-1">
+                            {displayedClients.length > 0 ? (
+                              displayedClients.map((client) => {
+                                const isSelected = client.id === selectedClientId || (selectedClient?.id === client.id);
+                                return (
+                                  <button
+                                    key={client.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedClientId(client.id);
+                                      setTaskAllocations([]);
+                                      setIsClientDropdownOpen(false);
+                                    }}
+                                    className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                                      isSelected
+                                        ? "bg-[#3D6A9E]/10 text-[#3D6A9E] font-semibold"
+                                        : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
+                                    }`}
+                                  >
+                                    <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold truncate">{client.name}</span>
+                                        {client.type && (
+                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-normal">
+                                            {client.type}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-[10px] text-gray-400 dark:text-gray-500 font-mono">
+                                        {client.pan && <span>PAN: {client.pan}</span>}
+                                        {client.legalName && client.legalName !== client.name && (
+                                          <span className="truncate">({client.legalName})</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {isSelected && (
+                                      <Check className="w-3.5 h-3.5 text-[#3D6A9E] shrink-0" />
+                                    )}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <div className="py-6 px-4 text-center text-xs text-gray-400 dark:text-gray-500">
+                                No clients found matching &quot;{clientSearchQuery}&quot;
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer Indicator: Show count & Show all button */}
+                          {!clientSearchQuery.trim() && clients.length > 5 && (
+                            <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-[#0f172a]/40 flex items-center justify-between text-[11px] text-gray-500">
+                              <span>
+                                {showAllClients
+                                  ? `Showing all ${clients.length} clients`
+                                  : `Showing initial 5 of ${clients.length} clients`}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowAllClients((prev) => !prev)}
+                                className="font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
+                              >
+                                {showAllClients ? "Show less" : `View all (${clients.length})`}
+                              </button>
+                            </div>
+                          )}
+                          {clientSearchQuery.trim() && (
+                            <div className="px-3 py-1.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-[#0f172a]/40 text-[10px] text-gray-400 text-right">
+                              {filteredClients.length} match{filteredClients.length === 1 ? '' : 'es'} found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Client Details Panel or Centered Placeholder */}
