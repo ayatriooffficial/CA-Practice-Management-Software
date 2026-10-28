@@ -24,6 +24,7 @@ import {
   RotateCcw,
   Search,
   ChevronDown,
+  MoreVertical,
 } from 'lucide-react';
 import { ServiceItem, InvoiceRecord } from './types';
 import { FIRM_DETAILS } from './mockData';
@@ -528,7 +529,22 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
     cgst: true,
     sgst: true,
   });
-  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
+  const optionsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        optionsMenuRef.current &&
+        !optionsMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsOptionsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
   const handleDownloadPDF = async () => {
@@ -838,28 +854,6 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Format Switcher */}
-            <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 p-1 rounded-sm text-xs border border-gray-200 dark:border-gray-700 shadow-2xs">
-              <span className="text-[11px] font-semibold text-gray-500 px-1.5 flex items-center gap-1">
-                <Palette className="w-3 h-3 text-[#3D6A9E]" />
-                Format:
-              </span>
-              {(["modern", "classic", "minimal"] as const).map((fmt) => (
-                <button
-                  key={fmt}
-                  type="button"
-                  onClick={() => handleChangeFormat(fmt)}
-                  className={`px-2.5 py-1 rounded-sm text-xs font-semibold capitalize transition-all cursor-pointer ${activeFormat === fmt
-                    ? "bg-white dark:bg-gray-900 text-[#3D6A9E] font-bold shadow-xs border border-gray-200 dark:border-gray-700"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                    }`}
-                  title={`Change format to ${fmt}`}
-                >
-                  {fmt}
-                </button>
-              ))}
-            </div>
-
             {/* Toggle Preview / Form Button (when drafting or editing) */}
             {!isView && (
               <button
@@ -876,102 +870,116 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               </button>
             )}
 
-            {/* Columns Selector Dropdown (when viewing or previewing) */}
-            {(isView || isPreviewActive) && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowColumnDropdown((prev) => !prev)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-700 dark:text-gray-300 transition-colors cursor-pointer text-xs font-semibold"
-                  title="Choose which columns will print"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#3D6A9E]" />
-                  <span>Columns</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#3D6A9E]/15 text-[#3D6A9E] font-bold">
-                    {[printColumns.hsnSac, printColumns.qty, printColumns.description, printColumns.cgst, printColumns.sgst].filter(Boolean).length}/5
-                  </span>
-                </button>
+            {/* Three Dots Menu: Choose Template & Choose Columns */}
+            <div className="relative" ref={optionsMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsOptionsMenuOpen((prev) => !prev)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer flex items-center justify-center ${isOptionsMenuOpen
+                  ? "bg-gray-100 dark:bg-gray-800 border-[#3D6A9E] text-[#3D6A9E]"
+                  : "border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300"
+                  }`}
+                title="Invoice options (Templates, Columns)"
+                aria-label="Invoice options"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
 
-                {showColumnDropdown && (
-                  <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-sm shadow-xl border border-gray-200 dark:border-gray-700 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 py-1 mb-1 border-b border-gray-100 dark:border-gray-700">
-                      Print Columns
+              {isOptionsMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3">
+                  {/* Choose Template / Format */}
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-400 px-1 mb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Palette className="w-3 h-3 text-[#3D6A9E]" />
+                        Choose Template
+                      </span>
+                      <span className="text-[10px] text-[#3D6A9E] font-semibold capitalize">
+                        {activeFormat}
+                      </span>
                     </div>
-                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={printColumns.hsnSac}
-                        onChange={() => handleToggleColumn("hsnSac")}
-                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
-                      />
-                      <span className="font-medium">HSN / SAC</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={printColumns.qty}
-                        onChange={() => handleToggleColumn("qty")}
-                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
-                      />
-                      <span className="font-medium">Quantity (QTY)</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={printColumns.description}
-                        onChange={() => handleToggleColumn("description")}
-                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
-                      />
-                      <span className="font-medium">Item Description</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={printColumns.cgst}
-                        onChange={() => handleToggleColumn("cgst")}
-                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
-                      />
-                      <span className="font-medium">CGST</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={printColumns.sgst}
-                        onChange={() => handleToggleColumn("sgst")}
-                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
-                      />
-                      <span className="font-medium">SGST</span>
-                    </label>
+                    <div className="grid grid-cols-3 gap-1 bg-gray-50 dark:bg-[#0f172a] p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+                      {(["modern", "classic", "minimal"] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          type="button"
+                          onClick={() => handleChangeFormat(fmt)}
+                          className={`py-1.5 px-2 rounded-md text-xs font-semibold capitalize transition-all cursor-pointer flex items-center justify-center ${activeFormat === fmt
+                            ? "bg-white dark:bg-[#1e293b] text-[#3D6A9E] shadow-xs border border-gray-200 dark:border-gray-700 font-bold"
+                            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                            }`}
+                        >
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* Print & Download PDF buttons (when viewing/previewing) */}
-            {(isView || isPreviewActive) && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => printInvoiceElement("invoice-printable-root")}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 transition-colors cursor-pointer text-xs font-semibold"
-                  title="Print Invoice"
-                >
-                  <Printer className="w-3.5 h-3.5 text-[#3D6A9E]" />
-                  <span>Print</span>
-                </button>
+                  {/* Divider */}
+                  <div className="border-t border-gray-100 dark:border-gray-700" />
 
-                <button
-                  type="button"
-                  onClick={handleDownloadPDF}
-                  disabled={isDownloadingPDF}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 transition-colors cursor-pointer text-xs font-semibold disabled:opacity-50"
-                  title="Download as PDF"
-                >
-                  <Download className={`w-3.5 h-3.5 text-[#3D6A9E] ${isDownloadingPDF ? "animate-bounce" : ""}`} />
-                  <span>{isDownloadingPDF ? "Downloading..." : "Download PDF"}</span>
-                </button>
-              </>
-            )}
+                  {/* Choose Columns */}
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-400 px-1 mb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-3 h-3 text-[#3D6A9E]" />
+                        Choose Columns
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#3D6A9E]/15 text-[#3D6A9E] font-bold">
+                        {[printColumns.hsnSac, printColumns.qty, printColumns.description, printColumns.cgst, printColumns.sgst].filter(Boolean).length}/5
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="flex items-center justify-between px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-lg cursor-pointer">
+                        <span className="font-medium">HSN / SAC</span>
+                        <input
+                          type="checkbox"
+                          checked={printColumns.hsnSac}
+                          onChange={() => handleToggleColumn("hsnSac")}
+                          className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-lg cursor-pointer">
+                        <span className="font-medium">Quantity (QTY)</span>
+                        <input
+                          type="checkbox"
+                          checked={printColumns.qty}
+                          onChange={() => handleToggleColumn("qty")}
+                          className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-lg cursor-pointer">
+                        <span className="font-medium">Item Description</span>
+                        <input
+                          type="checkbox"
+                          checked={printColumns.description}
+                          onChange={() => handleToggleColumn("description")}
+                          className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-lg cursor-pointer">
+                        <span className="font-medium">CGST</span>
+                        <input
+                          type="checkbox"
+                          checked={printColumns.cgst}
+                          onChange={() => handleToggleColumn("cgst")}
+                          className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-lg cursor-pointer">
+                        <span className="font-medium">SGST</span>
+                        <input
+                          type="checkbox"
+                          checked={printColumns.sgst}
+                          onChange={() => handleToggleColumn("sgst")}
+                          className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
