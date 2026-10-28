@@ -270,11 +270,18 @@ export class DriveService {
 
     const totalPages = Math.ceil(totalDocs / limit);
 
-    const enrichedItems = items.map((doc: any) => ({
-      ...doc,
-      previewUrl: doc.previewUrl || `/api/v1/drive/${doc.driveFileId || doc._id}/preview`,
-      thumbnailUrl: `/api/v1/drive/${doc.driveFileId || doc._id}/preview`,
-    }));
+    const enrichedItems = items.map((doc: any) => {
+      let preview = doc.previewUrl;
+      if (typeof preview === 'string') {
+        const match = preview.match(/^https?:\/\/[^/]+(\/api\/v1\/.*)$/i);
+        if (match) preview = match[1];
+      }
+      return {
+        ...doc,
+        previewUrl: preview || `/api/v1/drive/${doc.driveFileId || doc._id}/preview`,
+        thumbnailUrl: `/api/v1/drive/${doc.driveFileId || doc._id}/preview`,
+      };
+    });
 
     return {
       items: enrichedItems as unknown as IDocumentDocument[],
