@@ -48,7 +48,6 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "home", label: "Home", href: "/", icon: Home },
-  { id: "proposal", label: "Proposal", href: "/proposal", icon: FileText },
   { id: "leads", label: "Leads", href: "/leads", icon: UserCheck },
   { id: "client", label: "Client", href: "/client", icon: Users },
   { id: "dsc", label: "DSC", href: "/dsc", icon: KeyRound },
@@ -58,7 +57,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "invoice", label: "Invoice", href: "/invoice", icon: ReceiptText },
   { id: "team", label: "Team", href: "/team", icon: UsersRound },
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
-  { id: "drive", label: "Drive", href: "/drive", icon: Folder },
   { id: "registry", label: "Registry", href: "/registry", icon: Grip },
 ];
 

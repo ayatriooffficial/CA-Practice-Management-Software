@@ -16,6 +16,7 @@ import {
   LogOut,
   Smartphone,
   Building2,
+  Folder,
 } from "lucide-react";
 
 interface ProfileDrawerProps {
@@ -74,7 +75,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
           <div
             className="relative h-28 shrink-0 flex items-start justify-between p-4"
             style={{
-              background: "linear-gradient(135deg, #31719B 0%, #8f85f3 100%)",
+              background: "linear-gradient(135deg, #31719B 0%, #3D88BF 100%)",
             }}
           >
             {/* Close Button at top-left */}
@@ -127,7 +128,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
                   className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${
                     (currentUser.role || "").toLowerCase() === "employee"
                       ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
-                      : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300"
+                      : "bg-[#31719B]/10 text-[#31719B] dark:bg-[#31719B]/20 dark:text-blue-300 border border-[#31719B]/30"
                   }`}
                 >
                   {(currentUser.role || "ADMIN").toUpperCase()}
@@ -193,41 +194,29 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
 
           {/* Scrollable Navigation Items */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-            {/* Group 1: My Profile & Settings */}
+            {/* Settings (formerly Firm Profile Setup / Onboarding) */}
             <Link
               href="/onboarding"
               onClick={onClose}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 bg-purple-50/70 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 hover:bg-purple-100 cursor-pointer group mb-1"
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 bg-[#31719B]/5 dark:bg-[#31719B]/15 text-[#31719B] dark:text-blue-300 border border-[#31719B]/20 dark:border-[#31719B]/30 hover:bg-[#31719B]/10 cursor-pointer group mb-1"
             >
               <div className="flex items-center gap-3">
-                <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform" />
-                <span className="font-semibold text-xs">Firm Profile Setup (Onboarding)</span>
+                <Settings className="w-4 h-4 text-[#31719B] dark:text-blue-400 group-hover:rotate-45 transition-transform" />
+                <span className="font-semibold text-xs">Settings</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 transition-all" />
+              <ChevronRight className="w-4 h-4 text-[#31719B]/70 dark:text-blue-400 group-hover:translate-x-0.5 transition-all" />
             </Link>
 
+            {/* Drive */}
             <Link
-              href="/team"
+              href="/drive"
               onClick={onClose}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-[var(--primary-light)] hover:text-[var(--primary)] cursor-pointer group"
               style={{ color: "var(--text-main)" }}
             >
               <div className="flex items-center gap-3">
-                <User className="w-4 h-4 text-gray-500 group-hover:text-[var(--primary)] transition-colors" />
-                <span>My Profile</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all" />
-            </Link>
-
-            <Link
-              href="/services"
-              onClick={onClose}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-[var(--primary-light)] hover:text-[var(--primary)] cursor-pointer group"
-              style={{ color: "var(--text-main)" }}
-            >
-              <div className="flex items-center gap-3">
-                <Settings className="w-4 h-4 text-gray-500 group-hover:text-[var(--primary)] transition-colors" />
-                <span>Settings</span>
+                <Folder className="w-4 h-4 text-gray-500 group-hover:text-[var(--primary)] transition-colors" />
+                <span className="text-xs font-medium">Drive</span>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all" />
             </Link>

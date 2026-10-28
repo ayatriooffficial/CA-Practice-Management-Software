@@ -10,12 +10,12 @@
 :root {
   /* Brand / Primary Palette */
   --primary: #31719B;
-  /* Vibrant indigo-purple for active tabs & accents */
+  /* Brand primary blue for active tabs & accents */
   --primary-hover: #3D88BF;
-  --primary-focus: rgba(115, 103, 240, 0.25);
-  --primary-light: #eeedfd;
+  --primary-focus: rgba(49, 113, 155, 0.25);
+  --primary-light: #eaf2f8;
   /* Very light tint for active backgrounds */
-  --primary-border: #d2cdfb;
+  --primary-border: #c2daf0;
 
   /* Neutrals & Surfaces */
   --bg-app: #ffffff;
@@ -23,7 +23,7 @@
   --bg-muted: #f9fafb;
   --bg-subtle: #f3f4f6;
   --bg-hover: #f3f4f6;
-  --bg-active: #eeedfd;
+  --bg-active: #eaf2f8;
 
   /* Typography Colors */
   --text-main: #111827;
@@ -66,7 +66,7 @@
   /* Link highlight */
 
   /* Avatar / Credits */
-  --avatar-bg: #eeedfd;
+  --avatar-bg: #eaf2f8;
   /* Light primary tint avatar */
   --avatar-text: #31719B;
   --status-online: #22c55e;
@@ -81,7 +81,7 @@
   --cal-day-text: #374151;
   --cal-day-other: #9ca3af;
   --cal-today-bg: #31719B;
-  --cal-today-light: #eeedfd;
+  --cal-today-light: #eaf2f8;
 
   /* Radius & Shadows */
   --radius-xs: 3px;
@@ -109,16 +109,16 @@
 /* Dark Mode Variables Support */
 [data-theme="dark"] {
   --primary: #31719B;
-  --primary-hover: #8276f2;
-  --primary-light: rgba(115, 103, 240, 0.16);
-  --primary-border: rgba(115, 103, 240, 0.35);
+  --primary-hover: #3D88BF;
+  --primary-light: rgba(49, 113, 155, 0.2);
+  --primary-border: rgba(61, 136, 191, 0.4);
 
   --bg-app: #0f172a;
   --bg-surface: #1e293b;
   --bg-muted: #0b1120;
   --bg-subtle: #1e293b;
   --bg-hover: #334155;
-  --bg-active: rgba(115, 103, 240, 0.22);
+  --bg-active: rgba(49, 113, 155, 0.22);
 
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
@@ -135,15 +135,15 @@
   --banner-text: #fef08a;
   --banner-link: #fde047;
 
-  --avatar-bg: rgba(115, 103, 240, 0.2);
-  --avatar-text: #a59df7;
+  --avatar-bg: rgba(49, 113, 155, 0.25);
+  --avatar-text: #93c5fd;
 
   --cal-header-bg: #1e293b;
   --cal-grid-border: #334155;
   --cal-day-text: #e2e8f0;
   --cal-day-other: #64748b;
   --cal-today-bg: #31719B;
-  --cal-today-light: rgba(115, 103, 240, 0.2);
+  --cal-today-light: rgba(49, 113, 155, 0.25);
 
   --orange-havy-light: #162032;
 }

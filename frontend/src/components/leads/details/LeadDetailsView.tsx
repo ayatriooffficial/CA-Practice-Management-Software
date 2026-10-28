@@ -9,7 +9,7 @@ import { PipelineChevronBar } from "./PipelineChevronBar";
 import { LeadScoreCard } from "./LeadScoreCard";
 import { DealCard } from "./DealCard";
 import { BusinessInfoCard } from "./BusinessInfoCard";
-import { LeadTasksTab, QuotationTab, DetailNotesTab } from "./tabs";
+import { LeadTasksTab, QuotationTab, ProposalTab, DetailNotesTab } from "./tabs";
 import { Quotation } from "@/services/quotationApi";
 import { Loader2 } from "lucide-react";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
@@ -40,7 +40,7 @@ const EditDealModal = dynamic(
   { ssr: false }
 );
 
-export type LeadDetailTabType = "notes" | "quotation" | "tasks";
+export type LeadDetailTabType = "notes" | "quotation" | "proposal" | "tasks";
 
 interface LeadDetailsViewProps {
   leadId: string;
@@ -282,6 +282,23 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
 
             <button
               type="button"
+              onClick={() => setActiveTab("proposal")}
+              className={`pb-3 relative transition-colors cursor-pointer ${activeTab === "proposal"
+                ? "text-[#31719B] dark:text-[#60a5fa]"
+                : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                }`}
+            >
+              <span>Proposal</span>
+              {activeTab === "proposal" && (
+                <span
+                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                  style={{ backgroundColor: "var(--premium-blue-dark)" }}
+                />
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab("tasks")}
               className={`pb-3 relative transition-colors cursor-pointer ${activeTab === "tasks"
                 ? "text-[#31719B] dark:text-[#60a5fa]"
@@ -314,6 +331,10 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
                 onOpenAddQuotation={() => setIsAddQuotationOpen(true)}
                 onViewQuotation={(q) => setViewingQuotation(q)}
               />
+            )}
+
+            {activeTab === "proposal" && (
+              <ProposalTab lead={activeLead} />
             )}
 
             {activeTab === "notes" && <DetailNotesTab lead={activeLead} />}
