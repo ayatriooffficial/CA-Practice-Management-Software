@@ -79,6 +79,11 @@ export const envSchema = z.object({
   AUTOMATIC_REMINDERS_REAL_SEND: strictBoolean(false),
   AGENT_SCHEDULER_INTERVAL_MS: z.coerce.number().default(60000),
   ENABLE_BACKGROUND_SCHEDULER: strictBoolean(true),
+  // PDF Signer
+  PDF_SIGNER_PROVIDER: z.enum(['software', 'token']).default('software'),
+  PDF_SIGNER_PFX_PATH: z.string().default('./certs/dev-signer.pfx'),
+  PDF_SIGNER_PFX_PASSPHRASE: z.string().default('AyatrioTestPass123!'),
+  PDF_SIGNER_STORAGE_DIR: z.string().default('./storage/pdf-signer'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

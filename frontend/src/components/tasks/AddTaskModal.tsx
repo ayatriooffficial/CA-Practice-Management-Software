@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Paperclip, Loader2, Mail, AlertCircle } from "lucide-react";
+import { X, Paperclip, Loader2, Mail, AlertCircle, FileText } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
 import { taskApi } from "@/services/taskApi";
 import { TeamMember } from "@/data/teamData";
 import { teamStore } from "@/components/team/teamStore";
-import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail } from "@/data/taskData";
+import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail, TaskTemplateItem, TaskChecklistItem } from "@/data/taskData";
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
@@ -17,6 +17,8 @@ export interface AddTaskInitialData {
   taskName?: string;
   description?: string;
   linkedEmail?: LinkedEmail;
+  clientId?: string;
+  templateId?: string;
 }
 
 interface AddTaskModalProps {
@@ -38,6 +40,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [isLoadingTeam, setIsLoadingTeam] = useState(false);
+  const [templates, setTemplates] = useState<TaskTemplateItem[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [customChecklist, setCustomChecklist] = useState<TaskChecklistItem[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -96,12 +102,19 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen && initialData) {
-      if (initialData.taskName) {
-        setTaskName(initialData.taskName);
-      }
-      if (initialData.description) {
-        setDescription(initialData.description);
+    if (isOpen) {
+      setSelectedTemplateId(initialData?.templateId || "");
+      setCustomChecklist(null);
+      if (initialData) {
+        if (initialData.clientId) {
+          setClientId(initialData.clientId);
+        }
+        if (initialData.taskName) {
+          setTaskName(initialData.taskName);
+        }
+        if (initialData.description) {
+          setDescription(initialData.description);
+        }
       }
     }
   }, [isOpen, initialData]);
@@ -122,6 +135,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           setClients(realClients);
           if (realClients.length > 0) {
             setClientId((prev) => {
+              if (initialData?.clientId) {
+                const matched = realClients.find(
+                  (c: any) =>
+                    c.id === initialData.clientId ||
+                    c._id === initialData.clientId ||
+                    c.fileNo === initialData.clientId
+                );
+                if (matched) return matched.id || (matched as any)._id || matched.fileNo;
+              }
               const exists = realClients.some(
                 (c: any) =>
                   (c.id && c.id === prev) ||
@@ -186,10 +208,81 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         if (isMounted) setIsLoadingTeam(false);
       });
 
+    setIsLoadingTemplates(true);
+    taskApi
+      .getTaskTemplates()
+      .then((res) => {
+        if (isMounted && res.data) {
+          setTemplates(res.data);
+          if (initialData?.templateId) {
+            const tpl = res.data.find(
+              (t) => t.id === initialData.templateId || t._id === initialData.templateId
+            );
+            if (tpl) {
+              setSelectedTemplateId(initialData.templateId);
+              if (tpl.taskTitle) setTaskName(tpl.taskTitle);
+              if (tpl.department || tpl.category) setDepartment(tpl.department || tpl.category || "GST");
+              if (tpl.priority) setPriority(tpl.priority);
+              if (tpl.frequency) setFrequency(tpl.frequency);
+              if (tpl.defaultAssigneeId) setAssigneeId(tpl.defaultAssigneeId);
+              if (tpl.defaultReviewerId) setReviewerId(tpl.defaultReviewerId);
+              if (tpl.billingType) setBillingType(tpl.billingType);
+              if (tpl.description) setDescription(tpl.description);
+              if (tpl.checklist && tpl.checklist.length > 0) {
+                setCustomChecklist(
+                  tpl.checklist.map((item, idx) => ({
+                    id: item.id || `c_${Date.now()}_${idx}`,
+                    title: item.title,
+                    completed: false,
+                    isMandatory: item.isMandatory !== false,
+                  }))
+                );
+              }
+            }
+          }
+        }
+      })
+      .catch(() => { })
+      .finally(() => {
+        if (isMounted) setIsLoadingTemplates(false);
+      });
+
     return () => {
       isMounted = false;
     };
   }, [isOpen]);
+
+  const handleApplyTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (!templateId) return;
+
+    const tpl = templates.find((t) => t.id === templateId || t._id === templateId);
+    if (!tpl) return;
+
+    if (tpl.taskTitle) setTaskName(tpl.taskTitle);
+    if (tpl.department || tpl.category) setDepartment(tpl.department || tpl.category || "GST");
+    if (tpl.priority) setPriority(tpl.priority);
+    if (tpl.frequency) setFrequency(tpl.frequency);
+    if (tpl.defaultAssigneeId) setAssigneeId(tpl.defaultAssigneeId);
+    if (tpl.defaultReviewerId) setReviewerId(tpl.defaultReviewerId);
+    if (tpl.billingType) setBillingType(tpl.billingType);
+    if (tpl.description) setDescription(tpl.description);
+    if (tpl.checklist && tpl.checklist.length > 0) {
+      setCustomChecklist(
+        tpl.checklist.map((item, idx) => ({
+          id: item.id || `c_${Date.now()}_${idx}`,
+          title: item.title,
+          completed: false,
+          isMandatory: item.isMandatory !== false,
+        }))
+      );
+    }
+  };
+
+  const handleClearTemplate = () => {
+    setSelectedTemplateId("");
+    setCustomChecklist(null);
+  };
 
   // When selected service changes, auto-update frequency and department
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -340,7 +433,9 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         };
       });
 
-      const checklist = selectedService?.checklist?.map((c: any, idx: number) => {
+      const checklist = (customChecklist && customChecklist.length > 0)
+        ? customChecklist
+        : selectedService?.checklist?.map((c: any, idx: number) => {
         if (typeof c === "string") {
           return {
             id: `c${idx + 1}`,
@@ -355,7 +450,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           completed: false,
           isMandatory: c.isMandatory !== false,
         };
-      });
+      }) || [];
 
       const documentRequests = selectedService?.documentRequests?.map((d: any, idx: number) => {
         if (typeof d === "string") {
@@ -487,6 +582,59 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 gap-y-3">
+          {/* Template Selector Banner */}
+          <div className="mb-4 p-3 bg-[var(--bg-muted)]/50 border border-[#dde2e8] dark:border-[#334155] rounded-none flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-none bg-[#31719B]/10 text-[#31719B] flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-[var(--text-main)] flex items-center gap-2">
+                  <span>Apply Task Template</span>
+                  <span className="text-[10px] font-medium text-[var(--text-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.5 border border-[#dde2e8] dark:border-[#334155]">
+                    Optional
+                  </span>
+                </div>
+                <div className="text-[11px] text-[var(--text-subtle)]">
+                  Load pre-configured SOP checklist, department, priority, and guidelines without overwriting client or date selections.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <select
+                id="task-template-selector"
+                value={selectedTemplateId}
+                onChange={(e) => handleApplyTemplate(e.target.value)}
+                className="h-8 px-2.5 text-xs bg-[var(--bg-surface)] border border-[#dde2e8] dark:border-[#334155] rounded-none text-[var(--text-main)] focus:outline-none focus:border-[#31719B] min-w-[200px]"
+              >
+                <option value="">
+                  {isLoadingTemplates
+                    ? "Loading templates..."
+                    : templates.length === 0
+                    ? "-- No Templates Created Yet --"
+                    : "-- Select Template (Optional) --"}
+                </option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id || tpl._id} value={tpl.id || tpl._id}>
+                    {tpl.templateName} ({tpl.category || "General"})
+                  </option>
+                ))}
+              </select>
+
+              {selectedTemplateId && (
+                <button
+                  type="button"
+                  onClick={handleClearTemplate}
+                  className="h-8 px-2.5 text-xs font-medium text-[var(--text-subtle)] hover:text-rose-500 border border-[#dde2e8] dark:border-[#334155] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors"
+                  title="Clear selected template"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Row 1: Client*, Service*, Frequency, Select Period*, Task Name */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
             {/* Client * */}

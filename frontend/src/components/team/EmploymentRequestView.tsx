@@ -152,213 +152,164 @@ export const EmploymentRequestView: React.FC = () => {
     : (totalItems || requests.length);
 
   return (
-    <div className="space-y-4">
-      {/* 1. Three Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 px-6 pt-6">
-        {/* Accepted Card */}
-        <div
-          onClick={() => handleCardClick('accepted')}
-          className={`bg-white dark:bg-[#1e293b] rounded-xl border p-4 shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:shadow-xs select-none ${
-            filterStatus === 'accepted'
-              ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-              : 'border-gray-100 dark:border-[#334155]'
-          }`}
-        >
-          <div>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
-              {counts.accepted}
-            </div>
-            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1">
-              Accepted Requests
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-        </div>
+    <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
+      {/* Header & Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="text-xl font-bold tracking-tight text-[#000000] dark:text-white">
+          Employment Requests ({effectiveTotal})
+        </h2>
 
-        {/* Rejected Card */}
-        <div
-          onClick={() => handleCardClick('rejected')}
-          className={`bg-white dark:bg-[#1e293b] rounded-xl border p-4 shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:shadow-xs select-none ${
-            filterStatus === 'rejected'
-              ? 'border-red-500 ring-2 ring-red-500/20'
-              : 'border-gray-100 dark:border-[#334155]'
-          }`}
-        >
-          <div>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400 leading-tight">
-              {counts.rejected}
-            </div>
-            <div className="text-xs font-semibold text-red-600 dark:text-red-400 mt-1">
-              Rejected Requests
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center">
-            <XCircle className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Pending Card */}
-        <div
-          onClick={() => handleCardClick('pending')}
-          className={`bg-white dark:bg-[#1e293b] rounded-xl border p-4 shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:shadow-xs select-none ${
-            filterStatus === 'pending'
-              ? 'border-amber-500 ring-2 ring-amber-500/20'
-              : 'border-gray-100 dark:border-[#334155]'
-          }`}
-        >
-          <div>
-            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 leading-tight">
-              {counts.pending}
-            </div>
-            <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1">
-              Pending Requests
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-            <Clock className="w-5 h-5" />
-          </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={filterStatus || 'all'}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFilterStatus(v === 'all' ? null : (v as 'pending' | 'accepted' | 'rejected'));
+              setCurrentPage(1);
+            }}
+            className="h-10 px-3 text-xs rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#31719B]"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending ({counts.pending})</option>
+            <option value="accepted">Accepted ({counts.accepted})</option>
+            <option value="rejected">Rejected ({counts.rejected})</option>
+          </select>
         </div>
       </div>
 
-      {/* 2. Main Table Card */}
-      <div className="px-6">
-        <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-[#334155] bg-gray-50/70 dark:bg-[#162032] text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  <th className="py-3 px-6">NAME</th>
-                  <th className="py-3 px-6">EMAIL ID</th>
-                  <th className="py-3 px-6">STATUS</th>
-                  <th className="py-3 px-6">TIME</th>
-                  <th className="py-3 px-6">DATE</th>
-                  <th className="py-3 px-6 text-right">ACTION</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60 text-xs text-gray-700 dark:text-gray-300">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-400">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-[#3D6A9E]" />
-                        <span>Loading employment requests...</span>
+      {/* Main Table Card */}
+      <div className="border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto bg-white dark:bg-[#1e293b]">
+        <table className="w-full text-left border-collapse">
+          <thead style={{ backgroundColor: "var(--orange-havy-light)" }}>
+            <tr>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">NAME</th>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">EMAIL ID</th>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">STATUS</th>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">TIME</th>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-b border-[#dde2e8] dark:border-[#334155]">DATE</th>
+              <th className="py-3 px-3.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b border-[#dde2e8] dark:border-[#334155] text-center">ACTION</th>
+            </tr>
+          </thead>
+          <tbody className="text-xs text-gray-700 dark:text-gray-300">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-gray-400 border-b border-[#dde2e8] dark:border-[#334155]">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#31719B]" />
+                    <span>Loading employment requests...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : displayedRequests.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-gray-400 border-b border-[#dde2e8] dark:border-[#334155]">
+                  No {filterStatus ? filterStatus : ''} employment requests found.
+                </td>
+              </tr>
+            ) : (
+              displayedRequests.map((req) => {
+                const isPending = req.status === 'pending';
+                const isAccepted = req.status === 'accepted';
+                const isRejected = req.status === 'rejected';
+
+                return (
+                  <tr
+                    key={req._id}
+                    className="hover:bg-gray-50/60 dark:hover:bg-[#162032]/40 transition-colors"
+                  >
+                    {/* NAME */}
+                    <td className="py-2.5 px-3.5 font-medium text-gray-900 dark:text-white whitespace-nowrap border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                      {req.name}
+                    </td>
+
+                    {/* EMAIL ID */}
+                    <td className="py-2.5 px-3.5 whitespace-nowrap text-gray-600 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                      {req.email}
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="py-2.5 px-3.5 whitespace-nowrap border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                      {isPending && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                          Pending
+                        </span>
+                      )}
+                      {isAccepted && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
+                          Accepted
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-300">
+                          Rejected
+                        </span>
+                      )}
+                    </td>
+
+                    {/* TIME (IST) */}
+                    <td className="py-2.5 px-3.5 whitespace-nowrap text-gray-500 dark:text-gray-400 font-mono text-[11px] border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                      {formatTimeIST(req.statusChangedAt || req.requestedAt)}
+                    </td>
+
+                    {/* DATE (IST) */}
+                    <td className="py-2.5 px-3.5 whitespace-nowrap text-gray-500 dark:text-gray-400 font-mono text-[11px] border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                      {formatDateIST(req.statusChangedAt || req.requestedAt)}
+                    </td>
+
+                    {/* ACTION */}
+                    <td className="py-2.5 px-3.5 whitespace-nowrap text-center border-b border-[#dde2e8] dark:border-[#334155]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {/* Accept Button */}
+                        <button
+                          type="button"
+                          onClick={() => isPending && handleOpenAccept(req)}
+                          disabled={!isPending}
+                          title={isPending ? 'Accept Request' : 'Decision already recorded'}
+                          aria-label={`Accept request from ${req.name}`}
+                          className={`p-1.5 rounded-md transition-colors ${
+                            isPending
+                              ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer'
+                              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-40'
+                          }`}
+                        >
+                          <Check className="w-4 h-4 stroke-[2.5]" />
+                        </button>
+
+                        {/* Reject Button */}
+                        <button
+                          type="button"
+                          onClick={() => isPending && setRequestToReject(req)}
+                          disabled={!isPending}
+                          title={isPending ? 'Reject Request' : 'Decision already recorded'}
+                          aria-label={`Reject request from ${req.name}`}
+                          className={`p-1.5 rounded-md transition-colors ${
+                            isPending
+                              ? 'text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer'
+                              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-40'
+                          }`}
+                        >
+                          <X className="w-4 h-4 stroke-[2.5]" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ) : displayedRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-400">
-                      No {filterStatus ? filterStatus : ''} employment requests found.
-                    </td>
-                  </tr>
-                ) : (
-                  displayedRequests.map((req) => {
-                    const isPending = req.status === 'pending';
-                    const isAccepted = req.status === 'accepted';
-                    const isRejected = req.status === 'rejected';
-
-                    return (
-                      <tr
-                        key={req._id}
-                        className="hover:bg-gray-50/60 dark:hover:bg-[#162032]/40 transition-colors"
-                      >
-                        {/* NAME */}
-                        <td className="py-3.5 px-6 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                          {req.name}
-                        </td>
-
-                        {/* EMAIL ID */}
-                        <td className="py-3.5 px-6 whitespace-nowrap text-gray-600 dark:text-gray-300">
-                          {req.email}
-                        </td>
-
-                        {/* STATUS */}
-                        <td className="py-3.5 px-6 whitespace-nowrap">
-                          {isPending && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                              Pending
-                            </span>
-                          )}
-                          {isAccepted && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
-                              Accepted
-                            </span>
-                          )}
-                          {isRejected && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-300">
-                              Rejected
-                            </span>
-                          )}
-                        </td>
-
-                        {/* TIME (IST) */}
-                        <td className="py-3.5 px-6 whitespace-nowrap text-gray-500 dark:text-gray-400 font-mono text-[11px]">
-                          {formatTimeIST(req.statusChangedAt || req.requestedAt)}
-                        </td>
-
-                        {/* DATE (IST) */}
-                        <td className="py-3.5 px-6 whitespace-nowrap text-gray-500 dark:text-gray-400 font-mono text-[11px]">
-                          {formatDateIST(req.statusChangedAt || req.requestedAt)}
-                        </td>
-
-                        {/* ACTION */}
-                        <td className="py-3.5 px-6 whitespace-nowrap text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Accept Button */}
-                            <button
-                              type="button"
-                              onClick={() => isPending && handleOpenAccept(req)}
-                              disabled={!isPending}
-                              title={isPending ? 'Accept Request' : 'Decision already recorded'}
-                              aria-label={`Accept request from ${req.name}`}
-                              className={`p-1.5 rounded-md transition-colors ${
-                                isPending
-                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer'
-                                  : 'text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-40'
-                              }`}
-                            >
-                              <Check className="w-4 h-4 stroke-[2.5]" />
-                            </button>
-
-                            {/* Reject Button */}
-                            <button
-                              type="button"
-                              onClick={() => isPending && setRequestToReject(req)}
-                              disabled={!isPending}
-                              title={isPending ? 'Reject Request' : 'Decision already recorded'}
-                              aria-label={`Reject request from ${req.name}`}
-                              className={`p-1.5 rounded-md transition-colors ${
-                                isPending
-                                  ? 'text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer'
-                                  : 'text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-40'
-                              }`}
-                            >
-                              <X className="w-4 h-4 stroke-[2.5]" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Footer */}
-          <Pagination
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalItems={effectiveTotal}
-            onPageChange={setCurrentPage}
-            showPageSize={true}
-            onPageSizeChange={setPageSize}
-            pageSizeOptions={[10]}
-          />
-        </div>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* Pagination Footer */}
+      <Pagination
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalItems={effectiveTotal}
+        onPageChange={setCurrentPage}
+        showPageSize={true}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 25, 50]}
+      />
 
       {/* 3. Accept Employee Wizard */}
       {isWizardOpen && activeRequestToAccept && (
@@ -395,7 +346,7 @@ export const EmploymentRequestView: React.FC = () => {
       {/* 4. Reject Confirmation Modal */}
       {requestToReject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1e293b] rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-[#334155] space-y-4">
+          <div className="bg-white dark:bg-[#1e293b] rounded-none max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-[#334155] space-y-4">
             <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/60 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />

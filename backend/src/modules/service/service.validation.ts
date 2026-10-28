@@ -53,7 +53,7 @@ export const addServiceCommentSchema = z.object({
   text: z.string().min(1, 'Comment text cannot be empty'),
   author: z.string().optional().default('Team Member'),
   authorInitials: z.string().optional().default('TM'),
-  avatarColor: z.string().optional().default('#6366F1'),
+  avatarColor: z.string().optional().default('#3D6A9E'),
 });
 
 export const updateSopSchema = z.object({

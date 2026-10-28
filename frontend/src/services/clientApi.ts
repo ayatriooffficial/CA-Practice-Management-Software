@@ -1,5 +1,5 @@
 import { request, ApiResponse, ApiError } from './apiClient';
-import { Client } from '@/data/crmData';
+import { Client, GlobalDsc } from '@/data/crmData';
 
 export interface ClientQueryParams {
   page?: number;
@@ -179,6 +179,12 @@ export const clientApi = {
   deleteDsc: async (id: string, dscId: string): Promise<ApiResponse<Client>> => {
     return request<Client>(`/clients/${id}/dscs/${dscId}`, {
       method: 'DELETE',
+    });
+  },
+
+  getAllGlobalDscs: async (): Promise<ApiResponse<GlobalDsc[]>> => {
+    return request<GlobalDsc[]>('/clients/dscs/all', {
+      method: 'GET',
     });
   },
 

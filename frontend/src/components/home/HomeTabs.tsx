@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Calendar, Clock, BookOpen, FileText, GripVertical } from 'lucide-react';
+import { Calendar, Clock, CheckSquare, BookOpen, FileText, GripVertical } from 'lucide-react';
 
 interface HomeTabsProps {
   activeTab?: string;
@@ -15,6 +15,7 @@ export const HomeTabs: React.FC<HomeTabsProps> = ({
   const tabs = [
     { id: 'attendance', label: 'Attendance', icon: Calendar },
     { id: 'timesheet', label: 'TimeSheet', icon: Clock },
+    { id: 'task', label: 'Task', icon: CheckSquare },
     { id: 'sales', label: 'Sales', icon: BookOpen },
     { id: 'notes', label: 'Notes', icon: FileText },
   ];
@@ -34,7 +35,7 @@ export const HomeTabs: React.FC<HomeTabsProps> = ({
               className="relative flex items-center transition-colors pb-3"
               style={{
                 gap: '8px',
-                color: isActive ? '#6366f1' : 'var(--text-muted, #64748b)',
+                color: isActive ? '#3D6A9E' : 'var(--text-muted, #64748b)',
                 fontWeight: isActive ? 600 : 500,
                 fontSize: '14px',
               }}
@@ -55,7 +56,7 @@ export const HomeTabs: React.FC<HomeTabsProps> = ({
               {isActive && (
                 <span
                   className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                  style={{ backgroundColor: '#6366f1' }}
+                  style={{ backgroundColor: '#3D6A9E' }}
                 />
               )}
             </button>

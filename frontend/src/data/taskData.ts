@@ -34,6 +34,35 @@ export interface TaskChecklistItem {
   serviceId?: string;
 }
 
+export interface TaskTemplateChecklistItem {
+  id?: string;
+  title: string;
+  isMandatory?: boolean;
+}
+
+export interface TaskTemplateItem {
+  id: string;
+  _id?: string;
+  templateName: string;
+  taskTitle: string;
+  category: string;
+  department?: string;
+  priority: TaskPriority;
+  frequency: string;
+  estimatedHours?: string;
+  defaultAssigneeId?: string | null;
+  defaultAssigneeName?: string;
+  defaultReviewerId?: string | null;
+  defaultReviewerName?: string;
+  billingType: TaskBillingType;
+  description?: string;
+  checklist?: TaskTemplateChecklistItem[];
+  orgId?: string | null;
+  userId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface TaskDocumentRequestItem {
   id: string;
   title: string;

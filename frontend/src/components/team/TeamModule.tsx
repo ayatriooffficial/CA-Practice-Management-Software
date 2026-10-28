@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { TeamTabsHeader, TeamTab } from './TeamTabsHeader';
-import { TeamSummaryCards } from './TeamSummaryCards';
 import { TeamListView } from './TeamListView';
 import { AttendanceView } from './AttendanceView';
 import { LeaveView } from './LeaveView';
@@ -44,17 +43,13 @@ export const TeamModule: React.FC = () => {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-2 border-[#3D6A9E] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#31719B] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  const activeCount = employees.filter((e) => e.status === 'Active').length;
-  const deactivatedCount = employees.filter((e) => e.status === 'Deactivated').length;
-  const resignedCount = employees.filter((e) => e.status === 'Resigned').length;
-
   return (
-    <div className="min-h-full bg-gray-50/50 dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] pb-12 transition-colors">
+    <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
       {/* Top Level Tabs Header */}
       <TeamTabsHeader
         activeTab={currentTab}
@@ -65,16 +60,7 @@ export const TeamModule: React.FC = () => {
 
       {/* Tab Content */}
       {currentTab === 'team' && (
-        <div className="space-y-2">
-          {!isEmployee && (
-            <TeamSummaryCards
-              activeCount={activeCount}
-              deactivatedCount={deactivatedCount}
-              resignedCount={resignedCount}
-            />
-          )}
-          <TeamListView employees={employees} onRefresh={loadData} />
-        </div>
+        <TeamListView employees={employees} onRefresh={loadData} />
       )}
 
       {currentTab === 'attendance' && !isEmployee && <AttendanceView />}

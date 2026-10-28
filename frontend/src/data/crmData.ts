@@ -136,6 +136,12 @@ export interface ClientDsc {
   remarks?: string;
 }
 
+export interface GlobalDsc extends ClientDsc {
+  clientId: string;
+  clientName: string;
+  clientFileNo?: string;
+}
+
 export interface ClientDocumentInOut {
   id?: string;
   documentName: string;

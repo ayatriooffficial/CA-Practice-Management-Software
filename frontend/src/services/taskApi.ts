@@ -5,6 +5,7 @@ import {
   TaskSummaryRow,
   INITIAL_TASKS,
   LinkedEmail,
+  TaskTemplateItem,
 } from '@/data/taskData';
 
 export interface TaskQueryParams {
@@ -382,7 +383,7 @@ export const taskApi = {
     text: string,
     author: string = 'Staff',
     authorInitials: string = 'ST',
-    avatarColor: string = '#6366F1'
+    avatarColor: string = '#3D6A9E'
   ): Promise<ApiResponse<TaskItem>> => {
     try {
       const res = await request<TaskItem>(`/tasks/${encodeURIComponent(id)}/comments`, {
@@ -554,5 +555,43 @@ export const taskApi = {
         method: 'DELETE',
       }
     );
+  },
+
+  getTaskTemplates: async (params?: { search?: string; category?: string; frequency?: string }): Promise<ApiResponse<TaskTemplateItem[]>> => {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.search?.trim()) searchParams.set('search', params.search.trim());
+      if (params?.category && params.category !== 'All Categories' && params.category !== 'All') searchParams.set('category', params.category);
+      if (params?.frequency && params.frequency !== 'All Frequencies' && params.frequency !== 'All') searchParams.set('frequency', params.frequency);
+      const query = searchParams.toString();
+      const endpoint = query ? `/tasks/templates?${query}` : '/tasks/templates';
+      return await request<TaskTemplateItem[]>(endpoint);
+    } catch {
+      return { success: true, statusCode: 200, message: 'OK', data: [] };
+    }
+  },
+
+  getTaskTemplateById: async (id: string): Promise<ApiResponse<TaskTemplateItem>> => {
+    return request<TaskTemplateItem>(`/tasks/templates/${encodeURIComponent(id)}`);
+  },
+
+  createTaskTemplate: async (data: Partial<TaskTemplateItem>): Promise<ApiResponse<TaskTemplateItem>> => {
+    return request<TaskTemplateItem>('/tasks/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateTaskTemplate: async (id: string, data: Partial<TaskTemplateItem>): Promise<ApiResponse<TaskTemplateItem>> => {
+    return request<TaskTemplateItem>(`/tasks/templates/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteTaskTemplate: async (id: string): Promise<ApiResponse<null>> => {
+    return request<null>(`/tasks/templates/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   },
 };

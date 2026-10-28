@@ -523,18 +523,18 @@ export class ServiceService {
       comment.authorInitials ||
       (comment.author
         ? comment.author
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .substring(0, 2)
-            .toUpperCase()
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .substring(0, 2)
+          .toUpperCase()
         : 'AU');
 
     const newComment = {
       id: `sc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       author: comment.author || 'Team Member',
       authorInitials: initials,
-      avatarColor: comment.avatarColor || '#6366F1',
+      avatarColor: comment.avatarColor || '#3D6A9E',
       text: comment.text,
       createdAt: new Date(),
     };

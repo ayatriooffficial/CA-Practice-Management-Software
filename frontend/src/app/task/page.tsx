@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Layers,
   List,
@@ -9,6 +10,7 @@ import {
   BarChart3,
   Activity,
   Plus,
+  FileText,
 } from "lucide-react";
 import { TaskSummaryView } from "@/components/tasks/TaskSummaryView";
 import { TaskListView } from "@/components/tasks/TaskListView";
@@ -102,15 +104,25 @@ export default function TaskPage() {
               </button>
 
               {!isEmployee && canAddEdit("task_manager") && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddTaskOpen(true)}
-                  style={{ backgroundColor: "var(--primary)" }}
-                  className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Task</span>
-                </button>
+                <>
+                  <Link
+                    href="/task/templates"
+                    style={{ backgroundColor: "var(--primary)" }}
+                    className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Template</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTaskOpen(true)}
+                    style={{ backgroundColor: "var(--primary)" }}
+                    className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Task</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

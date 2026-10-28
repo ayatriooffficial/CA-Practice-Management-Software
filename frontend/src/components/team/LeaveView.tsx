@@ -62,13 +62,13 @@ export const LeaveView: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="w-full flex flex-col space-y-4 px-1">
       {/* Sub Tabs Pill Bar */}
-      <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#162032] p-1 rounded-xl w-fit border border-transparent dark:border-[#334155]">
+      <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#162032] p-1 rounded-lg w-fit border border-[#dde2e8] dark:border-[#334155]">
         <button
           onClick={() => setSubTab('applications')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${subTab === 'applications'
-            ? 'bg-[#EEF2FF] dark:bg-[#1e293b] text-[#3D6A9E] dark:text-[#60a5fa] shadow-xs'
+          className={`px-4 py-2 text-xs font-semibold rounded-md transition-all cursor-pointer ${subTab === 'applications'
+            ? 'bg-[#EEF2FF] dark:bg-[#1e293b] text-[#31719B] dark:text-[#3D88BF] shadow-xs'
             : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
         >
@@ -76,8 +76,8 @@ export const LeaveView: React.FC = () => {
         </button>
         <button
           onClick={() => setSubTab('summary')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${subTab === 'summary'
-            ? 'bg-[#EEF2FF] dark:bg-[#1e293b] text-[#3D6A9E] dark:text-[#60a5fa] shadow-xs'
+          className={`px-4 py-2 text-xs font-semibold rounded-md transition-all cursor-pointer ${subTab === 'summary'
+            ? 'bg-[#EEF2FF] dark:bg-[#1e293b] text-[#31719B] dark:text-[#3D88BF] shadow-xs'
             : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
         >
@@ -87,8 +87,8 @@ export const LeaveView: React.FC = () => {
 
       {/* 1. ALL APPLICATIONS */}
       {subTab === 'applications' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs transition-colors">
-          <div className="p-4 border-b border-gray-200 dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
+          <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               Leave Applications ({applications.length})
             </h3>
@@ -96,7 +96,8 @@ export const LeaveView: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsAssignModalOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#315782] rounded-lg shadow-sm transition-all cursor-pointer"
+                style={{ backgroundColor: "var(--premium-blue-dark)" }}
+                className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -106,31 +107,31 @@ export const LeaveView: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-gray-50 dark:bg-[#162032] text-gray-500 dark:text-gray-400 uppercase font-semibold border-b border-gray-200 dark:border-[#334155]">
-                <tr>
-                  <th className="py-3 px-3 w-8">
-                    <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] cursor-pointer" />
+          <div className="overflow-x-auto scrollbar-slim">
+            <table className="min-w-full border-separate border-spacing-0 text-left text-xs select-none">
+              <thead>
+                <tr className="text-gray-700 dark:text-gray-300" style={{ backgroundColor: "var(--orange-havy-light)" }}>
+                  <th className="py-3 px-3 w-10 text-center border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                    <input type="checkbox" className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer" />
                   </th>
-                  <th className="py-3 px-4">Applicant</th>
-                  <th className="py-3 px-3">Leave Type</th>
-                  <th className="py-3 px-3">Date Of Application</th>
-                  <th className="py-3 px-3">Date Of Leave</th>
-                  <th className="py-3 px-3 text-center">Days</th>
-                  <th className="py-3 px-3 text-center">Leaves Taken</th>
-                  <th className="py-3 px-3 text-center">Balance</th>
-                  <th className="py-3 px-4">Reason</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-4">Rejection Remarks</th>
-                  <th className="py-3 px-3 text-center">Action</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Applicant</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Leave Type</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Date Of Application</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Date Of Leave</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap">Days</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap">Leaves Taken</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] text-center uppercase whitespace-nowrap">Balance</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Reason</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Status</th>
+                  <th className="px-3.5 py-3 font-semibold border-r border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap">Rejection Remarks</th>
+                  <th className="sticky right-0 z-20 w-24 px-3.5 py-3 font-semibold text-center border-l border-b border-[#dde2e8] dark:border-[#334155] uppercase whitespace-nowrap" style={{ backgroundColor: "var(--orange-havy-light)" }}>Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
+              <tbody>
                 {applications.map((app) => (
-                  <tr key={app.id} className="hover:bg-gray-50/60 dark:hover:bg-[#131d30] transition-colors">
-                    <td className="py-3 px-3">
-                      <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#3D6A9E] cursor-pointer" />
+                  <tr key={app.id} className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors">
+                    <td className="px-3 py-2.5 text-center border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                      <input type="checkbox" className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer" />
                     </td>
                     <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{app.applicant}</td>
                     <td className="py-3 px-3">
@@ -193,7 +194,7 @@ export const LeaveView: React.FC = () => {
 
       {/* 2. SUMMARY */}
       {subTab === 'summary' && (
-        <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs p-6 space-y-4 transition-colors">
+        <div className="bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] overflow-hidden shadow-2xs p-6 space-y-4 transition-colors">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               Employee Leave Balances
@@ -201,31 +202,31 @@ export const LeaveView: React.FC = () => {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-gray-300 dark:border-[#475569] rounded-lg bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#3D6A9E]"
+              className="h-9 text-xs px-3 border border-[#dde2e8] dark:border-[#475569] rounded-md bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 outline-none focus:border-[#31719B]"
             >
               <option value="2026-2027">Financial Year 2026 - 2027</option>
               <option value="2025-2026">Financial Year 2025 - 2026</option>
             </select>
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 dark:border-[#334155] rounded-xl">
+          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-none">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-gray-50 dark:bg-[#162032] text-gray-500 dark:text-gray-400 uppercase font-semibold border-b border-gray-200 dark:border-[#334155]">
+              <thead className="text-gray-700 dark:text-gray-300 uppercase font-semibold border-b border-[#dde2e8] dark:border-[#334155]" style={{ backgroundColor: "var(--orange-havy-light)" }}>
                 <tr>
-                  <th className="py-3 px-4">Applicant</th>
-                  <th className="py-3 px-4">Leave Type</th>
-                  <th className="py-3 px-4 text-center">Total Available</th>
-                  <th className="py-3 px-4 text-center">Leaves Taken</th>
+                  <th className="py-3 px-4 border-r border-[#dde2e8] dark:border-[#334155]">Applicant</th>
+                  <th className="py-3 px-4 border-r border-[#dde2e8] dark:border-[#334155]">Leave Type</th>
+                  <th className="py-3 px-4 text-center border-r border-[#dde2e8] dark:border-[#334155]">Total Available</th>
+                  <th className="py-3 px-4 text-center border-r border-[#dde2e8] dark:border-[#334155]">Leaves Taken</th>
                   <th className="py-3 px-4 text-center">Balance Available</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#334155]/60">
+              <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]/60">
                 {summaryList.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50/60 dark:hover:bg-[#131d30] transition-colors">
-                    <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{s.applicant}</td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{s.leaveType}</td>
-                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300 font-medium">{s.totalAvailable}</td>
-                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">{s.totalLeaveTaken}</td>
+                    <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white border-r border-[#dde2e8] dark:border-[#334155]">{s.applicant}</td>
+                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300 border-r border-[#dde2e8] dark:border-[#334155]">{s.leaveType}</td>
+                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300 font-medium border-r border-[#dde2e8] dark:border-[#334155]">{s.totalAvailable}</td>
+                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300 border-r border-[#dde2e8] dark:border-[#334155]">{s.totalLeaveTaken}</td>
                     <td className="py-3 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400">{s.balanceAvailable}</td>
                   </tr>
                 ))}
@@ -240,7 +241,7 @@ export const LeaveView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
           <form
             onSubmit={handleSaveLeave}
-            className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#334155] max-w-md w-full p-6 space-y-4"
+            className="bg-white dark:bg-[#1e293b] rounded-none shadow-2xl border border-gray-200 dark:border-[#334155] max-w-md w-full p-6 space-y-4"
           >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-[#334155]">
               <h3 className="text-base font-bold text-gray-900 dark:text-white">Assign / Apply Leave</h3>

@@ -66,7 +66,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg rounded-xl bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg rounded-none bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb] dark:border-[#334155]">
           <div className="flex items-center gap-2">

@@ -11,10 +11,16 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Pencil,
+  Trash2,
+  Ban,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { InvoiceRecord, ReceiptRecord } from './types';
 import { useInvoice } from './InvoiceContext';
 import { TaskAllocationInput } from '@/services/financialApi';
+import { Pagination } from '../ui/Pagination';
 
 interface ColumnDef {
   key: string;
@@ -309,19 +315,19 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col bg-white dark:bg-[#1e293b] select-none transition-colors">
+    <div className="w-full flex-1 flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-hidden bg-white dark:bg-[#1e293b] select-none transition-colors">
       {/* Table Container with Horizontal Scroll */}
       <div className="w-full overflow-x-auto min-h-[350px]">
         <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-[#e5e7eb] dark:border-[#334155] bg-gray-50/70 dark:bg-[#0f172a]/60 text-gray-600 dark:text-gray-300 font-semibold text-[11px]">
+          <thead style={{ backgroundColor: "var(--orange-havy-light)" }}>
+            <tr>
               {/* Checkbox column */}
-              <th className="py-3 px-4 w-10 text-center">
+              <th className="py-3 px-3.5 w-10 text-center border-r border-b border-[#dde2e8] dark:border-[#334155]">
                 <input
                   type="checkbox"
                   checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
                   onChange={handleSelectAll}
-                  className="w-3.5 h-3.5 rounded border-gray-300 text-[#3D6A9E] focus:ring-[#3D6A9E] cursor-pointer"
+                  className="rounded border-gray-300 dark:border-gray-600 accent-[#31719B] cursor-pointer"
                 />
               </th>
 
@@ -332,20 +338,20 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                 return (
                   <th
                     key={col.key}
-                    className="py-3 px-4 whitespace-nowrap tracking-tight uppercase relative group font-semibold"
+                    className="py-3 px-3.5 whitespace-nowrap tracking-wider uppercase relative group font-semibold text-xs text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155]"
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span
                         onClick={() => col.sortable && handleSort(col.key)}
-                        className={`cursor-pointer flex items-center gap-1 ${col.sortable ? 'hover:text-[#3D6A9E]' : ''
+                        className={`cursor-pointer flex items-center gap-1 ${col.sortable ? 'hover:text-[#31719B]' : ''
                           }`}
                       >
                         {col.label}
                         {isSorted && (
                           sortOrder === 'asc' ? (
-                            <ArrowUp className="w-3 h-3 text-[#3D6A9E]" />
+                            <ArrowUp className="w-3 h-3 text-[#31719B]" />
                           ) : (
-                            <ArrowDown className="w-3 h-3 text-[#3D6A9E]" />
+                            <ArrowDown className="w-3 h-3 text-[#31719B]" />
                           )
                         )}
                       </span>
@@ -365,7 +371,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
 
                     {/* Column Dropdown Menu */}
                     {isMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 w-44 rounded-md shadow-lg bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] py-1 z-40 normal-case font-normal text-xs animate-in fade-in duration-100">
+                      <div className="absolute right-0 top-full mt-1 w-44 rounded-md shadow-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] py-1 z-40 normal-case font-normal text-xs animate-in fade-in duration-100">
                         <button
                           type="button"
                           onClick={() => handleSort(col.key, 'asc')}
@@ -404,7 +410,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                   </th>
                 );
               })}
-              <th className="py-3 px-4 text-center whitespace-nowrap tracking-tight uppercase">Actions</th>
+              <th className="py-3 px-3.5 text-center whitespace-nowrap tracking-wider uppercase font-semibold text-xs text-gray-700 dark:text-gray-300 border-b border-[#dde2e8] dark:border-[#334155]">Actions</th>
             </tr>
           </thead>
 
@@ -413,7 +419,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}
-                  className="py-16 text-center text-sm font-normal text-gray-500 dark:text-gray-400"
+                  className="h-72 text-center text-sm font-normal text-gray-400 dark:text-gray-500"
                 >
                   No rows
                 </td>
@@ -425,15 +431,15 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                 return (
                   <tr
                     key={row.id}
-                    className={`border-b border-[#e5e7eb] dark:border-[#334155] hover:bg-gray-50/80 dark:hover:bg-[#0f172a]/40 transition-colors ${isSelected ? 'bg-[#eeedfd]/40 dark:bg-[#3D6A9E]/10' : ''
+                    className={`hover:bg-gray-50/60 dark:hover:bg-[#162032]/40 transition-colors ${isSelected ? 'bg-[#EEF2FF]/40 dark:bg-[#31719B]/10' : ''
                       }`}
                   >
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-2.5 px-3.5 text-center border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleSelectRow(row.id)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#3D6A9E] focus:ring-[#3D6A9E] cursor-pointer"
+                        className="rounded border-gray-300 dark:border-gray-600 accent-[#31719B] cursor-pointer"
                       />
                     </td>
 
@@ -442,7 +448,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
 
                       if (col.key === 'number' || col.key === 'receiptNo') {
                         cellContent = (
-                          <span className="font-semibold text-[#3D6A9E] dark:text-[#a59df7]">
+                          <span className="font-semibold text-[#31719B] dark:text-[#60a5fa]">
                             {row[col.key]}
                           </span>
                         );
@@ -468,29 +474,29 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                       return (
                         <td
                           key={col.key}
-                          className="py-3.5 px-4 text-gray-700 dark:text-gray-300 whitespace-nowrap text-xs"
+                          className="py-2.5 px-3.5 text-gray-700 dark:text-gray-300 whitespace-nowrap text-xs border-r border-b border-[#dde2e8] dark:border-[#334155]"
                         >
                           {cellContent}
                         </td>
                       );
                     })}
-                    <td className="px-3 py-2 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="py-2.5 px-3.5 whitespace-nowrap text-center border-b border-[#dde2e8] dark:border-[#334155]">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => onView?.(row)}
-                          className="text-[11px] font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
+                          className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
                           title="View Details"
                         >
-                          View
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => onEdit?.(row)}
-                          className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                          className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
                           title="Edit"
                         >
-                          Edit
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
                         {activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Cancelled' && (
                           <>
@@ -502,9 +508,10 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                                   setCreditAmounts({});
                                   setFinancialActionError('');
                                 }}
-                                className="text-[11px] font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
+                                className="p-1 rounded text-gray-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-[#31719B] transition-colors"
+                                title="Issue Credit Note"
                               >
-                                Credit note
+                                <FileSpreadsheet className="w-3.5 h-3.5" />
                               </button>
                             )}
                             <button
@@ -517,9 +524,10 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                                   );
                                 }
                               }}
-                              className="text-[11px] font-semibold text-amber-600 hover:underline cursor-pointer"
+                              className="p-1 rounded text-gray-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 transition-colors"
+                              title="Void Invoice"
                             >
-                              Void
+                              <Ban className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}
@@ -536,10 +544,10 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                               }
                             }
                           }}
-                          className="text-[11px] font-semibold text-red-600 hover:underline cursor-pointer"
+                          className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
                           title="Delete"
                         >
-                          Delete
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -552,7 +560,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
       </div>
 
       {creditNoteTarget && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreditNoteTarget(null); }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="credit-note-heading" className="w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-5 text-[var(--text-main)] shadow-xl">
+        <section role="dialog" aria-modal="true" aria-labelledby="credit-note-heading" className="w-full max-w-xl rounded-none border border-[var(--border-main)] bg-[var(--bg-surface)] p-5 text-[var(--text-main)] shadow-xl">
           <h2 id="credit-note-heading" className="text-base font-semibold">Issue credit note for {creditNoteTarget.number}</h2>
           <p className="mt-1 text-xs text-[var(--text-muted)]">Allocate each credit explicitly to the original task. Allocations cannot exceed the uncredited original amount.</p>
           <div className="mt-4 space-y-3">{(creditNoteTarget.taskAllocations || []).map((allocation) => {
@@ -560,55 +568,20 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
             return <label key={allocation.taskId} className="grid grid-cols-[1fr_160px] items-center gap-3 text-xs"><span>{allocation.taskId} · remaining ₹{(remaining / 100).toFixed(2)}</span><input aria-label={`Credit amount for task ${allocation.taskId}`} type="number" min="0" max={remaining / 100} step="0.01" value={creditAmounts[allocation.taskId] || ''} onChange={(event) => setCreditAmounts((current) => ({ ...current, [allocation.taskId]: event.target.value }))} className="h-9 rounded border border-[var(--border-main)] bg-[var(--bg-app)] px-2" /></label>;
           })}</div>
           {financialActionError && <p role="alert" className="mt-3 text-xs text-red-600">{financialActionError}</p>}
-          <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCreditNoteTarget(null)} className="rounded border border-[var(--border-main)] px-3 py-2 text-xs">Cancel</button><button type="button" disabled={financialActionBusy} onClick={() => void submitCreditNote()} className="rounded bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{financialActionBusy ? 'Issuing…' : 'Issue credit note'}</button></div>
+          <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCreditNoteTarget(null)} className="rounded border border-[var(--border-main)] px-3 py-2 text-xs">Cancel</button><button type="button" disabled={financialActionBusy} onClick={() => void submitCreditNote()} style={{ backgroundColor: 'var(--premium-blue-dark)' }} className="rounded px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{financialActionBusy ? 'Issuing…' : 'Issue credit note'}</button></div>
         </section>
       </div>}
 
       {/* Pagination Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-xs text-gray-600 dark:text-gray-300">
-        <div className="flex items-center gap-2">
-          <span>Rows per page:</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="h-7 px-2 rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 outline-none cursor-pointer"
-          >
-            <option value={15}>15</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span>
-            {fromIndex}–{toIndex} of {totalItems}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={safePage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1 rounded border border-[#dde2e8] dark:border-[#475569] text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-[#0f172a] cursor-pointer"
-              title="Previous Page"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              disabled={safePage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1 rounded border border-[#dde2e8] dark:border-[#475569] text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-[#0f172a] cursor-pointer"
-              title="Next Page"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        currentPage={safePage}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        onPageChange={setCurrentPage}
+        showPageSize={true}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[15, 25, 50, 100]}
+      />
     </div>
   );
 };

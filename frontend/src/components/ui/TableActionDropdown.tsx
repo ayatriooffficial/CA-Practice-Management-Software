@@ -31,7 +31,7 @@ export const TableActionDropdown: React.FC<TableActionDropdownProps> = ({
   const calculatePosition = () => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const menuWidth = 160;
+    const menuWidth = 180;
     const menuHeight = actions.length * 36 + 12;
 
     // Check vertical space
@@ -120,9 +120,9 @@ export const TableActionDropdown: React.FC<TableActionDropdownProps> = ({
               top: `${coords.top}px`,
               left: `${coords.left}px`,
               zIndex: 99999,
-              minWidth: "160px",
+              minWidth: "180px",
             }}
-            className="w-44 rounded-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] shadow-xl py-1 text-xs select-none animate-in fade-in zoom-in-95 duration-100"
+            className="w-48 rounded-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] shadow-xl py-1 text-xs select-none animate-in fade-in zoom-in-95 duration-100"
           >
             {actions.map((action, idx) => {
               const Icon = action.icon;
@@ -138,7 +138,7 @@ export const TableActionDropdown: React.FC<TableActionDropdownProps> = ({
                     setIsOpen(false);
                     action.onClick();
                   }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                     isDanger
                       ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                       : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"

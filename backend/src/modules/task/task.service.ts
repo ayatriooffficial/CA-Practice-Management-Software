@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Task } from './task.model';
+import { TaskTemplate, ITaskTemplate, ITaskTemplateDocument } from './taskTemplate.model';
 import { Service } from '../service/service.model';
 import { Client } from '../client/client.model';
 import {
@@ -1291,6 +1292,111 @@ export class TaskService {
     await task.save();
 
     return task;
+  }
+
+  /**
+   * Retrieve all task templates
+   */
+  static async getAllTemplates(
+    query: { search?: string; category?: string; frequency?: string } = {},
+    userCtx?: { userId?: string | null; orgId?: string | null } | null
+  ): Promise<ITaskTemplateDocument[]> {
+    const andClauses: any[] = [{ isDeleted: false }];
+
+    const orgId = userCtx?.orgId;
+    if (orgId) {
+      andClauses.push({
+        $or: [{ orgId }, { orgId: null }, { orgId: { $exists: false } }],
+      });
+    }
+    if (query.category && query.category !== 'All' && query.category !== 'All Categories') {
+      andClauses.push({ category: query.category });
+    }
+    if (query.frequency && query.frequency !== 'All' && query.frequency !== 'All Frequencies') {
+      andClauses.push({ frequency: query.frequency });
+    }
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      andClauses.push({
+        $or: [
+          { templateName: { $regex: q, $options: 'i' } },
+          { taskTitle: { $regex: q, $options: 'i' } },
+          { description: { $regex: q, $options: 'i' } },
+        ],
+      });
+    }
+
+    const filter = andClauses.length > 1 ? { $and: andClauses } : andClauses[0] || { isDeleted: false };
+    const templates = await TaskTemplate.find(filter).sort({ createdAt: -1 });
+    return templates;
+  }
+
+  /**
+   * Retrieve a task template by ID
+   */
+  static async getTemplateById(
+    id: string,
+    userCtx?: { userId?: string | null; orgId?: string | null } | null
+  ): Promise<ITaskTemplateDocument> {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw AppError.notFound('Task template not found');
+    }
+    const andClauses: any[] = [{ _id: id, isDeleted: false }];
+    const orgId = userCtx?.orgId;
+    if (orgId) {
+      andClauses.push({
+        $or: [{ orgId }, { orgId: null }, { orgId: { $exists: false } }],
+      });
+    }
+    const filter = andClauses.length > 1 ? { $and: andClauses } : andClauses[0];
+    const template = await TaskTemplate.findOne(filter);
+    if (!template) {
+      throw AppError.notFound('Task template not found');
+    }
+    return template;
+  }
+
+  /**
+   * Create a new task template
+   */
+  static async createTemplate(
+    data: Partial<ITaskTemplate>,
+    userCtx?: { userId?: string | null; orgId?: string | null } | null
+  ): Promise<ITaskTemplateDocument> {
+    const template = new TaskTemplate({
+      ...data,
+      orgId: userCtx?.orgId || null,
+      userId: userCtx?.userId || null,
+      isDeleted: false,
+    });
+    await template.save();
+    return template;
+  }
+
+  /**
+   * Update a task template by ID
+   */
+  static async updateTemplate(
+    id: string,
+    data: Partial<ITaskTemplate>,
+    userCtx?: { userId?: string | null; orgId?: string | null } | null
+  ): Promise<ITaskTemplateDocument> {
+    const template = await this.getTemplateById(id, userCtx);
+    Object.assign(template, data);
+    await template.save();
+    return template;
+  }
+
+  /**
+   * Delete a task template by ID (soft delete)
+   */
+  static async deleteTemplate(
+    id: string,
+    userCtx?: { userId?: string | null; orgId?: string | null } | null
+  ): Promise<void> {
+    const template = await this.getTemplateById(id, userCtx);
+    template.isDeleted = true;
+    await template.save();
   }
 }
 

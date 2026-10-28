@@ -76,20 +76,20 @@ export const TeamTabsHeader: React.FC<TeamTabsHeaderProps> = ({
   });
 
   return (
-    <div className="border-b border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] px-6 transition-colors">
-      <div className="flex items-center gap-8">
+    <div className="border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] px-4 sm:px-6 transition-colors">
+      <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto no-scrollbar">
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 py-4 text-sm font-medium border-b-2 transition-all cursor-pointer ${isActive
-                  ? 'border-[#3D6A9E] text-[#3D6A9E]'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`flex items-center gap-2 py-3.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${isActive
+                  ? 'border-[#31719B] text-[#31719B] dark:text-[#3D88BF] dark:border-[#3D88BF]'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
             >
-              <span className={isActive ? 'text-[#3D6A9E]' : 'text-gray-400'}>
+              <span className={isActive ? 'text-[#31719B] dark:text-[#3D88BF]' : 'text-gray-400 dark:text-gray-500'}>
                 {tab.icon}
               </span>
               <span>{tab.label}</span>
