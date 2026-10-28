@@ -76,14 +76,14 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 text-center">
+        <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 text-center shadow-md">
           <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Weekly Hours</span>
           <div className="text-2xl font-black text-blue-700 dark:text-blue-300 mt-1">
             {totalWeeklyHours.toFixed(2)} Hrs
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 text-center">
+        <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 text-center shadow-md">
           <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Monthly Hours</span>
           <div className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1">
             {totalMonthlyHours.toFixed(2)} Hrs
@@ -96,7 +96,7 @@ export const BusinessHoursTab: React.FC<BusinessHoursTabProps> = ({
         {schedules.map((item, idx) => (
           <div
             key={item.day}
-            className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] text-xs"
+            className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] text-xs shadow-xs hover:shadow-sm transition-all"
           >
             {/* Checkbox and Day Name */}
             <label className="flex items-center gap-2.5 w-32 cursor-pointer font-semibold text-[var(--text-main)]">

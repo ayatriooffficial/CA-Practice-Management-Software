@@ -1086,15 +1086,33 @@ export class AuthService {
   public static async updateOrganization(orgId: string, updates: Record<string, any>): Promise<any> {
     let org = null;
     if (orgId && mongoose.Types.ObjectId.isValid(orgId)) {
-      org = await OrganizationModel.findByIdAndUpdate(orgId, { $set: updates }, { new: true });
+      org = await OrganizationModel.findById(orgId);
     }
     if (!org) {
-      const anyOrg = await OrganizationModel.findOne();
-      if (anyOrg) {
-        org = await OrganizationModel.findByIdAndUpdate(anyOrg._id, { $set: updates }, { new: true });
+      org = await OrganizationModel.findOne();
+    }
+
+    if (org) {
+      if (updates.invoiceSettings && typeof updates.invoiceSettings === 'object' && !Array.isArray(updates.invoiceSettings)) {
+        updates.invoiceSettings = {
+          ...(org.invoiceSettings || {}),
+          ...updates.invoiceSettings,
+        };
       }
-    }
-    if (!org) {
+      if (updates.addressDetails && typeof updates.addressDetails === 'object') {
+        updates.addressDetails = {
+          ...(org.addressDetails || {}),
+          ...updates.addressDetails,
+        };
+      }
+      if (updates.paymentDetails && typeof updates.paymentDetails === 'object') {
+        updates.paymentDetails = {
+          ...(org.paymentDetails || {}),
+          ...updates.paymentDetails,
+        };
+      }
+      org = await OrganizationModel.findByIdAndUpdate(org._id, { $set: updates }, { new: true });
+    } else {
       org = await OrganizationModel.create(updates);
     }
     return org;

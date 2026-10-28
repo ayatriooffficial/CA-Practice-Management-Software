@@ -67,6 +67,9 @@ export class FinancialController {
   static createInvoice = asyncHandler(async (req: Request, res: Response) =>
     ApiResponse.created(res, await FinancialService.createInvoice(req.body, getContext(req)), 'Invoice saved'));
 
+  static updateInvoice = asyncHandler(async (req: Request, res: Response) =>
+    ApiResponse.success(res, await FinancialService.updateInvoice(String(req.params.id), req.body, getContext(req)), 'Invoice updated'));
+
   static voidInvoice = asyncHandler(async (req: Request, res: Response) =>
     ApiResponse.success(res, await FinancialService.voidInvoice(String(req.params.id), req.body.reason, getContext(req)), 'Invoice voided'));
 

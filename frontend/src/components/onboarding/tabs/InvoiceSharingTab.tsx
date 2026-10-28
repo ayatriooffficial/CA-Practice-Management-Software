@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   CheckCircle2,
   Info,
+  ChevronRight,
 } from "lucide-react";
 
 export interface InvoiceSharingTabProps {
@@ -53,10 +54,10 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
 
       <div className="space-y-4">
         {/* Automatic Reminders Card */}
-        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all space-y-3">
+        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all space-y-3 shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[var(--primary)] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[var(--primary)] flex items-center justify-center shadow-xs">
                 <Clock className="w-4 h-4" />
               </div>
               <div>
@@ -72,14 +73,12 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
             <button
               type="button"
               onClick={() => setAutoReminder(!autoReminder)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                autoReminder ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
-              }`}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${autoReminder ? "bg-[var(--primary)]" : "bg-gray-300 dark:bg-gray-700"
+                }`}
             >
               <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  autoReminder ? "translate-x-5" : "translate-x-0"
-                }`}
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${autoReminder ? "translate-x-5" : "translate-x-0"
+                  }`}
               />
             </button>
           </div>
@@ -108,9 +107,9 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
         </div>
 
         {/* CC Invoice Email */}
-        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all space-y-2">
+        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all space-y-2 shadow-md">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shadow-xs">
               <Mail className="w-4 h-4" />
             </div>
             <div>
@@ -129,15 +128,15 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
               value={ccInvoiceMail}
               onChange={(e) => setCcInvoiceMail(e.target.value)}
               placeholder="e.g. accounts@yourfirm.com, partners@yourfirm.com"
-              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)]"
+              className="w-full h-10 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] shadow-xs"
             />
           </div>
         </div>
 
         {/* WhatsApp Sharing */}
-        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all flex items-center justify-between">
+        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all flex items-center justify-between shadow-md">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shadow-xs">
               <MessageSquare className="w-4 h-4" />
             </div>
             <div>
@@ -153,20 +152,18 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
           <button
             type="button"
             onClick={() => setEnableWhatsAppSharing(!enableWhatsAppSharing)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              enableWhatsAppSharing ? "bg-emerald-600" : "bg-gray-300 dark:bg-gray-700"
-            }`}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${enableWhatsAppSharing ? "bg-emerald-600" : "bg-gray-300 dark:bg-gray-700"
+              }`}
           >
             <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                enableWhatsAppSharing ? "translate-x-5" : "translate-x-0"
-              }`}
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enableWhatsAppSharing ? "translate-x-5" : "translate-x-0"
+                }`}
             />
           </button>
         </div>
 
         {/* Client Portal Payment Link */}
-        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all flex items-center justify-between">
+        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-700 transition-all flex items-center justify-between shadow-md">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4" />
@@ -184,14 +181,12 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
           <button
             type="button"
             onClick={() => setEnableClientPortal(!enableClientPortal)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              enableClientPortal ? "bg-[#4F46E5]" : "bg-gray-300 dark:bg-gray-700"
-            }`}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${enableClientPortal ? "bg-[#4F46E5]" : "bg-gray-300 dark:bg-gray-700"
+              }`}
           >
             <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                enableClientPortal ? "translate-x-5" : "translate-x-0"
-              }`}
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enableClientPortal ? "translate-x-5" : "translate-x-0"
+                }`}
             />
           </button>
         </div>
@@ -202,7 +197,7 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
         <button
           type="button"
           onClick={onPrevious}
-          className="px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
           <span>Previous: Document Settings</span>
@@ -214,8 +209,8 @@ export const InvoiceSharingTab: React.FC<InvoiceSharingTabProps> = ({
           disabled={isSaving}
           className="px-6 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
         >
-          <CheckCircle2 className="w-4 h-4" />
-          <span>{isSaving ? "Completing Profile..." : "Complete Profile Setup"}</span>
+          <span>Next: Business Hours</span>
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

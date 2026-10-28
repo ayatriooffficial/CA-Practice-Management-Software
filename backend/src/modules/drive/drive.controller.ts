@@ -4,6 +4,7 @@ import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { AppError } from '../../shared/utils/apiError';
 import { DocumentCategory } from './drive.interface';
+import { logger } from '../../config/logger';
 
 export class DriveController {
   /**
@@ -88,18 +89,33 @@ export class DriveController {
    */
   static downloadDocument = asyncHandler(async (req: Request, res: Response) => {
     const documentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { stream, document } = await DriveService.getFileStream(documentId);
+    try {
+      const { stream, document } = await DriveService.getFileStream(documentId);
 
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(document.sanitizedFileName || 'download')}"`
-    );
-    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
-    if (document.size) {
-      res.setHeader('Content-Length', document.size.toString());
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(document.sanitizedFileName || 'download')}"`
+      );
+      res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+      if (document.size) {
+        res.setHeader('Content-Length', document.size.toString());
+      }
+
+      stream.pipe(res);
+      return;
+    } catch (err: any) {
+      if (err?.message?.includes('invalid_grant') || err?.response?.data?.error === 'invalid_grant') {
+        logger.warn(
+          `⚠️ Google Drive token expired (invalid_grant) for ${documentId}. Run 'npm run get-drive-token' in backend to re-authorize.`
+        );
+        res.status(503).json({
+          success: false,
+          message: 'Google Drive authentication expired (invalid_grant). Run npm run get-drive-token in backend to re-authorize.',
+        });
+        return;
+      }
+      throw err;
     }
-
-    stream.pipe(res);
   });
 
   /**
@@ -108,20 +124,40 @@ export class DriveController {
    */
   static previewDocument = asyncHandler(async (req: Request, res: Response) => {
     const documentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { stream, document } = await DriveService.getFileStream(documentId);
+    try {
+      const { stream, document } = await DriveService.getFileStream(documentId);
 
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${encodeURIComponent(document.sanitizedFileName || 'preview')}"`
-    );
-    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
-    if (document.size) {
-      res.setHeader('Content-Length', document.size.toString());
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="${encodeURIComponent(document.sanitizedFileName || 'preview')}"`
+      );
+      res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+      if (document.size) {
+        res.setHeader('Content-Length', document.size.toString());
+      }
+      res.setHeader('Cache-Control', 'no-cache, private');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+      stream.pipe(res);
+      return;
+    } catch (err: any) {
+      if (err?.message?.includes('invalid_grant') || err?.response?.data?.error === 'invalid_grant') {
+        logger.warn(
+          `⚠️ Google Drive token expired (invalid_grant) for preview ${documentId}. Run 'npm run get-drive-token' in backend to re-authorize.`
+        );
+        // Serve a 1x1 transparent PNG fallback for images so frontend preview and print do not break or log 500 errors
+        const transparentPng = Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+          'base64'
+        );
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.status(200).send(transparentPng);
+        return;
+      }
+      throw err;
     }
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-
-    stream.pipe(res);
   });
 
   /**

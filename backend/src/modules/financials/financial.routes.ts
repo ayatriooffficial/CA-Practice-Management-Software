@@ -14,6 +14,7 @@ router.get('/report', validateRequest({ query: reportDateQuerySchema }), Financi
 router.get('/report/pdf', validateRequest({ query: reportDateQuerySchema }), FinancialController.getReportPdf);
 router.get('/invoices', FinancialController.listInvoices);
 router.post('/invoices', validateRequest({ body: createInvoiceSchema }), FinancialController.createInvoice);
+router.put('/invoices/:id', FinancialController.updateInvoice);
 router.patch('/invoices/:id/void', validateRequest({ body: voidInvoiceSchema }), FinancialController.voidInvoice);
 router.get('/time-entries', FinancialController.listTimeEntries);
 router.post('/time-entries', validateRequest({ body: createTimeEntrySchema }), FinancialController.createTimeEntry);

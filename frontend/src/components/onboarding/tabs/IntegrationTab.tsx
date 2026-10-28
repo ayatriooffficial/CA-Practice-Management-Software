@@ -41,14 +41,14 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
         {/* Gmail Card */}
         <div
           onClick={() => setSelectedApp("gmail")}
-          className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-4 shadow-md hover:shadow-lg ${
             selectedApp === "gmail"
               ? "border-[var(--primary)] bg-blue-50/30 dark:bg-blue-950/20 ring-2 ring-[var(--primary)]/20"
               : "border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-600"
           }`}
         >
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 flex items-center justify-center shrink-0 shadow-xs">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4Z"
@@ -88,7 +88,7 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
         {/* Outlook Card */}
         <div
           onClick={() => setSelectedApp("outlook")}
-          className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-4 shadow-md hover:shadow-lg ${
             selectedApp === "outlook"
               ? "border-[var(--primary)] bg-blue-50/30 dark:bg-blue-950/20 ring-2 ring-[var(--primary)]/20"
               : "border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-gray-300 dark:hover:border-gray-600"

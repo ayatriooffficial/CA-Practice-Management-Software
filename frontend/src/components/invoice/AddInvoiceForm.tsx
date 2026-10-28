@@ -9,6 +9,13 @@ import {
   Building,
   FileText,
   FileEdit,
+  Palette,
+  Eye,
+  Printer,
+  Check,
+  Edit2,
+  SlidersHorizontal,
+  Download,
 } from 'lucide-react';
 import { ServiceItem, InvoiceRecord } from './types';
 import { FIRM_DETAILS } from './mockData';
@@ -21,6 +28,7 @@ import { serviceApi } from '@/services/serviceApi';
 import { Client } from '@/data/crmData';
 import { Service } from '@/data/serviceData';
 import { organizationApi, OrganizationDetails } from '@/services/organizationApi';
+import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from '@/components/onboarding/tabs/InvoiceLivePreview';
 
 interface AddInvoiceFormProps {
   type: 'invoice' | 'proforma';
@@ -37,10 +45,15 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 }) => {
   const { addInvoice, addProforma, updateInvoice, bankAccounts } = useInvoice();
 
-  const isView = mode === 'view';
-  const isEdit = mode === 'edit';
+  const [currentMode, setCurrentMode] = useState<'create' | 'edit' | 'view'>(mode);
+  const isView = currentMode === 'view';
+  const isEdit = currentMode === 'edit';
   const isProforma = type === 'proforma';
   const titlePrefix = isProforma ? 'Proforma' : 'Invoice';
+
+  const [activeFormat, setActiveFormat] = useState<"classic" | "modern" | "minimal">("modern");
+  const [activeInvoiceColor, setActiveInvoiceColor] = useState<string>("#4F46E5");
+  const [isPreviewActive, setIsPreviewActive] = useState<boolean>(isView);
 
   // Dates
   const [invoiceDate, setInvoiceDate] = useState(() => initialData?.date || new Date().toLocaleDateString('en-GB'));
@@ -149,7 +162,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
       });
     serviceApi.getServices({ limit: 100 })
       .then((response) => setServiceCatalog(response.data || []))
-      .catch(() => {});
+      .catch(() => { });
 
     // Fetch actual organization(s) from Database
     Promise.allSettled([
@@ -210,9 +223,101 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
     return orgName.substring(0, 2).toUpperCase();
   }, [orgName]);
 
-  // Calculations
+  // Column print options (HSN/SAC, QTY, Description, CGST, SGST)
+  const [printColumns, setPrintColumns] = useState({
+    hsnSac: true,
+    qty: true,
+    description: true,
+    cgst: true,
+    sgst: true,
+  });
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    setIsDownloadingPDF(true);
+    try {
+      const fileName = `Invoice_${initialData?.number || "INV-2026-001"}.pdf`;
+      await downloadInvoicePDF("invoice-printable-root", fileName);
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
+  // Sync format, color and column options when selectedOrg loads
+  useEffect(() => {
+    if (selectedOrg?.invoiceSettings) {
+      if (selectedOrg.invoiceSettings.template) {
+        setActiveFormat(selectedOrg.invoiceSettings.template);
+      }
+      const color = selectedOrg.invoiceSettings.documentColors?.find((c: any) => c.id === (isProforma ? 'proforma' : 'invoice'))?.hex;
+      if (color) setActiveInvoiceColor(color);
+      if (selectedOrg.invoiceSettings.printColumns) {
+        setPrintColumns({
+          hsnSac: selectedOrg.invoiceSettings.printColumns.hsnSac ?? true,
+          qty: selectedOrg.invoiceSettings.printColumns.qty ?? true,
+          description: selectedOrg.invoiceSettings.printColumns.description ?? true,
+          cgst: selectedOrg.invoiceSettings.printColumns.cgst ?? true,
+          sgst: selectedOrg.invoiceSettings.printColumns.sgst ?? true,
+        });
+      }
+    }
+  }, [selectedOrg, isProforma]);
+
+  // Intercept Ctrl+P / Cmd+P when viewing or previewing invoice
+  useEffect(() => {
+    if (!isView && !isPreviewActive) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        printInvoiceElement("invoice-printable-root");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isView, isPreviewActive]);
+
+  const handleChangeFormat = async (fmt: "classic" | "modern" | "minimal") => {
+    setActiveFormat(fmt);
+    if (selectedOrg) {
+      try {
+        await organizationApi.updateOrganization({
+          invoiceSettings: {
+            ...(selectedOrg.invoiceSettings || {}),
+            template: fmt,
+          },
+        });
+      } catch (e) {
+        console.warn("Failed to update organization template:", e);
+      }
+    }
+  };
+
+  const handleToggleColumn = async (col: "hsnSac" | "qty" | "description" | "cgst" | "sgst") => {
+    const updated = {
+      ...printColumns,
+      [col]: !printColumns[col],
+    };
+    setPrintColumns(updated);
+    if (selectedOrg) {
+      try {
+        await organizationApi.updateOrganization({
+          invoiceSettings: {
+            ...(selectedOrg.invoiceSettings || {}),
+            printColumns: updated,
+          },
+        });
+      } catch (e) {
+        console.warn("Failed to update organization print columns:", e);
+      }
+    }
+  };
+
+  // Calculations (Subtotal, GST, and Total with GST added)
   const subTotal = services.reduce((sum, s) => sum + s.amount, 0);
-  const totalPayable = subTotal;
+  const cgstAmount = Math.round((subTotal * 0.09) * 100) / 100;
+  const sgstAmount = Math.round((subTotal * 0.09) * 100) / 100;
+  const totalPayable = Math.round((subTotal + cgstAmount + sgstAmount) * 100) / 100;
 
   // Handlers for Services
   const handleServiceChange = (id: string, field: keyof ServiceItem, value: any) => {
@@ -306,12 +411,8 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
       }];
     }
 
-    if (!allocations.length) {
-      setSaveError('Allocate at least one invoice amount explicitly to a task.');
-      return;
-    }
-    if (allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0) !== Math.round(totalPayable * 100)) {
-      setSaveError('Allocate the full invoice total across tasks before saving.');
+    if (allocations.length > 0 && allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0) !== Math.round(totalPayable * 100)) {
+      setSaveError(`Allocated amount across tasks must equal total payable (₹${totalPayable.toFixed(2)}) or remove task allocations to save as direct invoice.`);
       return;
     }
 
@@ -341,7 +442,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
     setSaveError('');
     try {
       if (isEdit && initialData) {
-        updateInvoice(initialData.id, payload);
+        await updateInvoice(initialData.id, payload);
         onBack();
         return;
       }
@@ -355,13 +456,72 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
     }
   };
 
-  return (
-    <div className="w-full flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0f172a] p-4 sm:p-6 lg:p-8 select-none text-gray-800 dark:text-gray-200 transition-colors">
-      {/* Outer Single White Card Shell as an explicit flex column with 32px gap */}
-      <div className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e5e7eb] dark:border-[#334155] shadow-xs p-7 sm:p-9 flex flex-col gap-8">
+  const renderInvoiceLivePreview = () => (
+    <InvoiceLivePreview
+      template={activeFormat}
+      accentColor={activeInvoiceColor}
+      firmName={orgName}
+      firmAddress={formattedOrgAddress}
+      firmGstin={(selectedOrg?.addressDetails as any)?.gstin || (selectedOrg as any)?.gstin}
+      firmPan={(selectedOrg?.addressDetails as any)?.pan || (selectedOrg as any)?.pan}
+      firmLogoUrl={selectedOrg?.invoiceSettings?.firmLogoUrl}
+      digitalSignatureUrl={selectedOrg?.invoiceSettings?.digitalSignatureUrl}
+      showCaLogo={selectedOrg?.invoiceSettings?.showCaLogo ?? true}
+      showHsnSac={printColumns.hsnSac}
+      showQuantity={printColumns.qty}
+      showDescription={printColumns.description}
+      showCgst={printColumns.cgst}
+      showSgst={printColumns.sgst}
+      invoiceType={type}
+      title={isProforma ? "Proforma Invoice" : "Tax Invoice"}
+      invoiceNumber={initialData?.number || "INV/2026-001"}
+      invoiceDate={invoiceDate}
+      dueDate={dueDate}
+      clientName={selectedClient?.name}
+      clientLegalName={selectedClient?.legalName || selectedClient?.name}
+      clientAddress={selectedClient?.address}
+      clientGstin={(selectedClient as any)?.gstin}
+      clientPan={selectedClient?.pan}
+      items={services.map((s, idx) => {
+        const taxable = s.amount || 0;
+        const itemCgst = Math.round((taxable * 0.09) * 100) / 100;
+        const itemSgst = Math.round((taxable * 0.09) * 100) / 100;
+        return {
+          id: s.id || String(idx + 1),
+          name: s.serviceName || "Service Item",
+          description: s.description || (s.compliancePeriod ? `Period: ${s.compliancePeriod}` : undefined),
+          hsnSac: (s as any).hsnSac || "998211",
+          qty: s.quantity || 1,
+          rate: s.price || 0,
+          taxable,
+          gstRate: 18,
+          cgst: itemCgst,
+          sgst: itemSgst,
+          total: taxable + itemCgst + itemSgst,
+        };
+      })}
+      subtotal={subTotal}
+      taxableAmount={subTotal}
+      cgstTotal={cgstAmount}
+      sgstTotal={sgstAmount}
+      totalAmount={totalPayable}
+      notes={note || selectedOrg?.invoiceSettings?.defaultInvoiceNote}
+      bankName={selectedBank?.bankName || selectedOrg?.paymentDetails?.bankDetails?.bankName || "HDFC Bank"}
+      accountHolderName={selectedBank?.accountBusinessName || selectedOrg?.paymentDetails?.bankDetails?.accountHolderName || orgName}
+      accountNumber={selectedBank?.accountNumber || selectedOrg?.paymentDetails?.bankDetails?.accountNumber || "50200012345678"}
+      ifscCode={selectedBank?.ifscCode || selectedOrg?.paymentDetails?.bankDetails?.ifscCode || "HDFC0001234"}
+      branchName={selectedBank?.branchAddress || (selectedBank as any)?.branchName || selectedOrg?.paymentDetails?.bankDetails?.branchName || "Koramangala, Bengaluru"}
+      upiId={selectedBank?.upi || (selectedBank as any)?.upiId || selectedOrg?.paymentDetails?.bankDetails?.upiId || "sharma@hdfc"}
+    />
+  );
 
-        {/* Section 1: Top Breadcrumb & Square Bordered Close Button */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#f1f5f9] dark:border-[#334155]/60">
+  return (
+    <div className="w-full flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0f172a] select-none text-gray-800 dark:text-gray-200 transition-colors">
+      {/* Outer Single White Card Shell - dynamically widens in split partition mode */}
+      <div className={`w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e5e7eb] dark:border-[#334155] shadow-xs ${isPreviewActive ? 'p-5 sm:p-7 max-w-[2100px]' : 'p-7 sm:p-9 max-w-7xl'} mx-auto flex flex-col gap-8`}>
+
+        {/* Section 1: Top Breadcrumb & Format Switcher Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#f1f5f9] dark:border-[#334155]/60 print:hidden">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <button
               type="button"
@@ -380,501 +540,731 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-8 h-8 rounded border border-[#dde2e8] dark:border-[#475569] flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#0f172a] transition-colors cursor-pointer"
-            title="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
-        <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
-          {/* Organization Circular Avatar */}
-          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
-            {orgInitials}
-          </div>
-
-          {/* Dedicated Right Column: Vertically Stacked No, Date, Due Date with 20px gap */}
-          <div className="w-full sm:w-72 md:w-80 flex flex-col gap-5">
-            {/* Number (Read-only grey input box) */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                {titlePrefix} No
-              </label>
-              <input
-                type="text"
-                disabled
-                value={initialData?.number || ''}
-                placeholder="Auto-generated"
-                className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-100 dark:bg-gray-800/60 text-xs text-gray-500 cursor-not-allowed outline-none"
-              />
+          <div className="flex items-center gap-2">
+            {/* Format Switcher */}
+            <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 p-1 rounded-xl text-xs border border-gray-200 dark:border-gray-700 shadow-2xs">
+              <span className="text-[11px] font-semibold text-gray-500 px-1.5 flex items-center gap-1">
+                <Palette className="w-3 h-3 text-[#3D6A9E]" />
+                Format:
+              </span>
+              {(["modern", "classic", "minimal"] as const).map((fmt) => (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() => handleChangeFormat(fmt)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${activeFormat === fmt
+                    ? "bg-white dark:bg-gray-900 text-[#3D6A9E] font-bold shadow-xs border border-gray-200 dark:border-gray-700"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                    }`}
+                  title={`Change format to ${fmt}`}
+                >
+                  {fmt}
+                </button>
+              ))}
             </div>
 
-            {/* Date */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                {titlePrefix} Date <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                />
-                <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Due Date */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Due Date <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                />
-                <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Two Roomy Cards: Billing Organization vs Proforma/Invoice To */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-          {/* Card 1: Billing Organization */}
-          <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
-            <div className="flex flex-col gap-3.5">
-              <label className="text-sm font-semibold text-gray-900 dark:text-white">
-                Billing Organization <span className="font-normal text-gray-500 text-xs">(Your details)</span>
-              </label>
-
-              <select
-                disabled={isView || organizations.length <= 1}
-                value={selectedOrgId || (selectedOrg ? (selectedOrg.id || (selectedOrg as any)._id) : '')}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer disabled:bg-gray-50 dark:disabled:bg-[#0f172a]/60 disabled:cursor-default"
+            {/* Toggle Preview / Form Button (when drafting or editing) */}
+            {!isView && (
+              <button
+                type="button"
+                onClick={() => setIsPreviewActive((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${isPreviewActive
+                  ? "bg-[#3D6A9E] text-white border-[#3D6A9E] shadow-sm ring-2 ring-[#3D6A9E]/20"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50"
+                  }`}
+                title={isPreviewActive ? "Exit split partition preview" : "Partition screen: Edit on left, live invoice preview on right"}
               >
-                {organizations.length > 0 ? (
-                  organizations.map((org, index) => {
-                    const oId = org.id || (org as any)._id || `org-${index}`;
-                    return (
-                      <option key={oId} value={oId}>
-                        {org.name}
-                      </option>
-                    );
-                  })
-                ) : (
-                  <option value="">{orgName}</option>
-                )}
-              </select>
-            </div>
+                <Eye className="w-3.5 h-3.5" />
+                <span>{isPreviewActive ? "Split Preview (Active)" : "Live Preview"}</span>
+              </button>
+            )}
 
-            {/* Business Details Panel */}
-            <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50">
-              <div className="font-bold text-gray-900 dark:text-white text-xs">
-                Business Details
-              </div>
-              <div className="flex items-start">
-                <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Business Name</span>
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{orgName}</span>
-              </div>
-              <div className="flex items-start">
-                <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Address</span>
-                <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{formattedOrgAddress}</span>
-              </div>
-              <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
-                <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Priority</span>
-                <span className="px-2.5 py-0.5 rounded border border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b] text-xs font-semibold">
-                  {(selectedOrg as any)?.priority || (organizations.indexOf(selectedOrg as any) === 0 ? "Primary" : "Secondary")}
-                </span>
-              </div>
-              {selectedOrg?.gstin && (
-                <div className="flex items-center">
-                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">GSTIN</span>
-                  <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.gstin}</span>
-                </div>
-              )}
-              {selectedOrg?.pan && (
-                <div className="flex items-center">
-                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
-                  <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.pan}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Card 2: Client Organization */}
-          <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
-            <div className="flex flex-col gap-3.5">
-              <label className="text-sm font-semibold text-gray-900 dark:text-white">
-                {titlePrefix} To <span className="font-normal text-gray-500 text-xs">(Client's details)</span>
-              </label>
-
-              <select
-                value={selectedClientId}
-                onChange={(e) => { setSelectedClientId(e.target.value); setTaskAllocations([]); }}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
-              >
-                <option value="">Select Client/Business from list</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name} ({client.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Client Details Panel or Centered Placeholder */}
-            {selectedClient ? (
-              <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
-                <div className="flex justify-between items-center pb-1">
-                  <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
-                    {selectedClient.group}
+            {/* Columns Selector Dropdown (when viewing or previewing) */}
+            {(isView || isPreviewActive) && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowColumnDropdown((prev) => !prev)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-700 dark:text-gray-300 transition-colors cursor-pointer text-xs font-semibold"
+                  title="Choose which columns will print"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#3D6A9E]" />
+                  <span>Columns</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#3D6A9E]/15 text-[#3D6A9E] font-bold">
+                    {[printColumns.hsnSac, printColumns.qty, printColumns.description, printColumns.cgst, printColumns.sgst].filter(Boolean).length}/5
                   </span>
-                </div>
-                <div className="flex items-start">
-                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Legal Name</span>
-                  <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedClient.legalName}</span>
-                </div>
-                <div className="flex items-start">
-                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
-                  <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{selectedClient.pan || '—'}</span>
-                </div>
-                <div className="flex items-start border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
-                  <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Address</span>
-                  <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{selectedClient.address}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-[#dde2e8] dark:border-[#334155] py-14 px-6 text-center text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center min-h-[160px]">
-                Select Client/Business from list
+                </button>
+
+                {showColumnDropdown && (
+                  <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 py-1 mb-1 border-b border-gray-100 dark:border-gray-700">
+                      Print Columns
+                    </div>
+                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={printColumns.hsnSac}
+                        onChange={() => handleToggleColumn("hsnSac")}
+                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                      />
+                      <span className="font-medium">HSN / SAC</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={printColumns.qty}
+                        onChange={() => handleToggleColumn("qty")}
+                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                      />
+                      <span className="font-medium">Quantity (QTY)</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={printColumns.description}
+                        onChange={() => handleToggleColumn("description")}
+                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                      />
+                      <span className="font-medium">Item Description</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={printColumns.cgst}
+                        onChange={() => handleToggleColumn("cgst")}
+                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                      />
+                      <span className="font-medium">CGST</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={printColumns.sgst}
+                        onChange={() => handleToggleColumn("sgst")}
+                        className="rounded text-[#3D6A9E] focus:ring-[#3D6A9E] accent-[#3D6A9E] w-3.5 h-3.5"
+                      />
+                      <span className="font-medium">SGST</span>
+                    </label>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Print & Download PDF buttons (when viewing/previewing) */}
+            {(isView || isPreviewActive) && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => printInvoiceElement("invoice-printable-root")}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 transition-colors cursor-pointer text-xs font-semibold"
+                  title="Print Invoice"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#3D6A9E]" />
+                  <span>Print</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloadingPDF}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-50 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 transition-colors cursor-pointer text-xs font-semibold disabled:opacity-50"
+                  title="Download as PDF"
+                >
+                  <Download className={`w-3.5 h-3.5 text-[#3D6A9E] ${isDownloadingPDF ? "animate-bounce" : ""}`} />
+                  <span>{isDownloadingPDF ? "Downloading..." : "Download PDF"}</span>
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-8 h-8 rounded border border-[#dde2e8] dark:border-[#475569] flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#0f172a] transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Section 4: Services Table Section with Taller Purple Header */}
-        <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
-          {/* Taller Purple Header Bar */}
-          <div className="bg-[#6366f1] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
-            <div className="col-span-5">Services</div>
-            <div className="col-span-2 text-center">Quantity</div>
-            <div className="col-span-2 text-center">Price</div>
-            <div className="col-span-2 text-center">Amount</div>
-            <div className="col-span-1 text-right">Total</div>
-          </div>
+        {/* View Mode OR Partitioned Split Live Preview OR Standard Form Mode */}
+        {isView ? (
+          <div className="w-full flex flex-col gap-6 animate-in fade-in duration-150 print:p-0 print:m-0">
+            <div className="max-w-4xl mx-auto w-full shadow-lg rounded-xl overflow-hidden border border-gray-200/90 dark:border-gray-800 print:max-w-none print:shadow-none print:border-none print:rounded-none">
+              {renderInvoiceLivePreview()}
+            </div>
 
-          {/* Service Rows (20px top padding from purple header, 20px gap between rows) */}
-          <div className="flex flex-col divide-y divide-[#e5e7eb] dark:divide-[#334155] p-6 gap-5">
-            {services.map((srv) => (
-              <div key={srv.id} className="pt-5 first:pt-0 flex flex-col gap-4">
-                {/* Main Row */}
-                <div className="grid grid-cols-12 gap-3 items-center text-xs">
-                  {/* Service Name Dropdown */}
-                  <div className="col-span-5">
+            <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-gray-100 dark:border-gray-800 pb-4 print:hidden">
+              {saveError && <p role="alert" className="mr-auto text-xs text-red-600 font-semibold">{saveError}</p>}
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentMode('edit');
+                  setIsPreviewActive(false);
+                }}
+                className="flex items-center gap-1.5 px-6 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884] text-white text-xs font-semibold cursor-pointer transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Edit Invoice Data</span>
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-6 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-gray-700 dark:text-gray-300 hover:bg-gray-50 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className={isPreviewActive ? "w-full grid grid-cols-1 xl:grid-cols-12 gap-8 items-start animate-in fade-in duration-200" : "w-full flex flex-col gap-8 animate-in fade-in duration-200"}>
+            {/* Left Partition: Interactive Form Controls (Left side you change) */}
+            <div className={isPreviewActive ? "xl:col-span-6 2xl:col-span-6 flex flex-col gap-8 min-w-0" : "w-full flex flex-col gap-8"}>
+              {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
+                {/* Organization Circular Avatar */}
+                <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
+                  {orgInitials}
+                </div>
+
+                {/* Dedicated Right Column: Vertically Stacked No, Date, Due Date with 20px gap */}
+                <div className="w-full sm:w-72 md:w-80 flex flex-col gap-5">
+                  {/* Number (Read-only grey input box) */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      {titlePrefix} No
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={initialData?.number || ''}
+                      placeholder="Auto-generated"
+                      className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-100 dark:bg-gray-800/60 text-xs text-gray-500 cursor-not-allowed outline-none"
+                    />
+                  </div>
+
+                  {/* Date */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      {titlePrefix} Date <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={invoiceDate}
+                        onChange={(e) => setInvoiceDate(e.target.value)}
+                        className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                      />
+                      <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Due Date <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className="w-full h-10 pl-3.5 pr-9 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                      />
+                      <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Two Roomy Cards: Billing Organization vs Proforma/Invoice To */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+                {/* Card 1: Billing Organization */}
+                <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                  <div className="flex flex-col gap-3.5">
+                    <label className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Billing Organization <span className="font-normal text-gray-500 text-xs">(Your details)</span>
+                    </label>
+
                     <select
-                      value={srv.serviceName}
-                      onChange={(e) => handleServiceChange(srv.id, 'serviceName', e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
+                      disabled={isView || organizations.length <= 1}
+                      value={selectedOrgId || (selectedOrg ? (selectedOrg.id || (selectedOrg as any)._id) : '')}
+                      onChange={(e) => setSelectedOrgId(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer disabled:bg-gray-50 dark:disabled:bg-[#0f172a]/60 disabled:cursor-default"
                     >
-                      <option value="">Service Name</option>
-                      {serviceCatalog.map((service) => (
-                        <option key={service.id} value={service.name}>
-                          {service.name}
+                      {organizations.length > 0 ? (
+                        organizations.map((org, index) => {
+                          const oId = org.id || (org as any)._id || `org-${index}`;
+                          return (
+                            <option key={oId} value={oId}>
+                              {org.name}
+                            </option>
+                          );
+                        })
+                      ) : (
+                        <option value="">{orgName}</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Business Details Panel */}
+                  <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50">
+                    <div className="font-bold text-gray-900 dark:text-white text-xs">
+                      Business Details
+                    </div>
+                    <div className="flex items-start">
+                      <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Business Name</span>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">{orgName}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Address</span>
+                      <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{formattedOrgAddress}</span>
+                    </div>
+                    <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
+                      <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Priority</span>
+                      <span className="px-2.5 py-0.5 rounded border border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b] text-xs font-semibold">
+                        {(selectedOrg as any)?.priority || (organizations.indexOf(selectedOrg as any) === 0 ? "Primary" : "Secondary")}
+                      </span>
+                    </div>
+                    {selectedOrg?.gstin && (
+                      <div className="flex items-center">
+                        <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">GSTIN</span>
+                        <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.gstin}</span>
+                      </div>
+                    )}
+                    {selectedOrg?.pan && (
+                      <div className="flex items-center">
+                        <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
+                        <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.pan}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card 2: Client Organization */}
+                <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                  <div className="flex flex-col gap-3.5">
+                    <label className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {titlePrefix} To <span className="font-normal text-gray-500 text-xs">(Client's details)</span>
+                    </label>
+
+                    <select
+                      value={selectedClientId}
+                      onChange={(e) => { setSelectedClientId(e.target.value); setTaskAllocations([]); }}
+                      className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
+                    >
+                      <option value="">Select Client/Business from list</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name} ({client.type})
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Quantity */}
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      min={1}
-                      value={srv.quantity}
-                      onChange={(e) => handleServiceChange(srv.id, 'quantity', e.target.value)}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                    />
-                  </div>
-
-                  {/* Price (Empty by default) */}
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder=""
-                      value={srv.price === 0 ? '' : srv.price}
-                      onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                    />
-                  </div>
-
-                  {/* Amount (read-only) */}
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      disabled
-                      value={srv.amount === 0 ? '0' : srv.amount}
-                      className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-gray-50 dark:bg-gray-800 text-xs text-gray-600 outline-none"
-                    />
-                  </div>
-
-                  {/* Total & Trash */}
-                  <div className="col-span-1 flex items-center justify-end gap-2 font-bold text-gray-900 dark:text-white">
-                    <span>₹{srv.total.toFixed(2)}</span>
-                    {services.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveService(srv.id)}
-                        className="text-red-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
-                        title="Delete Service Row"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Sub-Row: Description (with 0/300 counter) + Compliance Period */}
-                <div className="grid grid-cols-12 gap-4 items-start text-xs pt-1">
-                  {/* Description Input with 8px label gap and 6px counter gap */}
-                  <div className="col-span-5 flex flex-col gap-2">
-                    <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
-                      Description
-                    </label>
-                    <div className="flex flex-col gap-1.5">
-                      <input
-                        type="text"
-                        maxLength={300}
-                        placeholder="Description"
-                        value={srv.description}
-                        onChange={(e) => handleServiceChange(srv.id, 'description', e.target.value)}
-                        className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                      />
-                      <span className="text-[10px] text-gray-400 text-right">
-                        {srv.description.length}/300
-                      </span>
+                  {/* Client Details Panel or Centered Placeholder */}
+                  {selectedClient ? (
+                    <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
+                      <div className="flex justify-between items-center pb-1">
+                        <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
+                          {selectedClient.group}
+                        </span>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Legal Name</span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedClient.legalName}</span>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
+                        <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{selectedClient.pan || '—'}</span>
+                      </div>
+                      <div className="flex items-start border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
+                        <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Address</span>
+                        <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{selectedClient.address}</span>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Compliance Period Selects */}
-                  <div className="col-span-7 flex flex-col gap-2">
-                    <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
-                      Compliance Period
-                    </label>
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <select
-                        value={srv.compliancePeriod}
-                        onChange={(e) => handleServiceChange(srv.id, 'compliancePeriod', e.target.value)}
-                        className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
-                      >
-                        <option value="FY 2026-27">FY 2026-27</option>
-                        <option value="FY 2025-26">FY 2025-26</option>
-                      </select>
-
-                      <select
-                        value={srv.frequency}
-                        onChange={(e) => handleServiceChange(srv.id, 'frequency', e.target.value)}
-                        className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
-                      >
-                        <option value="One-Time">One-Time</option>
-                        <option value="Monthly">Monthly</option>
-                        <option value="Quarterly">Quarterly</option>
-                        <option value="Half Yearly">Half Yearly</option>
-                        <option value="Annual">Annual</option>
-                      </select>
-
-                      <select
-                        value={srv.periodLabel}
-                        onChange={(e) => handleServiceChange(srv.id, 'periodLabel', e.target.value)}
-                        className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
-                      >
-                        <option value="N/A - One-Time">N/A - One-Time</option>
-                        <option value="Q1 (Apr-Jun)">Q1 (Apr-Jun)</option>
-                        <option value="Q2 (Jul-Sep)">Q2 (Jul-Sep)</option>
-                        <option value="Q3 (Oct-Dec)">Q3 (Oct-Dec)</option>
-                        <option value="Q4 (Jan-Mar)">Q4 (Jan-Mar)</option>
-                        <option value="Annual">Annual</option>
-                      </select>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-[#dde2e8] dark:border-[#334155] py-14 px-6 text-center text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center min-h-[160px]">
+                      Select Client/Business from list
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
 
-          {/* Outlined Purple Add Service Buttons (20px top, 20px bottom, 12px gap) */}
-          <div className="p-5 border-t border-[#e5e7eb] dark:border-[#334155] flex items-center gap-3 bg-gray-50/50 dark:bg-[#0f172a]/20">
-            <button
-              type="button"
-              onClick={handleAddService}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Service</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleAddReimbursementItem}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Reimbursement</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Task level invoice allocation: report revenue uses these explicit issued amounts. */}
-        <section className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-5 flex flex-col gap-3" aria-labelledby="task-allocation-heading">
-          <div>
-            <h2 id="task-allocation-heading" className="text-sm font-bold text-gray-900 dark:text-white">Task Revenue Allocation</h2>
-            <p className="mt-1 text-xs text-gray-500">Allocate the full invoice amount directly to tasks so task revenue is fully attributable.</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select value={allocationTaskId} onChange={(event) => setAllocationTaskId(event.target.value)} className="h-10 min-w-0 flex-1 rounded-md border px-3 text-xs dark:bg-slate-900">
-              <option value="">Select a task</option>
-              {tasks.filter((task) => task.clientId === selectedClientId).map((task) => <option key={task.taskId} value={task.taskId}>{task.taskId} · {task.clientName} · {task.serviceName}</option>)}
-            </select>
-            <button type="button" disabled={!allocationTaskId || taskAllocations.some((row) => row.taskId === allocationTaskId)} onClick={() => { setTaskAllocations((rows) => [...rows, { taskId: allocationTaskId, amount: '' }]); setAllocationTaskId(''); }} className="h-10 rounded-md border px-4 text-xs font-semibold disabled:opacity-50">Add task</button>
-          </div>
-          {taskAllocations.map((allocation) => {
-            const task = tasks.find((item) => item.taskId === allocation.taskId);
-            return <div key={allocation.taskId} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] items-center gap-2 rounded-md bg-gray-50 p-2 dark:bg-slate-900">
-              <span className="text-xs">{task?.taskId} · {task?.clientName} · {task?.serviceName}</span>
-              <label className="flex items-center gap-2 text-xs">Allocated (₹)<input aria-label={`Amount allocated to ${task?.taskId}`} type="number" min="0.01" step="0.01" value={allocation.amount} onChange={(event) => setTaskAllocations((rows) => rows.map((row) => row.taskId === allocation.taskId ? { ...row, amount: event.target.value } : row))} className="h-9 min-w-0 flex-1 rounded border px-2 dark:bg-slate-800" /></label>
-              <button type="button" aria-label={`Remove allocation for ${task?.taskId}`} onClick={() => setTaskAllocations((rows) => rows.filter((row) => row.taskId !== allocation.taskId))} className="px-2 py-1 text-xs text-red-600">Remove</button>
-            </div>;
-          })}
-          {taskAllocations.length > 0 && <p className="text-xs text-gray-500">Allocated: ₹{(taskAllocations.reduce((sum, row) => sum + (Number(row.amount) || 0), 0)).toFixed(2)} / ₹{totalPayable.toFixed(2)}</p>}
-        </section>
-
-        {/* Section 5: Bank Account Section & Totals Row */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-start">
-          {/* Bank Account Card (Left 7 Cols) */}
-          <div className="md:col-span-7 flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Bank Account
-              </label>
-
-              <select
-                value={selectedBankId}
-                onChange={(e) => setSelectedBankId(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
-              >
-                <option value="">No bank accounts - Add Bank Account in Settings</option>
-                {bankAccounts.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.bankName} - {b.accountNumber} ({b.accountType}) {b.isPrimary ? '• Primary' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Empty State Card or Selected Bank Card (24px-28px padding) */}
-            <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 sm:p-7 text-xs flex flex-col gap-4 bg-[#f9fafb] dark:bg-[#0f172a]/40 shadow-2xs">
-              {selectedBank ? (
-                <div className="flex flex-col gap-2 pb-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-gray-900 dark:text-white text-sm">{selectedBank.bankName}</span>
-                    {selectedBank.isPrimary && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold">
-                        Primary
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-gray-700 dark:text-gray-300">
-                    A/C: <span className="font-mono font-medium">{selectedBank.accountNumber}</span> | IFSC: <span className="font-mono font-medium">{selectedBank.ifscCode}</span>
-                  </div>
-                  <div className="text-gray-500 text-[11px]">{selectedBank.branchAddress}</div>
+              {/* Section 4: Services Table Section with Taller Purple Header */}
+              <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
+                {/* Taller Purple Header Bar */}
+                <div className="bg-[#6366f1] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
+                  <div className="col-span-5">Services</div>
+                  <div className="col-span-2 text-center">Quantity</div>
+                  <div className="col-span-2 text-center">Price</div>
+                  <div className="col-span-2 text-center">Amount</div>
+                  <div className="col-span-1 text-right">Total</div>
                 </div>
-              ) : (
-                <div className="text-center py-6 flex flex-col items-center justify-center gap-2">
-                  <p className="text-xs text-gray-500">No Bank Account Added click below to add</p>
+
+                {/* Service Rows (20px top padding from purple header, 20px gap between rows) */}
+                <div className="flex flex-col divide-y divide-[#e5e7eb] dark:divide-[#334155] p-6 gap-5">
+                  {services.map((srv) => (
+                    <div key={srv.id} className="pt-5 first:pt-0 flex flex-col gap-4">
+                      {/* Main Row */}
+                      <div className="grid grid-cols-12 gap-3 items-center text-xs">
+                        {/* Service Name Dropdown */}
+                        <div className="col-span-5">
+                          <select
+                            value={srv.serviceName}
+                            onChange={(e) => handleServiceChange(srv.id, 'serviceName', e.target.value)}
+                            className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
+                          >
+                            <option value="">Service Name</option>
+                            {serviceCatalog.map((service) => (
+                              <option key={service.id} value={service.name}>
+                                {service.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="col-span-2">
+                          <input
+                            type="number"
+                            min={1}
+                            value={srv.quantity}
+                            onChange={(e) => handleServiceChange(srv.id, 'quantity', e.target.value)}
+                            className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                          />
+                        </div>
+
+                        {/* Price (Empty by default) */}
+                        <div className="col-span-2">
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder=""
+                            value={srv.price === 0 ? '' : srv.price}
+                            onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
+                            className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                          />
+                        </div>
+
+                        {/* Amount (read-only) */}
+                        <div className="col-span-2">
+                          <input
+                            type="text"
+                            disabled
+                            value={srv.amount === 0 ? '0' : srv.amount}
+                            className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-gray-50 dark:bg-gray-800 text-xs text-gray-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Total & Trash */}
+                        <div className="col-span-1 flex items-center justify-end gap-2 font-bold text-gray-900 dark:text-white">
+                          <span>₹{srv.total.toFixed(2)}</span>
+                          {services.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveService(srv.id)}
+                              className="text-red-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
+                              title="Delete Service Row"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Sub-Row: Description (with 0/300 counter) + Compliance Period */}
+                      <div className="grid grid-cols-12 gap-4 items-start text-xs pt-1">
+                        {/* Description Input with 8px label gap and 6px counter gap */}
+                        <div className="col-span-5 flex flex-col gap-2">
+                          <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                            Description
+                          </label>
+                          <div className="flex flex-col gap-1.5">
+                            <input
+                              type="text"
+                              maxLength={300}
+                              placeholder="Description"
+                              value={srv.description}
+                              onChange={(e) => handleServiceChange(srv.id, 'description', e.target.value)}
+                              className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                            />
+                            <span className="text-[10px] text-gray-400 text-right">
+                              {srv.description.length}/300
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Compliance Period Selects */}
+                        <div className="col-span-7 flex flex-col gap-2">
+                          <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                            Compliance Period
+                          </label>
+                          <div className="grid grid-cols-3 gap-2.5">
+                            <select
+                              value={srv.compliancePeriod}
+                              onChange={(e) => handleServiceChange(srv.id, 'compliancePeriod', e.target.value)}
+                              className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
+                            >
+                              <option value="FY 2026-27">FY 2026-27</option>
+                              <option value="FY 2025-26">FY 2025-26</option>
+                            </select>
+
+                            <select
+                              value={srv.frequency}
+                              onChange={(e) => handleServiceChange(srv.id, 'frequency', e.target.value)}
+                              className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
+                            >
+                              <option value="One-Time">One-Time</option>
+                              <option value="Monthly">Monthly</option>
+                              <option value="Quarterly">Quarterly</option>
+                              <option value="Half Yearly">Half Yearly</option>
+                              <option value="Annual">Annual</option>
+                            </select>
+
+                            <select
+                              value={srv.periodLabel}
+                              onChange={(e) => handleServiceChange(srv.id, 'periodLabel', e.target.value)}
+                              className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
+                            >
+                              <option value="N/A - One-Time">N/A - One-Time</option>
+                              <option value="Q1 (Apr-Jun)">Q1 (Apr-Jun)</option>
+                              <option value="Q2 (Jul-Sep)">Q2 (Jul-Sep)</option>
+                              <option value="Q3 (Oct-Dec)">Q3 (Oct-Dec)</option>
+                              <option value="Q4 (Jan-Mar)">Q4 (Jan-Mar)</option>
+                              <option value="Annual">Annual</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Outlined Purple Add Service Buttons (20px top, 20px bottom, 12px gap) */}
+                <div className="p-5 border-t border-[#e5e7eb] dark:border-[#334155] flex items-center gap-3 bg-gray-50/50 dark:bg-[#0f172a]/20">
                   <button
                     type="button"
-                    onClick={() => setIsAddBankModalOpen(true)}
-                    className="inline-flex items-center gap-1 text-[#3D6A9E] hover:underline font-semibold text-xs cursor-pointer"
+                    onClick={handleAddService}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add Bank Account</span>
+                    <span>Add Service</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddReimbursementItem}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Reimbursement</span>
                   </button>
                 </div>
-              )}
+              </div>
 
-              {/* Dotted Divider & Currency Code */}
-              <div className="pt-3 border-t border-dotted border-gray-300 dark:border-gray-700 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                <span>Currency Code</span>
-                <span className="font-semibold text-gray-900 dark:text-white">INR</span>
+              {/* Task level invoice allocation: report revenue uses these explicit issued amounts. */}
+              <section className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-5 flex flex-col gap-3" aria-labelledby="task-allocation-heading">
+                <div>
+                  <h2 id="task-allocation-heading" className="text-sm font-bold text-gray-900 dark:text-white">Task Revenue Allocation</h2>
+                  <p className="mt-1 text-xs text-gray-500">Allocate the full invoice amount directly to tasks so task revenue is fully attributable.</p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <select value={allocationTaskId} onChange={(event) => setAllocationTaskId(event.target.value)} className="h-10 min-w-0 flex-1 rounded-md border px-3 text-xs dark:bg-slate-900">
+                    <option value="">Select a task</option>
+                    {tasks.filter((task) => task.clientId === selectedClientId).map((task) => <option key={task.taskId} value={task.taskId}>{task.taskId} · {task.clientName} · {task.serviceName}</option>)}
+                  </select>
+                  <button type="button" disabled={!allocationTaskId || taskAllocations.some((row) => row.taskId === allocationTaskId)} onClick={() => { setTaskAllocations((rows) => [...rows, { taskId: allocationTaskId, amount: '' }]); setAllocationTaskId(''); }} className="h-10 rounded-md border px-4 text-xs font-semibold disabled:opacity-50">Add task</button>
+                </div>
+                {taskAllocations.map((allocation) => {
+                  const task = tasks.find((item) => item.taskId === allocation.taskId);
+                  return <div key={allocation.taskId} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] items-center gap-2 rounded-md bg-gray-50 p-2 dark:bg-slate-900">
+                    <span className="text-xs">{task?.taskId} · {task?.clientName} · {task?.serviceName}</span>
+                    <label className="flex items-center gap-2 text-xs">Allocated (₹)<input aria-label={`Amount allocated to ${task?.taskId}`} type="number" min="0.01" step="0.01" value={allocation.amount} onChange={(event) => setTaskAllocations((rows) => rows.map((row) => row.taskId === allocation.taskId ? { ...row, amount: event.target.value } : row))} className="h-9 min-w-0 flex-1 rounded border px-2 dark:bg-slate-800" /></label>
+                    <button type="button" aria-label={`Remove allocation for ${task?.taskId}`} onClick={() => setTaskAllocations((rows) => rows.filter((row) => row.taskId !== allocation.taskId))} className="px-2 py-1 text-xs text-red-600">Remove</button>
+                  </div>;
+                })}
+                {taskAllocations.length > 0 && <p className="text-xs text-gray-500">Allocated: ₹{(taskAllocations.reduce((sum, row) => sum + (Number(row.amount) || 0), 0)).toFixed(2)} / ₹{totalPayable.toFixed(2)}</p>}
+              </section>
+
+              {/* Section 5: Bank Account Section & Totals Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-start">
+                {/* Bank Account Card (Left 7 Cols) */}
+                <div className="md:col-span-7 flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Bank Account
+                    </label>
+
+                    <select
+                      value={selectedBankId}
+                      onChange={(e) => setSelectedBankId(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer"
+                    >
+                      <option value="">No bank accounts - Add Bank Account in Settings</option>
+                      {bankAccounts.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.bankName} - {b.accountNumber} ({b.accountType}) {b.isPrimary ? '• Primary' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Empty State Card or Selected Bank Card (24px-28px padding) */}
+                  <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 sm:p-7 text-xs flex flex-col gap-4 bg-[#f9fafb] dark:bg-[#0f172a]/40 shadow-2xs">
+                    {selectedBank ? (
+                      <div className="flex flex-col gap-2 pb-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-gray-900 dark:text-white text-sm">{selectedBank.bankName}</span>
+                          {selectedBank.isPrimary && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-gray-700 dark:text-gray-300">
+                          A/C: <span className="font-mono font-medium">{selectedBank.accountNumber}</span> | IFSC: <span className="font-mono font-medium">{selectedBank.ifscCode}</span>
+                        </div>
+                        <div className="text-gray-500 text-[11px]">{selectedBank.branchAddress}</div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 flex flex-col items-center justify-center gap-2">
+                        <p className="text-xs text-gray-500">No Bank Account Added click below to add</p>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddBankModalOpen(true)}
+                          className="inline-flex items-center gap-1 text-[#3D6A9E] hover:underline font-semibold text-xs cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Bank Account</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Dotted Divider & Currency Code */}
+                    <div className="pt-3 border-t border-dotted border-gray-300 dark:border-gray-700 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                      <span>Currency Code</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">INR</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Totals Card (Right 5 Cols) (24px-28px padding) */}
+                <div className="md:col-span-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                    <span>Sub Total</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      ₹{subTotal.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {printColumns.cgst && (
+                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                      <span>CGST (9%)</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        ₹{cgstAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {printColumns.sgst && (
+                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                      <span>SGST (9%)</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        ₹{sgstAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-dotted border-gray-300 dark:border-gray-700 flex items-center justify-between">
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                      Total Payable
+                    </span>
+                    <span className="text-xl font-bold text-gray-900 dark:text-white">
+                      ₹{totalPayable.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 6: Note Section */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  <FileEdit className="w-4 h-4 text-gray-500" />
+                  <span>Note</span>
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="No note added"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
+                />
+              </div>
+
+              {/* Section 7: Footer Actions (28px padding below buttons) */}
+              <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-gray-100 dark:border-gray-800 pb-7">
+                {saveError && <p role="alert" className="mr-auto text-xs text-red-600">{saveError}</p>}
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  {isView ? 'Close' : 'Cancel'}
+                </button>
+                {!isView && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSave()}
+                    disabled={isSaving}
+                    className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
+                  >
+                    {isSaving ? 'Saving…' : isEdit ? 'Update' : 'Save'}
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Right Partition: Real-Time Live Preview (Visible when isPreviewActive is ON) */}
+            {isPreviewActive && (
+              <div className="xl:col-span-6 2xl:col-span-6 sticky top-4 flex flex-col gap-3 min-w-0">
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/80 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                      Real-Time Live Preview
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => printInvoiceElement("invoice-printable-root")}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 text-xs font-semibold cursor-pointer transition-colors"
+                      title="Print Invoice"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-[#3D6A9E]" />
+                      <span>Print</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadPDF}
+                      disabled={isDownloadingPDF}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors"
+                      title="Download as PDF"
+                    >
+                      <Download className={`w-3.5 h-3.5 text-[#3D6A9E] ${isDownloadingPDF ? "animate-bounce" : ""}`} />
+                      <span>{isDownloadingPDF ? "Downloading..." : "Download PDF"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full max-h-[calc(100vh-100px)] overflow-y-auto rounded-xl shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900">
+                  {renderInvoiceLivePreview()}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Totals Card (Right 5 Cols) (24px-28px padding) */}
-          <div className="md:col-span-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
-            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>Sub Total</span>
-              <span className="font-medium text-gray-800 dark:text-gray-200">
-                ₹{subTotal.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="pt-4 border-t border-dotted border-gray-300 dark:border-gray-700 flex items-center justify-between">
-              <span className="text-sm font-bold text-gray-900 dark:text-white">
-                Total Payable
-              </span>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">
-                ₹{totalPayable.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 6: Note Section */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300">
-            <FileEdit className="w-4 h-4 text-gray-500" />
-            <span>Note</span>
-          </div>
-          <textarea
-            rows={2}
-            placeholder="No note added"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
-          />
-        </div>
-
-        {/* Section 7: Footer Actions (28px padding below buttons) */}
-        <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-gray-100 dark:border-gray-800 pb-7">
-          {saveError && <p role="alert" className="mr-auto text-xs text-red-600">{saveError}</p>}
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
-          >
-            {isView ? 'Close' : 'Cancel'}
-          </button>
-          {!isView && (
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={isSaving}
-              className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
-            >
-              {isSaving ? 'Saving…' : isEdit ? 'Update' : 'Save'}
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Add Bank Account Modal */}

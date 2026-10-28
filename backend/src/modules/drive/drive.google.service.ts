@@ -11,6 +11,8 @@ import {
 } from './drive.interface';
 import { AppError } from '../../shared/utils/apiError';
 
+import dotenv from 'dotenv';
+
 export class GoogleDriveService {
   private driveClient: drive_v3.Drive | null = null;
   private isConfigured: boolean = false;
@@ -25,18 +27,23 @@ export class GoogleDriveService {
 
   /**
    * Initializes Google Drive client supporting Service Account JSON, JSON string, or OAuth2.
+   * Can be re-invoked dynamically if credentials change.
    */
-  private initializeDriveClient(): void {
+  public initializeDriveClient(): void {
     try {
+      // Dynamically re-read .env to immediately reflect any updated tokens
+      const envPath = path.resolve(__dirname, '../../../.env');
+      if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath, override: true });
+      }
+
       // Method 1: Service Account JSON file path
-      if (
-        env.GOOGLE_DRIVE_CREDENTIALS_PATH &&
-        fs.existsSync(env.GOOGLE_DRIVE_CREDENTIALS_PATH)
-      ) {
-        const credentialsRaw = fs.readFileSync(env.GOOGLE_DRIVE_CREDENTIALS_PATH, 'utf-8');
+      const credsPath = process.env.GOOGLE_DRIVE_CREDENTIALS_PATH || env.GOOGLE_DRIVE_CREDENTIALS_PATH;
+      if (credsPath && fs.existsSync(credsPath)) {
+        const credentialsRaw = fs.readFileSync(credsPath, 'utf-8');
         const credentials = JSON.parse(credentialsRaw);
         const auth = new google.auth.GoogleAuth({
-          keyFile: env.GOOGLE_DRIVE_CREDENTIALS_PATH,
+          keyFile: credsPath,
           scopes: ['https://www.googleapis.com/auth/drive'],
         });
         this.driveClient = google.drive({ version: 'v3', auth });
@@ -49,8 +56,9 @@ export class GoogleDriveService {
       }
 
       // Method 2: Raw Service Account JSON string in environment variable
-      if (env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON) {
-        let credentialsRaw = env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON.trim();
+      const saJson = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON;
+      if (saJson) {
+        let credentialsRaw = saJson.trim();
         // Support base64 encoded JSON string
         if (!credentialsRaw.startsWith('{')) {
           try {
@@ -74,17 +82,14 @@ export class GoogleDriveService {
       }
 
       // Method 3: OAuth2 Client Credentials & Refresh Token
-      if (
-        env.GOOGLE_DRIVE_CLIENT_ID &&
-        env.GOOGLE_DRIVE_CLIENT_SECRET &&
-        env.GOOGLE_DRIVE_REFRESH_TOKEN
-      ) {
-        const oauth2Client = new google.auth.OAuth2(
-          env.GOOGLE_DRIVE_CLIENT_ID,
-          env.GOOGLE_DRIVE_CLIENT_SECRET
-        );
+      const clientId = (process.env.GOOGLE_DRIVE_CLIENT_ID || env.GOOGLE_DRIVE_CLIENT_ID || '').trim();
+      const clientSecret = (process.env.GOOGLE_DRIVE_CLIENT_SECRET || env.GOOGLE_DRIVE_CLIENT_SECRET || '').trim();
+      const refreshToken = (process.env.GOOGLE_DRIVE_REFRESH_TOKEN || env.GOOGLE_DRIVE_REFRESH_TOKEN || '').trim();
+
+      if (clientId && clientSecret && refreshToken) {
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
         oauth2Client.setCredentials({
-          refresh_token: env.GOOGLE_DRIVE_REFRESH_TOKEN,
+          refresh_token: refreshToken,
         });
         this.driveClient = google.drive({ version: 'v3', auth: oauth2Client });
         this.isConfigured = true;
@@ -354,15 +359,33 @@ export class GoogleDriveService {
     }
 
     if (!this.isConfigured || !this.driveClient) {
+      this.initializeDriveClient();
+    }
+
+    if (!this.isConfigured || !this.driveClient) {
       throw new Error('Google Drive client is not active');
     }
 
-    const res = await this.driveClient.files.get(
-      { fileId, alt: 'media', supportsAllDrives: true },
-      { responseType: 'stream' }
-    );
-
-    return res.data;
+    try {
+      const res = await this.driveClient.files.get(
+        { fileId, alt: 'media', supportsAllDrives: true },
+        { responseType: 'stream' }
+      );
+      return res.data;
+    } catch (err: any) {
+      if (err?.message?.includes('invalid_grant') || err?.response?.data?.error === 'invalid_grant') {
+        logger.warn('Detected invalid_grant in getFileStream, attempting client reinitialization from .env...');
+        this.initializeDriveClient();
+        if (this.driveClient) {
+          const retryRes = await this.driveClient.files.get(
+            { fileId, alt: 'media', supportsAllDrives: true },
+            { responseType: 'stream' }
+          );
+          return retryRes.data;
+        }
+      }
+      throw err;
+    }
   }
 
   /**

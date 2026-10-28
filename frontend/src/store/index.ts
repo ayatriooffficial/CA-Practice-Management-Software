@@ -16,17 +16,38 @@ export const makeStore = () => {
           ignoredActionPaths: ['payload.onSuccess'],
         },
       }).concat(sagaMiddleware),
-    devTools: process.env.NODE_ENV !== 'production',
+    devTools:
+      process.env.NODE_ENV !== 'production'
+        ? {
+            name: 'Ayatrio Practice Management',
+            trace: true,
+            traceLimit: 25,
+          }
+        : false,
   });
 
   sagaMiddleware.run(rootSaga);
 
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    (window as any).__REDUX_STORE__ = store;
+  }
+
   return store;
 };
 
-// Singleton store instance for client-side usage
-export const store = makeStore();
+// Single client-side store instance ensuring React and Redux DevTools extension share the exact same store
+let clientStoreInstance: ReturnType<typeof makeStore> | null = null;
+
+export const getStore = () => {
+  if (typeof window === 'undefined') {
+    return makeStore();
+  }
+  if (!clientStoreInstance) {
+    clientStoreInstance = makeStore();
+  }
+  return clientStoreInstance;
+};
 
 export type AppStore = ReturnType<typeof makeStore>;
-export type AppDispatch = typeof store.dispatch;
+export type AppDispatch = AppStore['dispatch'];
 export type { RootState };

@@ -79,6 +79,13 @@ export const financialApi = {
     if (!response.data) throw new Error('The invoice could not be saved.');
     return response.data;
   },
+  async updateInvoice(id: string, updates: { details?: Record<string, unknown>; number?: string; issueDate?: string | null; allocations?: TaskAllocationInput[] }) {
+    const response = await request<FinancialInvoiceRecord>(`/financials/invoices/${encodeURIComponent(id)}`, {
+      method: 'PUT', body: JSON.stringify(updates),
+    });
+    if (!response.data) throw new Error('The invoice could not be updated.');
+    return response.data;
+  },
   async voidInvoice(id: string, reason: string) {
     const response = await request<FinancialInvoiceRecord>(`/financials/invoices/${encodeURIComponent(id)}/void`, {
       method: 'PATCH', body: JSON.stringify({ reason }),

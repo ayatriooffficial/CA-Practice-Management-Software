@@ -11,6 +11,9 @@ import { BankAccountTab } from "./tabs/BankAccountTab";
 import { BrandingTab, DEFAULT_DOCUMENT_COLORS, DocumentColorSetting } from "./tabs/BrandingTab";
 import { InvoiceSettingsTab } from "./tabs/InvoiceSettingsTab";
 import { InvoiceSharingTab } from "./tabs/InvoiceSharingTab";
+import { BusinessHoursTab } from "./tabs/BusinessHoursTab";
+import { IntegrationTab } from "./tabs/IntegrationTab";
+import { DaySchedule, DEFAULT_DAYS } from "./tabs/types";
 import { CompletionModal } from "./tabs/CompletionModal";
 
 export const OnboardingWizard: React.FC = () => {
@@ -59,7 +62,7 @@ export const OnboardingWizard: React.FC = () => {
   const [upiId, setUpiId] = useState("");
 
   // --- Section 3: Branding State (Matches Image 4 & 5) ---
-  const [template, setTemplate] = useState<"classic" | "modern" | "minimal">("classic");
+  const [template, setTemplate] = useState<"classic" | "modern" | "minimal">("modern");
   const [documentColors, setDocumentColors] = useState<DocumentColorSetting[]>(DEFAULT_DOCUMENT_COLORS);
   const [firmLogoUrl, setFirmLogoUrl] = useState<string | null>(null);
   const [digitalSignatureUrl, setDigitalSignatureUrl] = useState<string | null>(null);
@@ -85,6 +88,28 @@ export const OnboardingWizard: React.FC = () => {
   const [ccInvoiceMail, setCcInvoiceMail] = useState("");
   const [enableWhatsAppSharing, setEnableWhatsAppSharing] = useState<boolean>(true);
   const [enableClientPortal, setEnableClientPortal] = useState<boolean>(true);
+
+  // --- Section 6: Business Hours State ---
+  const [shiftName, setShiftName] = useState("General Shift");
+  const [schedules, setSchedules] = useState<DaySchedule[]>(DEFAULT_DAYS);
+  const [gracePeriod, setGracePeriod] = useState("15");
+  const [enableAutoLogout, setEnableAutoLogout] = useState<boolean>(false);
+  const [autoLogoutAfter, setAutoLogoutAfter] = useState("06:30 PM");
+
+  // --- Section 7: Integrations State ---
+  const [selectedApp, setSelectedApp] = useState<"gmail" | "outlook">("gmail");
+  const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(false);
+
+  // Computed total weekly & monthly hours
+  const totalWeeklyHours = useMemo(() => {
+    return schedules
+      .filter((s) => s.enabled)
+      .reduce((acc, curr) => acc + (curr.hours || 0), 0);
+  }, [schedules]);
+
+  const totalMonthlyHours = useMemo(() => {
+    return Math.round(totalWeeklyHours * 4.33 * 10) / 10;
+  }, [totalWeeklyHours]);
 
   // Load existing organization and invoice settings on mount
   useEffect(() => {
@@ -177,8 +202,25 @@ export const OnboardingWizard: React.FC = () => {
               setEnableClientPortal(invSettings.enableClientPortal);
           }
 
+          // Restore Business Hours
+          const bh = org.businessHours;
+          if (bh) {
+            if (bh.shiftName) setShiftName(bh.shiftName);
+            if (Array.isArray(bh.schedules)) setSchedules(bh.schedules);
+            if (bh.gracePeriod) setGracePeriod(bh.gracePeriod);
+            if (typeof bh.enableAutoLogout === "boolean") setEnableAutoLogout(bh.enableAutoLogout);
+            if (bh.autoLogoutAfter) setAutoLogoutAfter(bh.autoLogoutAfter);
+          }
+
+          // Restore Integrations
+          const integ = org.integrations;
+          if (integ) {
+            if (integ.selectedApp) setSelectedApp(integ.selectedApp);
+            if (typeof integ.isGoogleConnected === "boolean") setIsGoogleConnected(integ.isGoogleConnected);
+          }
+
           if (org.onboardingStep) {
-            const step = Math.min(Math.max(org.onboardingStep, 1), 5);
+            const step = Math.min(Math.max(org.onboardingStep, 1), 7);
             setCurrentStep(step);
             setCompletedSteps(Array.from({ length: step - 1 }, (_, i) => i + 1));
           }
@@ -196,26 +238,30 @@ export const OnboardingWizard: React.FC = () => {
     };
   }, [currentUser]);
 
-  // Derived progress percentage & steps remaining
+  // Derived progress percentage & steps remaining for 7 sections
   const progressPercent = useMemo(() => {
     switch (currentStep) {
       case 1:
-        return 15;
+        return 14;
       case 2:
-        return 35;
+        return 28;
       case 3:
-        return 60;
+        return 43;
       case 4:
-        return 80;
+        return 57;
       case 5:
-        return 95;
+        return 71;
+      case 6:
+        return 86;
+      case 7:
+        return 100;
       default:
         return 100;
     }
   }, [currentStep]);
 
   const stepsRemaining = useMemo(() => {
-    return Math.max(0, 6 - currentStep);
+    return Math.max(0, 8 - currentStep);
   }, [currentStep]);
 
   // Helper to compile full invoiceSettings payload
@@ -376,7 +422,61 @@ export const OnboardingWizard: React.FC = () => {
     }
   };
 
-  // Handle final completion in Step 5: Invoice Sharing
+  // Handle saving Step 5: Invoice Sharing
+  const handleSaveInvoiceSharingAndNext = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    try {
+      const payload: Partial<OrganizationDetails> = {
+        invoiceSettings: buildInvoiceSettingsPayload(),
+        onboardingStep: 6,
+      };
+
+      await organizationApi.updateOrganization(payload);
+      setCompletedSteps((prev) => Array.from(new Set([...prev, 5])));
+      setSuccessNotice("Invoice sharing preferences saved successfully.");
+      setCurrentStep(6);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to save invoice sharing settings. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle saving Step 6: Business Hours
+  const handleSaveBusinessHoursAndNext = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    try {
+      const payload: Partial<OrganizationDetails> = {
+        businessHours: {
+          shiftName,
+          schedules,
+          gracePeriod,
+          enableAutoLogout,
+          autoLogoutAfter,
+          totalWeeklyHours,
+          totalMonthlyHours,
+        },
+        onboardingStep: 7,
+      };
+
+      await organizationApi.updateOrganization(payload);
+      setCompletedSteps((prev) => Array.from(new Set([...prev, 6])));
+      setSuccessNotice("Business hours and shifts saved successfully.");
+      setCurrentStep(7);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to save business hours. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle final completion in Step 7: Integrations
   const handleFinalSubmit = async () => {
     setIsSaving(true);
     setErrorMessage(null);
@@ -384,11 +484,14 @@ export const OnboardingWizard: React.FC = () => {
 
     try {
       await organizationApi.updateOrganization({
-        invoiceSettings: buildInvoiceSettingsPayload(),
-        onboardingStep: 5,
+        integrations: {
+          selectedApp,
+          isGoogleConnected,
+        },
+        onboardingStep: 7,
         onboardingCompleted: true,
       });
-      setCompletedSteps([1, 2, 3, 4, 5]);
+      setCompletedSteps([1, 2, 3, 4, 5, 6, 7]);
       setIsCompletedModalOpen(true);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to complete onboarding. Please try again.");
@@ -409,12 +512,12 @@ export const OnboardingWizard: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-[var(--bg-app)] text-[var(--text-main)] px-3 sm:px-6 py-4 flex flex-col justify-between font-sans">
-      <div className="w-full max-w-5xl mx-auto space-y-6">
+    <div className="w-full bg-[var(--bg-app)] text-[var(--text-main)]  flex flex-col justify-between font-sans">
+      <div className="w-full mx-auto space-y-6">
         {/* Top Progress Banner Card */}
         <OnboardingHeader
           businessName={businessName}
-          progressPercent={progressPercent}
+          // progressPercent={progressPercent}
           stepsRemaining={stepsRemaining}
         />
 
@@ -440,7 +543,7 @@ export const OnboardingWizard: React.FC = () => {
         )}
 
         {/* Active Section Content Container */}
-        <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-5 sm:p-8 shadow-xs">
+        <div className="bg-[var(--bg-surface)] rounded-sm border border-[var(--border-subtle)] p-5 sm:p-8 shadow-xl">
           {/* Section 1: 🏢 Firm Details */}
           {currentStep === 1 && (
             <OrganizationProfileTab
@@ -525,7 +628,15 @@ export const OnboardingWizard: React.FC = () => {
             <BrandingTab
               firmName={businessName}
               template={template}
-              setTemplate={setTemplate}
+              setTemplate={(val) => {
+                setTemplate(val);
+                organizationApi.updateOrganization({
+                  invoiceSettings: {
+                    ...buildInvoiceSettingsPayload(),
+                    template: val,
+                  },
+                }).catch((err) => console.warn("Auto-saving invoice template failed:", err));
+              }}
               documentColors={documentColors}
               setDocumentColors={setDocumentColors}
               firmLogoUrl={firmLogoUrl}
@@ -579,8 +690,43 @@ export const OnboardingWizard: React.FC = () => {
               enableClientPortal={enableClientPortal}
               setEnableClientPortal={setEnableClientPortal}
               onPrevious={() => setCurrentStep(4)}
-              onComplete={handleFinalSubmit}
+              onComplete={handleSaveInvoiceSharingAndNext}
               isSaving={isSaving}
+            />
+          )}
+
+          {/* Section 6: 🕒 Business Hours */}
+          {currentStep === 6 && (
+            <BusinessHoursTab
+              shiftName={shiftName}
+              setShiftName={setShiftName}
+              schedules={schedules}
+              setSchedules={setSchedules}
+              totalWeeklyHours={totalWeeklyHours}
+              totalMonthlyHours={totalMonthlyHours}
+              gracePeriod={gracePeriod}
+              setGracePeriod={setGracePeriod}
+              enableAutoLogout={enableAutoLogout}
+              setEnableAutoLogout={setEnableAutoLogout}
+              autoLogoutAfter={autoLogoutAfter}
+              setAutoLogoutAfter={setAutoLogoutAfter}
+              onPrevious={() => setCurrentStep(5)}
+              onSkip={() => setCurrentStep(7)}
+              onNext={handleSaveBusinessHoursAndNext}
+            />
+          )}
+
+          {/* Section 7: 🔌 Integrations */}
+          {currentStep === 7 && (
+            <IntegrationTab
+              selectedApp={selectedApp}
+              setSelectedApp={setSelectedApp}
+              isGoogleConnected={isGoogleConnected}
+              setIsGoogleConnected={setIsGoogleConnected}
+              isSaving={isSaving}
+              onPrevious={() => setCurrentStep(6)}
+              onSkip={handleFinalSubmit}
+              onSubmit={handleFinalSubmit}
             />
           )}
         </div>

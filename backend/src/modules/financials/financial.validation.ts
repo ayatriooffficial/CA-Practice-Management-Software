@@ -8,7 +8,7 @@ const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 const allocations = z.array(z.object({
   taskId: z.string().trim().min(1),
   amountPaise: z.number().int().positive().safe(),
-})).min(1).refine((rows) => new Set(rows.map((row) => row.taskId)).size === rows.length, 'Each task may only appear once per invoice');
+})).refine((rows) => new Set(rows.map((row) => row.taskId)).size === rows.length, 'Each task may only appear once per invoice');
 
 export const createInvoiceSchema = z.object({
   kind: z.enum(['invoice', 'credit_note']).default('invoice'),
@@ -16,7 +16,7 @@ export const createInvoiceSchema = z.object({
   number: z.string().trim().min(1).max(80),
   issueDate: dateOnly.nullable().optional(),
   originalInvoiceId: z.string().regex(/^[a-f\d]{24}$/i).nullable().optional(),
-  allocations,
+  allocations: allocations.optional().default([]),
   details: z.record(z.unknown()).default({}),
   idempotencyKey: z.string().trim().min(12).max(120),
 });

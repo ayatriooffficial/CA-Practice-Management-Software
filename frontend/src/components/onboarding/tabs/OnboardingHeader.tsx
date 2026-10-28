@@ -6,22 +6,22 @@ import { useRouter } from "next/navigation";
 
 interface OnboardingHeaderProps {
   businessName: string;
-  progressPercent: number;
+  // progressPercent: number;
   stepsRemaining: number;
 }
 
 export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
   businessName,
-  progressPercent,
+  // progressPercent,
   stepsRemaining,
 }) => {
   const router = useRouter();
 
   return (
-    <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4 sm:p-5 shadow-xs flex items-center justify-between gap-4">
+    <div className="bg-[var(--bg-surface)]   p-4 sm:p-5 shadow-md flex items-center justify-between gap-4">
       <div className="flex items-center gap-4 sm:gap-5">
         {/* SVG Circular Progress Ring */}
-        <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
+        {/* <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
           <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 48 48">
             <circle
               cx="24"
@@ -45,18 +45,19 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               fill="transparent"
             />
           </svg>
-          <span className="absolute text-[11px] font-bold text-[var(--primary)] dark:text-[var(--primary-hover)]">
+          {/* <span className="absolute text-[11px] font-bold text-[var(--primary)] dark:text-[var(--primary-hover)]">
             {progressPercent}%
-          </span>
-        </div>
+          </span> */}
+        {/* </div>  */}
+
 
         <div>
           <h1 className="text-base sm:text-lg font-bold text-[var(--text-main)] leading-tight">
             Welcome {businessName || "Medappa & Associates"}
           </h1>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          {/* <p className="text-xs text-[var(--text-muted)] mt-0.5">
             Complete your profile setup · {stepsRemaining} steps remaining
-          </p>
+          </p> */}
         </div>
       </div>
 

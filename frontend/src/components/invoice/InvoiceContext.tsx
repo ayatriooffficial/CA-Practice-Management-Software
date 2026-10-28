@@ -1,22 +1,39 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import {
   InvoiceTab,
-  InvoiceStatus,
   InvoiceRecord,
   ReceiptRecord,
   BankAccount,
   RecurringInvoiceRecord,
 } from './types';
+import { TaskAllocationInput } from '@/services/financialApi';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
-  MOCK_RECEIPTS,
-  MOCK_BANK_ACCOUNTS,
-  MOCK_RECURRING_INVOICES,
-} from './mockData';
-import { financialApi, FinancialInvoiceRecord, TaskAllocationInput } from '@/services/financialApi';
+  fetchInvoicesRequest,
+  createInvoiceRequest,
+  createProformaRequest,
+  createCreditNoteRequest,
+  updateInvoiceRequest,
+  voidInvoiceRequest,
+  addReimbursement as sliceAddReimbursement,
+  addReceipt as sliceAddReceipt,
+  updateReceipt as sliceUpdateReceipt,
+  deleteReceipt as sliceDeleteReceipt,
+  deleteInvoice as sliceDeleteInvoice,
+  addBankAccount as sliceAddBankAccount,
+  setActiveTab as sliceSetActiveTab,
+  setFinancialYear as sliceSetFinancialYear,
+  setDateRange as sliceSetDateRange,
+  setCurrencyFilter as sliceSetCurrencyFilter,
+  setSearchQuery as sliceSetSearchQuery,
+  setStatusFilter as sliceSetStatusFilter,
+  setActiveReport as sliceSetActiveReport,
+  InvoiceSummaryStats,
+} from '@/store/features/invoices';
 
-interface InvoiceContextType {
+export interface InvoiceContextType {
   activeTab: InvoiceTab;
   setActiveTab: (tab: InvoiceTab) => void;
   invoices: InvoiceRecord[];
@@ -39,7 +56,7 @@ interface InvoiceContextType {
   addProforma: (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]) => Promise<InvoiceRecord>;
   addCreditNote: (original: InvoiceRecord, allocations: TaskAllocationInput[]) => Promise<void>;
   voidInvoice: (invoice: InvoiceRecord, reason: string) => Promise<void>;
-  updateInvoice: (id: string, updated: Partial<InvoiceRecord>) => void;
+  updateInvoice: (id: string, updated: Partial<InvoiceRecord>) => Promise<void> | void;
   updateReceipt: (id: string, updated: Partial<ReceiptRecord>) => void;
   deleteInvoice: (id: string) => { success: boolean; message?: string };
   deleteReceipt: (id: string) => { success: boolean; message?: string };
@@ -51,263 +68,190 @@ interface InvoiceContextType {
   addBankAccount: (account: Omit<BankAccount, 'id'>) => BankAccount;
   activeReport: string;
   setActiveReport: (rep: string) => void;
-  summaryStats: {
-    allCount: number;
-    allAmount: number;
-    receivableAmount: number;
-    receivableCount: number;
-    partiallyPaidAmount: number;
-    partiallyPaidCount: number;
-    paidAmount: number;
-    paidCount: number;
-    advancePaidAmount: number;
-    advancePaidCount: number;
-    totalReceiptsCount: number;
-    totalReceiptsAmount: number;
-    advanceReceiptsAmount: number;
-  };
+  summaryStats: InvoiceSummaryStats;
   invoiceLoadError: string | null;
-}
-
-function mapPersistedInvoice(record: FinancialInvoiceRecord): InvoiceRecord {
-  const details = record.details as Partial<InvoiceRecord>;
-  return {
-    id: record._id,
-    type: record.kind === 'credit_note' ? 'credit_note' : record.state === 'draft' ? 'proforma' : 'invoice',
-    number: record.number,
-    date: details.date || record.issueDate || '',
-    dueDate: details.dueDate || '',
-    billingOrg: details.billingOrg || '',
-    billingAddress: details.billingAddress || '',
-    clientId: details.clientId || '',
-    clientBusinessName: details.clientBusinessName || '',
-    clientLegalName: details.clientLegalName || '',
-    clientGroup: details.clientGroup || '',
-    clientGstin: details.clientGstin || '',
-    clientAddress: details.clientAddress || '',
-    clientPan: details.clientPan || '',
-    services: details.services || [],
-    subTotal: record.kind === 'credit_note' ? -Math.abs(details.subTotal || 0) : details.subTotal || 0,
-    totalPayable: record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0,
-    tdsExcludedAmount: details.tdsExcludedAmount || 0,
-    currency: details.currency || 'INR',
-    status: record.kind === 'credit_note' ? 'Credit Note' : record.state === 'void' ? 'Cancelled' : record.state === 'draft' ? 'Pending' : 'Receivable',
-    bankAccountId: details.bankAccountId || '',
-    notes: details.notes,
-    paidAmount: 0,
-    balanceAmount: record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0,
-    financialYear: details.financialYear || '',
-    createdAt: String(details.createdAt || record.issueDate || ''),
-    taskAllocations: record.allocations,
-  };
-}
-
-function toIsoDate(value: string | undefined): string | null {
-  if (!value) return null;
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
 }
 
 const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
 
 export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<InvoiceTab>('invoice');
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
-  const [proformas, setProformas] = useState<InvoiceRecord[]>([]);
-  const [reimbursements, setReimbursements] = useState<InvoiceRecord[]>([]);
-  const [invoiceLoadError, setInvoiceLoadError] = useState<string | null>(null);
-  const [receipts, setReceipts] = useState<ReceiptRecord[]>(MOCK_RECEIPTS);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(MOCK_BANK_ACCOUNTS);
-  const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoiceRecord[]>(MOCK_RECURRING_INVOICES);
+  const dispatch = useAppDispatch();
+  const invoiceState = useAppSelector((state) => state.invoices);
 
-  const [financialYear, setFinancialYear] = useState<string>('FY 2026-2027');
-  const [dateRange, setDateRange] = useState<string>('This Month');
-  const [currencyFilter, setCurrencyFilter] = useState<string>('All Currencies');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [activeReport, setActiveReport] = useState<string>('dashboard');
-
-  const loadInvoices = useCallback(async () => {
-    try {
-      const records = await financialApi.listInvoices();
-      const mapped = records.map(mapPersistedInvoice);
-      setInvoices(mapped.filter((invoice) => invoice.type === 'invoice' || invoice.type === 'credit_note'));
-      setProformas(mapped.filter((invoice) => invoice.type === 'proforma'));
-      setInvoiceLoadError(null);
-    } catch {
-      setInvoiceLoadError('Could not load saved invoices. Check the backend connection.');
-    }
-  }, []);
-
+  // Automatically fetch persisted invoices from MongoDB backend on mount via Redux Saga
   useEffect(() => {
-    const timer = window.setTimeout(() => { void loadInvoices(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loadInvoices]);
-
-  const addInvoice = useCallback(async (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
-    const nextNumber = `INV-2026-${String(invoices.length + 1).padStart(3, '0')}`;
-    const draftRecord: InvoiceRecord = {
-      id: `inv-${Date.now()}`,
-      type: 'invoice',
-      number: nextNumber,
-      date: item.date || new Date().toLocaleDateString('en-GB'),
-      dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
-      billingOrg: item.billingOrg || 'Krishna Associates',
-      billingAddress: item.billingAddress || '',
-      clientId: item.clientId || '',
-      clientBusinessName: item.clientBusinessName || '',
-      clientLegalName: item.clientLegalName || '',
-      clientGroup: item.clientGroup || '',
-      clientGstin: item.clientGstin || '',
-      clientAddress: item.clientAddress || '',
-      clientPan: item.clientPan || '',
-      services: item.services || [],
-      subTotal: item.subTotal || 0,
-      totalPayable: item.totalPayable || 0,
-      tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
-      currency: item.currency || 'INR',
-      status: 'Receivable',
-      bankAccountId: item.bankAccountId || '',
-      notes: item.notes || '',
-      paidAmount: 0,
-      balanceAmount: item.totalPayable || 0,
-      financialYear: financialYear,
-      createdAt: new Date().toISOString(),
-      daysPastDue: 0,
-    };
-    try {
-      const saved = await financialApi.createInvoice({
-        kind: 'invoice', state: 'issued', number: nextNumber,
-        issueDate: toIsoDate(item.date), allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
-      });
-      const newRecord = mapPersistedInvoice(saved);
-      setInvoices((prev) => [newRecord, ...prev]);
-      return newRecord;
-    } catch (err: any) {
-      console.warn('Backend invoice save failed, storing locally:', err);
-      setInvoices((prev) => [draftRecord, ...prev]);
-      return draftRecord;
+    if (!invoiceState.isLoaded) {
+      dispatch(fetchInvoicesRequest());
     }
-  }, [invoices.length, financialYear]);
+  }, [dispatch, invoiceState.isLoaded]);
 
-  const addProforma = useCallback(async (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
-    const nextNumber = `PI-2026-${String(proformas.length + 1).padStart(3, '0')}`;
-    const draftRecord: InvoiceRecord = {
-      id: `prof-${Date.now()}`,
-      type: 'proforma',
-      number: nextNumber,
-      date: item.date || new Date().toLocaleDateString('en-GB'),
-      dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
-      billingOrg: item.billingOrg || 'Krishna Associates',
-      billingAddress: item.billingAddress || '',
-      clientId: item.clientId || '',
-      clientBusinessName: item.clientBusinessName || '',
-      clientLegalName: item.clientLegalName || '',
-      clientGroup: item.clientGroup || '',
-      clientGstin: item.clientGstin || '',
-      clientAddress: item.clientAddress || '',
-      clientPan: item.clientPan || '',
-      services: item.services || [],
-      subTotal: item.subTotal || 0,
-      totalPayable: item.totalPayable || 0,
-      tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
-      currency: item.currency || 'INR',
-      status: 'Receivable',
-      bankAccountId: item.bankAccountId || '',
-      notes: item.notes || '',
-      paidAmount: 0,
-      balanceAmount: item.totalPayable || 0,
-      financialYear: financialYear,
-      createdAt: new Date().toISOString(),
-      daysPastDue: 0,
-    };
-    try {
-      const saved = await financialApi.createInvoice({
-        kind: 'invoice', state: 'draft', number: nextNumber,
-        issueDate: null, allocations, details: draftRecord as unknown as Record<string, unknown>, idempotencyKey: crypto.randomUUID(),
+  const setActiveTab = useCallback(
+    (tab: InvoiceTab) => {
+      dispatch(sliceSetActiveTab(tab));
+    },
+    [dispatch]
+  );
+
+  const setFinancialYear = useCallback(
+    (fy: string) => {
+      dispatch(sliceSetFinancialYear(fy));
+    },
+    [dispatch]
+  );
+
+  const setDateRange = useCallback(
+    (range: string) => {
+      dispatch(sliceSetDateRange(range));
+    },
+    [dispatch]
+  );
+
+  const setCurrencyFilter = useCallback(
+    (curr: string) => {
+      dispatch(sliceSetCurrencyFilter(curr));
+    },
+    [dispatch]
+  );
+
+  const setSearchQuery = useCallback(
+    (query: string) => {
+      dispatch(sliceSetSearchQuery(query));
+    },
+    [dispatch]
+  );
+
+  const setStatusFilter = useCallback(
+    (status: string) => {
+      dispatch(sliceSetStatusFilter(status));
+    },
+    [dispatch]
+  );
+
+  const setActiveReport = useCallback(
+    (report: string) => {
+      dispatch(sliceSetActiveReport(report));
+    },
+    [dispatch]
+  );
+
+  const addInvoice = useCallback(
+    (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
+      return new Promise((resolve) => {
+        dispatch(
+          createInvoiceRequest({
+            data: item,
+            allocations,
+            onSuccess: (saved) => resolve(saved),
+          })
+        );
       });
-      const newRecord = mapPersistedInvoice(saved);
-      setProformas((prev) => [newRecord, ...prev]);
+    },
+    [dispatch]
+  );
+
+  const addProforma = useCallback(
+    (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
+      return new Promise((resolve) => {
+        dispatch(
+          createProformaRequest({
+            data: item,
+            allocations,
+            onSuccess: (saved) => resolve(saved),
+          })
+        );
+      });
+    },
+    [dispatch]
+  );
+
+  const addCreditNote = useCallback(
+    (original: InvoiceRecord, allocations: TaskAllocationInput[]): Promise<void> => {
+      return new Promise((resolve) => {
+        dispatch(
+          createCreditNoteRequest({
+            original,
+            allocations,
+            onSuccess: () => resolve(),
+          })
+        );
+      });
+    },
+    [dispatch]
+  );
+
+  const updateInvoice = useCallback(
+    (id: string, updated: Partial<InvoiceRecord>): Promise<void> => {
+      return new Promise((resolve) => {
+        dispatch(
+          updateInvoiceRequest({
+            id,
+            updated,
+            onSuccess: () => resolve(),
+          })
+        );
+      });
+    },
+    [dispatch]
+  );
+
+  const voidInvoice = useCallback(
+    (invoice: InvoiceRecord, reason: string): Promise<void> => {
+      return new Promise((resolve) => {
+        dispatch(
+          voidInvoiceRequest({
+            id: invoice.id,
+            reason,
+            onSuccess: () => resolve(),
+          })
+        );
+      });
+    },
+    [dispatch]
+  );
+
+  const addReimbursement = useCallback(
+    (item: Partial<InvoiceRecord>): InvoiceRecord => {
+      const nextNumber = `CH-2026-${String(invoiceState.reimbursements.length + 1).padStart(3, '0')}`;
+      const newRecord: InvoiceRecord = {
+        id: `reimb-${Date.now()}`,
+        type: 'reimbursement',
+        number: nextNumber,
+        date: item.date || new Date().toLocaleDateString('en-GB'),
+        dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
+        billingOrg: item.billingOrg || 'Krishna Associates',
+        billingAddress: item.billingAddress || '',
+        clientId: item.clientId || '',
+        clientBusinessName: item.clientBusinessName || '',
+        clientLegalName: item.clientLegalName || '',
+        clientGroup: item.clientGroup || '',
+        clientGstin: item.clientGstin || '',
+        clientAddress: item.clientAddress || '',
+        clientPan: item.clientPan || '',
+        services: item.services || [],
+        subTotal: item.subTotal || 0,
+        totalPayable: item.totalPayable || 0,
+        tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
+        currency: item.currency || 'INR',
+        status: 'Receivable',
+        bankAccountId: item.bankAccountId || '',
+        notes: item.notes || '',
+        paidAmount: 0,
+        balanceAmount: item.totalPayable || 0,
+        financialYear: invoiceState.financialYear,
+        createdAt: new Date().toISOString(),
+      };
+      dispatch(sliceAddReimbursement(newRecord));
       return newRecord;
-    } catch (err: any) {
-      console.warn('Backend proforma save failed, storing locally:', err);
-      setProformas((prev) => [draftRecord, ...prev]);
-      return draftRecord;
-    }
-  }, [proformas.length, financialYear]);
-
-  const addCreditNote = useCallback(async (original: InvoiceRecord, allocations: TaskAllocationInput[]): Promise<void> => {
-    const number = `CN-2026-${String(invoices.filter((invoice) => invoice.type === 'credit_note').length + 1).padStart(3, '0')}`;
-    const amount = allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0) / 100;
-    await financialApi.createInvoice({
-      kind: 'credit_note',
-      state: 'issued',
-      number,
-      issueDate: new Date().toISOString().slice(0, 10),
-      originalInvoiceId: original.id,
-      allocations,
-      details: {
-        clientId: original.clientId,
-        clientBusinessName: original.clientBusinessName,
-        clientLegalName: original.clientLegalName,
-        clientGroup: original.clientGroup,
-        type: 'credit_note',
-        subTotal: amount,
-        totalPayable: amount,
-        currency: original.currency,
-      },
-      idempotencyKey: crypto.randomUUID(),
-    });
-    await loadInvoices();
-  }, [invoices, loadInvoices]);
-
-  const voidInvoice = useCallback(async (invoice: InvoiceRecord, reason: string): Promise<void> => {
-    await financialApi.voidInvoice(invoice.id, reason);
-    await loadInvoices();
-  }, [loadInvoices]);
-
-  const addReimbursement = useCallback((item: Partial<InvoiceRecord>): InvoiceRecord => {
-    const nextNumber = `CH-2026-${String(reimbursements.length + 1).padStart(3, '0')}`;
-    const newRecord: InvoiceRecord = {
-      id: `reimb-${Date.now()}`,
-      type: 'reimbursement',
-      number: nextNumber,
-      date: item.date || new Date().toLocaleDateString('en-GB'),
-      dueDate: item.dueDate || new Date().toLocaleDateString('en-GB'),
-      billingOrg: item.billingOrg || 'Krishna Associates',
-      billingAddress: item.billingAddress || '',
-      clientId: item.clientId || '',
-      clientBusinessName: item.clientBusinessName || '',
-      clientLegalName: item.clientLegalName || '',
-      clientGroup: item.clientGroup || '',
-      clientGstin: item.clientGstin || '',
-      clientAddress: item.clientAddress || '',
-      clientPan: item.clientPan || '',
-      services: item.services || [],
-      subTotal: item.subTotal || 0,
-      totalPayable: item.totalPayable || 0,
-      tdsExcludedAmount: item.tdsExcludedAmount || item.subTotal || 0,
-      currency: item.currency || 'INR',
-      status: 'Receivable',
-      bankAccountId: item.bankAccountId || '',
-      notes: item.notes || '',
-      paidAmount: 0,
-      balanceAmount: item.totalPayable || 0,
-      financialYear: financialYear,
-      createdAt: new Date().toISOString(),
-    };
-    setReimbursements((prev) => [newRecord, ...prev]);
-    return newRecord;
-  }, [reimbursements.length, financialYear]);
+    },
+    [dispatch, invoiceState.reimbursements.length, invoiceState.financialYear]
+  );
 
   const addReceipt = useCallback(
     (
       item: Partial<ReceiptRecord>,
       allocations?: { id: string; amount: number; type: 'invoice' | 'reimbursement' }[]
     ): ReceiptRecord => {
-      const nextNumber = `REC-2026-${String(receipts.length + 1).padStart(3, '0')}`;
+      const nextNumber = `REC-2026-${String(invoiceState.receipts.length + 1).padStart(3, '0')}`;
       const newRecord: ReceiptRecord = {
         id: `rec-${Date.now()}`,
         receiptNo: nextNumber,
@@ -323,226 +267,87 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         bankName: item.bankName || 'HDFC Bank Ltd',
         referenceNumber: item.referenceNumber || '',
         notes: item.notes || '',
-        financialYear: financialYear,
+        financialYear: invoiceState.financialYear,
         isAdvance: item.isAdvance || false,
         invoiceId: item.invoiceId,
         invoiceNumber: item.invoiceNumber,
       };
-
-      if (allocations && allocations.length > 0) {
-        allocations.forEach((alloc) => {
-          if (alloc.type === 'invoice') {
-            setInvoices((prev) =>
-              prev.map((inv) => {
-                if (inv.id === alloc.id) {
-                  const updatedPaid = inv.paidAmount + alloc.amount;
-                  const updatedBalance = Math.max(0, inv.totalPayable - updatedPaid);
-                  const updatedStatus: InvoiceStatus =
-                    updatedBalance === 0 ? 'Paid' : updatedPaid > 0 ? 'Partially Paid' : inv.status;
-                  return {
-                    ...inv,
-                    paidAmount: updatedPaid,
-                    balanceAmount: updatedBalance,
-                    status: updatedStatus,
-                  };
-                }
-                return inv;
-              })
-            );
-          } else if (alloc.type === 'reimbursement') {
-            setReimbursements((prev) =>
-              prev.map((r) => {
-                if (r.id === alloc.id) {
-                  const updatedPaid = r.paidAmount + alloc.amount;
-                  const updatedBalance = Math.max(0, r.totalPayable - updatedPaid);
-                  const updatedStatus: InvoiceStatus =
-                    updatedBalance === 0 ? 'Paid' : updatedPaid > 0 ? 'Partially Paid' : r.status;
-                  return {
-                    ...r,
-                    paidAmount: updatedPaid,
-                    balanceAmount: updatedBalance,
-                    status: updatedStatus,
-                  };
-                }
-                return r;
-              })
-            );
-          }
-        });
-      }
-
-      setReceipts((prev) => [newRecord, ...prev]);
+      dispatch(sliceAddReceipt({ receipt: newRecord, allocations }));
       return newRecord;
     },
-    [receipts.length, financialYear]
+    [dispatch, invoiceState.receipts.length, invoiceState.financialYear]
   );
 
-  const addBankAccount = useCallback((account: Omit<BankAccount, 'id'>): BankAccount => {
-    const newAcc: BankAccount = {
-      ...account,
-      id: `bank-${Date.now()}`,
-    };
-    if (newAcc.isPrimary) {
-      setBankAccounts((prev) => prev.map((a) => ({ ...a, isPrimary: false })).concat(newAcc));
-    } else {
-      setBankAccounts((prev) => [...prev, newAcc]);
-    }
-    return newAcc;
-  }, []);
-
-  const updateInvoice = useCallback((id: string, updated: Partial<InvoiceRecord>) => {
-    setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, ...updated } : inv)));
-    setProformas((prev) => prev.map((prof) => (prof.id === id ? { ...prof, ...updated } : prof)));
-    setReimbursements((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
-  }, []);
-
-  const updateReceipt = useCallback((id: string, updated: Partial<ReceiptRecord>) => {
-    setReceipts((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
-  }, []);
-
-  const deleteInvoice = useCallback(
-    (id: string): { success: boolean; message?: string } => {
-      const inv = invoices.find((i) => i.id === id);
-      if (inv) {
-        const hasReceipts = receipts.some(
-          (r) => r.invoiceId === id || r.invoiceNumber === inv.number || (r as any).proformaOrInvoice === inv.number
-        );
-        if (hasReceipts) {
-          return { success: false, message: 'Delete its receipts first' };
-        }
-        setInvoices((prev) => prev.filter((i) => i.id !== id));
-        return { success: true };
-      }
-
-      const prof = proformas.find((p) => p.id === id);
-      if (prof) {
-        const hasReceipts = receipts.some(
-          (r) => r.proformaId === id || r.proformaNumber === prof.number || (r as any).proformaOrInvoice === prof.number
-        );
-        if (hasReceipts) {
-          return { success: false, message: 'Delete its receipts first' };
-        }
-        setProformas((prev) => prev.filter((p) => p.id !== id));
-        return { success: true };
-      }
-
-      const reimb = reimbursements.find((r) => r.id === id);
-      if (reimb) {
-        const hasReceipts = receipts.some(
-          (r) => r.reimbursementId === id || r.reimbursementNumber === reimb.number || (r as any).proformaOrInvoice === reimb.number
-        );
-        if (hasReceipts) {
-          return { success: false, message: 'Delete its receipts first' };
-        }
-        setReimbursements((prev) => prev.filter((r) => r.id !== id));
-        return { success: true };
-      }
-
-      return { success: false, message: 'Record not found' };
+  const updateReceipt = useCallback(
+    (id: string, updated: Partial<ReceiptRecord>) => {
+      dispatch(sliceUpdateReceipt({ id, updated }));
     },
-    [invoices, proformas, reimbursements, receipts]
+    [dispatch]
   );
 
   const deleteReceipt = useCallback(
     (id: string): { success: boolean; message?: string } => {
-      const target = receipts.find((r) => r.id === id);
-      if (!target) return { success: false, message: 'Receipt not found' };
-
-      setReceipts((prev) => prev.filter((r) => r.id !== id));
-
-      if (target.invoiceId) {
-        setInvoices((prev) =>
-          prev.map((inv) => {
-            if (inv.id === target.invoiceId) {
-              const newPaid = Math.max(0, inv.paidAmount - target.amount);
-              const newBal = inv.totalPayable - newPaid;
-              return {
-                ...inv,
-                paidAmount: newPaid,
-                balanceAmount: newBal,
-                status: (newBal <= 0 ? 'Paid' : newPaid > 0 ? 'Partially Paid' : 'Receivable') as InvoiceStatus,
-              };
-            }
-            return inv;
-          })
-        );
-      }
+      dispatch(sliceDeleteReceipt(id));
       return { success: true };
     },
-    [receipts]
+    [dispatch]
   );
 
-  // Compute live summary statistics dynamically based on current list state
-  const summaryStats = useMemo(() => {
-    let currentList: InvoiceRecord[] = [];
-    if (activeTab === 'invoice') currentList = invoices;
-    else if (activeTab === 'proforma') currentList = proformas;
-    else if (activeTab === 'reimbursement') currentList = reimbursements;
+  const deleteInvoice = useCallback(
+    (id: string): { success: boolean; message?: string } => {
+      const inv = invoiceState.invoices.find((i) => i.id === id);
+      if (inv) {
+        const hasReceipts = invoiceState.receipts.some(
+          (r) =>
+            r.invoiceId === id ||
+            r.invoiceNumber === inv.number ||
+            (r as any).proformaOrInvoice === inv.number
+        );
+        if (hasReceipts) {
+          return {
+            success: false,
+            message: `Cannot delete invoice ${inv.number} because it has associated payment receipts. Please delete the receipts first.`,
+          };
+        }
+      }
+      dispatch(sliceDeleteInvoice(id));
+      return { success: true };
+    },
+    [dispatch, invoiceState.invoices, invoiceState.receipts]
+  );
 
-    const allCount = currentList.length;
-    const allAmount = currentList.reduce((acc, curr) => acc + curr.totalPayable, 0);
-
-    const receivableItems = currentList.filter(
-      (i) => i.status === 'Receivable' || i.status === 'Pending' || i.status === 'Overdue'
-    );
-    const receivableAmount = receivableItems.reduce((acc, curr) => acc + curr.balanceAmount, 0);
-    const receivableCount = receivableItems.length;
-
-    const partialItems = currentList.filter((i) => i.status === 'Partially Paid');
-    const partiallyPaidAmount = partialItems.reduce((acc, curr) => acc + curr.balanceAmount, 0);
-    const partiallyPaidCount = partialItems.length;
-
-    const paidItems = currentList.filter((i) => i.status === 'Paid');
-    const paidAmount = paidItems.reduce((acc, curr) => acc + curr.totalPayable, 0);
-    const paidCount = paidItems.length;
-
-    const advanceItems = currentList.filter((i) => i.status === 'Advance Paid');
-    const advancePaidAmount = advanceItems.reduce((acc, curr) => acc + curr.paidAmount, 0);
-    const advancePaidCount = advanceItems.length;
-
-    const totalReceiptsCount = receipts.length;
-    const totalReceiptsAmount = receipts.reduce((acc, curr) => acc + curr.amount, 0);
-    const advanceReceiptsAmount = receipts
-      .filter((r) => r.isAdvance)
-      .reduce((acc, curr) => acc + curr.amount, 0);
-
-    return {
-      allCount,
-      allAmount,
-      receivableAmount,
-      receivableCount,
-      partiallyPaidAmount,
-      partiallyPaidCount,
-      paidAmount,
-      paidCount,
-      advancePaidAmount,
-      advancePaidCount,
-      totalReceiptsCount,
-      totalReceiptsAmount,
-      advanceReceiptsAmount,
-    };
-  }, [activeTab, invoices, proformas, reimbursements, receipts]);
+  const addBankAccount = useCallback(
+    (account: Omit<BankAccount, 'id'>): BankAccount => {
+      const newAcc: BankAccount = {
+        ...account,
+        id: `bank-${Date.now()}`,
+      };
+      dispatch(sliceAddBankAccount(newAcc));
+      return newAcc;
+    },
+    [dispatch]
+  );
 
   return (
     <InvoiceContext.Provider
       value={{
-        activeTab,
+        activeTab: invoiceState.activeTab,
         setActiveTab,
-        invoices,
-        proformas,
-        reimbursements,
-        receipts,
-        recurringInvoices,
-        bankAccounts,
-        financialYear,
+        invoices: invoiceState.invoices,
+        proformas: invoiceState.proformas,
+        reimbursements: invoiceState.reimbursements,
+        receipts: invoiceState.receipts,
+        recurringInvoices: invoiceState.recurringInvoices,
+        bankAccounts: invoiceState.bankAccounts,
+        financialYear: invoiceState.financialYear,
         setFinancialYear,
-        dateRange,
+        dateRange: invoiceState.dateRange,
         setDateRange,
-        currencyFilter,
+        currencyFilter: invoiceState.currencyFilter,
         setCurrencyFilter,
-        searchQuery,
+        searchQuery: invoiceState.searchQuery,
         setSearchQuery,
-        statusFilter,
+        statusFilter: invoiceState.statusFilter,
         setStatusFilter,
         addInvoice,
         addProforma,
@@ -555,10 +360,10 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addReimbursement,
         addReceipt,
         addBankAccount,
-        activeReport,
+        activeReport: invoiceState.activeReport,
         setActiveReport,
-        summaryStats,
-        invoiceLoadError,
+        summaryStats: invoiceState.summaryStats,
+        invoiceLoadError: invoiceState.error,
       }}
     >
       {children}

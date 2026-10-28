@@ -106,21 +106,28 @@ export class FinancialService {
       }
       return prior;
     }
-    const taskIds = input.allocations.map((allocation) => allocation.taskId);
+    const hasAllocations = Array.isArray(input.allocations) && input.allocations.length > 0;
     const invoiceTotalPaise = Math.round(Number(input.details.totalPayable) * 100);
-    const allocatedTotalPaise = input.allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0);
-    if (!Number.isSafeInteger(invoiceTotalPaise) || !Number.isSafeInteger(allocatedTotalPaise) || invoiceTotalPaise <= 0 || allocatedTotalPaise !== invoiceTotalPaise) {
-      throw AppError.badRequest('Task allocations must exactly equal the invoice total');
+    if (!Number.isSafeInteger(invoiceTotalPaise) || invoiceTotalPaise <= 0) {
+      throw AppError.badRequest('Invoice total must be a valid positive amount');
     }
-    const allocatedTasks = await this.assertTasks(taskIds, ctx.orgId);
-    const invoiceClientId = typeof input.details.clientId === 'string' ? input.details.clientId : '';
-    // Only reject if both task has a specific clientId and invoice has one, and they conflict
-    if (
-      invoiceClientId &&
-      invoiceClientId !== 'client-prefilled' &&
-      allocatedTasks.some((task) => task.clientId && task.clientId !== invoiceClientId)
-    ) {
-      throw AppError.badRequest('All invoice task allocations must belong to the selected invoice client');
+
+    if (hasAllocations) {
+      const taskIds = input.allocations.map((allocation) => allocation.taskId);
+      const allocatedTotalPaise = input.allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0);
+      if (!Number.isSafeInteger(allocatedTotalPaise) || allocatedTotalPaise !== invoiceTotalPaise) {
+        throw AppError.badRequest('Task allocations must exactly equal the invoice total');
+      }
+      const allocatedTasks = await this.assertTasks(taskIds, ctx.orgId);
+      const invoiceClientId = typeof input.details.clientId === 'string' ? input.details.clientId : '';
+      // Only reject if both task has a specific clientId and invoice has one, and they conflict
+      if (
+        invoiceClientId &&
+        invoiceClientId !== 'client-prefilled' &&
+        allocatedTasks.some((task) => task.clientId && task.clientId !== invoiceClientId)
+      ) {
+        throw AppError.badRequest('All invoice task allocations must belong to the selected invoice client');
+      }
     }
     if (input.kind === 'credit_note' && input.state !== 'issued') {
       throw AppError.badRequest('Credit notes must be issued or finalized when recorded');
@@ -215,6 +222,48 @@ export class FinancialService {
     if (hasCredits) throw AppError.conflict('An invoice with issued credit notes cannot be voided; issue a correcting credit note instead');
     invoice.state = 'void';
     invoice.details = { ...invoice.details, voidReason: reason, voidedAt: new Date().toISOString() };
+    await invoice.save();
+    return invoice;
+  }
+
+  static async updateInvoice(
+    id: string,
+    updates: {
+      details?: Record<string, unknown>;
+      number?: string;
+      issueDate?: string | null;
+      allocations?: IInvoiceAllocation[];
+    },
+    ctx: FinancialUserContext
+  ) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw AppError.badRequest('Invalid invoice identifier');
+    const invoice = await FinancialInvoice.findOne({ _id: id, orgId: ctx.orgId });
+    if (!invoice) throw AppError.notFound('Invoice not found in your organization');
+    if (invoice.state === 'void') throw AppError.badRequest('Voided invoices cannot be modified');
+
+    if (updates.details) {
+      invoice.details = { ...invoice.details, ...updates.details };
+    }
+    if (updates.number) {
+      invoice.number = updates.number;
+    }
+    if (updates.issueDate !== undefined) {
+      invoice.issueDate = updates.issueDate ? toDate(updates.issueDate) : null;
+    }
+    if (Array.isArray(updates.allocations)) {
+      const hasAllocations = updates.allocations.length > 0;
+      if (hasAllocations) {
+        const taskIds = updates.allocations.map((a) => a.taskId);
+        const invoiceTotalPaise = Math.round(Number((invoice.details as any)?.totalPayable) * 100);
+        const allocatedTotalPaise = updates.allocations.reduce((sum, a) => sum + a.amountPaise, 0);
+        if (allocatedTotalPaise !== invoiceTotalPaise) {
+          throw AppError.badRequest('Task allocations must exactly equal the invoice total');
+        }
+        await this.assertTasks(taskIds, ctx.orgId);
+      }
+      invoice.allocations = updates.allocations as any;
+    }
+
     await invoice.save();
     return invoice;
   }
