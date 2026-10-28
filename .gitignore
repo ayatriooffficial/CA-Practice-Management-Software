@@ -54,8 +54,13 @@ ayatrio-todo.txt
 # Uploads & Credentials
 uploads/
 */uploads/
+storage/
+*/storage/
 credentials/
 */credentials/
 *.pem
 *.key
+*.pfx
+certs/
+*/certs/
 

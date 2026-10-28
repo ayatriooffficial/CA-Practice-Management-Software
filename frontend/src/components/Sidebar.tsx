@@ -103,7 +103,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           {SIDEBAR_ITEMS.map((item) => {
             if (!isItemVisible(item.id)) return null;
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
+            const isActive =
+              pathname === item.href ||
+              (item.id === "reports" && pathname.startsWith("/reports/")) ||
+              (item.id === "dsc" && pathname.startsWith("/dsc"));
 
             return (
               <Link
@@ -301,7 +304,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               {SIDEBAR_ITEMS.map((item) => {
                 if (!isItemVisible(item.id)) return null;
                 const Icon = item.icon;
-                const isActive = pathname === item.href || (item.id === "reports" && pathname.startsWith("/reports/"));
+                const isActive =
+                  pathname === item.href ||
+                  (item.id === "reports" && pathname.startsWith("/reports/")) ||
+                  (item.id === "dsc" && pathname.startsWith("/dsc"));
 
                 return (
                   <Link
