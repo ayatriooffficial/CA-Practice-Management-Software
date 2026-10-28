@@ -248,6 +248,29 @@ export const PdfSignerPage: React.FC = () => {
     }
   };
 
+  // Stage documents chosen from Cloud Drive
+  const handleStageFromDrive = async (docIds: string[]) => {
+    setIsUploading(true);
+    try {
+      let count = 0;
+      for (const driveId of docIds) {
+        const res = await pdfSignerApi.stageFromDrive(driveId);
+        if (res && res.data) {
+          count++;
+        }
+      }
+      await fetchDocuments();
+      showToast(
+        `Successfully imported & staged ${count} document${count === 1 ? '' : 's'} from Cloud Drive!`,
+        'success'
+      );
+    } catch (err: any) {
+      showToast(err.message || 'Failed to import documents from Drive.', 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Verify an already staged document and transfer it to the verified table
   const handleVerifyStagedDocument = async (id: string) => {
     try {
@@ -377,9 +400,15 @@ export const PdfSignerPage: React.FC = () => {
           showToast(`Signing failed for all ${total} selected documents.`, 'error');
         }
 
-        // Clear staging selection of signed docs and reload
+        // Optimistically remove signed docs from staged table and clear selection
+        const successfulIds = new Set(
+          res.data.results.filter((r) => r.success).map((r) => r.documentId)
+        );
+        setStagedDocs((prev) => prev.filter((d) => !successfulIds.has(d.id)));
         setSelectedStagedIds([]);
-        await fetchDocuments();
+
+        // Background sync to ensure full consistency with server records
+        void fetchDocuments();
       }
     } catch (err: any) {
       showToast(err.message || 'Batch signing error occurred.', 'error');
@@ -452,56 +481,56 @@ export const PdfSignerPage: React.FC = () => {
   const activeFile = activeDocId ? stagedFilesMap[activeDocId] : null;
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1e293b] p-5 rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-xs">
+    <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
+      {/* Top Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white py-2">
               PDF Signer
             </h1>
             {/* Real truthful status pill */}
             <div className="inline-flex items-center gap-2">
               {isStatusLoading ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   Checking signer...
                 </span>
               ) : status?.available ? (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                   title={status.detail}
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-none bg-emerald-500 animate-pulse" />
                   {status.provider === 'software'
                     ? 'Software signer ready (Dev PFX)'
                     : 'USB Token connector ready'}
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                   title={status?.detail || 'Signer is not available'}
                 >
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="w-2 h-2 rounded-none bg-amber-500" />
                   Signer unavailable (Check provider)
                 </span>
               )}
             </div>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Sign client documents with a registered DSC, then send or verify them in one place.
           </p>
         </div>
 
         {/* Quick action buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3 py-2">
           <button
             type="button"
             onClick={() => {
               fetchStatus();
               fetchDocuments();
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
+            className="flex items-center gap-1.5 h-10 px-3 rounded-none text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
             title="Refresh documents and signer status"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -510,16 +539,17 @@ export const PdfSignerPage: React.FC = () => {
 
           <Link
             href="/dsc"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
+            className="flex items-center gap-1.5 h-10 px-4 rounded-none text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            style={{ backgroundColor: "var(--premium-blue-dark)" }}
           >
-            <KeyRound className="w-3.5 h-3.5 text-[#31719B]" />
+            <KeyRound className="w-4 h-4" />
             <span>Manage DSCs</span>
           </Link>
         </div>
       </div>
 
       {/* Two Column Section: Documents to Sign (Left) & Signing Details (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Left column: Upload & staging */}
         <div className="lg:col-span-7">
           <DocumentsToSignCard
@@ -536,6 +566,7 @@ export const PdfSignerPage: React.FC = () => {
             onVerifyStaged={handleVerifyStagedDocument}
             onUpdateClient={handleUpdateClient}
             onRemoveDocument={handleRemoveDocument}
+            onStageFromDrive={handleStageFromDrive}
           />
 
 

@@ -37,7 +37,9 @@ import {
   ZoomOut,
   Maximize2,
   X,
+  PenTool,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   DocumentCategory,
   CATEGORY_MAP,
@@ -46,6 +48,8 @@ import {
   IDriveStatus,
   driveApi,
 } from "@/services/driveApi";
+import { pdfSignerApi } from "@/services/pdfSignerApi";
+import { useAuth } from "../auth/AuthContext";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 import { FileUploadModal } from "./FileUploadModal";
 
@@ -301,6 +305,25 @@ export function DriveModule() {
   const [isLoading, setIsLoading] = useState(false);
   const [driveStatus, setDriveStatus] = useState<IDriveStatus | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const router = useRouter();
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
+  const [isStagingForDsc, setIsStagingForDsc] = useState<string | null>(null);
+
+  const handleSignWithDsc = async (docId: string) => {
+    setIsStagingForDsc(docId);
+    try {
+      const res = await pdfSignerApi.stageFromDrive(docId);
+      if (res && res.data) {
+        router.push('/pdf-signer');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to prepare document for DSC signing');
+    } finally {
+      setIsStagingForDsc(null);
+    }
+  };
 
   // Fetch documents and status from backend
   const fetchDriveData = async () => {
@@ -1051,6 +1074,31 @@ export function DriveModule() {
                             <Eye className="w-4 h-4" />
                           </button>
 
+                          {/* Sign with DSC Button (PDF files only, non-employee) */}
+                          {!isEmployee &&
+                            (doc.mimeType?.includes("pdf") ||
+                              doc.fileName.toLowerCase().endsWith(".pdf")) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleSignWithDsc(doc._id || doc.id || doc.driveFileId)
+                                }
+                                disabled={
+                                  isStagingForDsc ===
+                                  (doc._id || doc.id || doc.driveFileId)
+                                }
+                                className="p-1 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-slate-800 transition"
+                                title="Sign with DSC (PAdES)"
+                              >
+                                {isStagingForDsc ===
+                                (doc._id || doc.id || doc.driveFileId) ? (
+                                  <RefreshCw className="w-4 h-4 animate-spin text-[#31719B]" />
+                                ) : (
+                                  <PenTool className="w-4 h-4 text-[#31719B]" />
+                                )}
+                              </button>
+                            )}
+
                           {doc.webViewLink && (
                             <a
                               href={doc.webViewLink}
@@ -1321,6 +1369,38 @@ export function DriveModule() {
               </div>
 
               <div className="flex items-center gap-2">
+                {!isEmployee &&
+                  (selectedDocForPreview.mimeType?.includes("pdf") ||
+                    selectedDocForPreview.fileName.toLowerCase().endsWith(".pdf")) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSignWithDsc(
+                          selectedDocForPreview._id ||
+                            selectedDocForPreview.id ||
+                            selectedDocForPreview.driveFileId
+                        )
+                      }
+                      disabled={
+                        isStagingForDsc ===
+                        (selectedDocForPreview._id ||
+                          selectedDocForPreview.id ||
+                          selectedDocForPreview.driveFileId)
+                      }
+                      className="px-3.5 py-1.5 rounded-none border border-[#31719B] text-xs font-semibold text-[#31719B] hover:bg-[#31719B] hover:text-white flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                    >
+                      {isStagingForDsc ===
+                      (selectedDocForPreview._id ||
+                        selectedDocForPreview.id ||
+                        selectedDocForPreview.driveFileId) ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <PenTool className="w-3.5 h-3.5" />
+                      )}
+                      <span>Sign with DSC</span>
+                    </button>
+                  )}
+
                 {selectedDocForPreview.webViewLink && (
                   <a
                     href={selectedDocForPreview.webViewLink}

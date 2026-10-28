@@ -31,6 +31,7 @@ import {
   LogOut,
   LogIn,
 } from "lucide-react";
+import { PdfSignerLogo } from "./pdfSigner/PdfSignerLogo";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "./auth/AuthContext";
 import { usePermission } from "./team/usePermission";
@@ -44,7 +45,7 @@ interface SidebarItem {
   id: string;
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ComponentType<{ className?: string }>;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -52,6 +53,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "leads", label: "Leads", href: "/leads", icon: UserCheck },
   { id: "client", label: "Client", href: "/client", icon: Users },
   { id: "dsc", label: "DSC", href: "/dsc", icon: KeyRound },
+  { id: "pdf-signer", label: "PDF Signer", href: "/pdf-signer", icon: PdfSignerLogo },
   { id: "groups", label: "Groups", href: "/groups", icon: UserRoundGroup },
   { id: "services", label: "Services", href: "/services", icon: ShoppingCart },
   { id: "task", label: "Task", href: "/task", icon: ClipboardList },
@@ -74,12 +76,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     if (id === "home") return true;
     if (id === "invoice") return !isEmployee && canView("invoice");
     if (id === "proposal") return !isEmployee && canView("proposals");
+    if (id === "dsc") return !isEmployee;
+    if (id === "pdf-signer") return !isEmployee;
     if (id === "reports") return true;
     if (id === "documents") return true;
     if (id === "registry") return true;
     if (id === "task") return canView("task_manager");
     if (id === "client") return canView("clients");
-    if (id === "dsc") return canView("digital_signature");
     if (id === "leads") return canView("leads");
     if (id === "services") return canView("services");
     if (id === "groups") return canView("groups");
@@ -107,7 +110,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             const isActive =
               pathname === item.href ||
               (item.id === "reports" && pathname.startsWith("/reports/")) ||
-              (item.id === "dsc" && pathname.startsWith("/dsc")) ||
+              (item.id === "dsc" && (pathname === "/dsc" || (pathname.startsWith("/dsc") && !pathname.startsWith("/dsc/pdf-signer")))) ||
+              (item.id === "pdf-signer" && (pathname.startsWith("/pdf-signer") || pathname.startsWith("/dsc/pdf-signer"))) ||
               (item.id === "documents" && (pathname === "/documents" || pathname === "/document" || pathname.startsWith("/documents/")));
 
             return (
@@ -310,7 +314,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                 const isActive =
                   pathname === item.href ||
                   (item.id === "reports" && pathname.startsWith("/reports/")) ||
-                  (item.id === "dsc" && pathname.startsWith("/dsc")) ||
+                  (item.id === "dsc" && (pathname === "/dsc" || (pathname.startsWith("/dsc") && !pathname.startsWith("/dsc/pdf-signer")))) ||
+                  (item.id === "pdf-signer" && (pathname.startsWith("/pdf-signer") || pathname.startsWith("/dsc/pdf-signer"))) ||
                   (item.id === "documents" && (pathname === "/documents" || pathname === "/document" || pathname.startsWith("/documents/")));
 
                 return (

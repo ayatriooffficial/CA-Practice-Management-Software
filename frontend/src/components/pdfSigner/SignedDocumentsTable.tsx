@@ -142,15 +142,15 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-xs overflow-hidden">
+    <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden flex flex-col">
       {/* Header bar */}
-      <div className="p-4 sm:p-5 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white">
               Signed documents
             </h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+            <span className="px-2 py-0.5 rounded-none text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
               {filteredDocs.length}
             </span>
           </div>
@@ -167,7 +167,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
               type="button"
               onClick={handleDownloadZipClick}
               disabled={downloadingZip}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#31719B] text-white hover:bg-[#275a7c] transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-none text-xs font-semibold bg-[#31719B] text-white hover:bg-[#275a7c] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer shadow-sm"
             >
               {downloadingZip ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -179,8 +179,8 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
           )}
 
           {/* Search bar */}
-          <div className="relative min-w-[200px]">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="relative min-w-[220px]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search documents or clients..."
@@ -189,12 +189,12 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#31719B]"
+              className="w-full h-10 pl-9 pr-3 text-xs rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#31719B]"
             />
           </div>
 
           {/* Status filter pills */}
-          <div className="inline-flex items-center rounded-lg border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
+          <div className="inline-flex items-center rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
             {(["All", "Signed / Verified", "Tampered", "Failed"] as const).map((filter) => {
               const active = statusFilter === filter;
               return (
@@ -205,7 +205,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     setStatusFilter(filter);
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  className={`h-7 px-3 text-xs font-semibold rounded-none cursor-pointer transition-all ${
                     active
                       ? "bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white shadow-xs font-semibold"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -221,33 +221,29 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
       </div>
 
       {/* Table view */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-          <thead className="bg-[#f8fafc] dark:bg-[#0f172a]/60 text-gray-700 dark:text-gray-300 uppercase text-[11px] tracking-wider border-b border-[#dde2e8] dark:border-[#334155]">
+      <div className="overflow-x-auto scrollbar-slim">
+        <table className="w-full min-w-full border-separate border-spacing-0 text-left text-xs text-gray-600 dark:text-gray-300">
+          <thead
+            className="text-gray-700 dark:text-gray-300 font-semibold"
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+          >
             <tr>
-              <th className="w-10 px-3 py-3 text-center">
-                <button
-                  type="button"
-                  onClick={handleToggleSelectAll}
+              <th className="w-10 px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
+                <input
+                  type="checkbox"
+                  checked={allCurrentSelected}
+                  onChange={handleToggleSelectAll}
                   disabled={paginatedDocs.length === 0}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="w-4 h-4 rounded-none text-[#31719B] accent-[#31719B] cursor-pointer"
                   aria-label="Select all"
-                >
-                  {allCurrentSelected ? (
-                    <CheckSquare className="w-4 h-4 text-[#31719B]" />
-                  ) : someCurrentSelected ? (
-                    <MinusSquare className="w-4 h-4 text-[#31719B]" />
-                  ) : (
-                    <Square className="w-4 h-4" />
-                  )}
-                </button>
+                />
               </th>
-              <th className="px-3.5 py-3 font-semibold">Document</th>
-              <th className="px-3.5 py-3 font-semibold">Client</th>
-              <th className="px-3.5 py-3 font-semibold">Signed by</th>
-              <th className="px-3.5 py-3 font-semibold">Signed on</th>
-              <th className="px-3.5 py-3 font-semibold">Status</th>
-              <th className="px-3.5 py-3 font-semibold text-right">Actions</th>
+              <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">Document</th>
+              <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">Client</th>
+              <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">Signed by</th>
+              <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">Signed on</th>
+              <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">Status</th>
+              <th className="px-3.5 py-3 border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
@@ -291,26 +287,21 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     }`}
                   >
                     {/* Checkbox */}
-                    <td className="w-10 px-3 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleOne(doc.id)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    <td className="w-10 px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleOne(doc.id)}
+                        className="w-4 h-4 rounded-none text-[#31719B] accent-[#31719B] cursor-pointer"
                         aria-label={`Select ${doc.fileName}`}
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="w-4 h-4 text-[#31719B]" />
-                        ) : (
-                          <Square className="w-4 h-4" />
-                        )}
-                      </button>
+                      />
                     </td>
 
                     {/* Document details */}
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <div className="flex items-start gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/50 flex items-center justify-center shrink-0 text-red-600 dark:text-red-400 mt-0.5">
-                          <FileText className="w-4 h-4" />
+                        <div className="w-7 h-7 rounded-none bg-red-50 dark:bg-red-950/50 flex items-center justify-center shrink-0 text-red-600 dark:text-red-400 mt-0.5">
+                          <FileText className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0">
                           <p
@@ -343,7 +334,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     </td>
 
                     {/* Client */}
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
                         <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="font-medium truncate max-w-[140px]">
@@ -353,7 +344,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     </td>
 
                     {/* Signed by */}
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
                         <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="font-medium truncate max-w-[140px]">
@@ -363,7 +354,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     </td>
 
                     {/* Signed on */}
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span>{formatDate(doc.signedAt || doc.createdAt)}</span>
@@ -371,22 +362,22 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     </td>
 
                     {/* Status Badge */}
-                    <td className="px-3.5 py-3 whitespace-nowrap">
+                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap">
                       {doc.status === "Signed" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                           <CheckCircle2 className="w-3 h-3" />
                           <span>Signed</span>
                         </span>
                       )}
                       {doc.status === "Verified" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                           <ShieldCheck className="w-3 h-3" />
                           <span>Verified Valid</span>
                         </span>
                       )}
                       {doc.status === "Tampered" && (
                         <span
-                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
                           title={doc.errorMessage || "Content or signature altered after signing"}
                         >
                           <AlertCircle className="w-3 h-3" />
@@ -394,19 +385,19 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                         </span>
                       )}
                       {doc.status === "Unsigned" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                           <FileText className="w-3 h-3" />
                           <span>Unsigned</span>
                         </span>
                       )}
                       {isFailed && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
                           <AlertCircle className="w-3 h-3" />
                           <span>Failed</span>
                         </span>
                       )}
                       {!isSigned && !isFailed && doc.status !== "Verified" && doc.status !== "Tampered" && doc.status !== "Unsigned" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                           <Clock className="w-3 h-3" />
                           <span>{doc.status}</span>
                         </span>
@@ -414,14 +405,14 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     </td>
 
                     {/* Row Actions */}
-                    <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                    <td className="px-3.5 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-right whitespace-nowrap">
                       <div className="inline-flex items-center justify-end gap-1.5">
                         {/* Verify button (available for Signed, Verified, Tampered, and Unsigned) */}
                         {(isSigned || doc.status === "Verified" || doc.status === "Tampered" || doc.status === "Unsigned") && (
                           <button
                             type="button"
                             onClick={() => onVerify(doc)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors shadow-2xs ${
+                            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border transition-colors shadow-2xs ${
                               doc.status === "Tampered"
                                 ? "border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100"
                                 : "border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-[#31719B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -438,7 +429,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                           <button
                             type="button"
                             onClick={() => onDownload(doc)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
                             title="Download PDF file"
                           >
                             <Download className="w-3.5 h-3.5" />
@@ -452,7 +443,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                             type="button"
                             onClick={() => onRetry(doc)}
                             disabled={isRetrying}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 shadow-2xs"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 shadow-2xs"
                             title="Retry signing this document"
                           >
                             {isRetrying ? (

@@ -1,11 +1,17 @@
-import { Metadata } from "next";
-import { GlobalDscPage } from "@/components/dsc/GlobalDscPage";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Global DSC Management | Ayatrio CRM",
-  description: "Centralized Digital Signature Certificate (DSC) tracker across all clients.",
-};
+import React from "react";
+import { GlobalDscPage } from "@/components/dsc/GlobalDscPage";
+import { useAuth } from "@/components/auth/AuthContext";
+import { AccessDenied } from "@/components/team/AccessDenied";
 
 export default function DscRoute() {
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+
+  if (isEmployee) {
+    return <AccessDenied moduleName="DSC Management" actionName="view" />;
+  }
+
   return <GlobalDscPage />;
 }

@@ -32,6 +32,19 @@ export class PdfSignerController {
     return ApiResponse.created(res, docs, `${docs.length} document(s) uploaded successfully`);
   });
 
+  static stageFromDrive = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContext(req);
+    const { driveDocumentId } = req.body;
+    const doc = await PdfSignerService.stageFromDrive(driveDocumentId, userCtx);
+    return ApiResponse.created(res, doc, 'Document staged from Drive successfully');
+  });
+
+  static stageInvoice = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContext(req);
+    const doc = await PdfSignerService.stageInvoice(req.body, userCtx);
+    return ApiResponse.created(res, doc, 'Invoice PDF staged for signing successfully');
+  });
+
   static listDocuments = asyncHandler(async (req: Request, res: Response) => {
     const userCtx = getUserContext(req);
     const result = await PdfSignerService.listDocuments(req.query as any, userCtx);

@@ -38,6 +38,12 @@ router.get('/', validateRequest({ query: queryDocumentsSchema }), PdfSignerContr
 // Document Upload (Multipart)
 router.post('/documents', mutationRateLimiter, upload.array('files', 20), PdfSignerController.uploadDocuments);
 
+// Stage Document from Cloud Drive
+router.post('/stage-from-drive', mutationRateLimiter, PdfSignerController.stageFromDrive);
+
+// Stage Generated Invoice for DSC Signing
+router.post('/stage-invoice', mutationRateLimiter, PdfSignerController.stageInvoice);
+
 // Update Document Client
 router.patch(
   '/documents/:id/client',

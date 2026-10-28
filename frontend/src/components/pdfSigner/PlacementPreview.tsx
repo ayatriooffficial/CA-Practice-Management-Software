@@ -52,7 +52,7 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
 
       try {
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = typeof window !== 'undefined' ? `${window.location.origin}/pdf.worker.min.mjs` : '/pdf.worker.min.mjs';
 
         const arrayBuffer = await pdfFile.arrayBuffer();
         if (!active) return;
@@ -169,7 +169,7 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
       {/* Preview Sheet Container */}
       <div
         ref={containerRef}
-        className="relative w-full aspect-[1/1.3] rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden select-none"
+        className="relative w-full aspect-[1/1.3] rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden select-none"
       >
         {/* Rendered PDF Page Canvas */}
         <canvas
@@ -182,14 +182,14 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
         {/* Fallback Mock Document Wireframe if no PDF or still loading */}
         {!hasRenderedPdf && (
           <div className="absolute inset-0 p-3 flex flex-col gap-2 pointer-events-none opacity-40">
-            <div className="w-1/3 h-2 rounded bg-gray-300 dark:bg-gray-600 mb-1" />
-            <div className="w-full h-1.5 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="w-5/6 h-1.5 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="w-full h-1.5 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="w-4/5 h-1.5 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="w-3/4 h-1.5 rounded bg-gray-200 dark:bg-gray-700 mt-2" />
-            <div className="w-full h-1.5 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="w-2/3 h-1.5 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="w-1/3 h-2 rounded-none bg-gray-300 dark:bg-gray-600 mb-1" />
+            <div className="w-full h-1.5 rounded-none bg-gray-200 dark:bg-gray-700" />
+            <div className="w-5/6 h-1.5 rounded-none bg-gray-200 dark:bg-gray-700" />
+            <div className="w-full h-1.5 rounded-none bg-gray-200 dark:bg-gray-700" />
+            <div className="w-4/5 h-1.5 rounded-none bg-gray-200 dark:bg-gray-700" />
+            <div className="w-3/4 h-1.5 rounded-none bg-gray-200 dark:bg-gray-700 mt-2" />
+            <div className="w-full h-1.5 rounded-none bg-gray-200 dark:bg-gray-700" />
+            <div className="w-2/3 h-1.5 rounded-none bg-gray-200 dark:bg-gray-700" />
           </div>
         )}
 
@@ -202,7 +202,7 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
             width: `${placement.wPct}%`,
             height: `${placement.hPct}%`,
           }}
-          className={`absolute rounded border-2 cursor-grab active:cursor-grabbing transition-shadow flex flex-col justify-between p-1 shadow-sm overflow-hidden text-[9px] leading-tight ${
+          className={`absolute rounded-none border-2 cursor-grab active:cursor-grabbing transition-shadow flex flex-col justify-between p-1 shadow-sm overflow-hidden text-[9px] leading-tight ${
             isDragging || isResizing
               ? 'border-[#31719B] bg-blue-50/90 dark:bg-blue-950/90 shadow-md ring-2 ring-blue-400/40'
               : 'border-[#31719B] bg-white/95 dark:bg-[#1e293b]/95 hover:border-blue-700 dark:hover:border-blue-400'
@@ -239,7 +239,7 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
             className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize flex items-end justify-end p-0.5 group"
             title="Drag to resize signature stamp"
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-[#31719B] group-hover:scale-125 transition-transform" />
+            <div className="w-1.5 h-1.5 rounded-none bg-[#31719B] group-hover:scale-125 transition-transform" />
           </div>
         </div>
       </div>

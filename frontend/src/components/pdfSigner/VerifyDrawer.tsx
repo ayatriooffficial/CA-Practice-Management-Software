@@ -93,7 +93,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
           <div className="px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
             <div className="flex items-center gap-2.5 min-w-0">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 font-bold"
+                className="w-8 h-8 rounded-none flex items-center justify-center text-white shrink-0 font-bold"
                 style={{ backgroundColor: 'var(--premium-blue-dark, #31719B)' }}
               >
                 <ShieldCheck className="w-4 h-4" />
@@ -111,9 +111,9 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-black/5 transition-colors cursor-pointer"
+              className="h-8 w-8 flex items-center justify-center rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -155,7 +155,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
                 </p>
               </div>
             ) : errorMessage ? (
-              <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 flex items-start gap-3 text-xs">
+              <div className="p-4 rounded-none border border-rose-200 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 flex items-start gap-3 text-xs">
                 <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold">Verification Error</h4>
@@ -166,7 +166,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
               <div className="space-y-4">
                 {/* 1. Overall Integrity Banner */}
                 <div
-                  className={`p-4 rounded-xl border flex items-start gap-3 ${
+                  className={`p-4 rounded-none border flex items-start gap-3 ${
                     report.isValid
                       ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/30'
                       : 'border-rose-200 bg-rose-50/70 dark:border-rose-900/40 dark:bg-rose-950/30'
@@ -196,7 +196,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
 
                 {/* Tamper / Failure Root Cause Analysis */}
                 {(!report.isValid || report.contentTampered || report.signatureTampered || !report.isSigned) && (
-                  <div className="p-4 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50/90 dark:bg-rose-950/40 text-xs space-y-3">
+                  <div className="p-4 rounded-none border border-rose-300 dark:border-rose-900 bg-rose-50/90 dark:bg-rose-950/40 text-xs space-y-3">
                     <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300 font-bold text-sm">
                       <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                       <span>Tamper Analysis & Root Cause</span>
@@ -204,7 +204,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
 
                     <div className="space-y-2 text-gray-800 dark:text-gray-200">
                       {/* 1. Hashing Check */}
-                      <div className="flex items-start gap-2.5 p-2 rounded bg-white dark:bg-[#1e293b] border border-rose-200 dark:border-rose-900/60">
+                      <div className="flex items-start gap-2.5 p-2 rounded-none bg-white dark:bg-[#1e293b] border border-rose-200 dark:border-rose-900/60">
                         <div className="mt-0.5">
                           {report.contentTampered ? (
                             <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -227,7 +227,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
                       </div>
 
                       {/* 2. RSA Signature Check */}
-                      <div className="flex items-start gap-2.5 p-2 rounded bg-white dark:bg-[#1e293b] border border-rose-200 dark:border-rose-900/60">
+                      <div className="flex items-start gap-2.5 p-2 rounded-none bg-white dark:bg-[#1e293b] border border-rose-200 dark:border-rose-900/60">
                         <div className="mt-0.5">
                           {report.signatureTampered ? (
                             <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -251,7 +251,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
 
                       {/* 3. Envelope / Structure Check */}
                       {!report.isSigned && (
-                        <div className="flex items-start gap-2.5 p-2 rounded bg-white dark:bg-[#1e293b] border border-rose-200 dark:border-rose-900/60">
+                        <div className="flex items-start gap-2.5 p-2 rounded-none bg-white dark:bg-[#1e293b] border border-rose-200 dark:border-rose-900/60">
                           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                           <div>
                             <span className="font-semibold block">Format / Envelope Stripped:</span>
@@ -267,7 +267,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
 
 
                 {/* 2. Whole-File Coverage Check */}
-                <div className="p-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-gray-800/30 flex items-center justify-between text-xs">
+                <div className="p-3.5 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-gray-800/30 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-gray-500" />
                     <span className="font-medium text-gray-700 dark:text-gray-300">
@@ -291,7 +291,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
 
                 {/* 3. Signer Certificate Details */}
                 {report.signer && (
-                  <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] p-4 space-y-3 bg-white dark:bg-[#1e293b]">
+                  <div className="rounded-none border border-[#dde2e8] dark:border-[#334155] p-4 space-y-3 bg-white dark:bg-[#1e293b]">
                     <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-2">
                       <KeyRound className="w-4 h-4 text-[#31719B] dark:text-blue-400" />
                       <span>Signer Information</span>
@@ -344,11 +344,11 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
                 )}
 
                 {/* 4. Trust Status */}
-                <div className="p-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-gray-800/30 space-y-1 text-xs">
+                <div className="p-3.5 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-gray-800/30 space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-gray-700 dark:text-gray-300">Trust Chain:</span>
                     <span
-                      className={`font-bold px-2 py-0.5 rounded text-[10.5px] ${
+                      className={`font-bold px-2 py-0.5 rounded-none text-[10.5px] ${
                         report.trust.status === 'trusted'
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
@@ -363,7 +363,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
                 </div>
 
                 {/* 5. Cryptographic Details (Collapsible) */}
-                <div className="border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-hidden text-xs">
+                <div className="border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-hidden text-xs">
                   <button
                     type="button"
                     onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
@@ -381,21 +381,21 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
                     <div className="p-4 space-y-3 bg-white dark:bg-[#1e293b] font-mono text-[11px] border-t border-[#dde2e8] dark:border-[#334155]">
                       <div>
                         <span className="text-gray-400 block mb-0.5">ByteRange Array:</span>
-                        <code className="text-[#31719B] dark:text-blue-400 block bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                        <code className="text-[#31719B] dark:text-blue-400 block bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-none">
                           [{report.details.byteRange.join(', ')}]
                         </code>
                       </div>
 
                       <div>
                         <span className="text-gray-400 block mb-0.5">Computed SHA-256 Digest:</span>
-                        <code className="text-gray-800 dark:text-gray-200 block bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded break-all">
+                        <code className="text-gray-800 dark:text-gray-200 block bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-none break-all">
                           {report.details.computedDigestHex}
                         </code>
                       </div>
 
                       <div>
                         <span className="text-gray-400 block mb-0.5">CMS Authenticated messageDigest:</span>
-                        <code className="text-gray-800 dark:text-gray-200 block bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded break-all">
+                        <code className="text-gray-800 dark:text-gray-200 block bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-none break-all">
                           {report.details.expectedDigestHex}
                         </code>
                       </div>
@@ -413,11 +413,11 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
                   audits.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-50/50 dark:bg-gray-800/20 text-xs space-y-1.5"
+                      className="p-3 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-gray-50/50 dark:bg-gray-800/20 text-xs space-y-1.5"
                     >
                       <div className="flex items-center justify-between">
                         <span
-                          className={`font-bold px-2 py-0.5 rounded text-[10px] uppercase tracking-wide ${
+                          className={`font-bold px-2 py-0.5 rounded-none text-[10px] uppercase tracking-wide ${
                             item.action === 'sign_success'
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : item.action === 'sign_failure'
@@ -461,7 +461,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 transition-colors cursor-pointer"
+              className="h-9 px-4 rounded-none text-xs font-semibold bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 transition-colors cursor-pointer"
             >
               Close
             </button>

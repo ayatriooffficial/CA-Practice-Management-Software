@@ -16,9 +16,14 @@ import {
   Trash2,
   Ban,
   FileSpreadsheet,
+  PenTool,
+  Loader2,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { InvoiceRecord, ReceiptRecord } from './types';
 import { useInvoice } from './InvoiceContext';
+import { useAuth } from '../auth/AuthContext';
+import { pdfSignerApi } from '@/services/pdfSignerApi';
 import { TaskAllocationInput } from '@/services/financialApi';
 import { Pagination } from '../ui/Pagination';
 
@@ -49,10 +54,41 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
     deleteInvoice,
     deleteReceipt,
   } = useInvoice();
+  const router = useRouter();
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
+  const [signingInvoiceId, setSigningInvoiceId] = useState<string | null>(null);
   const [creditNoteTarget, setCreditNoteTarget] = useState<InvoiceRecord | null>(null);
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
   const [financialActionError, setFinancialActionError] = useState('');
   const [financialActionBusy, setFinancialActionBusy] = useState(false);
+
+  const handleSignInvoiceWithDsc = async (row: any) => {
+    setSigningInvoiceId(row.id);
+    try {
+      const res = await pdfSignerApi.stageInvoice({
+        invoiceNumber: row.number || `INV-${row.id}`,
+        clientName: row.clientBusinessName || row.clientLegalName || 'Valued Client',
+        clientId: row.clientId,
+        date: row.date,
+        dueDate: row.dueDate,
+        totalAmount: row.totalPayable || row.amount || 0,
+        services: row.services?.map((s: any) => ({
+          serviceName: s.serviceName || 'CA Professional Services',
+          amount: s.amount || 0,
+          description: s.description || '',
+        })),
+        billingOrg: row.billingOrg,
+      });
+      if (res && res.data) {
+        router.push('/pdf-signer');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to prepare invoice for DSC signing');
+    } finally {
+      setSigningInvoiceId(null);
+    }
+  };
 
   // Column definitions per tab
   const columns: ColumnDef[] = useMemo(() => {
@@ -498,6 +534,25 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* Sign Invoice with DSC */}
+                        {!isEmployee &&
+                          (activeTab === 'invoice' || activeTab === 'proforma') &&
+                          row.status !== 'Cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => handleSignInvoiceWithDsc(row)}
+                              disabled={signingInvoiceId === row.id}
+                              className="p-1 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              title="Sign with DSC (PAdES)"
+                            >
+                              {signingInvoiceId === row.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
+                              ) : (
+                                <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
+                              )}
+                            </button>
+                          )}
                         {activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Cancelled' && (
                           <>
                             {row.taskAllocations?.length > 0 && (

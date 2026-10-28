@@ -36,6 +36,8 @@ export interface ISignedDocument extends Document {
     wPct: number;
     hPct: number;
   };
+  driveDocumentId?: string;
+  driveFolderId?: string;
   errorMessage?: string;
   orgId?: string;
   createdBy?: string;
@@ -60,6 +62,8 @@ const signedDocumentSchema = new Schema<ISignedDocument>(
     passwordProtected: { type: Boolean, default: false },
     clientId: { type: String, default: null, index: true },
     clientName: { type: String, default: '' },
+    driveDocumentId: { type: String, default: null, index: true },
+    driveFolderId: { type: String, default: null },
     signedPath: { type: String, default: null },
     signedSha256: { type: String, default: null },
     signedAt: { type: Date, default: null },

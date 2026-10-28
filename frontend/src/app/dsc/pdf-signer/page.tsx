@@ -1,14 +1,20 @@
-import { Metadata } from 'next';
-import { PdfSignerPage } from '@/components/pdfSigner/PdfSignerPage';
+"use client";
 
-export const metadata: Metadata = {
-  title: 'PDF Signer | Ayatrio CRM',
-  description: 'Cryptographically sign client PDF documents with registered Digital Signature Certificates (DSC).',
-};
+import React from "react";
+import { PdfSignerPage } from "@/components/pdfSigner/PdfSignerPage";
+import { useAuth } from "@/components/auth/AuthContext";
+import { AccessDenied } from "@/components/team/AccessDenied";
 
 export default function PdfSignerRoute() {
+  const { currentUser } = useAuth();
+  const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+
+  if (isEmployee) {
+    return <AccessDenied moduleName="PDF Signer" actionName="view" />;
+  }
+
   return (
-    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto w-full">
+    <div className="w-full p-2">
       <PdfSignerPage />
     </div>
   );

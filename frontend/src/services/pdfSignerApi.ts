@@ -304,6 +304,35 @@ export const pdfSignerApi = {
       }
     );
   },
+
+  /**
+   * Stage a document directly from Drive into PDF Signer
+   */
+  stageFromDrive: async (driveDocumentId: string): Promise<ApiResponse<SignedDocItem>> => {
+    return request<SignedDocItem>('/pdf-signer/stage-from-drive', {
+      method: 'POST',
+      body: JSON.stringify({ driveDocumentId }),
+    });
+  },
+
+  /**
+   * Stage an invoice PDF directly into PDF Signer
+   */
+  stageInvoice: async (payload: {
+    invoiceNumber: string;
+    clientName: string;
+    clientId?: string;
+    date?: string;
+    dueDate?: string;
+    totalAmount: number;
+    services?: Array<{ serviceName: string; amount: number; description?: string }>;
+    billingOrg?: string;
+  }): Promise<ApiResponse<SignedDocItem>> => {
+    return request<SignedDocItem>('/pdf-signer/stage-invoice', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
 

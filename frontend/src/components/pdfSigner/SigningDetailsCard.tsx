@@ -98,9 +98,9 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
   const canSign = selectedCount > 0 && selectedDsc && !isSelectedExpired && !isSigning;
 
   return (
-    <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden flex flex-col">
+    <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-900 dark:text-white">
           Signing details
         </h2>
@@ -113,7 +113,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
         </Link>
       </div>
 
-      <div className="p-4 flex flex-col gap-4 text-xs">
+      <div className="p-4 flex flex-col gap-3.5 text-xs">
         {/* Certificate Selector */}
         <div className="flex flex-col gap-1.5">
           <label className="font-semibold text-gray-700 dark:text-gray-300">
@@ -121,7 +121,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
           </label>
 
           {evaluatedDscs.length === 0 ? (
-            <div className="p-3 rounded-lg border border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 flex items-center gap-2">
+            <div className="p-3 rounded-none border border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>No DSC registered. Please add a DSC in the DSC tab first.</span>
             </div>
@@ -133,7 +133,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                   const val = e.target.value;
                   onChangeState((prev) => ({ ...prev, dscRecordId: val }));
                 }}
-                className="w-full h-10 px-3 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white font-medium outline-none focus:border-[#31719B]"
+                className="w-full h-10 px-3 rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white font-medium outline-none focus:border-[#31719B]"
               >
                 {evaluatedDscs.map((d) => (
                   <option
@@ -151,7 +151,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
           {/* Active Certificate Card Summary */}
           {selectedDsc && (
             <div
-              className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${
+              className={`p-3 rounded-none border flex items-center justify-between gap-3 ${
                 isSelectedExpired
                   ? 'border-rose-200 bg-rose-50/70 dark:border-rose-900/40 dark:bg-rose-950/30'
                   : isSelectedExpiringSoon
@@ -161,10 +161,10 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0"
+                  className="w-7 h-7 rounded-none flex items-center justify-center font-bold text-[10px] text-white shrink-0 shadow-xs"
                   style={{ backgroundColor: isSelectedExpired ? '#e11d48' : '#31719B' }}
                 >
-                  <KeyRound className="w-4 h-4" />
+                  <KeyRound className="w-3.5 h-3.5" />
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-gray-900 dark:text-white truncate">
@@ -178,15 +178,15 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
 
               <div>
                 {isSelectedExpired ? (
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300">
+                  <span className="inline-block px-2 py-0.5 rounded-none text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300">
                     Expired
                   </span>
                 ) : isSelectedExpiringSoon ? (
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
+                  <span className="inline-block px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
                     {selectedDsc.meta.daysLeft}d left
                   </span>
                 ) : (
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                  <span className="inline-block px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
                     Active
                   </span>
                 )}
@@ -196,7 +196,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
 
           {/* Inline Expiry Warnings / Error Guard */}
           {isSelectedExpired && (
-            <div className="p-2.5 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 flex items-center gap-2 text-[11px]">
+            <div className="p-2.5 rounded-none bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 flex items-center gap-2 text-[11px]">
               <ShieldAlert className="w-4 h-4 shrink-0" />
               <span>
                 <strong>Signing Blocked:</strong> This certificate is expired. Please select an active certificate or renew the token.
@@ -205,7 +205,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
           )}
 
           {isSelectedExpiringSoon && !isSelectedExpired && (
-            <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 flex items-center gap-2 text-[11px]">
+            <div className="p-2 rounded-none bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 flex items-center gap-2 text-[11px]">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>
                 <strong>Expiry Notice:</strong> This certificate will expire in {selectedDsc?.meta.daysLeft} days.
@@ -225,7 +225,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
               value={state.reason}
               onChange={(e) => onChangeState((prev) => ({ ...prev, reason: e.target.value }))}
               placeholder="e.g. Approved for filing"
-              className="h-9 px-3 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
+              className="h-10 px-3 rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
             />
           </div>
 
@@ -238,7 +238,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
               value={state.location}
               onChange={(e) => onChangeState((prev) => ({ ...prev, location: e.target.value }))}
               placeholder="e.g. Kalyan, Maharashtra"
-              className="h-9 px-3 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
+              className="h-10 px-3 rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
             />
           </div>
         </div>
@@ -248,7 +248,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
           <label className="font-semibold text-gray-700 dark:text-gray-300">
             Signature on pages
           </label>
-          <div className="grid grid-cols-4 rounded-lg border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
+          <div className="grid grid-cols-4 rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
             {(['First', 'Last', 'All', 'Custom'] as const).map((mode) => {
               const isAll = mode === 'All';
               const isSelected = state.page === mode;
@@ -268,7 +268,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                       ? 'In PAdES signatures, a single digital signature validates the entire document. Multi-page widget duplication triggers Adobe Reader validation warnings.'
                       : undefined
                   }
-                  className={`py-1.5 text-xs font-semibold rounded transition-all ${
+                  className={`py-1.5 text-xs font-semibold rounded-none transition-all ${
                     isAll
                       ? 'opacity-40 cursor-not-allowed text-gray-400'
                       : isSelected
@@ -291,7 +291,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                 min={1}
                 value={state.customPages || '1'}
                 onChange={(e) => onChangeState((prev) => ({ ...prev, customPages: e.target.value }))}
-                className="w-20 h-8 px-2 rounded border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-xs font-mono outline-none"
+                className="w-20 h-8 px-2 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-xs font-mono outline-none"
               />
             </div>
           )}
@@ -318,7 +318,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
             />
 
             {/* Stamp Checkboxes (Deliberate diff: Signature Image removed per prompt) */}
-            <div className="flex flex-col justify-center gap-2.5 p-3 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-50/50 dark:bg-gray-800/20">
+            <div className="flex flex-col justify-center gap-2.5 p-3 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-gray-50/50 dark:bg-gray-800/20">
               <p className="font-semibold text-gray-700 dark:text-gray-300 text-[11px] mb-1">
                 Stamp Contents:
               </p>
@@ -333,7 +333,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                       appearance: { ...prev.appearance, showSignerName: e.target.checked },
                     }))
                   }
-                  className="w-3.5 h-3.5 rounded accent-[#31719B] cursor-pointer"
+                  className="w-4 h-4 rounded-none text-[#31719B] accent-[#31719B] cursor-pointer"
                 />
                 <span>Signer name</span>
               </label>
@@ -348,7 +348,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                       appearance: { ...prev.appearance, showDateTime: e.target.checked },
                     }))
                   }
-                  className="w-3.5 h-3.5 rounded accent-[#31719B] cursor-pointer"
+                  className="w-4 h-4 rounded-none text-[#31719B] accent-[#31719B] cursor-pointer"
                 />
                 <span>Date and time</span>
               </label>
@@ -363,7 +363,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                       appearance: { ...prev.appearance, showReasonLocation: e.target.checked },
                     }))
                   }
-                  className="w-3.5 h-3.5 rounded accent-[#31719B] cursor-pointer"
+                  className="w-4 h-4 rounded-none text-[#31719B] accent-[#31719B] cursor-pointer"
                 />
                 <span>Reason and location</span>
               </label>
@@ -377,9 +377,9 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
             type="button"
             disabled={!canSign}
             onClick={onSignBatch}
-            className={`w-full h-10 rounded-lg text-xs font-bold text-white shadow-sm flex items-center justify-center gap-2 transition-all ${
+            className={`w-full h-10 rounded-none text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all ${
               canSign
-                ? 'cursor-pointer hover:opacity-95 active:scale-[0.99]'
+                ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]'
                 : 'opacity-50 cursor-not-allowed bg-gray-400'
             }`}
             style={{

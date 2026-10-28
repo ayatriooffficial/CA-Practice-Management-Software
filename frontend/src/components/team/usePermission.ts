@@ -52,8 +52,16 @@ export function usePermission() {
 
     // Role-based rule for Employees:
     if (roleLower === 'employee') {
-      // 1. Invoice, billing, and proposals are completely hidden/blocked for employees
-      if (moduleKey === 'invoice' || moduleKey === 'billing' || moduleKey === 'proposals') {
+      // 1. Invoice, billing, proposals, dsc, and pdf-signer are completely hidden/blocked for employees
+      if (
+        moduleKey === 'invoice' ||
+        moduleKey === 'billing' ||
+        moduleKey === 'proposals' ||
+        moduleKey === 'dsc' ||
+        moduleKey === 'digital_signature' ||
+        moduleKey === 'pdf-signer' ||
+        moduleKey === 'pdf_signer'
+      ) {
         return false;
       }
       // 2. Delete is strictly disallowed across all sections for employees
