@@ -65,6 +65,7 @@ export default function TaskTemplatesPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Modals state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<TaskTemplateItem | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplateItem | null>(null);
   const [deleteTemplate, setDeleteTemplate] = useState<TaskTemplateItem | null>(null);
@@ -319,14 +320,15 @@ export default function TaskTemplatesPage() {
         </div>
 
         <div>
-          <Link
-            href="/task/templates/new"
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
             style={{ backgroundColor: "var(--primary)" }}
             className="px-4 py-2 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create template</span>
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -446,14 +448,15 @@ export default function TaskTemplatesPage() {
               ? "Try adjusting your search terms or filters to find what you are looking for."
               : "Create reusable workflows that spawn compliance tasks with predefined SOP checklists for your clients."}
           </p>
-          <Link
-            href="/task/templates/new"
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
             style={{ backgroundColor: "var(--primary)" }}
             className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create template</span>
-          </Link>
+          </button>
         </div>
       ) : (
         /* Cards Grid matching Screenshot 1 & 4 */
@@ -754,6 +757,35 @@ export default function TaskTemplatesPage() {
                 Use template
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4.5. CREATE TEMPLATE MODAL */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-100">
+          <div className="my-auto">
+            <CreateTaskTemplateForm
+              onCancel={() => setIsCreateModalOpen(false)}
+              onSuccess={(newTemplate) => {
+                setIsCreateModalOpen(false);
+                setSearchQuery("");
+                setSelectedCategory("All Categories");
+                setSelectedFrequency("All Frequencies");
+                setTemplates((prev) => [
+                  newTemplate,
+                  ...prev.filter(
+                    (t) =>
+                      (t.id || t._id) !== (newTemplate.id || newTemplate._id)
+                  ),
+                ]);
+                loadTemplates();
+                setFeedbackToast({
+                  type: "success",
+                  message: `Template "${newTemplate.templateName}" created successfully.`,
+                });
+              }}
+            />
           </div>
         </div>
       )}
