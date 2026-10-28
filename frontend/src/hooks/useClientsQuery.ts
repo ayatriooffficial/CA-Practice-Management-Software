@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchClientsRequest,
@@ -21,20 +21,28 @@ export function useClients(params: ClientQueryParams = {}) {
     (state) => state.clients
   );
 
-  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
+  const paramsKey = JSON.stringify(params || {});
+  const lastFetchedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (lastFetchedKeyRef.current === paramsKey) {
+      return;
+    }
+
     const isSameParams = JSON.stringify(currentParams) === paramsKey;
 
     // If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
     if (isLoaded && isSameParams) {
+      lastFetchedKeyRef.current = paramsKey;
       return;
     }
 
+    lastFetchedKeyRef.current = paramsKey;
     dispatch(fetchClientsRequest(params));
-  }, [dispatch, paramsKey, isLoaded, currentParams]);
+  }, [dispatch, paramsKey, isLoaded, currentParams, params]);
 
   const refetch = useCallback(() => {
+    lastFetchedKeyRef.current = null;
     dispatch(fetchClientsRequest(params));
   }, [dispatch, params]);
 

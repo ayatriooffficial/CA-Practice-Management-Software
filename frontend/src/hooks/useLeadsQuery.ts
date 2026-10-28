@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchLeadsRequest,
@@ -23,20 +23,29 @@ export function useLeads(params: LeadQueryParams = {}) {
     (state) => state.leads
   );
 
-  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
+  const paramsKey = JSON.stringify(params || {});
+  const lastFetchedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // If already requested or dispatched with these exact params, avoid redundant/infinite dispatch loops
+    if (lastFetchedKeyRef.current === paramsKey) {
+      return;
+    }
+
     const isSameParams = JSON.stringify(currentParams) === paramsKey;
 
     // If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
     if (isLoaded && isSameParams) {
+      lastFetchedKeyRef.current = paramsKey;
       return;
     }
 
+    lastFetchedKeyRef.current = paramsKey;
     dispatch(fetchLeadsRequest(params));
-  }, [dispatch, paramsKey, isLoaded, currentParams]);
+  }, [dispatch, paramsKey, isLoaded, currentParams, params]);
 
   const refetch = useCallback(() => {
+    lastFetchedKeyRef.current = null;
     dispatch(fetchLeadsRequest(params));
   }, [dispatch, params]);
 

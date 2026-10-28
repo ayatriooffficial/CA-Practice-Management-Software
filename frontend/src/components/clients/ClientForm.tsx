@@ -195,7 +195,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   }, [initialClient]);
 
   // Fetch Leads dynamically to populate the Promoters list
-  const { data: leadsData } = useLeads({ limit: 100 });
+  const leadsParams = useMemo(() => ({ limit: 100 }), []);
+  const { data: leadsData } = useLeads(leadsParams);
 
   const promotersList: PromoterItem[] = useMemo(() => {
     const list =
