@@ -262,7 +262,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
         {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
         <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
           {/* Circular Organization Avatar */}
-          <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
+          <div className="w-20 h-20 rounded-full bg-[#3D6A9E]/10 dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
             {orgInitials}
           </div>
 
@@ -406,7 +406,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
               <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
                 <div className="flex justify-between items-center pb-1">
                   <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-[#3D6A9E]/10 dark:bg-[#3D6A9E]/20 text-[#3D6A9E] font-semibold">
                     {selectedClient.group}
                   </span>
                 </div>
@@ -431,9 +431,9 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
           </div>
         </div>
 
-        {/* Section 4: Reimbursement Items Table Section with Taller Purple Header */}
+        {/* Section 4: Reimbursement Items Table Section */}
         <div className="rounded-none border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
-          {/* Taller Purple Header Bar */}
+          {/* Header Bar */}
           <div className="bg-[#3D6A9E] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
             <div className="col-span-5">Services</div>
             <div className="col-span-2 text-center">Quantity</div>
@@ -442,7 +442,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
             <div className="col-span-1 text-right">Total</div>
           </div>
 
-          {/* Reimbursement Rows (20px top padding from purple header, 20px gap between rows) */}
+          {/* Reimbursement Rows */}
           <div className="flex flex-col divide-y divide-[#e5e7eb] dark:divide-[#334155] p-6 gap-5">
             {items.map((it) => (
               <div key={it.id} className="pt-5 first:pt-0 flex flex-col gap-4">
@@ -530,12 +530,12 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
             ))}
           </div>
 
-          {/* Outlined Purple Add Item Button (20px top, 20px bottom, 12px gap) */}
+          {/* Outlined Add Item Button */}
           <div className="p-5 border-t border-[#e5e7eb] dark:border-[#334155] flex items-center gap-3 bg-gray-50/50 dark:bg-[#0f172a]/20">
             <button
               type="button"
               onClick={handleAddItem}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10 dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Item</span>
@@ -638,7 +638,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
+            className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10 text-xs font-semibold cursor-pointer transition-colors"
           >
             {isView ? 'Close' : 'Cancel'}
           </button>
@@ -646,7 +646,7 @@ export const AddReimbursementForm: React.FC<AddReimbursementFormProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
+              className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
             >
               {isEdit ? 'Update' : 'Save'}
             </button>

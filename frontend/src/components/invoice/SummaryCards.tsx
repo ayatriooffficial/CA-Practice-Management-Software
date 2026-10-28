@@ -29,36 +29,36 @@ export const SummaryCards: React.FC = () => {
         <div
           onClick={() => setStatusFilter(statusFilter === 'All' ? 'All' : 'All')}
           className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer shadow-2xs ${statusFilter === 'All'
-              ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#3D6A9E]/40 shadow-xs'
+              ? 'bg-[#3D6A9E]/10 dark:bg-[#1e293b] border-[#3D6A9E] dark:border-[#3D6A9E] shadow-xs'
               : 'bg-white dark:bg-[#1e293b] border-[#e5e7eb] dark:border-[#334155] hover:border-[#3D6A9E]/40'
             }`}
         >
           <div>
-            <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
+            <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#93c5fd] tracking-tight">
               {summaryStats.totalReceiptsCount}
             </div>
             <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mt-1">
               Total Receipts
             </div>
           </div>
-          <div className="w-11 h-11 rounded-none bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
+          <div className="w-11 h-11 rounded-none bg-[#3D6A9E]/15 dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
             <Receipt className="w-5 h-5" />
           </div>
         </div>
 
         {/* Receipts Value */}
         <div
-          className="flex items-center justify-between p-5 rounded-none border bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#e9d5ff] dark:border-[#334155] transition-all cursor-pointer shadow-2xs"
+          className="flex items-center justify-between p-5 rounded-none border bg-[#3D6A9E]/5 dark:bg-[#1e293b] border-[#3D6A9E]/20 dark:border-[#334155] transition-all cursor-pointer shadow-2xs"
         >
           <div>
-            <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
+            <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#93c5fd] tracking-tight">
               {summaryStats.totalReceiptsCount}
             </div>
             <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mt-1">
               Receipts
             </div>
           </div>
-          <div className="w-11 h-11 rounded-none bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
+          <div className="w-11 h-11 rounded-none bg-[#3D6A9E]/15 dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
             <Layers className="w-5 h-5" />
           </div>
         </div>
@@ -105,23 +105,23 @@ export const SummaryCards: React.FC = () => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 px-6 pt-6 pb-2">
-      {/* 1. All Items (Purple) */}
+      {/* 1. All Items (Brand Blue) */}
       <div
         onClick={() => setStatusFilter('All')}
         className={`flex items-center justify-between p-5 rounded-none border transition-all cursor-pointer select-none shadow-2xs ${statusFilter === 'All'
-            ? 'bg-[#f5f3ff] dark:bg-[#1e1e38] border-[#c084fc] dark:border-[#3D6A9E] shadow-xs'
-            : 'bg-[#f5f3ff]/70 dark:bg-[#1e1e38]/50 border-[#e9d5ff] dark:border-[#334155] hover:border-[#c084fc]'
+            ? 'bg-[#3D6A9E]/10 dark:bg-[#1e293b] border-[#3D6A9E] dark:border-[#3D6A9E] shadow-xs'
+            : 'bg-[#3D6A9E]/5 dark:bg-[#1e293b]/50 border-[#3D6A9E]/20 dark:border-[#334155] hover:border-[#3D6A9E]/50'
           }`}
       >
         <div>
-          <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#a59df7] tracking-tight">
+          <div className="text-2xl font-bold text-[#3D6A9E] dark:text-[#93c5fd] tracking-tight">
             {formatCurrency(summaryStats.allAmount)}
           </div>
           <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mt-1">
             {allLabel}
           </div>
         </div>
-        <div className="w-11 h-11 rounded-none bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
+        <div className="w-11 h-11 rounded-none bg-[#3D6A9E]/15 dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] shrink-0">
           <FileText className="w-5 h-5" />
         </div>
       </div>

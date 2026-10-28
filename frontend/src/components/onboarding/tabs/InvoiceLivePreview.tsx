@@ -190,7 +190,7 @@ export function paginateInvoiceForPrint(sourceElement: HTMLElement): HTMLElement
   // Detect theme accent color reliably
   const accentStrip = clone.querySelector("div[style*='background-color']") as HTMLElement | null;
   const effectiveColor = sourceElement.getAttribute("data-accent-color") ||
-    (accentStrip ? accentStrip.style.backgroundColor : "#4F46E5");
+    (accentStrip ? accentStrip.style.backgroundColor : "#3D6A9E");
 
   // Usable heights for A4 page (A4 = 1122.5px at 96 DPI; use 1080px safe content height)
   const MAX_PAGE_HEIGHT = 1080;
@@ -736,7 +736,7 @@ export interface InvoiceLivePreviewProps {
 export const InvoiceLivePreview: React.FC<InvoiceLivePreviewProps> = ({
   id,
   template = "modern",
-  accentColor = "#4F46E5",
+  accentColor = "#3D6A9E",
   firmName = "Your Firm Name",
   firmAddress,
   firmGstin,
@@ -784,7 +784,7 @@ export const InvoiceLivePreview: React.FC<InvoiceLivePreviewProps> = ({
   const isMinimal = template === "minimal";
   const isModern = template === "modern";
   const isClassic = template === "classic";
-  const effectiveColor = accentColor || (isMinimal ? "#111827" : "#4F46E5");
+  const effectiveColor = accentColor || (isMinimal ? "#111827" : "#3D6A9E");
 
   const effectiveTitle = title || (invoiceType === "proforma" ? "Proforma Invoice" : "Tax Invoice");
   const effectiveClientName = clientLegalName || clientName || "Rajesh Exports Pvt. Ltd.";

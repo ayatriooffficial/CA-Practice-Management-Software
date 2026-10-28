@@ -60,7 +60,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
   const titlePrefix = isProforma ? 'Proforma' : 'Invoice';
 
   const [activeFormat, setActiveFormat] = useState<"classic" | "modern" | "minimal">("modern");
-  const [activeInvoiceColor, setActiveInvoiceColor] = useState<string>("#4F46E5");
+  const [activeInvoiceColor, setActiveInvoiceColor] = useState<string>("#3D6A9E");
   const [isPreviewActive, setIsPreviewActive] = useState<boolean>(isView);
 
   // Dates
@@ -1030,7 +1030,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
               <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
                 {/* Organization Circular Avatar */}
-                <div className="w-20 h-20 rounded-full bg-[#eeedfd] dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
+                <div className="w-20 h-20 rounded-full bg-[#3D6A9E]/10 dark:bg-[#3D6A9E]/20 flex items-center justify-center text-[#3D6A9E] text-2xl font-bold tracking-tight shadow-xs shrink-0">
                   {orgInitials}
                 </div>
 
@@ -1100,18 +1100,18 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                         disabled={isView}
                         onClick={() => setIsBillingOrgDropdownOpen((prev) => !prev)}
                         className={`w-full h-11 px-3.5 rounded-lg border text-xs flex items-center justify-between text-left transition-colors outline-none cursor-pointer ${isBillingOrgDropdownOpen
-                            ? "border-[#3D6A9E] ring-2 ring-[#3D6A9E]/15 bg-white dark:bg-[#0f172a]"
-                            : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] hover:border-[#3D6A9E]/60"
+                          ? "border-[#3D6A9E] ring-2 ring-[#3D6A9E]/15 bg-white dark:bg-[#0f172a]"
+                          : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] hover:border-[#3D6A9E]/60"
                           } ${isView ? "cursor-default opacity-80" : ""}`}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <Building className={`w-3.5 h-3.5 shrink-0 ${billingEntityType === 'client' ? "text-purple-600" : "text-[#3D6A9E]"}`} />
+                          <Building className={`w-3.5 h-3.5 shrink-0 ${billingEntityType === 'client' ? "text-[#3D6A9E]" : "text-[#3D6A9E]"}`} />
                           <span className="font-semibold text-gray-800 dark:text-gray-100 truncate">
                             {orgName}
                           </span>
                           <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${billingEntityType === 'client'
-                              ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
-                              : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
+                            ? "bg-[#3D6A9E]/10 text-[#3D6A9E] dark:bg-[#3D6A9E]/20 dark:text-blue-300"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
                             }`}>
                             {billingEntityType === 'client' ? 'Client Entity' : 'Organization'}
                           </span>
@@ -1168,8 +1168,8 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                                         setIsBillingOrgDropdownOpen(false);
                                       }}
                                       className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${isSelected
-                                          ? "bg-[#3D6A9E]/10 text-[#3D6A9E] font-semibold"
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
+                                        ? "bg-[#3D6A9E]/10 text-[#3D6A9E] font-semibold"
+                                        : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
                                         }`}
                                     >
                                       <div className="flex items-center gap-2 truncate">
@@ -1185,7 +1185,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 
                             {/* Clients Group */}
                             <div className="py-1">
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 px-2.5 py-1 flex items-center justify-between">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-[#3D6A9E] dark:text-blue-400 px-2.5 py-1 flex items-center justify-between">
                                 <span>Clients ({filteredBillingClients.length})</span>
                                 <span className="text-[9px] font-normal text-gray-400">Use client as billing entity</span>
                               </div>
@@ -1202,15 +1202,15 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                                         setIsBillingOrgDropdownOpen(false);
                                       }}
                                       className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${isSelected
-                                          ? "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold"
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
+                                        ? "bg-[#3D6A9E]/10 dark:bg-[#3D6A9E]/20 text-[#3D6A9E] dark:text-blue-300 font-semibold"
+                                        : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
                                         }`}
                                     >
                                       <div className="flex flex-col gap-0.5 min-w-0 pr-2">
                                         <div className="flex items-center gap-2">
                                           <span className="font-semibold truncate">{client.name}</span>
                                           {client.type && (
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 font-normal">
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#3D6A9E]/10 text-[#3D6A9E] dark:bg-[#3D6A9E]/20 dark:text-blue-300 font-normal">
                                               {client.type}
                                             </span>
                                           )}
@@ -1220,7 +1220,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                                           {client.address && <span className="truncate max-w-[200px]">{client.address}</span>}
                                         </div>
                                       </div>
-                                      {isSelected && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-[#3D6A9E] shrink-0" />}
                                     </button>
                                   );
                                 })
@@ -1285,8 +1285,8 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                     <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
                       <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Entity Type</span>
                       <span className={`px-2.5 py-0.5 rounded border text-xs font-semibold ${billingEntityType === 'client'
-                          ? "border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40"
-                          : "border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b]"
+                        ? "border-[#3D6A9E]/40 text-[#3D6A9E] bg-[#3D6A9E]/10 dark:bg-[#3D6A9E]/20"
+                        : "border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b]"
                         }`}>
                         {billingEntityType === 'client' ? "Client (Billing Entity)" : ((selectedOrg as any)?.priority || "Primary")}
                       </span>
@@ -1455,7 +1455,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                     <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
                       <div className="flex justify-between items-center pb-1">
                         <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
-                        <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-[#3D6A9E]/10 dark:bg-[#3D6A9E]/20 text-[#3D6A9E] font-semibold">
                           {selectedClient.group}
                         </span>
                       </div>
@@ -1480,10 +1480,10 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                 </div>
               </div>
 
-              {/* Section 4: Services Table Section with Taller Purple Header */}
+              {/* Section 4: Services Table Section with Brand Blue Header */}
               <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
-                {/* Taller Purple Header Bar */}
-                <div className="bg-[#6366f1] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
+                {/* Brand Blue Header Bar */}
+                <div className="bg-[#3D6A9E] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
                   <div className="col-span-5">Services</div>
                   <div className="col-span-2 text-center">Quantity</div>
                   <div className="col-span-2 text-center">Price</div>
@@ -1491,7 +1491,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   <div className="col-span-1 text-right">Total</div>
                 </div>
 
-                {/* Service Rows (20px top padding from purple header, 20px gap between rows) */}
+                {/* Service Rows (20px top padding from header, 20px gap between rows) */}
                 <div className="flex flex-col divide-y divide-[#e5e7eb] dark:divide-[#334155] p-6 gap-5">
                   {services.map((srv) => (
                     <div key={srv.id} className="pt-5 first:pt-0 flex flex-col gap-4">
@@ -1630,12 +1630,12 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   ))}
                 </div>
 
-                {/* Outlined Purple Add Service Buttons (20px top, 20px bottom, 12px gap) */}
+                {/* Outlined Add Service Buttons (20px top, 20px bottom, 12px gap) */}
                 <div className="p-5 border-t border-[#e5e7eb] dark:border-[#334155] flex items-center gap-3 bg-gray-50/50 dark:bg-[#0f172a]/20">
                   <button
                     type="button"
                     onClick={handleAddService}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10 dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Service</span>
@@ -1643,7 +1643,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   <button
                     type="button"
                     onClick={handleAddReimbursementItem}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd] dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10 dark:hover:bg-[#3D6A9E]/20 text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Reimbursement</span>
@@ -1796,7 +1796,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                 <button
                   type="button"
                   onClick={onBack}
-                  className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#eeedfd]/50 text-xs font-semibold cursor-pointer transition-colors"
+                  className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   {isView ? 'Close' : 'Cancel'}
                 </button>
@@ -1805,7 +1805,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                     type="button"
                     onClick={() => void handleSave()}
                     disabled={isSaving}
-                    className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#6357e8] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
+                    className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
                   >
                     {isSaving ? 'Saving…' : isEdit ? 'Update' : 'Save'}
                   </button>

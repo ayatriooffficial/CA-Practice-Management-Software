@@ -78,7 +78,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
 
   // Organization invoice branding & format state
   const [invoiceFormat, setInvoiceFormat] = useState<"classic" | "modern" | "minimal">("modern");
-  const [activeInvoiceColor, setActiveInvoiceColor] = useState<string>("#4F46E5");
+  const [activeInvoiceColor, setActiveInvoiceColor] = useState<string>("#3D6A9E");
   const [firmLogoUrl, setFirmLogoUrl] = useState<string | null>(null);
   const [digitalSignatureUrl, setDigitalSignatureUrl] = useState<string | null>(null);
   const [showCaLogo, setShowCaLogo] = useState<boolean>(true);
