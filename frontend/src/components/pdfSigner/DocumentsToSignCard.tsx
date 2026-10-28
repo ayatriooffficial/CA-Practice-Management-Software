@@ -11,7 +11,6 @@ import {
   Trash2,
   PenTool,
   ShieldCheck,
-  HardDrive,
 } from 'lucide-react';
 import { SignedDocItem } from '@/services/pdfSignerApi';
 import { Client } from '@/data/crmData';
@@ -218,22 +217,6 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
                 ? 'PDF only · Up to 25MB per document'
                 : 'Directly checks SHA-256 byte digest, RSA signature, and detects tampering'}
             </p>
-
-            {workflowMode === 'sign' && onStageFromDrive && (
-              <div
-                className="mt-2.5 flex items-center justify-center gap-2"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsDrivePickerOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-none border border-[#31719B] text-[#31719B] hover:bg-[#31719B] hover:text-white dark:hover:bg-[#31719B] transition cursor-pointer"
-                >
-                  <HardDrive className="w-3.5 h-3.5" />
-                  <span>Choose from Cloud Drive</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

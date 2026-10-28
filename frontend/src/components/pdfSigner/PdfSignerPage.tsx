@@ -492,26 +492,26 @@ export const PdfSignerPage: React.FC = () => {
             {/* Real truthful status pill */}
             <div className="inline-flex items-center gap-2">
               {isStatusLoading ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   Checking signer...
                 </span>
               ) : status?.available ? (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                  className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-sm"
                   title={status.detail}
                 >
-                  <span className="w-2 h-2 rounded-none bg-emerald-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   {status.provider === 'software'
                     ? 'Software signer ready (Dev PFX)'
                     : 'USB Token connector ready'}
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                  className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                   title={status?.detail || 'Signer is not available'}
                 >
-                  <span className="w-2 h-2 rounded-none bg-amber-500" />
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
                   Signer unavailable (Check provider)
                 </span>
               )}
