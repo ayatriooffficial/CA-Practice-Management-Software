@@ -120,24 +120,24 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 
   const filteredClients = clientSearchQuery.trim()
     ? clients.filter((c) => {
-        const query = clientSearchQuery.toLowerCase();
-        return (
-          (c.name && c.name.toLowerCase().includes(query)) ||
-          (c.legalName && c.legalName.toLowerCase().includes(query)) ||
-          (c.pan && c.pan.toLowerCase().includes(query)) ||
-          (c.fileNo && c.fileNo.toLowerCase().includes(query)) ||
-          ((c as any).phone && String((c as any).phone).toLowerCase().includes(query)) ||
-          ((c as any).email && String((c as any).email).toLowerCase().includes(query)) ||
-          (c.group && c.group.toLowerCase().includes(query))
-        );
-      })
+      const query = clientSearchQuery.toLowerCase();
+      return (
+        (c.name && c.name.toLowerCase().includes(query)) ||
+        (c.legalName && c.legalName.toLowerCase().includes(query)) ||
+        (c.pan && c.pan.toLowerCase().includes(query)) ||
+        (c.fileNo && c.fileNo.toLowerCase().includes(query)) ||
+        ((c as any).phone && String((c as any).phone).toLowerCase().includes(query)) ||
+        ((c as any).email && String((c as any).email).toLowerCase().includes(query)) ||
+        (c.group && c.group.toLowerCase().includes(query))
+      );
+    })
     : clients;
 
   const displayedClients = clientSearchQuery.trim()
     ? filteredClients
     : showAllClients
-    ? filteredClients
-    : filteredClients.slice(0, 5);
+      ? filteredClients
+      : filteredClients.slice(0, 5);
 
   const [serviceCatalog, setServiceCatalog] = useState<Service[]>([]);
 
@@ -145,6 +145,39 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
   const [organizations, setOrganizations] = useState<OrganizationDetails[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
+
+  // Billing Entity (Organization OR Client) State
+  const [billingEntityType, setBillingEntityType] = useState<'organization' | 'client'>('organization');
+  const [selectedBillingClientId, setSelectedBillingClientId] = useState<string>('');
+  const [isBillingOrgDropdownOpen, setIsBillingOrgDropdownOpen] = useState(false);
+  const [billingOrgSearchQuery, setBillingOrgSearchQuery] = useState('');
+  const [showAllBillingClients, setShowAllBillingClients] = useState(false);
+  const billingOrgDropdownRef = useRef<HTMLDivElement>(null);
+  const billingOrgSearchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        billingOrgDropdownRef.current &&
+        !billingOrgDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsBillingOrgDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isBillingOrgDropdownOpen) {
+      setTimeout(() => {
+        billingOrgSearchInputRef.current?.focus();
+      }, 50);
+    } else {
+      setBillingOrgSearchQuery('');
+      setShowAllBillingClients(false);
+    }
+  }, [isBillingOrgDropdownOpen]);
 
   // Bank Selection
   const [selectedBankId, setSelectedBankId] = useState<string>(() => initialData?.bankAccountId || '');
@@ -359,14 +392,61 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
     });
   }, [initialData]);
 
+  const resolveClientImageUrl = (client: Client | undefined | null): string | undefined => {
+    if (!client) return undefined;
+    const rawUrl =
+      client.photo ||
+      (client as any).logoUrl ||
+      (client as any).logo ||
+      (client as any).avatar ||
+      (client as any).imageUrl ||
+      (client as any).image;
+
+    if (!rawUrl) {
+      const initials = (client.name || 'CL')
+        .split(/\s+/)
+        .map((w) => w[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
+      return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="60" viewBox="0 0 160 60"><rect width="160" height="60" rx="8" fill="%233D6A9E"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="20" fill="white">${initials}</text></svg>`;
+    }
+
+    if (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('/')) {
+      return rawUrl;
+    }
+    return `/api/v1/drive/${rawUrl}/preview`;
+  };
+
+  const selectedBillingClient = React.useMemo(() => {
+    if (billingEntityType !== 'client' || !selectedBillingClientId) return null;
+    return clients.find((c) => c.id === selectedBillingClientId) || null;
+  }, [billingEntityType, selectedBillingClientId, clients]);
+
   const selectedOrg = React.useMemo(() => {
+    if (billingEntityType === 'client') return null;
     const found = organizations.find((o) => (o.id || (o as any)._id) === selectedOrgId);
     if (found) return found;
     if (organizations.length > 0) return organizations[0];
     return null;
-  }, [organizations, selectedOrgId]);
+  }, [billingEntityType, organizations, selectedOrgId]);
 
   const formattedOrgAddress = React.useMemo(() => {
+    if (billingEntityType === 'client' && selectedBillingClient) {
+      if (selectedBillingClient.addressDetails) {
+        const parts = [
+          selectedBillingClient.addressDetails.addressLine1,
+          selectedBillingClient.addressDetails.addressLine2,
+          selectedBillingClient.addressDetails.city,
+          selectedBillingClient.addressDetails.state,
+          selectedBillingClient.addressDetails.pincode,
+          selectedBillingClient.addressDetails.country,
+        ].filter(Boolean);
+        if (parts.length > 0) return parts.join(', ');
+      }
+      return selectedBillingClient.address || FIRM_DETAILS.address;
+    }
+
     if (!selectedOrg) return FIRM_DETAILS.address;
     if (selectedOrg.addressDetails) {
       const parts = [
@@ -380,15 +460,65 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
       if (parts.length > 0) return parts.join(', ');
     }
     return selectedOrg.address || FIRM_DETAILS.address;
-  }, [selectedOrg]);
+  }, [billingEntityType, selectedBillingClient, selectedOrg]);
 
-  const orgName = selectedOrg?.name || initialData?.billingOrg || FIRM_DETAILS.name;
+  const orgName = React.useMemo(() => {
+    if (billingEntityType === 'client' && selectedBillingClient) {
+      return selectedBillingClient.name || selectedBillingClient.legalName || 'Client Billing Entity';
+    }
+    return selectedOrg?.name || initialData?.billingOrg || FIRM_DETAILS.name;
+  }, [billingEntityType, selectedBillingClient, selectedOrg, initialData]);
+
+  const orgGstin = React.useMemo(() => {
+    if (billingEntityType === 'client' && selectedBillingClient) {
+      return (selectedBillingClient as any).gstin || (selectedBillingClient.addressDetails as any)?.gstin || '';
+    }
+    return (selectedOrg?.addressDetails as any)?.gstin || (selectedOrg as any)?.gstin || '';
+  }, [billingEntityType, selectedBillingClient, selectedOrg]);
+
+  const orgPan = React.useMemo(() => {
+    if (billingEntityType === 'client' && selectedBillingClient) {
+      return selectedBillingClient.pan || '';
+    }
+    return (selectedOrg?.addressDetails as any)?.pan || (selectedOrg as any)?.pan || '';
+  }, [billingEntityType, selectedBillingClient, selectedOrg]);
+
+  const firmLogoUrl = React.useMemo(() => {
+    if (billingEntityType === 'client' && selectedBillingClient) {
+      return resolveClientImageUrl(selectedBillingClient);
+    }
+    return selectedOrg?.invoiceSettings?.firmLogoUrl;
+  }, [billingEntityType, selectedBillingClient, selectedOrg]);
+
   const orgInitials = React.useMemo(() => {
     if (!orgName) return 'KA';
     const words = orgName.trim().split(/\s+/);
     if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
     return orgName.substring(0, 2).toUpperCase();
   }, [orgName]);
+
+  const filteredBillingOrgs = React.useMemo(() => {
+    if (!billingOrgSearchQuery.trim()) return organizations;
+    return organizations.filter((o) =>
+      o.name.toLowerCase().includes(billingOrgSearchQuery.toLowerCase())
+    );
+  }, [organizations, billingOrgSearchQuery]);
+
+  const filteredBillingClients = React.useMemo(() => {
+    if (!billingOrgSearchQuery.trim()) return clients;
+    const q = billingOrgSearchQuery.toLowerCase();
+    return clients.filter((c) =>
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.legalName && c.legalName.toLowerCase().includes(q)) ||
+      (c.pan && c.pan.toLowerCase().includes(q))
+    );
+  }, [clients, billingOrgSearchQuery]);
+
+  const displayedBillingClients = React.useMemo(() => {
+    if (billingOrgSearchQuery.trim()) return filteredBillingClients;
+    if (showAllBillingClients) return filteredBillingClients;
+    return filteredBillingClients.slice(0, 5);
+  }, [filteredBillingClients, billingOrgSearchQuery, showAllBillingClients]);
 
   // Column print options (HSN/SAC, QTY, Description, CGST, SGST)
   const [printColumns, setPrintColumns] = useState({
@@ -629,11 +759,11 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
       accentColor={activeInvoiceColor}
       firmName={orgName}
       firmAddress={formattedOrgAddress}
-      firmGstin={(selectedOrg?.addressDetails as any)?.gstin || (selectedOrg as any)?.gstin}
-      firmPan={(selectedOrg?.addressDetails as any)?.pan || (selectedOrg as any)?.pan}
-      firmLogoUrl={selectedOrg?.invoiceSettings?.firmLogoUrl}
+      firmGstin={orgGstin}
+      firmPan={orgPan}
+      firmLogoUrl={firmLogoUrl}
       digitalSignatureUrl={selectedOrg?.invoiceSettings?.digitalSignatureUrl}
-      showCaLogo={selectedOrg?.invoiceSettings?.showCaLogo ?? true}
+      showCaLogo={billingEntityType === 'client' ? false : (selectedOrg?.invoiceSettings?.showCaLogo ?? true)}
       showHsnSac={printColumns.hsnSac}
       showQuantity={printColumns.qty}
       showDescription={printColumns.description}
@@ -685,7 +815,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
   return (
     <div className="w-full flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0f172a] select-none text-gray-800 dark:text-gray-200 transition-colors">
       {/* Outer Single White Card Shell - dynamically widens in split partition mode */}
-      <div className={`w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e5e7eb] dark:border-[#334155] shadow-xs ${isPreviewActive ? 'p-5 sm:p-7 max-w-[2100px]' : 'p-7 sm:p-9 max-w-7xl'} mx-auto flex flex-col gap-8`}>
+      <div className={`w-full bg-white dark:bg-[#1e293b]   shadow-xs ${isPreviewActive ? ' p-2 max-w-[2100px]' : 'p-2'} mx-auto flex flex-col gap-8`}>
 
         {/* Section 1: Top Breadcrumb & Format Switcher Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#f1f5f9] dark:border-[#334155]/60 print:hidden">
@@ -709,7 +839,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 
           <div className="flex items-center gap-2">
             {/* Format Switcher */}
-            <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 p-1 rounded-xl text-xs border border-gray-200 dark:border-gray-700 shadow-2xs">
+            <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 p-1 rounded-sm text-xs border border-gray-200 dark:border-gray-700 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 px-1.5 flex items-center gap-1">
                 <Palette className="w-3 h-3 text-[#3D6A9E]" />
                 Format:
@@ -719,7 +849,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   key={fmt}
                   type="button"
                   onClick={() => handleChangeFormat(fmt)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${activeFormat === fmt
+                  className={`px-2.5 py-1 rounded-sm text-xs font-semibold capitalize transition-all cursor-pointer ${activeFormat === fmt
                     ? "bg-white dark:bg-gray-900 text-[#3D6A9E] font-bold shadow-xs border border-gray-200 dark:border-gray-700"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                     }`}
@@ -735,7 +865,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               <button
                 type="button"
                 onClick={() => setIsPreviewActive((prev) => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${isPreviewActive
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-semibold border transition-all cursor-pointer ${isPreviewActive
                   ? "bg-[#3D6A9E] text-white border-[#3D6A9E] shadow-sm ring-2 ring-[#3D6A9E]/20"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50"
                   }`}
@@ -763,7 +893,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                 </button>
 
                 {showColumnDropdown && (
-                  <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-sm shadow-xl border border-gray-200 dark:border-gray-700 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 py-1 mb-1 border-b border-gray-100 dark:border-gray-700">
                       Print Columns
                     </div>
@@ -857,7 +987,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
         {/* View Mode OR Partitioned Split Live Preview OR Standard Form Mode */}
         {isView ? (
           <div className="w-full flex flex-col gap-6 animate-in fade-in duration-150 print:p-0 print:m-0">
-            <div className="max-w-4xl mx-auto w-full shadow-lg rounded-xl overflow-hidden border border-gray-200/90 dark:border-gray-800 print:max-w-none print:shadow-none print:border-none print:rounded-none">
+            <div className="max-w-4xl mx-auto w-full shadow-lg rounded-sm overflow-hidden border border-gray-200/90 dark:border-gray-800 print:max-w-none print:shadow-none print:border-none print:rounded-none">
               {renderInvoiceLivePreview()}
             </div>
 
@@ -957,37 +1087,192 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               {/* Section 3: Two Roomy Cards: Billing Organization vs Proforma/Invoice To */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {/* Card 1: Billing Organization */}
-                <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
                   <div className="flex flex-col gap-3.5">
                     <label className="text-sm font-semibold text-gray-900 dark:text-white">
                       Billing Organization <span className="font-normal text-gray-500 text-xs">(Your details)</span>
                     </label>
 
-                    <select
-                      disabled={isView || organizations.length <= 1}
-                      value={selectedOrgId || (selectedOrg ? (selectedOrg.id || (selectedOrg as any)._id) : '')}
-                      onChange={(e) => setSelectedOrgId(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] cursor-pointer disabled:bg-gray-50 dark:disabled:bg-[#0f172a]/60 disabled:cursor-default"
-                    >
-                      {organizations.length > 0 ? (
-                        organizations.map((org, index) => {
-                          const oId = org.id || (org as any)._id || `org-${index}`;
-                          return (
-                            <option key={oId} value={oId}>
-                              {org.name}
-                            </option>
-                          );
-                        })
-                      ) : (
-                        <option value="">{orgName}</option>
+                    {/* Searchable Billing Entity Combobox (Organizations + Clients) */}
+                    <div ref={billingOrgDropdownRef} className="relative w-full">
+                      <button
+                        type="button"
+                        disabled={isView}
+                        onClick={() => setIsBillingOrgDropdownOpen((prev) => !prev)}
+                        className={`w-full h-11 px-3.5 rounded-lg border text-xs flex items-center justify-between text-left transition-colors outline-none cursor-pointer ${isBillingOrgDropdownOpen
+                            ? "border-[#3D6A9E] ring-2 ring-[#3D6A9E]/15 bg-white dark:bg-[#0f172a]"
+                            : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] hover:border-[#3D6A9E]/60"
+                          } ${isView ? "cursor-default opacity-80" : ""}`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Building className={`w-3.5 h-3.5 shrink-0 ${billingEntityType === 'client' ? "text-purple-600" : "text-[#3D6A9E]"}`} />
+                          <span className="font-semibold text-gray-800 dark:text-gray-100 truncate">
+                            {orgName}
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${billingEntityType === 'client'
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
+                              : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
+                            }`}>
+                            {billingEntityType === 'client' ? 'Client Entity' : 'Organization'}
+                          </span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-150 shrink-0 ml-2 ${isBillingOrgDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {isBillingOrgDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-80">
+                          {/* Search Input Bar */}
+                          <div className="p-2.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/70 dark:bg-[#0f172a]/50">
+                            <div className="relative">
+                              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              <input
+                                ref={billingOrgSearchInputRef}
+                                type="text"
+                                value={billingOrgSearchQuery}
+                                onChange={(e) => setBillingOrgSearchQuery(e.target.value)}
+                                placeholder="Search organizations or clients..."
+                                className="w-full h-8.5 pl-8.5 pr-7 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E] placeholder:text-gray-400"
+                              />
+                              {billingOrgSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => setBillingOrgSearchQuery('')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded cursor-pointer"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* List of Organizations & Clients */}
+                          <div className="overflow-y-auto max-h-56 divide-y divide-gray-50 dark:divide-gray-800 p-1">
+                            {/* Organizations Group */}
+                            {filteredBillingOrgs.length > 0 && (
+                              <div className="py-1">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2.5 py-1">
+                                  Organizations ({filteredBillingOrgs.length})
+                                </div>
+                                {filteredBillingOrgs.map((org, idx) => {
+                                  const oId = org.id || (org as any)._id || `org-${idx}`;
+                                  const isSelected = billingEntityType === 'organization' && (selectedOrgId === oId || (!selectedOrgId && idx === 0));
+                                  return (
+                                    <button
+                                      key={oId}
+                                      type="button"
+                                      onClick={() => {
+                                        setBillingEntityType('organization');
+                                        setSelectedOrgId(oId);
+                                        setSelectedBillingClientId('');
+                                        setIsBillingOrgDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${isSelected
+                                          ? "bg-[#3D6A9E]/10 text-[#3D6A9E] font-semibold"
+                                          : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
+                                        }`}
+                                    >
+                                      <div className="flex items-center gap-2 truncate">
+                                        <Building className="w-3.5 h-3.5 text-[#3D6A9E] shrink-0" />
+                                        <span className="truncate">{org.name}</span>
+                                      </div>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-[#3D6A9E] shrink-0" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Clients Group */}
+                            <div className="py-1">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 px-2.5 py-1 flex items-center justify-between">
+                                <span>Clients ({filteredBillingClients.length})</span>
+                                <span className="text-[9px] font-normal text-gray-400">Use client as billing entity</span>
+                              </div>
+                              {displayedBillingClients.length > 0 ? (
+                                displayedBillingClients.map((client) => {
+                                  const isSelected = billingEntityType === 'client' && selectedBillingClientId === client.id;
+                                  return (
+                                    <button
+                                      key={client.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setBillingEntityType('client');
+                                        setSelectedBillingClientId(client.id);
+                                        setIsBillingOrgDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${isSelected
+                                          ? "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold"
+                                          : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
+                                        }`}
+                                    >
+                                      <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold truncate">{client.name}</span>
+                                          {client.type && (
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 font-normal">
+                                              {client.type}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
+                                          {client.pan && <span>PAN: {client.pan}</span>}
+                                          {client.address && <span className="truncate max-w-[200px]">{client.address}</span>}
+                                        </div>
+                                      </div>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                <div className="py-3 px-3 text-xs text-gray-400">No clients match query</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Footer Indicator for Clients: Show initial 5 toggle */}
+                          {!billingOrgSearchQuery.trim() && clients.length > 5 && (
+                            <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-[#0f172a]/40 flex items-center justify-between text-[11px] text-gray-500">
+                              <span>
+                                {showAllBillingClients
+                                  ? `Showing all ${clients.length} clients`
+                                  : `Showing initial 5 of ${clients.length} clients`}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowAllBillingClients((prev) => !prev)}
+                                className="font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
+                              >
+                                {showAllBillingClients ? "Show less" : `View all (${clients.length})`}
+                              </button>
+                            </div>
+                          )}
+                          {billingOrgSearchQuery.trim() && (
+                            <div className="px-3 py-1.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-[#0f172a]/40 text-[10px] text-gray-400 text-right">
+                              {filteredBillingOrgs.length + filteredBillingClients.length} match{filteredBillingOrgs.length + filteredBillingClients.length === 1 ? '' : 'es'} found
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </select>
+                    </div>
                   </div>
 
                   {/* Business Details Panel */}
                   <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50">
-                    <div className="font-bold text-gray-900 dark:text-white text-xs">
-                      Business Details
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-900 dark:text-white text-xs">
+                        {billingEntityType === 'client' ? "Client Billing Details" : "Business Details"}
+                      </span>
+                      {firmLogoUrl && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-gray-400">Logo:</span>
+                          <img
+                            src={firmLogoUrl}
+                            alt="Billing Logo"
+                            className="h-6 w-auto max-w-[80px] object-contain rounded border border-gray-200 dark:border-gray-700 bg-white"
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-start">
                       <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Business Name</span>
@@ -998,28 +1283,31 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                       <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{formattedOrgAddress}</span>
                     </div>
                     <div className="flex items-center pt-2 border-b border-dotted border-gray-300 dark:border-gray-700 pb-3">
-                      <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Priority</span>
-                      <span className="px-2.5 py-0.5 rounded border border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b] text-xs font-semibold">
-                        {(selectedOrg as any)?.priority || (organizations.indexOf(selectedOrg as any) === 0 ? "Primary" : "Secondary")}
+                      <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">Entity Type</span>
+                      <span className={`px-2.5 py-0.5 rounded border text-xs font-semibold ${billingEntityType === 'client'
+                          ? "border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40"
+                          : "border-[#3D6A9E] text-[#3D6A9E] bg-white dark:bg-[#1e293b]"
+                        }`}>
+                        {billingEntityType === 'client' ? "Client (Billing Entity)" : ((selectedOrg as any)?.priority || "Primary")}
                       </span>
                     </div>
-                    {selectedOrg?.gstin && (
+                    {orgGstin && (
                       <div className="flex items-center">
                         <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">GSTIN</span>
-                        <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.gstin}</span>
+                        <span className="font-mono text-gray-800 dark:text-gray-200">{orgGstin}</span>
                       </div>
                     )}
-                    {selectedOrg?.pan && (
+                    {orgPan && (
                       <div className="flex items-center">
                         <span className="w-28 text-gray-500 dark:text-gray-400 shrink-0">PAN</span>
-                        <span className="font-mono text-gray-800 dark:text-gray-200">{selectedOrg.pan}</span>
+                        <span className="font-mono text-gray-800 dark:text-gray-200">{orgPan}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Card 2: Client Organization */}
-                <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
                   <div className="flex flex-col gap-3.5">
                     <label className="text-sm font-semibold text-gray-900 dark:text-white">
                       {titlePrefix} To <span className="font-normal text-gray-500 text-xs">(Client's details)</span>
@@ -1031,11 +1319,10 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                         type="button"
                         disabled={isView}
                         onClick={() => setIsClientDropdownOpen((prev) => !prev)}
-                        className={`w-full h-11 px-3.5 rounded-lg border text-xs flex items-center justify-between text-left transition-colors outline-none cursor-pointer ${
-                          isClientDropdownOpen
-                            ? "border-[#3D6A9E] ring-2 ring-[#3D6A9E]/15 bg-white dark:bg-[#0f172a]"
-                            : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] hover:border-[#3D6A9E]/60"
-                        } ${isView ? "cursor-default opacity-80" : ""}`}
+                        className={`w-full h-11 px-3.5 rounded-lg border text-xs flex items-center justify-between text-left transition-colors outline-none cursor-pointer ${isClientDropdownOpen
+                          ? "border-[#3D6A9E] ring-2 ring-[#3D6A9E]/15 bg-white dark:bg-[#0f172a]"
+                          : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] hover:border-[#3D6A9E]/60"
+                          } ${isView ? "cursor-default opacity-80" : ""}`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -1063,7 +1350,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 
                       {/* Dropdown Menu */}
                       {isClientDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-80">
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#1e293b] rounded-sm shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-80">
                           {/* Search Input Bar */}
                           <div className="p-2.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/70 dark:bg-[#0f172a]/50">
                             <div className="relative">
@@ -1102,11 +1389,10 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                                       setTaskAllocations([]);
                                       setIsClientDropdownOpen(false);
                                     }}
-                                    className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                                      isSelected
-                                        ? "bg-[#3D6A9E]/10 text-[#3D6A9E] font-semibold"
-                                        : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
-                                    }`}
+                                    className={`w-full px-3 py-2 text-left rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${isSelected
+                                      ? "bg-[#3D6A9E]/10 text-[#3D6A9E] font-semibold"
+                                      : "hover:bg-gray-100 dark:hover:bg-gray-800/70 text-gray-800 dark:text-gray-200"
+                                      }`}
                                   >
                                     <div className="flex flex-col gap-0.5 min-w-0 pr-2">
                                       <div className="flex items-center gap-2">
@@ -1166,7 +1452,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 
                   {/* Client Details Panel or Centered Placeholder */}
                   {selectedClient ? (
-                    <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
+                    <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] p-6 text-xs flex flex-col gap-3.5 bg-[#f9fafb] dark:bg-[#0f172a]/50 animate-in fade-in duration-100">
                       <div className="flex justify-between items-center pb-1">
                         <span className="font-bold text-gray-900 dark:text-white">Client Details</span>
                         <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-[#3D6A9E] font-semibold">
@@ -1187,7 +1473,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-[#dde2e8] dark:border-[#334155] py-14 px-6 text-center text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center min-h-[160px]">
+                    <div className="rounded-sm border border-dashed border-[#dde2e8] dark:border-[#334155] py-14 px-6 text-center text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center min-h-[160px]">
                       Select Client/Business from list
                     </div>
                   )}
@@ -1195,7 +1481,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               </div>
 
               {/* Section 4: Services Table Section with Taller Purple Header */}
-              <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
+              <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-xs flex flex-col">
                 {/* Taller Purple Header Bar */}
                 <div className="bg-[#6366f1] text-white px-6 py-3.5 grid grid-cols-12 gap-3 text-xs font-semibold tracking-tight items-center">
                   <div className="col-span-5">Services</div>
@@ -1366,7 +1652,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               </div>
 
               {/* Task level invoice allocation: report revenue uses these explicit issued amounts. */}
-              <section className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-5 flex flex-col gap-3" aria-labelledby="task-allocation-heading">
+              <section className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] p-5 flex flex-col gap-3" aria-labelledby="task-allocation-heading">
                 <div>
                   <h2 id="task-allocation-heading" className="text-sm font-bold text-gray-900 dark:text-white">Task Revenue Allocation</h2>
                   <p className="mt-1 text-xs text-gray-500">Allocate the full invoice amount directly to tasks so task revenue is fully attributable.</p>
@@ -1413,7 +1699,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   </div>
 
                   {/* Empty State Card or Selected Bank Card (24px-28px padding) */}
-                  <div className="rounded-xl border border-[#e5e7eb] dark:border-[#334155] p-6 sm:p-7 text-xs flex flex-col gap-4 bg-[#f9fafb] dark:bg-[#0f172a]/40 shadow-2xs">
+                  <div className="rounded-sm border border-[#e5e7eb] dark:border-[#334155] p-6 sm:p-7 text-xs flex flex-col gap-4 bg-[#f9fafb] dark:bg-[#0f172a]/40 shadow-2xs">
                     {selectedBank ? (
                       <div className="flex flex-col gap-2 pb-2">
                         <div className="flex justify-between items-center">
@@ -1452,7 +1738,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                 </div>
 
                 {/* Totals Card (Right 5 Cols) (24px-28px padding) */}
-                <div className="md:col-span-5 rounded-xl border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                <div className="md:col-span-5 rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
                   <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                     <span>Sub Total</span>
                     <span className="font-medium text-gray-800 dark:text-gray-200">
@@ -1531,17 +1817,15 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
             {isPreviewActive && (
               <div
                 onMouseDown={handleMouseDownWidthResize}
-                className={`hidden xl:flex items-center justify-center w-5 -mx-1 cursor-col-resize select-none group z-30 self-stretch ${
-                  isDraggingWidth ? 'cursor-col-resize' : ''
-                }`}
+                className={`hidden xl:flex items-center justify-center w-5 -mx-1 cursor-col-resize select-none group z-30 self-stretch ${isDraggingWidth ? 'cursor-col-resize' : ''
+                  }`}
                 title="Click & drag horizontally to adjust preview width"
               >
                 <div
-                  className={`w-1.5 h-36 rounded-full transition-colors flex items-center justify-center ${
-                    isDraggingWidth
-                      ? 'bg-[#3D6A9E] shadow-md ring-2 ring-[#3D6A9E]/30'
-                      : 'bg-gray-200 dark:bg-gray-700 group-hover:bg-[#3D6A9E]'
-                  }`}
+                  className={`w-1.5 h-36 rounded-full transition-colors flex items-center justify-center ${isDraggingWidth
+                    ? 'bg-[#3D6A9E] shadow-md ring-2 ring-[#3D6A9E]/30'
+                    : 'bg-gray-200 dark:bg-gray-700 group-hover:bg-[#3D6A9E]'
+                    }`}
                 >
                   <GripVertical className="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -1554,7 +1838,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                 style={{ width: `${previewWidth}%` }}
                 className="w-full xl:min-w-[360px] sticky top-4 flex flex-col gap-2.5 min-w-0 transition-all duration-75 pl-0 xl:pl-3"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50 dark:bg-gray-800/80 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50 dark:bg-gray-800/80 px-3.5 py-2 rounded-sm border border-gray-200 dark:border-gray-700 shadow-2xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
@@ -1606,7 +1890,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                     height: isHeightAuto ? 'auto' : `${previewHeight}px`,
                     maxHeight: isHeightAuto ? 'none' : `${previewHeight}px`,
                   }}
-                  className="w-full overflow-y-auto overflow-x-auto rounded-xl shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-75 relative"
+                  className="w-full overflow-y-auto overflow-x-auto rounded-sm shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-75 relative"
                 >
                   <div className="w-full">
                     {renderInvoiceLivePreview()}
@@ -1618,9 +1902,8 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                   <div
                     onMouseDown={handleMouseDownHeightResize}
                     onDoubleClick={() => setPreviewHeight(780)}
-                    className={`w-full h-5 -mt-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center cursor-row-resize select-none transition-all group shadow-2xs ${
-                      isDraggingHeight ? 'bg-gray-200 dark:bg-gray-700' : ''
-                    }`}
+                    className={`w-full h-5 -mt-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center cursor-row-resize select-none transition-all group shadow-2xs ${isDraggingHeight ? 'bg-gray-200 dark:bg-gray-700' : ''
+                      }`}
                     title="Click and drag vertically to resize preview height (Double-click to reset to 780px)"
                   >
                     <div className="flex items-center gap-1.5">
@@ -1706,7 +1989,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
 
             {/* Big Window Modal Body: Proper full invoice view */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-100/70 dark:bg-gray-950/70">
-              <div id="invoice-printable-root-modal" className="max-w-4xl mx-auto shadow-lg rounded-xl overflow-hidden border border-gray-200/90 dark:border-gray-800 bg-white">
+              <div id="invoice-printable-root-modal" className="max-w-4xl mx-auto shadow-lg rounded-sm overflow-hidden border border-gray-200/90 dark:border-gray-800 bg-white">
                 {renderInvoiceLivePreview()}
               </div>
             </div>
