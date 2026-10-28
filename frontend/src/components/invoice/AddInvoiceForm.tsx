@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   X,
   Plus,
@@ -16,6 +16,12 @@ import {
   Edit2,
   SlidersHorizontal,
   Download,
+  Maximize2,
+  Minimize2,
+  GripVertical,
+  GripHorizontal,
+  Minus,
+  RotateCcw,
 } from 'lucide-react';
 import { ServiceItem, InvoiceRecord } from './types';
 import { FIRM_DETAILS } from './mockData';
@@ -119,6 +125,113 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
   const [allocationTaskId, setAllocationTaskId] = useState('');
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Live Preview Dimension & Zoom Adjustability
+  const [previewWidth, setPreviewWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ayatrio_invoice_preview_width');
+      if (saved) return Math.min(75, Math.max(28, Number(saved)));
+    }
+    return 50;
+  });
+  const [previewHeight, setPreviewHeight] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ayatrio_invoice_preview_height');
+      if (saved) return Math.min(1800, Math.max(420, Number(saved)));
+    }
+    return 780;
+  });
+  const [isHeightAuto, setIsHeightAuto] = useState<boolean>(false);
+  const [isBigWindowModalOpen, setIsBigWindowModalOpen] = useState<boolean>(false);
+  const [isDraggingWidth, setIsDraggingWidth] = useState(false);
+  const [isDraggingHeight, setIsDraggingHeight] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isBigWindowModalOpen) {
+        setIsBigWindowModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBigWindowModalOpen]);
+
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const previewCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ayatrio_invoice_preview_width', String(previewWidth));
+    }
+  }, [previewWidth]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ayatrio_invoice_preview_height', String(previewHeight));
+    }
+  }, [previewHeight]);
+
+  const handleMouseDownWidthResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingWidth(true);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    const container = splitContainerRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const currentX = moveEvent.clientX;
+      const distanceFromRight = containerRect.right - currentX;
+      let newPercent = (distanceFromRight / containerRect.width) * 100;
+      newPercent = Math.min(75, Math.max(25, Math.round(newPercent)));
+      setPreviewWidth(newPercent);
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingWidth(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleMouseDownHeightResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingHeight(true);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+    const startY = e.clientY;
+    const initialHeight = previewCardRef.current?.offsetHeight || previewHeight;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = moveEvent.clientY - startY;
+      const newHeight = Math.min(2200, Math.max(380, Math.round(initialHeight + deltaY)));
+      setPreviewHeight(newHeight);
+      setIsHeightAuto(false);
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingHeight(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const resetDimensions = () => {
+    setPreviewWidth(50);
+    setPreviewHeight(780);
+    setIsHeightAuto(false);
+  };
 
   useEffect(() => {
     taskApi.getTasks({ limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
@@ -717,9 +830,19 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
             </div>
           </div>
         ) : (
-          <div className={isPreviewActive ? "w-full grid grid-cols-1 xl:grid-cols-12 gap-8 items-start animate-in fade-in duration-200" : "w-full flex flex-col gap-8 animate-in fade-in duration-200"}>
+          <div
+            ref={splitContainerRef}
+            className={
+              isPreviewActive
+                ? "w-full flex flex-col xl:flex-row gap-4 xl:gap-0 items-start animate-in fade-in duration-200 relative"
+                : "w-full flex flex-col gap-8 animate-in fade-in duration-200"
+            }
+          >
             {/* Left Partition: Interactive Form Controls (Left side you change) */}
-            <div className={isPreviewActive ? "xl:col-span-6 2xl:col-span-6 flex flex-col gap-8 min-w-0" : "w-full flex flex-col gap-8"}>
+            <div
+              style={isPreviewActive ? { width: `calc(${100 - previewWidth}% - 12px)` } : undefined}
+              className={isPreviewActive ? "w-full flex flex-col gap-8 min-w-0 transition-all duration-75 pr-0 xl:pr-3" : "w-full flex flex-col gap-8"}
+            >
               {/* Section 2: Header Block: Left Avatar & Right Vertically Stacked Number & Dates */}
               <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8">
                 {/* Organization Circular Avatar */}
@@ -1225,21 +1348,60 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
               </div>
             </div>
 
-            {/* Right Partition: Real-Time Live Preview (Visible when isPreviewActive is ON) */}
+            {/* Draggable Width Divider (between Form and Live Preview on desktop) */}
             {isPreviewActive && (
-              <div className="xl:col-span-6 2xl:col-span-6 sticky top-4 flex flex-col gap-3 min-w-0">
-                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/80 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+              <div
+                onMouseDown={handleMouseDownWidthResize}
+                className={`hidden xl:flex items-center justify-center w-5 -mx-1 cursor-col-resize select-none group z-30 self-stretch ${
+                  isDraggingWidth ? 'cursor-col-resize' : ''
+                }`}
+                title="Click & drag horizontally to adjust preview width"
+              >
+                <div
+                  className={`w-1.5 h-36 rounded-full transition-colors flex items-center justify-center ${
+                    isDraggingWidth
+                      ? 'bg-[#3D6A9E] shadow-md ring-2 ring-[#3D6A9E]/30'
+                      : 'bg-gray-200 dark:bg-gray-700 group-hover:bg-[#3D6A9E]'
+                  }`}
+                >
+                  <GripVertical className="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            )}
+
+            {/* Right Partition: Real-Time Live Preview (Right side with adjustable height and width) */}
+            {isPreviewActive && (
+              <div
+                style={{ width: `${previewWidth}%` }}
+                className="w-full xl:min-w-[360px] sticky top-4 flex flex-col gap-2.5 min-w-0 transition-all duration-75 pl-0 xl:pl-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50 dark:bg-gray-800/80 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                      Real-Time Live Preview
+                      Live Preview
+                    </span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                      {previewWidth}% W
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center gap-1.5">
+                    {/* Big Window Button: Opens full proper invoice modal */}
+                    <button
+                      type="button"
+                      onClick={() => setIsBigWindowModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-95"
+                      title="Open full proper invoice in Big Window modal"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>Big Window</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => printInvoiceElement("invoice-printable-root")}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 text-xs font-semibold cursor-pointer transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 text-xs font-semibold cursor-pointer transition-colors"
                       title="Print Invoice"
                     >
                       <Printer className="w-3.5 h-3.5 text-[#3D6A9E]" />
@@ -1249,23 +1411,129 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                       type="button"
                       onClick={handleDownloadPDF}
                       disabled={isDownloadingPDF}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-[#0f172a] text-gray-600 dark:text-gray-300 text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors"
                       title="Download as PDF"
                     >
                       <Download className={`w-3.5 h-3.5 text-[#3D6A9E] ${isDownloadingPDF ? "animate-bounce" : ""}`} />
-                      <span>{isDownloadingPDF ? "Downloading..." : "Download PDF"}</span>
+                      <span>{isDownloadingPDF ? "..." : "PDF"}</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="w-full max-h-[calc(100vh-100px)] overflow-y-auto rounded-xl shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900">
-                  {renderInvoiceLivePreview()}
+                {/* Preview Viewport with Adjustable Height & Width */}
+                <div
+                  ref={previewCardRef}
+                  style={{
+                    height: isHeightAuto ? 'auto' : `${previewHeight}px`,
+                    maxHeight: isHeightAuto ? 'none' : `${previewHeight}px`,
+                  }}
+                  className="w-full overflow-y-auto overflow-x-auto rounded-xl shadow-lg border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-75 relative"
+                >
+                  <div className="w-full">
+                    {renderInvoiceLivePreview()}
+                  </div>
                 </div>
+
+                {/* Vertical Height Resizing Bar at Bottom */}
+                {!isHeightAuto && (
+                  <div
+                    onMouseDown={handleMouseDownHeightResize}
+                    onDoubleClick={() => setPreviewHeight(780)}
+                    className={`w-full h-5 -mt-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center cursor-row-resize select-none transition-all group shadow-2xs ${
+                      isDraggingHeight ? 'bg-gray-200 dark:bg-gray-700' : ''
+                    }`}
+                    title="Click and drag vertically to resize preview height (Double-click to reset to 780px)"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-16 h-1 bg-gray-300 dark:bg-gray-500 group-hover:bg-[#3D6A9E] rounded-full transition-colors flex items-center justify-center">
+                        <GripHorizontal className="w-3 h-3 text-white opacity-0 group-hover:opacity-100" />
+                      </div>
+                      <span className="text-[9px] font-mono text-gray-500 group-hover:text-[#3D6A9E] dark:group-hover:text-white transition-colors">
+                        {previewHeight}px H
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Big Window Full Invoice Modal */}
+      {isBigWindowModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 md:p-8 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsBigWindowModalOpen(false);
+          }}
+        >
+          <div className="relative w-full max-w-5xl max-h-[92vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Big Window Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-850 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                  Invoice Preview — Big Window
+                </h3>
+                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-[#3D6A9E]/10 text-[#3D6A9E]">
+                  {initialData?.number || "INV/2026-001"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Small Window Button to return to split view */}
+                <button
+                  type="button"
+                  onClick={() => setIsBigWindowModalOpen(false)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-95"
+                  title="Return to side-by-side Small Window"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span>Small Window</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => printInvoiceElement("invoice-printable-root-modal")}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold cursor-pointer transition-colors"
+                  title="Print Invoice"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#3D6A9E]" />
+                  <span>Print</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloadingPDF}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors"
+                  title="Download as PDF"
+                >
+                  <Download className={`w-3.5 h-3.5 text-[#3D6A9E] ${isDownloadingPDF ? "animate-bounce" : ""}`} />
+                  <span>{isDownloadingPDF ? "Downloading..." : "PDF"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsBigWindowModalOpen(false)}
+                  className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                  title="Close modal (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Big Window Modal Body: Proper full invoice view */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-100/70 dark:bg-gray-950/70">
+              <div id="invoice-printable-root-modal" className="max-w-4xl mx-auto shadow-lg rounded-xl overflow-hidden border border-gray-200/90 dark:border-gray-800 bg-white">
+                {renderInvoiceLivePreview()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Bank Account Modal */}
       <AddBankAccountModal
