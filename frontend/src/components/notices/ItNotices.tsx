@@ -1,12 +1,33 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { FileText, Plus } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Plus, PenTool, Loader2 } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import type { Notice, Client } from "@/types/notices";
 import { NoticeTable, type ColumnDef, formatNoticeDate, getClientIdentifier } from "./NoticeTable";
 import { StatusPill } from "@/components/common/StatusPill";
 
 export const ItNotices: React.FC = () => {
+  const router = useRouter();
+  const [stagingNoticeId, setStagingNoticeId] = useState<string | null>(null);
+
+  const handleSignNoticeWithDsc = async (notice: Notice, client?: Client) => {
+    setStagingNoticeId(notice.id);
+    try {
+      const pdfFile = notice.files?.find((f) => f.name.toLowerCase().endsWith(".pdf")) || notice.files?.[0];
+      await stageAndRedirectToPdfSigner(router, {
+        fileName: pdfFile?.name || `Notice_Reply_${notice.id}.pdf`,
+        fileUrl: pdfFile?.url,
+        clientId: client?.id || notice.clientId,
+        clientName: client?.name,
+      });
+    } catch (err: any) {
+      alert(err?.message || "Failed to stage notice file for DSC signing");
+    } finally {
+      setStagingNoticeId(null);
+    };
+  };
   const columns: ColumnDef[] = useMemo(
     () => [
       {
@@ -97,19 +118,40 @@ export const ItNotices: React.FC = () => {
       {
         id: "files",
         header: "Files",
-        defaultWidth: 80,
-        render: (n: Notice) => {
+        defaultWidth: 100,
+        render: (n: Notice, client?: Client) => {
           if (n.files && n.files.length > 0) {
+            const hasPdf = n.files.some((f) => f.name.toLowerCase().endsWith(".pdf"));
             return (
-              <div
-                className="flex items-center gap-1 cursor-pointer"
-                title={n.files.map((f) => f.name).join(", ")}
-              >
-                <FileText className="w-4 h-4" style={{ color: "var(--text-subtle)" }} />
-                {n.files.length > 1 && (
-                  <span className="text-[10px] font-bold" style={{ color: "var(--text-subtle)" }}>
-                    {n.files.length}
-                  </span>
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="flex items-center gap-1 cursor-pointer"
+                  title={n.files.map((f) => f.name).join(", ")}
+                >
+                  <FileText className="w-4 h-4" style={{ color: "var(--text-subtle)" }} />
+                  {n.files.length > 1 && (
+                    <span className="text-[10px] font-bold" style={{ color: "var(--text-subtle)" }}>
+                      {n.files.length}
+                    </span>
+                  )}
+                </div>
+                {hasPdf && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSignNoticeWithDsc(n, client);
+                    }}
+                    disabled={stagingNoticeId === n.id}
+                    className="p-1 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                    title="Sign with DSC (PAdES)"
+                  >
+                    {stagingNoticeId === n.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
+                    ) : (
+                      <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
+                    )}
+                  </button>
                 )}
               </div>
             );

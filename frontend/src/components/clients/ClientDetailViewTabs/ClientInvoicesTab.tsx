@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, ChevronLeft, ChevronRight, FileText, Eye, Palette, Check, Printer, Edit2, X, Download, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, ChevronLeft, ChevronRight, FileText, Eye, Palette, Check, Printer, Edit2, X, Download, SlidersHorizontal, PenTool, Loader2 } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import { Client } from "@/data/crmData";
 import { InvoiceProvider, useInvoice } from "@/components/invoice/InvoiceContext";
 import { InvoiceRecord } from "@/components/invoice/types";
@@ -85,6 +87,37 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
 
   // Full Invoice Preview modal state
   const [previewModalRecord, setPreviewModalRecord] = useState<InvoiceRecord | null>(null);
+  const router = useRouter();
+  const [signingInvoiceId, setSigningInvoiceId] = useState<string | null>(null);
+
+  const handleSignInvoiceWithDsc = async (row: any) => {
+    setSigningInvoiceId(row.id);
+    try {
+      await stageAndRedirectToPdfSigner(router, {
+        fileName: `Invoice_${row.number || row.id}.pdf`,
+        clientId: client.id || row.clientId,
+        clientName: row.clientBusinessName || row.clientLegalName || client.name,
+        invoiceData: {
+          invoiceNumber: row.number || `INV-${row.id}`,
+          clientName: row.clientBusinessName || row.clientLegalName || client.name || "Valued Client",
+          clientId: client.id || row.clientId,
+          date: row.date,
+          dueDate: row.dueDate,
+          totalAmount: row.totalPayable || row.amount || 0,
+          services: row.services?.map((s: any) => ({
+            serviceName: s.serviceName || "CA Professional Services",
+            amount: s.amount || 0,
+            description: s.description || "",
+          })),
+          billingOrg: row.billingOrg,
+        },
+      });
+    } catch (err: any) {
+      alert(err?.message || "Failed to prepare invoice for DSC signing");
+    } finally {
+      setSigningInvoiceId(null);
+    }
+  };
   const [previewModalFormat, setPreviewModalFormat] = useState<"classic" | "modern" | "minimal">("modern");
   const [isUpdatingFormat, setIsUpdatingFormat] = useState(false);
 
@@ -680,6 +713,22 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
                             <Edit2 className="w-3.5 h-3.5" />
                             <span>Edit</span>
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSignInvoiceWithDsc(record);
+                            }}
+                            disabled={signingInvoiceId === record.id}
+                            className="p-1 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                            title="Sign with DSC (PAdES)"
+                          >
+                            {signingInvoiceId === record.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
+                            ) : (
+                              <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
+                            )}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -896,6 +945,22 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
                   >
                     <Download className={`w-3.5 h-3.5 text-[#3D6A9E] ${isDownloadingPDF ? "animate-bounce" : ""}`} />
                     <span>{isDownloadingPDF ? "Downloading..." : "Download PDF"}</span>
+                  </button>
+
+                  {/* Sign with DSC Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleSignInvoiceWithDsc(previewModalRecord)}
+                    disabled={signingInvoiceId === previewModalRecord.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#31719B] text-white hover:opacity-90 cursor-pointer transition-colors shadow-2xs"
+                    title="Sign with DSC (PAdES)"
+                  >
+                    {signingInvoiceId === previewModalRecord.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                    ) : (
+                      <PenTool className="w-3.5 h-3.5 text-white" />
+                    )}
+                    <span>Sign with DSC</span>
                   </button>
 
                   {/* Edit Button */}

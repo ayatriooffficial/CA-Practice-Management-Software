@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import {
+  PenTool,
+  Loader2,
   Files,
   Search,
   User,
@@ -87,6 +91,26 @@ export const DocumentsModule: React.FC = () => {
   const [uploadDescription, setUploadDescription] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [selectedRequirementForUpload, setSelectedRequirementForUpload] = useState<DocumentRequirementItem | null>(null);
+  const router = useRouter();
+  const [stagingDocId, setStagingDocId] = useState<string | null>(null);
+
+  const handleSignDocWithDsc = async (doc: any) => {
+    const docId = (doc as any).driveFileId || doc.id || (doc as any)._id || doc.fileName;
+    setStagingDocId(docId);
+    try {
+      await stageAndRedirectToPdfSigner(router, {
+        driveDocumentId: (doc as any).driveFileId,
+        fileUrl: doc.downloadUrl || doc.previewUrl,
+        fileName: doc.fileName || doc.title || "document.pdf",
+        clientId: (selectedPersonDetail?.person as any)?.fileNo || (selectedPersonDetail?.person as any)?.identifier,
+        clientName: selectedPersonDetail?.person?.name,
+      });
+    } catch (err: any) {
+      alert(err?.message || "Failed to prepare document for DSC signing");
+    } finally {
+      setStagingDocId(null);
+    }
+  };
   const [previewDoc, setPreviewDoc] = useState<{
     fileName: string;
     category: string;
@@ -1244,6 +1268,22 @@ export const DocumentsModule: React.FC = () => {
                                             title="Preview document"
                                           >
                                             <Eye className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+
+                                        {(req.mimeType?.includes("pdf") || (req.fileName || req.title)?.toLowerCase().endsWith(".pdf")) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSignDocWithDsc(req)}
+                                            disabled={stagingDocId === ((req as any).driveFileId || req.id || (req as any)._id || req.fileName)}
+                                            className="p-1.5 rounded-lg border hover:bg-blue-50 dark:hover:bg-blue-950/40 text-[#31719B] transition-colors cursor-pointer"
+                                            title="Sign with DSC (PAdES)"
+                                          >
+                                            {stagingDocId === ((req as any).driveFileId || req.id || (req as any)._id || req.fileName) ? (
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
+                                            ) : (
+                                              <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
+                                            )}
                                           </button>
                                         )}
 

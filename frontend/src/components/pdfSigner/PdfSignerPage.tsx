@@ -160,8 +160,19 @@ export const PdfSignerPage: React.FC = () => {
         const staged = all.filter((d) => d.status === 'Ready' || d.status === 'Password protected');
         setStagedDocs(staged);
 
-        // Set active document if not set
-        if (staged.length > 0 && !activeDocId) {
+        // Direct staging support: check query parameter for stagedId
+        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const targetStagedId = urlParams?.get('stagedId');
+
+        if (targetStagedId) {
+          const matched = staged.find((d) => d.id === targetStagedId || d._id === targetStagedId);
+          if (matched) {
+            setActiveDocId(matched.id);
+            setSelectedStagedIds([matched.id]);
+          } else if (staged.length > 0 && !activeDocId) {
+            setActiveDocId(staged[0].id);
+          }
+        } else if (staged.length > 0 && !activeDocId) {
           setActiveDocId(staged[0].id);
         }
       }
@@ -177,6 +188,28 @@ export const PdfSignerPage: React.FC = () => {
     fetchClientsAndDscs();
     fetchDocuments();
   }, [fetchStatus, fetchClientsAndDscs, fetchDocuments]);
+
+  // Auto-fetch active document binary for interactive placement preview if not present in memory
+  useEffect(() => {
+    if (activeDocId && !stagedFilesMap[activeDocId]) {
+      const activeDoc = stagedDocs.find((d) => d.id === activeDocId);
+      if (activeDoc && activeDoc.status !== 'Password protected') {
+        const downloadUrl = pdfSignerApi.getDownloadUrl(activeDocId);
+        fetch(downloadUrl, { credentials: 'include' })
+          .then((res) => {
+            if (res.ok) return res.blob();
+            throw new Error('Failed to load active PDF bytes');
+          })
+          .then((blob) => {
+            const file = new File([blob], activeDoc.fileName, { type: 'application/pdf' });
+            setStagedFilesMap((prev) => ({ ...prev, [activeDocId]: file }));
+          })
+          .catch((err) => {
+            console.warn('Could not load staged PDF file for placement canvas:', err);
+          });
+      }
+    }
+  }, [activeDocId, stagedDocs, stagedFilesMap]);
 
   // Upload handler for Signing mode
   const handleUploadFiles = async (files: File[]) => {
