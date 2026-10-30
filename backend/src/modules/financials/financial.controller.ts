@@ -96,4 +96,17 @@ export class FinancialController {
 
   static listEmployeeCostRates = asyncHandler(async (req: Request, res: Response) =>
     ApiResponse.success(res, await FinancialService.listEmployeeCostRates(getContext(req))));
+
+  static convertProforma = asyncHandler(async (req: Request, res: Response) =>
+    ApiResponse.success(
+      res,
+      await FinancialService.convertProformaToInvoice(String(req.params.id), req.body?.newNumber, getContext(req)),
+      'Proforma converted to Invoice'
+    ));
+
+  static listReceipts = asyncHandler(async (req: Request, res: Response) =>
+    ApiResponse.success(res, await FinancialService.listReceipts(getContext(req))));
+
+  static createReceipt = asyncHandler(async (req: Request, res: Response) => 
+    ApiResponse.created(res, await FinancialService.createReceipt(req.body, getContext(req)), 'Payment receipt recorded'));
 }

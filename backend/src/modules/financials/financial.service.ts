@@ -2,11 +2,12 @@ import mongoose from 'mongoose';
 import { AppError } from '../../shared/utils/apiError';
 import { Task } from '../task/task.model';
 import { UserModel } from '../auth/user.model';
-import { FinancialInvoice, TaskExpense, FinancialTimeEntry } from './financial.model';
-import { IInvoiceAllocation } from './financial.interface';
+import { FinancialInvoice, TaskExpense, FinancialTimeEntry, FinancialReceipt } from './financial.model';
+import { IInvoiceAllocation, PaymentMethod, InvoiceState } from './financial.interface';
 import { aggregateEmployeeCosts, aggregatePeriodFacts, calculateProfitPaise, calculateTimeCostPaise } from './financial.calculation';
 import { generateProfitabilityReportPdf, ProfitabilityPdfRow } from './pdf.generator';
 import { AgentExecutionService } from '../agentCenter/execution.service';
+import { CounterService } from '../counter/counter.service';
 
 export interface FinancialUserContext {
   userId: string;
@@ -233,6 +234,7 @@ export class FinancialService {
       number?: string;
       issueDate?: string | null;
       allocations?: IInvoiceAllocation[];
+      state?: InvoiceState;
     },
     ctx: FinancialUserContext
   ) {
@@ -264,8 +266,223 @@ export class FinancialService {
       invoice.allocations = updates.allocations as any;
     }
 
+    if (updates.state) {
+      invoice.state = updates.state;
+    }
     await invoice.save();
     return invoice;
+  }
+
+  /**
+   * Generates next sequential Tax Invoice number for the organization:
+   * e.g., INV-YYYY-0001, INV-YYYY-0002, etc., guaranteeing zero collisions.
+   */
+  static async getNextInvoiceNumber(orgId: any, preferredCandidate?: string): Promise<string> {
+    // 1. If a preferred candidate was requested and does not collide, use it
+    if (preferredCandidate && preferredCandidate.trim()) {
+      const trimmed = preferredCandidate.trim();
+      const exists = await FinancialInvoice.exists({ orgId, number: trimmed });
+      if (!exists) return trimmed;
+    }
+
+    // 2. Delegate to thread-safe dedicated CounterService
+    return CounterService.getNextInvoiceNumber(orgId);
+  }
+
+  static async convertProformaToInvoice(
+    id: string,
+    newNumber: string | undefined,
+    ctx: FinancialUserContext
+  ) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw AppError.badRequest('Invalid invoice identifier');
+    const invoice = await FinancialInvoice.findOne({ _id: id, orgId: ctx.orgId });
+    if (!invoice) throw AppError.notFound('Invoice not found in your organization');
+
+    const originalProformaNo = invoice.number;
+
+    // Check if user or system had a preferred direct replacement
+    let preferred: string | undefined = newNumber?.trim();
+    if (!preferred && invoice.number) {
+      if (invoice.number.startsWith('PI-')) {
+        preferred = invoice.number.replace(/^PI-/, 'INV-');
+      } else if (invoice.number.startsWith('PI')) {
+        preferred = invoice.number.replace(/^PI/, 'INV');
+      }
+    }
+
+    // Allocate guaranteed collision-free sequence number via Atomic Counter
+    let finalNumber = await this.getNextInvoiceNumber(ctx.orgId, preferred);
+
+    invoice.state = 'issued';
+    invoice.number = finalNumber;
+    invoice.issueDate = new Date();
+    invoice.details = {
+      ...(invoice.details || {}),
+      invoiceNumber: finalNumber,
+      status: invoice.details?.status === 'Paid' ? 'Paid' : 'Receivable',
+      type: 'invoice',
+      convertedFromProforma: true,
+      originalProformaNumber: originalProformaNo,
+      convertedAt: new Date().toISOString(),
+    };
+    invoice.markModified('details');
+
+    // Safe save with automatic conflict recovery
+    let saved = false;
+    let attempts = 0;
+    while (!saved && attempts < 5) {
+      try {
+        await invoice.save();
+        saved = true;
+      } catch (err: any) {
+        if (isDuplicateKey(err)) {
+          attempts += 1;
+          finalNumber = await CounterService.getNextInvoiceNumber(ctx.orgId);
+          invoice.number = finalNumber;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    return invoice;
+  }
+
+  static async createReceipt(
+    input: {
+      receiptNo?: string;
+      invoiceId?: string;
+      invoiceNumber?: string;
+      clientId?: string;
+      businessName?: string;
+      legalName?: string;
+      group?: string;
+      billingOrg?: string;
+      amount: number;
+      amountForService?:any;
+      paymentDate?: string;
+      method?: PaymentMethod;
+      bankAccountId?: string;
+      bankName?: string;
+      referenceNumber?: string;
+      notes?: string;
+      financialYear?: string;
+      isAdvance?: boolean;
+      tdsAmount?: number;
+      discountAmount?: number;
+      badDebtAmount?: number;
+      details?: Record<string, unknown>;
+      allocations?: { id: string; amount: number; type: 'invoice' | 'reimbursement' }[];
+    },
+    ctx: FinancialUserContext
+  ) {
+
+    // console.log(input);
+    
+    // Generate sequential atomic receipt number if not provided or colliding
+    let receiptNo: string;
+    if (input.receiptNo && input.receiptNo.trim()) {
+      const exists = await FinancialReceipt.exists({ orgId: ctx.orgId, receiptNo: input.receiptNo.trim() });
+      if (!exists) {
+        receiptNo = input.receiptNo.trim();
+      } else {
+        receiptNo = await CounterService.getNextReceiptNumber(ctx.orgId);
+      }
+    } else {
+      receiptNo = await CounterService.getNextReceiptNumber(ctx.orgId);
+    }
+
+    const amountPaise = Math.round(Number(input.amount) * 100);
+    const paymentDate = parseFlexibleDate(input.paymentDate) || new Date();
+    const currentYear = paymentDate.getFullYear();
+    const defaultFY = `${currentYear}-${currentYear + 1}`;
+    const financialYear = input.financialYear?.trim() || defaultFY;
+
+    let receipt: any;
+    let attempts = 0;
+    while (!receipt && attempts < 5) {
+      try {
+        receipt = await FinancialReceipt.create({
+          orgId: ctx.orgId,
+          receiptNo,
+          invoiceId: input.invoiceId || null,
+          invoiceNumber: input.invoiceNumber || '',
+          clientId: input.clientId || '',
+          businessName: input.businessName || '',
+          legalName: input.legalName || '',
+          group: input.group || '',
+          billingOrg: input.billingOrg || '',
+          amount: Number(input.amount),
+          amountPaise,
+          amountForService:input.amountForService,
+          paymentDate,
+          method: input.method || 'Bank Transfer',
+          bankAccountId: input.bankAccountId || '',
+          bankName: input.bankName || '',
+          referenceNumber: input.referenceNumber || '',
+          notes: input.notes || '',
+          financialYear,
+          isAdvance: Boolean(input.isAdvance),
+          tdsAmount: Number(input.tdsAmount || 0),
+          discountAmount: Number(input.discountAmount || 0),
+          badDebtAmount: Number(input.badDebtAmount || 0),
+          details: input.details || {},
+          createdBy: ctx.userId,
+        });
+      } catch (err: any) {
+        if (isDuplicateKey(err)) {
+          attempts += 1;
+          receiptNo = await CounterService.getNextReceiptNumber(ctx.orgId);
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    let linkedInvoiceDoc = null;
+    if (input.invoiceId && mongoose.Types.ObjectId.isValid(input.invoiceId)) {
+      linkedInvoiceDoc = await FinancialInvoice.findOne({ _id: input.invoiceId, orgId: ctx.orgId });
+    } else if (input.invoiceNumber) {
+      linkedInvoiceDoc = await FinancialInvoice.findOne({ number: input.invoiceNumber, orgId: ctx.orgId });
+    }
+
+    if (linkedInvoiceDoc) {
+      const details = (linkedInvoiceDoc.details || {}) as Record<string, any>;
+      const totalPayable = Number(details.totalPayable || 0);
+      const prevPaid = Number(details.paidAmount || 0);
+      const newPaid = prevPaid + Number(input.amount);
+      const newBalance = Math.max(0, totalPayable - newPaid);
+      const newStatus = newBalance === 0 ? 'Paid' : newPaid > 0 ? 'Partially Paid' : (details.status || 'Receivable');
+
+      const payments = Array.isArray(details.payments) ? [...details.payments] : [];
+      payments.push({
+        receiptId: receipt._id,
+        receiptNo: receipt.receiptNo,
+        amount: Number(input.amount),
+        paymentDate: paymentDate.toISOString(),
+        method: receipt.method,
+        referenceNumber: receipt.referenceNumber,
+        bankName: receipt.bankName,
+        notes: receipt.notes,
+        recordedAt: new Date().toISOString(),
+      });
+
+      linkedInvoiceDoc.details = {
+        ...details,
+        paidAmount: newPaid,
+        balanceAmount: newBalance,
+        status: newStatus,
+        payments,
+      };
+
+      await linkedInvoiceDoc.save();
+    }
+
+    return { receipt, linkedInvoice: linkedInvoiceDoc };
+  }
+
+  static async listReceipts(ctx: FinancialUserContext) {
+    return FinancialReceipt.find({ orgId: ctx.orgId }).sort({ paymentDate: -1, createdAt: -1 }).lean();
   }
 
   static async createTimeEntry(input: {

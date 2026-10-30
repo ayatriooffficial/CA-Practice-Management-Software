@@ -467,7 +467,8 @@ export class LeadService {
       active?: boolean;
       services?: string[];
       users?: string[];
-    }
+    },
+    userCtx?: { userId: string | null; orgId?: string | null } | null
   ) {
     const lead = await Lead.findById(leadId);
     if (!lead) {
@@ -543,6 +544,9 @@ export class LeadService {
       },
       paymentDetails: lead.paymentDetails || {},
       leadId: lead._id,
+      orgId: userCtx?.orgId || (lead as any).orgId || null,
+      userId: userCtx?.userId || null,
+      createdBy: userCtx?.userId || null,
       customerFiles: {
         promoter: promoterFiles,
         statutory: statutoryFiles,

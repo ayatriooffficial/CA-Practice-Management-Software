@@ -18,6 +18,7 @@ import { pdfSignerRoutes } from './modules/pdfSigner/pdfSigner.routes';
 import { documentRoutes } from './modules/document/document.routes';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
+import { workdoneRoutes } from './modules/workdone/workdone.routes';
 
 const router = Router();
 
@@ -58,5 +59,7 @@ router.use('/quotations', optionalAuthenticate, quotationRoutes);
 router.use('/integrations', optionalAuthenticate, integrationRoutes);
 router.use('/pdf-signer', optionalAuthenticate, pdfSignerRoutes);
 router.use('/documents', optionalAuthenticate, documentRoutes);
+router.use('/workdone', optionalAuthenticate,workdoneRoutes );
+
 
 export const appRouter = router;

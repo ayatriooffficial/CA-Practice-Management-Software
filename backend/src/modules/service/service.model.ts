@@ -168,6 +168,18 @@ const serviceSchema = new Schema<IServiceDocument>(
       min: [0, 'Fee cannot be negative'],
       default: 0,
     },
+    governmentFee: {
+    type: Number,
+    required: [true, 'Government fee is required'],
+    min: [0, 'Government fee cannot be negative'],
+    default: 0,
+  },
+  totalServiceFee: {
+    type: Number,
+    required: [true, 'Total service fee is required'],
+    min: [0, 'Total service fee cannot be negative'],
+    default: 0,
+  },
     taxRate: {
       type: String,
       trim: true,

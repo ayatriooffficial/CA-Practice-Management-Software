@@ -341,6 +341,8 @@ export class ClientService {
       const orgConditions: any[] = [
         { orgId },
         { orgId: String(orgId) },
+        { orgId: null },
+        { orgId: { $exists: false } },
       ];
       if (userId) {
         orgConditions.push({ userId }, { createdBy: userId }, { users: userId });
@@ -684,6 +686,8 @@ export class ClientService {
       const orgConditions: any[] = [
         { orgId },
         { orgId: String(orgId) },
+        { orgId: null },
+        { orgId: { $exists: false } },
       ];
       if (userId) {
         orgConditions.push({ userId }, { createdBy: userId }, { users: userId });

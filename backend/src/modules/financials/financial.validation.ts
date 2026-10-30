@@ -46,3 +46,37 @@ export const reportDateQuerySchema = z.object({
   search: z.string().trim().optional(),
 });
 export const compensationSchema = z.object({ internalCostRatePaisePerHour: z.number().int().nonnegative().safe().nullable() });
+
+export const convertProformaSchema = z.object({
+  newNumber: z.string().trim().min(1).max(80).optional(),
+});
+
+export const createReceiptSchema = z.object({
+  receiptNo: z.string().trim().min(1).max(80).optional(),
+  invoiceId: z.string().optional(),
+  invoiceNumber: z.string().trim().optional(),
+  clientId: z.string().trim().optional(),
+  businessName: z.string().trim().optional(),
+  legalName: z.string().trim().optional(),
+  group: z.string().trim().optional(),
+  billingOrg: z.string().trim().optional(),
+  amount: z.number().nonnegative(),
+  paymentDate: z.string().optional(),
+  method: z.enum(['Bank Transfer', 'Cash', 'Cheque', 'UPI']).default('Bank Transfer'),
+  bankAccountId: z.string().trim().optional(),
+  amountForService:z.any(),
+  bankName: z.string().trim().optional(),
+  referenceNumber: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+  financialYear: z.string().trim().optional(),
+  isAdvance: z.boolean().optional().default(false),
+  tdsAmount: z.number().optional().default(0),
+  discountAmount: z.number().optional().default(0),
+  badDebtAmount: z.number().optional().default(0),
+  details: z.record(z.unknown()).optional().default({}),
+  allocations: z.array(z.object({
+    id: z.string(),
+    amount: z.number(),
+    type: z.enum(['invoice', 'reimbursement']),
+  })).optional(),
+});

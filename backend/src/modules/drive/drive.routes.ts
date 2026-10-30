@@ -8,7 +8,7 @@ import {
   documentIdParamSchema,
 } from './drive.validation';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
-import { authenticate } from '../../middlewares/authenticate';
+import { authenticate, optionalAuthenticate } from '../../middlewares/authenticate';
 
 const router = Router();
 
@@ -49,10 +49,10 @@ router.get(
   DriveController.downloadDocument
 );
 
-// 6. Preview Document Inline Stream (Strict authentication required)
+// 6. Preview Document Inline Stream (Optional authentication: JWT verified if present, avoids breaking inline <img> tags)
 router.get(
   '/:id/preview',
-  authenticate,
+  optionalAuthenticate,
   DriveController.previewDocument
 );
 

@@ -51,3 +51,35 @@ export interface ITaskExpense extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type PaymentMethod = 'Bank Transfer' | 'Cash' | 'Cheque' | 'UPI';
+
+export interface IFinancialReceipt extends Document {
+  orgId: Types.ObjectId;
+  receiptNo: string;
+  invoiceId?: Types.ObjectId | string | null;
+  invoiceNumber?: string;
+  clientId?: string;
+  businessName?: string;
+  legalName?: string;
+  group?: string;
+  billingOrg?: string;
+  amount: number;
+  amountPaise: number;
+  paymentDate: Date;
+  method: PaymentMethod;
+  amountForService:any;
+  bankAccountId?: string;
+  bankName?: string;
+  referenceNumber?: string;
+  notes?: string;
+  financialYear?: string;
+  isAdvance: boolean;
+  tdsAmount: number;
+  discountAmount: number;
+  badDebtAmount: number;
+  details: Record<string, unknown>;
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}

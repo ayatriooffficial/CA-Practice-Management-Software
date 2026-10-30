@@ -3,7 +3,7 @@ import { authenticate } from '../../middlewares/authenticate';
 import { validateRequest } from '../../middlewares/validateRequest';
 import { FinancialController } from './financial.controller';
 import {
-  compensationSchema, createExpenseSchema, createInvoiceSchema, createTimeEntrySchema,
+  compensationSchema, convertProformaSchema, createExpenseSchema, createInvoiceSchema, createReceiptSchema, createTimeEntrySchema,
   expenseStateSchema, reportDateQuerySchema,
   voidInvoiceSchema,
 } from './financial.validation';
@@ -15,7 +15,10 @@ router.get('/report/pdf', validateRequest({ query: reportDateQuerySchema }), Fin
 router.get('/invoices', FinancialController.listInvoices);
 router.post('/invoices', validateRequest({ body: createInvoiceSchema }), FinancialController.createInvoice);
 router.put('/invoices/:id', FinancialController.updateInvoice);
+router.post('/invoices/:id/convert', validateRequest({ body: convertProformaSchema }), FinancialController.convertProforma);
 router.patch('/invoices/:id/void', validateRequest({ body: voidInvoiceSchema }), FinancialController.voidInvoice);
+router.get('/receipts', FinancialController.listReceipts);
+router.post('/receipts', validateRequest({ body: createReceiptSchema }), FinancialController.createReceipt);
 router.get('/time-entries', FinancialController.listTimeEntries);
 router.post('/time-entries', validateRequest({ body: createTimeEntrySchema }), FinancialController.createTimeEntry);
 router.get('/expenses', FinancialController.listExpenses);

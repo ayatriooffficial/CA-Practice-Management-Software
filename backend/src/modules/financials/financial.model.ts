@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { IFinancialInvoice, ITaskExpense, ITimeEntry } from './financial.interface';
+import { IFinancialInvoice, IFinancialReceipt, ITaskExpense, ITimeEntry } from './financial.interface';
 
 const allocationSchema = new Schema(
   {
@@ -65,9 +65,46 @@ const expenseSchema = new Schema<ITaskExpense>(
 expenseSchema.index({ orgId: 1, idempotencyKey: 1 }, { unique: true });
 expenseSchema.index({ orgId: 1, taskId: 1, state: 1, incurredDate: 1 });
 
+const receiptSchema = new Schema<IFinancialReceipt>(
+  {
+    orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
+    receiptNo: { type: String, required: true, trim: true },
+    invoiceId: { type: Schema.Types.Mixed, default: null },
+    invoiceNumber: { type: String, trim: true, default: '' },
+    clientId: { type: String, trim: true, default: '' },
+    businessName: { type: String, trim: true, default: '' },
+    legalName: { type: String, trim: true, default: '' },
+    group: { type: String, trim: true, default: '' },
+    billingOrg: { type: String, trim: true, default: '' },
+    amount: { type: Number, required: true, min: 0 },
+    amountPaise: { type: Number, required: true, min: 0 },
+    paymentDate: { type: Date, required: true, default: Date.now },
+    method: { type: String, enum: ['Bank Transfer', 'Cash', 'Cheque', 'UPI'], default: 'Bank Transfer' },
+    bankAccountId: { type: String, trim: true, default: '' },
+    bankName: { type: String, trim: true, default: '' },
+    referenceNumber: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
+    financialYear: { type: String, trim: true, default: '' },
+    isAdvance: { type: Boolean, default: false },
+    amountForService:{type:Schema.Types.Mixed},
+    tdsAmount: { type: Number, default: 0 },
+    discountAmount: { type: Number, default: 0 },
+    badDebtAmount: { type: Number, default: 0 },
+    details: { type: Schema.Types.Mixed, default: {} },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+);
+
+receiptSchema.index({ orgId: 1, receiptNo: 1 }, { unique: true });
+receiptSchema.index({ orgId: 1, paymentDate: -1 });
+receiptSchema.index({ orgId: 1, clientId: 1 });
+receiptSchema.index({ orgId: 1, invoiceNumber: 1 });
+
 export const FinancialInvoice = model<IFinancialInvoice>('FinancialInvoice', invoiceSchema);
 export const FinancialTimeEntry = model<ITimeEntry>('FinancialTimeEntry', timeEntrySchema);
 export const TaskExpense = model<ITaskExpense>('TaskExpense', expenseSchema);
+export const FinancialReceipt = model<IFinancialReceipt>('FinancialReceipt', receiptSchema);
 
 /** autoIndex is disabled in production, so explicitly create financial uniqueness/query indexes at startup. */
 export async function initializeFinancialIndexes(): Promise<void> {
@@ -75,5 +112,6 @@ export async function initializeFinancialIndexes(): Promise<void> {
     FinancialInvoice.createIndexes(),
     FinancialTimeEntry.createIndexes(),
     TaskExpense.createIndexes(),
+    FinancialReceipt.createIndexes(),
   ]);
 }

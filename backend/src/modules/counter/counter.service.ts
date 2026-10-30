@@ -86,6 +86,56 @@ export class CounterService {
   }
 
   /**
+   * Dedicated generator for Tax Invoice Numbers (INV-YYYY-XXXX).
+   * Thread-safe, atomic sequence incrementing per organization and fiscal year.
+   * Cross-checks existing database records to prevent any collisions with legacy data.
+   */
+  static async getNextInvoiceNumber(orgId: any, year?: number): Promise<string> {
+    const currentYear = year || new Date().getFullYear();
+    const counterKey = `invoiceCounter_${String(orgId)}_${currentYear}`;
+
+    let seq = await this.getNextSequence(counterKey, 0);
+    let candidate = `INV-${currentYear}-${String(seq).padStart(4, '0')}`;
+
+    try {
+      const { FinancialInvoice } = await import('../financials/financial.model');
+      while (await FinancialInvoice.exists({ orgId, number: candidate })) {
+        seq = await this.getNextSequence(counterKey);
+        candidate = `INV-${currentYear}-${String(seq).padStart(4, '0')}`;
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
+    return candidate;
+  }
+
+  /**
+   * Dedicated generator for Payment Receipt Numbers (REC-YYYY-XXXX).
+   * Thread-safe, atomic sequence incrementing per organization and fiscal year.
+   * Cross-checks existing database records to prevent collisions.
+   */
+  static async getNextReceiptNumber(orgId: any, year?: number): Promise<string> {
+    const currentYear = year || new Date().getFullYear();
+    const counterKey = `receiptCounter_${String(orgId)}_${currentYear}`;
+
+    let seq = await this.getNextSequence(counterKey, 0);
+    let candidate = `REC-${currentYear}-${String(seq).padStart(4, '0')}`;
+
+    try {
+      const { FinancialReceipt } = await import('../financials/financial.model');
+      while (await FinancialReceipt.exists({ orgId, receiptNo: candidate })) {
+        seq = await this.getNextSequence(counterKey);
+        candidate = `REC-${currentYear}-${String(seq).padStart(4, '0')}`;
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
+    return candidate;
+  }
+
+  /**
    * Dedicated generator for Lead IDs (LD-00001, etc.)
    */
   static async getNextLeadId(): Promise<string> {

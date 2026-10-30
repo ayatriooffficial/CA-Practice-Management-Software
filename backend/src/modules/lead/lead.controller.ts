@@ -95,7 +95,8 @@ export class LeadController {
    */
   static convertLead = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
-    const result = await LeadService.convertLeadToClient(id, req.body);
+    const userCtx = getUserContextFromRequest(req);
+    const result = await LeadService.convertLeadToClient(id, req.body, userCtx);
     return ApiResponse.created(res, result, ResponseMessages.LEAD_CONVERTED);
   });
 

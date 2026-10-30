@@ -145,7 +145,6 @@ export class DriveController {
         logger.warn(
           `⚠️ Google Drive token expired (invalid_grant) for preview ${documentId}. Run 'npm run get-drive-token' in backend to re-authorize.`
         );
-        // Serve a 1x1 transparent PNG fallback for images so frontend preview and print do not break or log 500 errors
         const transparentPng = Buffer.from(
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
           'base64'
@@ -156,6 +155,24 @@ export class DriveController {
         res.status(200).send(transparentPng);
         return;
       }
+
+      // If client requested image preview or browser <img> tag, return clean SVG avatar placeholder instead of breaking
+      const isImageRequest =
+        req.headers.accept?.includes('image/') ||
+        /\.(png|jpe?g|webp|gif|svg)$/i.test(documentId) ||
+        documentId.includes('photo') ||
+        documentId.includes('logo') ||
+        documentId.includes('sign');
+
+      if (isImageRequest) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f8fafc"/><circle cx="100" cy="80" r="35" fill="#cbd5e1"/><path d="M40 160 c0 -30 30 -45 60 -45 s60 15 60 45" fill="#cbd5e1"/></svg>`;
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'no-cache, private');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.status(200).send(svg);
+        return;
+      }
+
       throw err;
     }
   });

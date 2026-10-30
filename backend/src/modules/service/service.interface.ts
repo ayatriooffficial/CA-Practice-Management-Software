@@ -96,6 +96,8 @@ export interface IService {
   isRecurring: boolean;
   recurringSchedule?: IServiceRecurringSchedule;
   professionalFee: number;
+  governmentFee:number;
+totalServiceFee:number;
   taxRate?: string;
   sacCode?: string;
   exemptionReason?: string;
