@@ -2,24 +2,13 @@ import { call, put, takeLatest, all } from 'redux-saga/effects';
 import { PayloadAction } from '@reduxjs/toolkit';
 import { SagaIterator } from 'redux-saga';
 import { fetchWorkDoneRequest, fetchWorkDoneSuccess, fetchWorkDoneFailure } from './workdoneSlice';
-import { showToast } from '../ui/uiSlice';
-
-// Simple API wrapper
-const API_URL = 'http://localhost:5000/api/v1/workdone/client-work-done';
+import { getWorkDone } from '@/services/workdoneApi';
+import { showToast } from '../ui';
 
 function fetchWorkDoneApi(params?: any) {
-    const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return fetch(API_URL + query, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-    }).then(async (res) => {
-        if (!res.ok) throw new Error(`Failed to fetch workdone clients. Status: ${res.status}`);
-        const data = await res.json();
-        if (!data.success) throw new Error('API returned unsuccessful response');
-        return data.data;
-    });
+    return getWorkDone(params);
 }
+
 
 function* handleFetchWorkDone(action: PayloadAction<Record<string, any> | undefined>): SagaIterator {
     try {
