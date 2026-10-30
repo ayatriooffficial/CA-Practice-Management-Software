@@ -5,6 +5,7 @@ import { leadSaga } from './features/leads/leadSaga';
 import { serviceSaga } from './features/services/serviceSaga';
 import { taskSaga } from './features/tasks/taskSaga';
 import { teamSaga } from './features/team/teamSaga';
+import { workdoneSaga } from './features/workdone/workdoneSaga';
 
 export function* rootSaga() {
   yield all([
@@ -14,5 +15,6 @@ export function* rootSaga() {
     fork(serviceSaga),
     fork(taskSaga),
     fork(teamSaga),
+    fork(workdoneSaga),
   ]);
 }

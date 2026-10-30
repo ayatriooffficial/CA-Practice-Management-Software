@@ -1,78 +1,36 @@
-
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-
+import React, { useEffect, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import WorkDoneClient from "../../components/workdone/WorkDoneClient";
 import WorkDoneServices from "./WorkDoneServices";
-
-import type {
-  WorkDoneApiResponse,
-  WorkDoneClient as Client,
-} from "./types";
-
-const API_URL =
-  "http://localhost:5000/api/v1/workdone/client-work-done";
+import type { WorkDoneClient as Client } from "./types";
+import { fetchWorkDoneRequest } from "@/store/features/workdone/workdoneSlice";
+import { RootState } from "@/store";
 
 export default function WorkDonePage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const dispatch = useDispatch();
+  const { items: clients, loading, error } = useSelector((state: RootState) => state.workdone);
+  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
 
-  const [selectedClient, setSelectedClient] =
-    useState<Client | null>(null);
+  const fetchClients = useCallback(() => {
+    dispatch(fetchWorkDoneRequest(undefined));
+  }, [dispatch]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch client data
-  const fetchClients = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(API_URL, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch clients. Status: ${response.status}`
-        );
-      }
-
-      const result: WorkDoneApiResponse = await response.json();
-
-      if (!result.success) {
-        throw new Error("Unable to fetch client work done data.");
-      }
-
-      setClients(result.data || []);
-
-    } catch (err) {
-      console.error("Client fetch error:", err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while fetching clients."
-      );
-
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch when component mounts
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
 
-  // Refresh selected client data
-  const handleRefresh = async () => {
-    await fetchClients();
+  const handleRefresh = () => {
+    fetchClients();
+  };
+
+  const handleSelectClient = (client: Client) => {
+    setSelectedClient(client);
+  };
+
+  const handleBack = () => {
+    setSelectedClient(null);
   };
 
   return (
@@ -84,14 +42,9 @@ export default function WorkDonePage() {
       }}
     >
       <div className="mx-auto w-full max-w-[1800px]">
-
         {selectedClient ? (
-          <WorkDoneServices
-            client={selectedClient}
-            onBack={() => setSelectedClient(null)}
-          />
+          <WorkDoneServices client={selectedClient} onBack={handleBack} />
         ) : loading ? (
-
           // Loading State
           <div className="flex min-h-[300px] flex-col items-center justify-center gap-3">
             <div
@@ -100,17 +53,11 @@ export default function WorkDonePage() {
                 borderTopColor: "var(--primary)",
               }}
             />
-
-            <p
-              className="text-sm font-medium"
-              style={{ color: "var(--text-muted)" }}
-            >
+            <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
               Loading clients...
             </p>
           </div>
-
         ) : error ? (
-
           // Error State
           <div
             className="rounded-xl border p-8 text-center"
@@ -119,17 +66,8 @@ export default function WorkDonePage() {
               borderColor: "var(--border-main)",
             }}
           >
-            <h2 className="text-lg font-bold text-red-600">
-              Failed to Load Clients
-            </h2>
-
-            <p
-              className="mt-2 text-sm"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {error}
-            </p>
-
+            <h2 className="text-lg font-bold text-red-600">Failed to Load Clients</h2>
+            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>{error}</p>
             <button
               onClick={handleRefresh}
               className="mt-5 rounded-lg px-5 py-2 text-sm font-semibold text-white"
@@ -140,18 +78,14 @@ export default function WorkDonePage() {
               Try Again
             </button>
           </div>
-
         ) : (
-
           // Client List
           <WorkDoneClient
             clients={clients}
-            onSelectClient={setSelectedClient}
+            onSelectClient={handleSelectClient}
             onRefresh={handleRefresh}
           />
-
         )}
-
       </div>
     </main>
   );
