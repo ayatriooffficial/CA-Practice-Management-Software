@@ -126,7 +126,7 @@ export const SignupForm: React.FC = () => {
           onClick={() => {
             router.push(`/login?email=${encodeURIComponent(confirmationData.email)}`);
           }}
-          className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] transition-all shadow-sm hover:shadow cursor-pointer flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#3D6A9E] hover:bg-[#5b42e6] transition-all shadow-sm hover:shadow cursor-pointer flex items-center justify-center gap-2"
         >
           <span>Go to Sign In</span>
         </button>
@@ -157,7 +157,7 @@ export const SignupForm: React.FC = () => {
               setSubmitError(null);
             }}
             placeholder="e.g. John Doe"
-            className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+            className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
             required
           />
         </div>
@@ -184,7 +184,7 @@ export const SignupForm: React.FC = () => {
               setSubmitError(null);
             }}
             placeholder="name@example.com"
-            className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+            className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
             required
           />
         </div>
@@ -211,7 +211,7 @@ export const SignupForm: React.FC = () => {
               setSubmitError(null);
             }}
             placeholder="Min. 6 characters"
-            className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+            className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
             required
           />
           <button
@@ -245,11 +245,10 @@ export const SignupForm: React.FC = () => {
               setSubmitError(null);
             }}
             placeholder="Re-enter your password"
-            className={`w-full h-[44px] pl-10 pr-10 rounded-lg border text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden transition-all shadow-2xs ${
-              confirmPassword && !passwordsMatch
-                ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-white dark:bg-gray-800"
-                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20"
-            }`}
+            className={`w-full h-[44px] pl-10 pr-10 rounded-lg border text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden transition-all shadow-2xs ${confirmPassword && !passwordsMatch
+              ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-white dark:bg-gray-800"
+              : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20"
+              }`}
             required
           />
           <button
@@ -277,11 +276,10 @@ export const SignupForm: React.FC = () => {
       <button
         type="submit"
         disabled={!isFormComplete || isSubmitting}
-        className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
-          !isFormComplete || isSubmitting
-            ? "bg-[#b8b5fa] cursor-not-allowed"
-            : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
-        }`}
+        className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!isFormComplete || isSubmitting
+          ? "bg-[#3D6A9E] cursor-not-allowed"
+          : "bg-[#3D6A9E] hover:bg-[#5b42e6] hover:shadow"
+          }`}
       >
         {isSubmitting ? (
           <>
@@ -298,7 +296,7 @@ export const SignupForm: React.FC = () => {
         Already have an account?{" "}
         <Link
           href="/login"
-          className="font-semibold text-[#6d55f4] hover:text-[#5841e2] hover:underline"
+          className="font-semibold text-[#3D6A9E] hover:text-[#3D6A9E] hover:underline"
         >
           Sign In
         </Link>

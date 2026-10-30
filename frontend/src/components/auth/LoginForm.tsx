@@ -184,7 +184,7 @@ export const LoginForm: React.FC = () => {
                       setIsUserNotFound(false);
                     }}
                     placeholder="name@firm.com or Gmail"
-                    className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+                    className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
                     autoComplete="email"
                     autoFocus
                     required
@@ -215,11 +215,10 @@ export const LoginForm: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!isValidEmail || isLoading}
-                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
-                    !isValidEmail || isLoading
-                      ? "bg-[#b8b5fa] cursor-not-allowed"
-                      : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
-                  }`}
+                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!isValidEmail || isLoading
+                    ? "bg-[#3D6A9E] cursor-not-allowed"
+                    : "bg-[#3D6A9E] hover:bg-[#5b42e6] hover:shadow"
+                    }`}
                 >
                   {isLoading ? (
                     <>
@@ -270,7 +269,7 @@ export const LoginForm: React.FC = () => {
                   setErrorMessage(null);
                   setIsUserNotFound(false);
                 }}
-                className="text-xs font-semibold text-[#6d55f4] hover:text-[#5841e2] hover:underline cursor-pointer shrink-0"
+                className="text-xs font-semibold text-[#3D6A9E] hover:text-[#3D6A9E] hover:underline cursor-pointer shrink-0"
               >
                 Change
               </button>
@@ -306,7 +305,7 @@ export const LoginForm: React.FC = () => {
                       setIsUserNotFound(false);
                     }}
                     placeholder="Enter your password"
-                    className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/20 transition-all shadow-2xs"
+                    className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
                     autoComplete="current-password"
                     required
                   />
@@ -325,14 +324,14 @@ export const LoginForm: React.FC = () => {
               {isUserNotFound && (
                 <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex flex-col gap-2.5 animate-fadeIn">
                   <div className="flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200 font-medium">
-                    <Building2 className="w-4 h-4 text-[#6d55f4] shrink-0 mt-0.5" />
+                    <Building2 className="w-4 h-4 text-[#3D6A9E] shrink-0 mt-0.5" />
                     <span>
                       No firm or user is registered with <strong>{cleanEmail}</strong>. Would you like to create your firm workspace?
                     </span>
                   </div>
                   <Link
                     href={`/signup?email=${encodeURIComponent(cleanEmail)}`}
-                    className="w-full py-2 px-3 text-xs font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] rounded-lg text-center transition-colors shadow-2xs flex items-center justify-center gap-1.5"
+                    className="w-full py-2 px-3 text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#5b42e6] rounded-lg text-center transition-colors shadow-2xs flex items-center justify-center gap-1.5"
                   >
                     <span>Create Organization</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -355,11 +354,10 @@ export const LoginForm: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!password.trim() || isLoading}
-                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
-                    !password.trim() || isLoading
-                      ? "bg-[#b8b5fa] cursor-not-allowed"
-                      : "bg-[#6d55f4] hover:bg-[#5b42e6] hover:shadow"
-                  }`}
+                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!password.trim() || isLoading
+                    ? "bg-[#3D6A9E] cursor-not-allowed"
+                    : "bg-[#3D6A9E] hover:bg-[#5b42e6] hover:shadow"
+                    }`}
                 >
                   {isLoading ? (
                     <>
@@ -402,7 +400,7 @@ export const LoginForm: React.FC = () => {
         New here?{" "}
         <Link
           href="/signup"
-          className="font-semibold text-[#6d55f4] hover:text-[#5841e2] hover:underline"
+          className="font-semibold text-[#3D6A9E] hover:text-[#3D6A9E] hover:underline"
         >
           Request Employment
         </Link>
@@ -423,7 +421,7 @@ export const LoginForm: React.FC = () => {
               switchToUser?.('admin');
               router.push("/leads");
             }}
-            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#6d55f4] hover:bg-purple-50 font-medium cursor-pointer"
+            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#3D6A9E] hover:bg-purple-50 font-medium cursor-pointer"
           >
             Admin (Dipak)
           </button>
@@ -434,7 +432,7 @@ export const LoginForm: React.FC = () => {
               switchToUser?.('employee');
               router.push("/leads");
             }}
-            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#6d55f4] hover:bg-purple-50 font-medium cursor-pointer"
+            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#3D6A9E] hover:bg-purple-50 font-medium cursor-pointer"
           >
             Employee (Vikram)
           </button>

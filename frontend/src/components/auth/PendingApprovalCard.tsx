@@ -62,20 +62,20 @@ export const PendingApprovalCard: React.FC = () => {
 
   const formattedDate = currentUser?.createdAt
     ? new Intl.DateTimeFormat("en-IN", {
-        timeZone: "Asia/Kolkata",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }).format(new Date(currentUser.createdAt))
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(currentUser.createdAt))
     : new Intl.DateTimeFormat("en-IN", {
-        timeZone: "Asia/Kolkata",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(new Date());
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date());
 
   return (
     <div className="w-full min-h-[calc(100vh-120px)] flex items-center justify-center p-4 sm:p-6 md:p-8">
@@ -138,7 +138,7 @@ export const PendingApprovalCard: React.FC = () => {
             type="button"
             onClick={checkStatus}
             disabled={isChecking}
-            className="w-full sm:flex-1 h-11 rounded-lg text-xs font-semibold text-white bg-[#6d55f4] hover:bg-[#5b42e6] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+            className="w-full sm:flex-1 h-11 rounded-lg text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#5b42e6] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? "animate-spin" : ""}`} />
             <span>{isChecking ? "Checking Status..." : "Refresh Status"}</span>

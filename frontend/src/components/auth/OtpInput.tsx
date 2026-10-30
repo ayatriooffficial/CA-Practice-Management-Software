@@ -194,19 +194,17 @@ export const OtpInput: React.FC<OtpInputProps> = ({
 
   return (
     <div
-      className={`w-full ${
-        isCompact
-          ? "bg-[#f8f9fc] dark:bg-gray-800/60 border border-[#e2e8f0] dark:border-gray-700/60 rounded-xl p-4 my-2 transition-all"
-          : "space-y-4"
-      }`}
+      className={`w-full ${isCompact
+        ? "bg-[#f8f9fc] dark:bg-gray-800/60 border border-[#e2e8f0] dark:border-gray-700/60 rounded-xl p-4 my-2 transition-all"
+        : "space-y-4"
+        }`}
     >
       {/* Header Info */}
       <div className="flex items-start justify-between gap-2 mb-1">
         <div>
           <h4
-            className={`${
-              isCompact ? "text-xs font-semibold" : "text-sm font-semibold"
-            } text-gray-900 dark:text-gray-100`}
+            className={`${isCompact ? "text-xs font-semibold" : "text-sm font-semibold"
+              } text-gray-900 dark:text-gray-100`}
           >
             Enter 6-digit OTP
           </h4>
@@ -218,7 +216,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({
           <button
             type="button"
             onClick={onChangeTarget}
-            className="text-xs font-medium text-[#6d55f4] hover:text-[#5841e2] hover:underline cursor-pointer pt-0.5"
+            className="text-xs font-medium text-[#3D6A9E] hover:text-[#3D6A9E] hover:underline cursor-pointer pt-0.5"
           >
             {targetLabel}
           </button>
@@ -227,9 +225,8 @@ export const OtpInput: React.FC<OtpInputProps> = ({
 
       {/* 6 Square Inputs */}
       <div
-        className={`flex items-center justify-between gap-2 sm:gap-3 my-4 ${
-          shake ? "animate-shake" : ""
-        }`}
+        className={`flex items-center justify-between gap-2 sm:gap-3 my-4 ${shake ? "animate-shake" : ""
+          }`}
         role="group"
         aria-label="6-digit verification code"
       >
@@ -248,15 +245,14 @@ export const OtpInput: React.FC<OtpInputProps> = ({
             onChange={(e) => handleChange(idx, e.target.value)}
             onKeyDown={(e) => handleKeyDown(idx, e)}
             onPaste={handlePaste}
-            className={`w-11 h-13 sm:w-13 sm:h-14 text-center text-xl font-bold rounded-lg transition-all focus:outline-hidden ${
-              isSuccess
-                ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                : errorMessage
+            className={`w-11 h-13 sm:w-13 sm:h-14 text-center text-xl font-bold rounded-lg transition-all focus:outline-hidden ${isSuccess
+              ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+              : errorMessage
                 ? "border-red-500 bg-red-50/50 dark:bg-red-950/30 text-red-700 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                 : digit
-                ? "border-[#6d55f4] bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white hover:border-gray-400"
-            } focus:border-[#6d55f4] focus:ring-2 focus:ring-[#6d55f4]/25 shadow-2xs`}
+                  ? "border-[#3D6A9E] bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                  : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white hover:border-gray-400"
+              } focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/25 shadow-2xs`}
             aria-label={`Digit ${idx + 1}`}
           />
         ))}
@@ -292,11 +288,10 @@ export const OtpInput: React.FC<OtpInputProps> = ({
           type="button"
           disabled={!isComplete || isVerifying || isSuccess || lockoutTimer > 0}
           onClick={() => triggerVerification(digits.join(""))}
-          className={`w-full sm:w-auto px-7 h-[47px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            !isComplete || isVerifying || isSuccess || lockoutTimer > 0
-              ? "bg-[#b8b5fa] cursor-not-allowed"
-              : "bg-[#6d55f4] hover:bg-[#5b42e6] shadow-xs hover:shadow"
-          }`}
+          className={`w-full sm:w-auto px-7 h-[47px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${!isComplete || isVerifying || isSuccess || lockoutTimer > 0
+            ? "bg-[#3D6A9E] cursor-not-allowed"
+            : "bg-[#3D6A9E] hover:bg-[#5b42e6] shadow-xs hover:shadow"
+            }`}
         >
           {isVerifying ? (
             <>
@@ -323,7 +318,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({
             <button
               type="button"
               onClick={handleResend}
-              className="text-[#6d55f4] hover:text-[#5841e2] font-semibold hover:underline cursor-pointer"
+              className="text-[#3D6A9E] hover:text-[#3D6A9E] font-semibold hover:underline cursor-pointer"
             >
               Resend OTP
             </button>
