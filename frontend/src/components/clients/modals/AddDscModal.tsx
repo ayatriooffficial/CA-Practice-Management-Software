@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Loader2, KeyRound, Calendar, Building2, MapPin } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Loader2, KeyRound, Calendar, Building2, MapPin, Usb } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
+import { ConnectorStatusBadge } from "@/components/ui/ConnectorStatusBadge";
+import { ToastNotification } from "@/components/ui/ToastNotification";
 
 interface AddDscModalProps {
   isOpen: boolean;
@@ -30,6 +32,72 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
   const [remarks, setRemarks] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isReadingToken, setIsReadingToken] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const formatToInputDate = (dateVal?: string | Date): string => {
+    if (!dateVal) return "";
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleReadFromUSB = async () => {
+    setIsReadingToken(true);
+    setErrorMessage("");
+
+    try {
+      const res = await fetch("http://127.0.0.1:8081/read-dsc");
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `USB Connector error (${res.status})`);
+      }
+      const data = await res.json();
+
+      setName(data.name || "");
+      setCustomId(data.serialNumber || "");
+
+      if (data.expiryDate) {
+        setExpiryDate(formatToInputDate(data.expiryDate));
+      }
+      if (data.issuedDate) {
+        setIssuedDate(formatToInputDate(data.issuedDate));
+      }
+
+      const issuerLower = (data.issuer || "").toLowerCase();
+      if (issuerLower.includes("emudhra")) {
+        setVendor("eMudhra");
+      } else if (issuerLower.includes("capricorn")) {
+        setVendor("Capricorn");
+      } else if (issuerLower.includes("vsign")) {
+        setVendor("Vsign");
+      } else {
+        setVendor("Other");
+      }
+
+      setToast({
+        message: `Successfully read DSC token for ${data.name || "Signatory"}!`,
+        type: "success",
+      });
+    } catch (err: any) {
+      setToast({
+        message: err.message || "Failed to read DSC from USB token. Ensure the connector is running.",
+        type: "error",
+      });
+    } finally {
+      setIsReadingToken(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -125,6 +193,34 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
               {errorMessage}
             </div>
           )}
+
+          {/* Local DSC Connector Status Badge & Read from USB Action */}
+          <div className="space-y-2 pb-1">
+            <div className="flex items-center justify-between">
+              <ConnectorStatusBadge />
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={handleReadFromUSB}
+                disabled={isReadingToken}
+                className="w-full sm:w-auto h-8 px-3.5 rounded-lg text-xs font-semibold text-white shadow-xs transition-all hover:opacity-95 active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+              >
+                {isReadingToken ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Reading from USB Token...</span>
+                  </>
+                ) : (
+                  <>
+                    <Usb className="w-3.5 h-3.5" />
+                    <span>Read from USB Token</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
 
           {/* Signatory Name */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -298,6 +394,14 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
           </div>
         </form>
       </div>
+
+      {toast && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };

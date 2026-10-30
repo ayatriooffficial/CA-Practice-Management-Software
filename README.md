@@ -644,6 +644,26 @@ npm run build
 
 ---
 
+## Local DSC USB Connector (Auto-Fill)
+
+The CA Practice Management Software integrates with a lightweight local PKCS#11 microservice bridging physical Indian Digital Signature Certificate (DSC) USB tokens with the browser frontend.
+
+### Architecture
+- **Web App**: The Next.js frontend polls `http://127.0.0.1:8081/ping` every 3 seconds to monitor hardware readiness and displays a real-time status badge in the **Add DSC** modal.
+- **Hardware Communication**: When clicking **"Read from USB Token"**, the frontend issues a `GET http://127.0.0.1:8081/read-dsc` request. The local service opens an active PKCS#11 hardware session, extracts the X.509 DER certificate, parses attributes using `node-forge`, automatically releases the session lock, and returns the signatory name, token serial number, issuer, and validity dates for instant form auto-fill.
+- **Standalone Binary**: Packaged as a portable Windows binary (`DSC-Connector.exe`) compiled with Node 18 runtime and available for direct download at `/downloads/DSC-Connector.exe`.
+
+### Prerequisites for CA Staff
+1. **OS**: Requires a 64-bit Windows operating system (Windows 10 / Windows 11 / Windows Server).
+2. **Drivers**: Physical USB Token vendor drivers (e.g., ePass2003, Watchdata PROXKey, VSign, mToken, Shuttle 3003) **MUST be installed** on the Windows machine so the native PKCS#11 `.dll` library files are present in `C:\Windows\System32\`:
+   - `C:\Windows\System32\eps2003csp11.dll`
+   - `C:\Windows\System32\ShuttleCsp11_3003.dll`
+   - `C:\Windows\System32\proxpkcs11.dll`
+   - `C:\Windows\System32\Watchdata PROXKey\SignatureP11.dll`
+3. **Execution**: CA staff must download `DSC-Connector.exe` directly from the link provided in the CRM modal (`/downloads/DSC-Connector.exe`) and double-click to run it. Keep the connector window or background process active on port `8081` while inserting tokens and registering certificates in client profiles.
+
+---
+
 ## 📄 License
 
 This software is confidential and proprietary to **Ayatrio**. All rights reserved.
