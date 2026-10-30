@@ -11,12 +11,8 @@ import { z } from 'zod';
  * - `search` : optional string, trimmed
  */
 const workDoneQuerySchema = z.object({
-    page: z.string().optional().transform((val) => Number(val)).refine((num) => Number.isInteger(num) && num > 0, {
-        message: 'page must be a positive integer',
-    }),
-    limit: z.string().optional().transform((val) => Number(val)).refine((num) => Number.isInteger(num) && num > 0, {
-        message: 'limit must be a positive integer',
-    }),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().optional(),
     search: z.string().optional().transform((val) => typeof val === 'string' ? val.trim() : val),
 });
 
