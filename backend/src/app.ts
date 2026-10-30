@@ -26,13 +26,23 @@ export const createApp = (): Application => {
   );
 
   // 3. CORS Configuration
-  const corsOrigins = env.CORS_ORIGIN.includes(',')
+  const configuredOrigins = env.CORS_ORIGIN.includes(',')
     ? env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
-    : env.CORS_ORIGIN;
+    : [env.CORS_ORIGIN];
+
+  const isDev = env.NODE_ENV !== 'production';
 
   app.use(
     cors({
-      origin: corsOrigins === '*' ? true : corsOrigins,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (env.CORS_ORIGIN === '*') return callback(null, true);
+        if (configuredOrigins.includes(origin)) return callback(null, true);
+        if (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+          return callback(null, true);
+        }
+        callback(null, false);
+      },
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-User-Id', 'X-User-Role', 'X-Org-Id'],
       credentials: true,

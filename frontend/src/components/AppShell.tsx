@@ -15,14 +15,16 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const router = useRouter();
   const { currentUser, isLoading } = useAuth();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isPublicForm = pathname?.startsWith("/gst-form");
+  const isPublicPage = isAuthPage || isPublicForm;
 
   useEffect(() => {
-    if (!isLoading && !currentUser && !isAuthPage) {
+    if (!isLoading && !currentUser && !isPublicPage) {
       router.replace("/login");
     }
-  }, [isLoading, currentUser, isAuthPage, router]);
+  }, [isLoading, currentUser, isPublicPage, router]);
 
-  if (isAuthPage) {
+  if (isPublicPage) {
     return (
       <main className="min-h-screen w-full bg-[var(--bg-app)] text-[var(--text-main)]">
         {children}

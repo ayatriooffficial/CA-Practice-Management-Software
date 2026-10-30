@@ -1,4 +1,5 @@
 import React from "react";
+import { Client, ClientServiceSetting } from "@/data/crmData";
 
 export const getAvatarBadge = (text: string, index: number): React.ReactNode => {
   const palette = [
@@ -27,3 +28,91 @@ export const getAvatarBadge = (text: string, index: number): React.ReactNode => 
     </div>
   );
 };
+
+/**
+ * Checks whether GSTR-1 / GSTR-3B / GST Return filing service is active/enabled in client's Service Settings.
+ * If turned off, all GST link generation UI and related functions are erased.
+ */
+export function isGstReturnServiceEnabled(
+  client?: Client,
+  services?: ClientServiceSetting[]
+): boolean {
+  if (!client) return false;
+
+  // Combine live services from Service Settings with client.serviceSettings
+  const candidateSettings: ClientServiceSetting[] = [
+    ...(services || []),
+    ...((client.serviceSettings as ClientServiceSetting[]) || []),
+  ];
+
+  const isItemActive = (s: ClientServiceSetting): boolean => {
+    return Boolean(s.isActive !== undefined ? s.isActive : s.compliance);
+  };
+
+  const isGstReturnServiceName = (serviceName?: string, category?: string): boolean => {
+    const name = (serviceName || "").toLowerCase().trim();
+    const cat = (category || "").toLowerCase().replace(/[\.\s]/g, "");
+
+    // 1. Direct GSTR-1 or GSTR-3B patterns
+    if (
+      name.includes("gstr-1") ||
+      name.includes("gstr1") ||
+      name.includes("gstr 1") ||
+      name.includes("gstr-3b") ||
+      name.includes("gstr3b") ||
+      name.includes("gstr 3b")
+    ) {
+      return true;
+    }
+
+    // 2. GST Return / Monthly Return
+    if (
+      name.includes("gst monthly return") ||
+      name.includes("gst return") ||
+      (name.includes("gst") && name.includes("filing"))
+    ) {
+      return true;
+    }
+
+    // 3. Category G.S.T return services
+    if (cat === "gst") {
+      if (
+        name.includes("return") ||
+        name.includes("filing") ||
+        name.includes("monthly") ||
+        name.includes("quarterly")
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  if (candidateSettings.length > 0) {
+    const gstReturnServices = candidateSettings.filter((s) =>
+      isGstReturnServiceName(s.serviceName, s.category)
+    );
+
+    if (gstReturnServices.length > 0) {
+      // Returns true if at least one GSTR-1 / GSTR-3B return service is active
+      return gstReturnServices.some(isItemActive);
+    }
+
+    // Fallback: check ANY service in G.S.T category
+    const anyGstService = candidateSettings.filter(
+      (s) => (s.category || "").toLowerCase().replace(/[\.\s]/g, "") === "gst"
+    );
+    if (anyGstService.length > 0) {
+      return anyGstService.some(isItemActive);
+    }
+  }
+
+  // Check client.services list
+  const clientServicesList: string[] = client.services || [];
+  if (clientServicesList.length > 0) {
+    return clientServicesList.some((sName) => isGstReturnServiceName(sName));
+  }
+
+  return false;
+}

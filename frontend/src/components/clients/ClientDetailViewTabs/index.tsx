@@ -195,9 +195,10 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
       );
 
     case "Master":
-      return (
+return (
         <ClientMasterTab
           client={client}
+          allServices={allServices}
           onClientUpdated={onClientUpdated}
           showToast={showToast}
           handleDeleteContact={handleDeleteContact}

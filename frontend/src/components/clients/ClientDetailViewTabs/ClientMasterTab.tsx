@@ -20,7 +20,10 @@ import {
   Building2,
   FileBadge,
 } from "lucide-react";
-import { Client, ClientContact, ClientPassword, ClientLicense } from "@/data/crmData";
+import { Client, ClientContact, ClientPassword, ClientLicense, ClientServiceSetting } from "@/data/crmData";
+import { ClientGstLinksCard } from "./ClientGstLinksCard";
+import { ClientMasterSuggestionsCard } from "./ClientMasterSuggestionsCard";
+import { isGstReturnServiceEnabled } from "./utils";
 import { AddContactModal } from "../modals/AddContactModal";
 import { getAvatarBadge } from "./utils";
 import { getPortalDefaultUrl } from "./ClientPasswordsTab";
@@ -28,6 +31,7 @@ import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { clientApi } from "@/services/clientApi";
 
 export interface ClientMasterTabProps {
+  allServices?: ClientServiceSetting[];
   client: Client;
   onClientUpdated?: (updated: Client) => void;
   showToast?: (msg: string) => void;
@@ -45,6 +49,7 @@ export interface ClientMasterTabProps {
 
 export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   client,
+  allServices,
   onClientUpdated,
   showToast = () => { },
   handleDeleteContact,
@@ -58,6 +63,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   handleDeleteLicense,
   onEditLicense,
 }) => {
+  const isGstEnabled = useMemo(() => {
+    return isGstReturnServiceEnabled(client, allServices);
+  }, [client, allServices]);
+
   // Contacts state
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
@@ -1008,6 +1017,15 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           showToast(editingContact ? "Director updated successfully." : "Director added successfully.");
         }}
       />
+
+      {/* GSTR-1 & GSTR-3B Dynamic Client Data Collection Link Card & Captured Suggestions */}
+      {/* Erased when GSTR-1 & GSTR-3B GST service is turned off in Service Settings; visible when turned on */}
+      {isGstEnabled && (
+        <>
+          <ClientGstLinksCard client={client} allServices={allServices} />
+          <ClientMasterSuggestionsCard clientId={client.id || (client as any)._id} />
+        </>
+      )}
     </div>
   );
 };

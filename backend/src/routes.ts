@@ -16,6 +16,8 @@ import { quotationRoutes } from './modules/quotation/quotation.routes';
 import { integrationRoutes } from './modules/integration/integration.routes';
 import { pdfSignerRoutes } from './modules/pdfSigner/pdfSigner.routes';
 import { documentRoutes } from './modules/document/document.routes';
+import { gstStaffRoutes, gstPublicRoutes } from './modules/gstForm/gstForm.routes';
+import { GstFormController } from './modules/gstForm/gstForm.controller';
 import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 import { workdoneRoutes } from './modules/workdone/workdone.routes';
@@ -61,5 +63,10 @@ router.use('/pdf-signer', optionalAuthenticate, pdfSignerRoutes);
 router.use('/documents', optionalAuthenticate, documentRoutes);
 router.use('/workdone', optionalAuthenticate,workdoneRoutes );
 
+
+// GST Data Collection Module (Staff + Public Form)
+router.use('/gst-links', optionalAuthenticate, gstStaffRoutes);
+router.use('/public/gst-form', gstPublicRoutes);
+router.get('/gst-submissions/:id', optionalAuthenticate, GstFormController.getSubmission);
 
 export const appRouter = router;
