@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -16,7 +17,9 @@ import {
   Sparkles,
   Eye,
   Edit3,
+  PenTool,
 } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import { Client, ClientDocumentInOut } from "@/data/crmData";
 import { TaskItem } from "@/data/taskData";
 import { Service } from "@/data/serviceData";
@@ -70,6 +73,21 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
   const [isLoadingDrive, setIsLoadingDrive] = useState(true);
 
   // Custom user-added required documents
+  const router = useRouter();
+
+  const handleSignDocWithDsc = async (doc: { fileName: string; fileUrl?: string; driveFileId?: string }) => {
+    try {
+      await stageAndRedirectToPdfSigner(router, {
+        fileName: doc.fileName,
+        fileUrl: doc.fileUrl,
+        driveDocumentId: doc.driveFileId,
+        clientId: client?.id,
+        clientName: client?.name,
+      });
+    } catch (err: any) {
+      alert(err?.message || "Failed to prepare document for DSC signing");
+    }
+  };
   const [customReqDocs, setCustomReqDocs] = useState<
     Array<{
       taskId?: string;
@@ -785,6 +803,18 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                                 },
                               },
                               {
+                                label: "Sign with DSC (PAdES)",
+                                icon: PenTool,
+                                disabled: !doc.fileUrl,
+                                onClick: () => {
+                                  handleSignDocWithDsc({
+                                    fileName: `${doc.title}.pdf`,
+                                    fileUrl: doc.fileUrl,
+                                    driveFileId: doc.docId,
+                                  });
+                                },
+                              },
+                              {
                                 label: isReceived ? "Edit / Re-upload" : "Upload Document",
                                 icon: Upload,
                                 onClick: () => {
@@ -918,6 +948,17 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
                               } else if (doc.file) {
                                 alert(`Attached movement file: ${doc.file}`);
                               }
+                            },
+                          },
+                          {
+                            label: "Sign with DSC (PAdES)",
+                            icon: PenTool,
+                            disabled: !docTarget && !doc.file,
+                            onClick: () => {
+                              handleSignDocWithDsc({
+                                fileName: doc.documentName.toLowerCase().endsWith(".pdf") ? doc.documentName : `${doc.documentName}.pdf`,
+                                fileUrl: docTarget || undefined,
+                              });
                             },
                           },
                           {

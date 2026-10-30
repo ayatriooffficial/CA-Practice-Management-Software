@@ -17,6 +17,25 @@ export const profitabilityReportApi = {
     search?: string;
     clientName?: string;
   }): Promise<void> {
+    const { blob, filename } = await this.fetchPdfBlob(params);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  async fetchPdfBlob(params: {
+    from: string;
+    to: string;
+    clientId?: string;
+    view?: 'list' | 'client' | 'employee';
+    search?: string;
+    clientName?: string;
+  }): Promise<{ blob: Blob; filename: string }> {
     const query = new URLSearchParams({ from: params.from, to: params.to });
     if (params.clientId) query.set('clientId', params.clientId);
     if (params.view) query.set('view', params.view);
@@ -50,10 +69,6 @@ export const profitabilityReportApi = {
     }
 
     const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-
     const safeClient = (params.clientName || params.clientId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
     const defaultFilename = safeClient
       ? `client-profitability-report-${safeClient}-${params.from}-to-${params.to}.pdf`
@@ -68,10 +83,6 @@ export const profitabilityReportApi = {
       }
     }
 
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    return { blob, filename };
   },
 };

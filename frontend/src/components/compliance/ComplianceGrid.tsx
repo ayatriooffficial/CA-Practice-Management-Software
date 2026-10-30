@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Filter, Paperclip, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Filter, Paperclip, FileText, PenTool, Loader2 } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import type {
   ComplianceGridRow,
   ComplianceCellStatus,
@@ -72,6 +74,33 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
   const [selectedClients, setSelectedClients] = useState<Set<string>>(
     new Set()
   );
+  const router = useRouter();
+  const [stagingComplianceKey, setStagingComplianceKey] = useState<string | null>(null);
+
+  const handleSignComplianceDoc = async (
+    clientName: string,
+    clientId: string,
+    item: any,
+    periodKey: string,
+    entry?: ComplianceEntry
+  ) => {
+    const key = `${clientName}-${periodKey}`;
+    setStagingComplianceKey(key);
+    try {
+      const safeForm = item.formCode || item.label || item.name || "Filing";
+      const safeName = `${safeForm}_${periodKey}_${clientName.replace(/\s+/g, "_")}.pdf`;
+      await stageAndRedirectToPdfSigner(router, {
+        fileName: safeName,
+        clientId,
+        clientName,
+        fileUrl: (entry as any)?.documentUrl || (entry as any)?.challanUrl,
+      });
+    } catch (err: any) {
+      alert(err?.message || "Failed to stage compliance filing for DSC signing");
+    } finally {
+      setStagingComplianceKey(null);
+    }
+  };
 
   const startYear = parseStartYear(fy);
   const endYear = startYear + 1;
@@ -727,10 +756,28 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                               {status === "PENDING" ? "PENDI..." : status}
                             </span>
                             {hasDocs && (
-                              <Paperclip
-                                className="w-3.5 h-3.5 shrink-0"
-                                style={{ color: "var(--text-subtle)" }}
-                              />
+                              <div className="inline-flex items-center gap-1">
+                                <Paperclip
+                                  className="w-3.5 h-3.5 shrink-0"
+                                  style={{ color: "var(--text-subtle)" }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSignComplianceDoc(group.clientName, group.clientId, r.item, col.key, cellData?.entry);
+                                  }}
+                                  disabled={stagingComplianceKey === `${group.clientName}-${col.key}`}
+                                  className="p-0.5 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                                  title="Sign with DSC (PAdES)"
+                                >
+                                  {stagingComplianceKey === `${group.clientName}-${col.key}` ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
+                                  ) : (
+                                    <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
+                                  )}
+                                </button>
+                              </div>
                             )}
                           </div>
                         )}

@@ -160,8 +160,19 @@ export const PdfSignerPage: React.FC = () => {
         const staged = all.filter((d) => d.status === 'Ready' || d.status === 'Password protected');
         setStagedDocs(staged);
 
-        // Set active document if not set
-        if (staged.length > 0 && !activeDocId) {
+        // Direct staging support: check query parameter for stagedId
+        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const targetStagedId = urlParams?.get('stagedId');
+
+        if (targetStagedId) {
+          const matched = staged.find((d) => d.id === targetStagedId || d._id === targetStagedId);
+          if (matched) {
+            setActiveDocId(matched.id);
+            setSelectedStagedIds([matched.id]);
+          } else if (staged.length > 0 && !activeDocId) {
+            setActiveDocId(staged[0].id);
+          }
+        } else if (staged.length > 0 && !activeDocId) {
           setActiveDocId(staged[0].id);
         }
       }
@@ -177,6 +188,28 @@ export const PdfSignerPage: React.FC = () => {
     fetchClientsAndDscs();
     fetchDocuments();
   }, [fetchStatus, fetchClientsAndDscs, fetchDocuments]);
+
+  // Auto-fetch active document binary for interactive placement preview if not present in memory
+  useEffect(() => {
+    if (activeDocId && !stagedFilesMap[activeDocId]) {
+      const activeDoc = stagedDocs.find((d) => d.id === activeDocId);
+      if (activeDoc && activeDoc.status !== 'Password protected') {
+        const downloadUrl = pdfSignerApi.getDownloadUrl(activeDocId);
+        fetch(downloadUrl, { credentials: 'include' })
+          .then((res) => {
+            if (res.ok) return res.blob();
+            throw new Error('Failed to load active PDF bytes');
+          })
+          .then((blob) => {
+            const file = new File([blob], activeDoc.fileName, { type: 'application/pdf' });
+            setStagedFilesMap((prev) => ({ ...prev, [activeDocId]: file }));
+          })
+          .catch((err) => {
+            console.warn('Could not load staged PDF file for placement canvas:', err);
+          });
+      }
+    }
+  }, [activeDocId, stagedDocs, stagedFilesMap]);
 
   // Upload handler for Signing mode
   const handleUploadFiles = async (files: File[]) => {
@@ -492,26 +525,26 @@ export const PdfSignerPage: React.FC = () => {
             {/* Real truthful status pill */}
             <div className="inline-flex items-center gap-2">
               {isStatusLoading ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   Checking signer...
                 </span>
               ) : status?.available ? (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                  className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-sm"
                   title={status.detail}
                 >
-                  <span className="w-2 h-2 rounded-none bg-emerald-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   {status.provider === 'software'
                     ? 'Software signer ready (Dev PFX)'
                     : 'USB Token connector ready'}
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                  className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                   title={status?.detail || 'Signer is not available'}
                 >
-                  <span className="w-2 h-2 rounded-none bg-amber-500" />
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
                   Signer unavailable (Check provider)
                 </span>
               )}

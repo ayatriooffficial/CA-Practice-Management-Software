@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,6 +11,7 @@ import {
   FileText,
   List,
   Loader2,
+  PenTool,
   MoreVertical,
   Search,
   User,
@@ -19,6 +21,7 @@ import {
   CreditCard,
   Wallet,
 } from 'lucide-react';
+import { stageAndRedirectToPdfSigner } from '@/services/stageToPdfSigner';
 import {
   profitabilityReportApi,
   ProfitabilityReportResponse,
@@ -184,6 +187,35 @@ export default function ProfitabilityReport() {
   const [downloadingClient, setDownloadingClient] = useState<string | null>(null);
   const [downloadingReport, setDownloadingReport] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const router = useRouter();
+  const [stagingDsc, setStagingDsc] = useState<string | null>(null);
+
+  const handleSignReportWithDsc = async (targetClientId?: string, targetClientName?: string) => {
+    const key = targetClientId || 'full_report';
+    try {
+      setStagingDsc(key);
+      setDownloadError(null);
+      const { blob, filename } = await profitabilityReportApi.fetchPdfBlob({
+        from,
+        to,
+        clientId: targetClientId,
+        clientName: targetClientName,
+        view: targetClientId ? 'list' : view,
+        search: search.trim() || undefined,
+      });
+      await stageAndRedirectToPdfSigner(router, {
+        blob,
+        fileName: filename,
+        clientId: targetClientId,
+        clientName: targetClientName,
+      });
+    } catch (err: any) {
+      setDownloadError(err?.message || 'Failed to stage report in PDF Signer');
+    } finally {
+      setStagingDsc(null);
+      setMenuOpen(false);
+    };
+  };
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -589,6 +621,21 @@ export default function ProfitabilityReport() {
                   <FileText className="h-3.5 w-3.5 text-[#31719B]" />
                 )}
                 <span>Download PDF Report</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={Boolean(stagingDsc)}
+                onClick={() => handleSignReportWithDsc()}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#31719B] dark:text-[#60a5fa] hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
+                title="Sign with DSC (PAdES)"
+              >
+                {stagingDsc === 'full_report' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#31719B]" />
+                ) : (
+                  <PenTool className="h-3.5 w-3.5 text-[#31719B]" />
+                )}
+                <span>Sign with DSC (PAdES)</span>
               </button>
               <button
                 type="button"
