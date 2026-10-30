@@ -23,13 +23,14 @@ const workDoneQuerySchema = z.object({
 export const validateWorkDone = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = workDoneQuerySchema.safeParse(req.query);
     if (!result.success) {
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             message: 'Invalid query parameters',
             errors: result.error.format(),
         });
+        return;
     }
     // Overwrite req.query with the parsed and typed values for downstream use
     req.query = result.data as any;
-    next();
+    return next();
 });
