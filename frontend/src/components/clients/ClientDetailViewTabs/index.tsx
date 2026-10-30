@@ -16,7 +16,9 @@ import { ClientPasswordsTab } from "./ClientPasswordsTab";
 import { ClientNotesTab } from "./ClientNotesTab";
 import { ClientContactsTab } from "./ClientContactsTab";
 import { ClientInvoicesTab } from "./ClientInvoicesTab";
+import { ClientLedgerTab } from "./ClientLedgerTab";
 import { ClientAssigneeTab } from "./ClientAssigneeTab";
+import { ClientAssigneeTasksTab } from "./ClientAssigneeTasksTab";
 
 export {
   ClientServiceSettingsTab,
@@ -29,7 +31,9 @@ export {
   ClientNotesTab,
   ClientContactsTab,
   ClientInvoicesTab,
+  ClientLedgerTab,
   ClientAssigneeTab,
+  ClientAssigneeTasksTab,
 };
 
 export interface ClientDetailViewTabsProps {
@@ -191,10 +195,37 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
       );
 
     case "Master":
-      return <ClientMasterTab client={client} />;
+      return (
+        <ClientMasterTab
+          client={client}
+          onClientUpdated={onClientUpdated}
+          showToast={showToast}
+          handleDeleteContact={handleDeleteContact}
+          setIsAddNoteOpen={setIsAddNoteOpen}
+          handleDeleteNote={handleDeleteNote}
+          revealedPasswords={revealedPasswords}
+          setRevealedPasswords={setRevealedPasswords}
+          setIsAddPasswordOpen={setIsAddPasswordOpen}
+          handleDeletePassword={handleDeletePassword}
+          setIsAddLicenseOpen={setIsAddLicenseOpen}
+          handleDeleteLicense={handleDeleteLicense}
+          onEditLicense={onEditLicense}
+        />
+      );
 
+    case "Tasks & Assignees":
     case "Tasks":
-      return <ClientTasksTab clientTasks={clientTasks} isLoadingTasks={isLoadingTasks} />;
+    case "Assignee":
+      return (
+        <ClientAssigneeTasksTab
+          client={client}
+          clientTasks={clientTasks}
+          isLoadingTasks={isLoadingTasks}
+          onRefreshTasks={onRefreshTasks}
+          onClientUpdated={onClientUpdated}
+          showToast={showToast}
+        />
+      );
 
     case "Passwords":
       return (
@@ -230,15 +261,9 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
     case "Invoices":
       return <ClientInvoicesTab client={client} showToast={showToast} />;
 
-    case "Assignee":
-      return (
-        <ClientAssigneeTab
-          client={client}
-          clientTasks={clientTasks}
-          onClientUpdated={onClientUpdated}
-          showToast={showToast}
-        />
-      );
+    case "Ledger":
+      return <ClientLedgerTab client={client} showToast={showToast} />;
+
 
     default:
       return (

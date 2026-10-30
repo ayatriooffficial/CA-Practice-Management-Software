@@ -8,7 +8,7 @@ import {
   BankAccount,
   RecurringInvoiceRecord,
 } from './types';
-import { TaskAllocationInput } from '@/services/financialApi';
+import { financialApi, TaskAllocationInput } from '@/services/financialApi';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchInvoicesRequest,
@@ -17,6 +17,7 @@ import {
   createCreditNoteRequest,
   updateInvoiceRequest,
   voidInvoiceRequest,
+  convertProformaToInvoice as sliceConvertProformaToInvoice,
   addReimbursement as sliceAddReimbursement,
   addReceipt as sliceAddReceipt,
   updateReceipt as sliceUpdateReceipt,
@@ -56,6 +57,7 @@ export interface InvoiceContextType {
   addProforma: (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]) => Promise<InvoiceRecord>;
   addCreditNote: (original: InvoiceRecord, allocations: TaskAllocationInput[]) => Promise<void>;
   voidInvoice: (invoice: InvoiceRecord, reason: string) => Promise<void>;
+  convertProformaToInvoice: (id: string) => Promise<InvoiceRecord | null>;
   updateInvoice: (id: string, updated: Partial<InvoiceRecord>) => Promise<void> | void;
   updateReceipt: (id: string, updated: Partial<ReceiptRecord>) => void;
   deleteInvoice: (id: string) => { success: boolean; message?: string };
@@ -209,6 +211,45 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [dispatch]
   );
 
+  const convertProformaToInvoice = useCallback(
+    async (id: string): Promise<InvoiceRecord | null> => {
+      const prof = invoiceState.proformas.find((p) => p.id === id);
+
+      let finalInvoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceState.invoices.length + 1).padStart(4, '0')}`;
+
+      // Persist to backend MongoDB if it is a MongoDB record
+      if (/^[a-f\d]{24}$/i.test(id)) {
+        try {
+          const backendRes = await financialApi.convertProforma(id);
+          if (backendRes && backendRes.number) {
+            finalInvoiceNumber = backendRes.number;
+          }
+        } catch (err) {
+          console.warn('Backend convertProforma failed, retained locally:', err);
+        }
+      } else if (prof?.number) {
+        finalInvoiceNumber = prof.number.startsWith('PI-')
+          ? prof.number.replace(/^PI-/, 'INV-')
+          : prof.number.startsWith('PI')
+          ? prof.number.replace(/^PI/, 'INV')
+          : `INV-${new Date().getFullYear()}-${String(invoiceState.invoices.length + 1).padStart(4, '0')}`;
+      }
+
+      dispatch(sliceConvertProformaToInvoice({ id, newNumber: finalInvoiceNumber }));
+
+      if (prof) {
+        return {
+          ...prof,
+          type: 'invoice',
+          number: finalInvoiceNumber,
+          status: prof.status === 'Paid' ? 'Paid' : 'Receivable',
+        };
+      }
+      return null;
+    },
+    [dispatch, invoiceState.proformas, invoiceState.invoices.length]
+  );
+
   const addReimbursement = useCallback(
     (item: Partial<InvoiceRecord>): InvoiceRecord => {
       const nextNumber = `CH-2026-${String(invoiceState.reimbursements.length + 1).padStart(3, '0')}`;
@@ -251,9 +292,9 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       item: Partial<ReceiptRecord>,
       allocations?: { id: string; amount: number; type: 'invoice' | 'reimbursement' }[]
     ): ReceiptRecord => {
-      const nextNumber = `REC-2026-${String(invoiceState.receipts.length + 1).padStart(3, '0')}`;
+      const nextNumber = item.receiptNo || `REC-${new Date().getFullYear()}-${String(invoiceState.receipts.length + 1).padStart(3, '0')}`;
       const newRecord: ReceiptRecord = {
-        id: `rec-${Date.now()}`,
+        id: item.id || `rec-${Date.now()}`,
         receiptNo: nextNumber,
         billingOrg: item.billingOrg || 'Krishna Associates',
         clientId: item.clientId || '',
@@ -261,6 +302,7 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         legalName: item.legalName || '',
         group: item.group || '',
         amount: item.amount || 0,
+        amountForService:item.amountForService,
         paymentDate: item.paymentDate || new Date().toLocaleDateString('en-GB'),
         method: item.method || 'Bank Transfer',
         bankAccountId: item.bankAccountId || '',
@@ -273,6 +315,29 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         invoiceNumber: item.invoiceNumber,
       };
       dispatch(sliceAddReceipt({ receipt: newRecord, allocations }));
+
+      console.log(newRecord);
+      
+
+      // Persist to backend MongoDB!
+      financialApi.createReceipt({
+        ...newRecord,
+        allocations,
+      }).then((res) => {
+        if (res?.receipt?._id) {
+          dispatch(sliceUpdateReceipt({
+            id: newRecord.id,
+            updated: {
+              id: res.receipt._id,
+              receiptNo: res.receipt.receiptNo || newRecord.receiptNo,
+              financialYear: res.receipt.financialYear || newRecord.financialYear,
+            },
+          }));
+        }
+      }).catch((err) => {
+        console.warn('Backend createReceipt failed, retained locally:', err);
+      });
+
       return newRecord;
     },
     [dispatch, invoiceState.receipts.length, invoiceState.financialYear]
@@ -353,6 +418,7 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addProforma,
         addCreditNote,
         voidInvoice,
+        convertProformaToInvoice,
         updateInvoice,
         updateReceipt,
         deleteInvoice,

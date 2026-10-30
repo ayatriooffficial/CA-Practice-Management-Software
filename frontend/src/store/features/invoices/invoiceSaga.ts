@@ -59,11 +59,11 @@ export function mapPersistedInvoice(record: FinancialInvoiceRecord): InvoiceReco
     totalPayable: record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0,
     tdsExcludedAmount: details.tdsExcludedAmount || 0,
     currency: details.currency || 'INR',
-    status: record.kind === 'credit_note' ? 'Credit Note' : record.state === 'void' ? 'Cancelled' : record.state === 'draft' ? 'Pending' : 'Receivable',
+    status: (details.status as any) || (record.kind === 'credit_note' ? 'Credit Note' : record.state === 'void' ? 'Cancelled' : record.state === 'draft' ? 'Pending' : 'Receivable'),
     bankAccountId: details.bankAccountId || '',
     notes: details.notes,
-    paidAmount: 0,
-    balanceAmount: record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0,
+    paidAmount: Number(details.paidAmount || 0),
+    balanceAmount: details.balanceAmount !== undefined ? Number(details.balanceAmount) : (record.kind === 'credit_note' ? -Math.abs(details.totalPayable || 0) : details.totalPayable || 0),
     financialYear: details.financialYear || '',
     createdAt: String(details.createdAt || record.issueDate || ''),
     taskAllocations: record.allocations,
@@ -72,11 +72,34 @@ export function mapPersistedInvoice(record: FinancialInvoiceRecord): InvoiceReco
 
 function* handleFetchInvoices(): Generator<any, void, any> {
   try {
-    const records: FinancialInvoiceRecord[] = yield call(financialApi.listInvoices);
+    const [records, receiptsData]: [FinancialInvoiceRecord[], any[]] = yield all([
+      call(financialApi.listInvoices),
+      call(financialApi.listReceipts),
+    ]);
     const mapped = records.map(mapPersistedInvoice);
     const invoices = mapped.filter((inv) => inv.type === 'invoice' || inv.type === 'credit_note');
     const proformas = mapped.filter((inv) => inv.type === 'proforma');
-    yield put(fetchInvoicesSuccess({ invoices, proformas }));
+    const receipts = (receiptsData || []).map((r: any) => ({
+      id: r._id || r.id,
+      receiptNo: r.receiptNo,
+      billingOrg: r.billingOrg || '',
+      clientId: r.clientId || '',
+      businessName: r.businessName || '',
+      legalName: r.legalName || '',
+      group: r.group || '',
+      amount: Number(r.amount || 0),
+      paymentDate: r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-GB') : '',
+      method: r.method || 'Bank Transfer',
+      bankAccountId: r.bankAccountId || '',
+      bankName: r.bankName || '',
+      referenceNumber: r.referenceNumber || '',
+      notes: r.notes || '',
+      financialYear: r.financialYear || '',
+      isAdvance: Boolean(r.isAdvance),
+      invoiceId: r.invoiceId,
+      invoiceNumber: r.invoiceNumber,
+    }));
+    yield put(fetchInvoicesSuccess({ invoices, proformas, receipts }));
   } catch (error: any) {
     const errorMsg = error?.message || 'Could not load saved invoices from server.';
     yield put(fetchInvoicesFailure(errorMsg));

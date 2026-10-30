@@ -207,62 +207,82 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
 
         {/* Right Card: COMMERCIAL & TAX */}
         <div className="rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs">
-          <h4 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-5">
-            COMMERCIAL & TAX
-          </h4>
+  <h4 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-5">
+    COMMERCIAL & TAX
+  </h4>
 
-          <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-            {/* Amount */}
-            <div>
-              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-                AMOUNT
-              </span>
-              <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
-                {service.professionalFee ? `₹ ${service.professionalFee.toLocaleString()}` : "—"}
-              </span>
-            </div>
+  <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+    {/* Government Fees */}
+    <div>
+      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+        GOVERNMENT FEES
+      </span>
+      <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
+        {service.governmentFee !== undefined ? `₹ ${service.governmentFee.toLocaleString()}` : "—"}
+      </span>
+    </div>
 
-            {/* Tax Rate */}
-            <div>
-              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-                TAX RATE
-              </span>
-              <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-                {service.taxRate || "—"}
-              </span>
-            </div>
+    {/* Professional Fees */}
+    <div>
+      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+        PROFESSIONAL FEES
+      </span>
+      <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
+        {service.professionalFee !== undefined ? `₹ ${service.professionalFee.toLocaleString()}` : "—"}
+      </span>
+    </div>
 
-            {/* SAC Code */}
-            <div>
-              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-                SAC CODE
-              </span>
-              <span className="text-sm font-mono font-semibold text-[var(--text-main)] block mt-1">
-                {service.sacCode || "—"}
-              </span>
-            </div>
+    {/* Total Service Fees */}
+    <div className="col-span-2 bg-gray-50 dark:bg-[#1e293b] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+      <span className="block text-[10.5px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+        TOTAL SERVICE FEES
+      </span>
+      <span className="text-base font-extrabold text-[var(--text-main)] block mt-1">
+        {service.totalServiceFee !== undefined ? `₹ ${service.totalServiceFee.toLocaleString()}` : "—"}
+      </span>
+    </div>
 
-            {/* Max OOP Budget */}
-            <div>
-              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-                MAX OOP BUDGET
-              </span>
-              <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-                {service.maxOopBudget ? `₹ ${service.maxOopBudget.toLocaleString()}` : "—"}
-              </span>
-            </div>
+    {/* Tax Rate */}
+    <div>
+      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+        TAX RATE
+      </span>
+      <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
+        {service.taxRate || "—"}
+      </span>
+    </div>
 
-            {/* TAT Days */}
-            <div>
-              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-                TAT DAYS
-              </span>
-              <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-                {service.tatDays ? `${service.tatDays}` : "—"}
-              </span>
-            </div>
-          </div>
-        </div>
+    {/* SAC Code */}
+    <div>
+      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+        SAC CODE
+      </span>
+      <span className="text-sm font-mono font-semibold text-[var(--text-main)] block mt-1">
+        {service.sacCode || "—"}
+      </span>
+    </div>
+
+    {/* Max OOP Budget */}
+    <div>
+      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+        MAX OOP BUDGET
+      </span>
+      <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
+        {service.maxOopBudget ? `₹ ${service.maxOopBudget.toLocaleString()}` : "—"}
+      </span>
+    </div>
+
+    {/* TAT Days */}
+    <div>
+      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+        TAT DAYS
+      </span>
+      <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
+        {service.tatDays ? `${service.tatDays}` : "—"}
+      </span>
+    </div>
+  </div>
+</div>
       </div>
 
       {/* Bottom Card: Recurring Schedule matching Screenshot 2 */}

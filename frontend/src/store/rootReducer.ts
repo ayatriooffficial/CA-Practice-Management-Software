@@ -6,6 +6,7 @@ import serviceReducer from './features/services/serviceSlice';
 import taskReducer from './features/tasks/taskSlice';
 import teamReducer from './features/team/teamSlice';
 import uiReducer from './features/ui/uiSlice';
+import workdoneReducer from './features/workdone/workdoneSlice';
 
 export const rootReducer = combineReducers({
   clients: clientReducer,
@@ -15,6 +16,7 @@ export const rootReducer = combineReducers({
   tasks: taskReducer,
   team: teamReducer,
   ui: uiReducer,
+  workdone: workdoneReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

@@ -52,9 +52,10 @@ export type ClientTabType =
   | "Master"
   | "IT"
   | "Contacts"
+  | "Tasks & Assignees"
   | "Assignee"
-  | "SLA"
   | "Tasks"
+  | "SLA"
   | "Invoices"
   | "Ledger"
   | "Recurring"
@@ -70,17 +71,12 @@ export type ClientTabType =
 export const CLIENT_TABS: ClientTabType[] = [
   "Master",
   "IT",
-  "Contacts",
-  "Assignee",
+  "Tasks & Assignees",
   "SLA",
-  "Tasks",
   "Invoices",
   "Ledger",
   "Recurring",
   "Compliance",
-  "Notes",
-  "Passwords",
-  "Licenses",
   "DSC",
   "Documents",
   "Group",
@@ -123,7 +119,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       if (tab === "Recurring") return canView("recurring");
       if (tab === "Ledger") return canView("billing");
       if (tab === "Compliance") return canView("compliance_tracker");
-      if (tab === "Tasks") return canView("task_manager");
+      if (tab === "Tasks" || tab === "Assignee" || tab === "Tasks & Assignees") return canView("task_manager");
       return true;
     });
   }, [canView]);
@@ -225,7 +221,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   }, [client.id, client.fileNo, client.name]);
 
   useEffect(() => {
-    if (activeTab === "Tasks" || activeTab === "Documents") {
+    if (
+      activeTab === "Tasks" ||
+      activeTab === "Documents" ||
+      activeTab === "Assignee" ||
+      activeTab === "Tasks & Assignees"
+    ) {
       fetchClientTasks();
     }
   }, [activeTab, fetchClientTasks]);
@@ -730,7 +731,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                   type="button"
                   onClick={() => {
                     setIsAddMenuOpen(false);
-                    setActiveTab("Contacts");
+                    setActiveTab("Master");
                   }}
                   className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
                 >

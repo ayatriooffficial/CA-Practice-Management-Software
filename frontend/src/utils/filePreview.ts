@@ -38,21 +38,16 @@ export function getAuthToken(): string | null {
 }
 
 /**
- * Attaches authentication query token to a backend drive endpoint URL
+ * Attaches authentication query token to a backend drive endpoint URL.
+ * Kept for interface compatibility, returns clean standard URL.
  */
 export function attachAuthToken(url: string): string {
-  if (!url || typeof url !== 'string') return url;
-  if (!url.includes('/api/v1/drive/')) return url;
-  const token = getAuthToken();
-  if (!token) return url;
-  if (url.includes('token=')) return url;
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}token=${encodeURIComponent(token)}`;
+  return url;
 }
 
 /**
  * Converts any file reference (Google Drive view URL, Google CDN thumbnail, Drive file ID,
- * local relative path, legacy localhost URL, or raw filename) into a high-performance,
+ * local relative path, legacy localhost/render URL, or raw filename) into a high-performance,
  * directly renderable inline image/preview URL.
  */
 export function getDirectFilePreviewUrl(urlOrPath?: string | null): string {
@@ -68,16 +63,20 @@ export function getDirectFilePreviewUrl(urlOrPath?: string | null): string {
 
   const origin = getBackendOrigin();
 
-  // 2. Intercept legacy or hardcoded localhost URLs saved in database
-  // (e.g. "http://localhost:5000/api/v1/drive/..." in deployed environments)
-  if (/^https?:\/\/(localhost|127\.0\.0\.1):5000/i.test(clean)) {
-    clean = clean.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/i, origin);
-    if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('/')) {
-      return attachAuthToken(clean);
-    }
+  // 2. Intercept any backend drive preview/download URL from ANY domain (render, localhost, custom API)
+  const apiDriveMatch = clean.match(/\/api\/v1\/drive\/([a-zA-Z0-9_\-%.]+)\/(preview|download)/i);
+  if (apiDriveMatch) {
+    const fileId = apiDriveMatch[1];
+    const action = apiDriveMatch[2] || 'preview';
+    return origin ? `${origin}/api/v1/drive/${fileId}/${action}` : `/api/v1/drive/${fileId}/${action}`;
   }
 
-  // 3. Intercept ANY Google Drive or Googleusercontent URL to avoid 403/429 hotlink blocks
+  // 3. Intercept legacy or hardcoded localhost URLs saved in database
+  if (/^https?:\/\/(localhost|127\.0\.0\.1):5000/i.test(clean)) {
+    clean = clean.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/i, origin);
+  }
+
+  // 4. Intercept ANY Google Drive or Googleusercontent URL to avoid 403/429 hotlink blocks
   if (
     clean.includes('googleusercontent.com') ||
     clean.includes('drive.google.com') ||
@@ -90,33 +89,29 @@ export function getDirectFilePreviewUrl(urlOrPath?: string | null): string {
       clean.match(/([a-zA-Z0-9_-]{25,})/);
 
     if (idMatch && idMatch[1]) {
-      const url = origin ? `${origin}/api/v1/drive/${idMatch[1]}/preview` : `/api/v1/drive/${idMatch[1]}/preview`;
-      return attachAuthToken(url);
+      return origin ? `${origin}/api/v1/drive/${idMatch[1]}/preview` : `/api/v1/drive/${idMatch[1]}/preview`;
     }
   }
 
-  // 4. If it starts with relative /api/
+  // 5. If it starts with relative /api/
   if (clean.startsWith('/api/')) {
-    const url = origin ? `${origin}${clean}` : clean;
-    return attachAuthToken(url);
+    return origin ? `${origin}${clean}` : clean;
   }
 
-  // 5. If it's a bare Google Drive file ID (25+ alphanumeric characters, no slashes or colons)
+  // 6. If it's a bare Google Drive file ID (25+ alphanumeric characters, no slashes or colons)
   if (/^[a-zA-Z0-9_-]{25,}$/.test(clean)) {
-    const url = origin ? `${origin}/api/v1/drive/${clean}/preview` : `/api/v1/drive/${clean}/preview`;
-    return attachAuthToken(url);
+    return origin ? `${origin}/api/v1/drive/${clean}/preview` : `/api/v1/drive/${clean}/preview`;
   }
 
-  // 6. If it's an external HTTP/HTTPS URL
+  // 7. If it's an external HTTP/HTTPS URL
   if (clean.startsWith('http://') || clean.startsWith('https://')) {
     return clean;
   }
 
-  // 7. If it's a local filename, route to backend preview endpoint
-  const url = origin
+  // 8. If it's a local filename, route to backend preview endpoint
+  return origin
     ? `${origin}/api/v1/drive/${encodeURIComponent(clean)}/preview`
     : `/api/v1/drive/${encodeURIComponent(clean)}/preview`;
-  return attachAuthToken(url);
 }
 
 /**
@@ -125,6 +120,5 @@ export function getDirectFilePreviewUrl(urlOrPath?: string | null): string {
 export function getBackendDrivePreviewUrl(driveFileId: string): string {
   if (!driveFileId) return '';
   const origin = getBackendOrigin();
-  const url = origin ? `${origin}/api/v1/drive/${driveFileId}/preview` : `/api/v1/drive/${driveFileId}/preview`;
-  return attachAuthToken(url);
+  return origin ? `${origin}/api/v1/drive/${driveFileId}/preview` : `/api/v1/drive/${driveFileId}/preview`;
 }

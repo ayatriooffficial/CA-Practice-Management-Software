@@ -86,11 +86,29 @@ export const financialApi = {
     if (!response.data) throw new Error('The invoice could not be updated.');
     return response.data;
   },
+  async convertProforma(id: string, newNumber?: string) {
+    const response = await request<FinancialInvoiceRecord>(`/financials/invoices/${encodeURIComponent(id)}/convert`, {
+      method: 'POST', body: JSON.stringify({ newNumber }),
+    });
+    if (!response.data) throw new Error('The proforma invoice could not be converted.');
+    return response.data;
+  },
   async voidInvoice(id: string, reason: string) {
     const response = await request<FinancialInvoiceRecord>(`/financials/invoices/${encodeURIComponent(id)}/void`, {
       method: 'PATCH', body: JSON.stringify({ reason }),
     });
     if (!response.data) throw new Error('The invoice could not be voided.');
+    return response.data;
+  },
+  async listReceipts() {
+    const response = await request<any[]>('/financials/receipts');
+    return response.data || [];
+  },
+  async createReceipt(payload: any) {
+    const response = await request<{ receipt: any; linkedInvoice: any }>('/financials/receipts', {
+      method: 'POST', body: JSON.stringify(payload),
+    });
+    if (!response.data) throw new Error('The payment receipt could not be recorded.');
     return response.data;
   },
   async listExpenses() {

@@ -371,8 +371,8 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
             setPage(1);
           }}
           className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${subTab === "proforma"
-              ? "shadow-xs"
-              : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+            ? "shadow-xs"
+            : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
             }`}
           style={
             subTab === "proforma"
@@ -394,8 +394,8 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
             setPage(1);
           }}
           className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${subTab === "invoice"
-              ? "shadow-xs"
-              : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+            ? "shadow-xs"
+            : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
             }`}
           style={
             subTab === "invoice"
@@ -416,10 +416,10 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
         <h2 className="text-base font-bold text-gray-900 dark:text-white">
           {subTabLabel} ({clientInvoices.length})
         </h2>
+        {/* Organization Default Format Switcher */}
 
         <div className="flex items-center gap-3">
-          {/* Organization Default Format Switcher */}
-          <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-800/90 p-1 rounded-xl border border-[#dde2e8] dark:border-[#334155] text-xs shadow-2xs">
+          {/* <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-800/90 p-1 rounded-xl border border-[#dde2e8] dark:border-[#334155] text-xs shadow-2xs">
             <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 px-1.5 flex items-center gap-1">
               <Palette className="w-3.5 h-3.5 text-[#3D6A9E]" />
               <span className="hidden sm:inline">Format:</span>
@@ -439,7 +439,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
                 {fmt}
               </button>
             ))}
-          </div>
+          </div> */}
 
           <button
             type="button"
@@ -642,14 +642,14 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
                       <td className="py-3 px-4 text-center">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap ${isPaid
-                              ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
-                              : isPending
-                                ? "bg-[#fee2e2] dark:bg-[#7f1d1d]/40 text-[#b91c1c] dark:text-[#fca5a5]"
-                                : isOverdue
-                                  ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
-                                  : isPartial
-                                    ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
-                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                            : isPending
+                              ? "bg-[#fee2e2] dark:bg-[#7f1d1d]/40 text-[#b91c1c] dark:text-[#fca5a5]"
+                              : isOverdue
+                                ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
+                                : isPartial
+                                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                             }`}
                         >
                           {status}
@@ -783,8 +783,8 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
                         type="button"
                         onClick={() => setPreviewModalFormat(fmt)}
                         className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${previewModalFormat === fmt
-                            ? "bg-white dark:bg-gray-900 text-[#3D6A9E] shadow-xs border border-gray-200 dark:border-gray-700"
-                            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                          ? "bg-white dark:bg-gray-900 text-[#3D6A9E] shadow-xs border border-gray-200 dark:border-gray-700"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                           }`}
                       >
                         {fmt}

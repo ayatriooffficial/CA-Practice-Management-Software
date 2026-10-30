@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useEffect, useState, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Client } from "@/data/crmData";
 import { clientApi } from "@/services/clientApi";
-import { ClientDetailView } from "@/components/clients/ClientDetailView";
+import { ClientDetailView, ClientTabType } from "@/components/clients/ClientDetailView";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default function ClientDetailPage() {
+function ClientDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
@@ -81,15 +81,33 @@ export default function ClientDetailPage() {
     );
   }
 
+  const searchParams = useSearchParams();
+  const tabParam = (searchParams?.get("tab") as ClientTabType) || "Master";
+
   return (
     <div className="w-full min-h-[calc(100vh-var(--header-height))] p-2 bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] transition-colors">
       <ClientDetailView
         client={client}
-        initialTab="DSC"
+        initialTab={tabParam}
         onClose={() => router.push("/client")}
         onEdit={() => router.push(`/client?edit=${client.id}`)}
         onClientUpdated={(updated) => setClient(updated)}
       />
     </div>
+  );
+}
+
+export default function ClientDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full min-h-[calc(100vh-var(--header-height))] flex flex-col items-center justify-center p-8 bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300">
+          <Loader2 className="w-8 h-8 animate-spin text-[#31719B] mb-3" />
+          <p className="text-sm font-medium">Loading client profile...</p>
+        </div>
+      }
+    >
+      <ClientDetailPageContent />
+    </Suspense>
   );
 }

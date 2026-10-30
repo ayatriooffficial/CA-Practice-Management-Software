@@ -104,11 +104,15 @@ export const clientSlice = createSlice({
     fetchClientByIdSuccess: (state, action: PayloadAction<Client>) => {
       state.loading = false;
       state.selectedClient = action.payload;
+      const targetId = action.payload.id || (action.payload as any)._id;
       const index = state.items.findIndex(
-        (c) => c.id === action.payload.id || (c as any)._id === action.payload.id
+        (c) => c.id === targetId || (c as any)._id === targetId
       );
       if (index >= 0) {
         state.items[index] = action.payload;
+      } else {
+        state.items = [action.payload, ...state.items];
+        state.pagination.totalDocs = (state.pagination.totalDocs || 0) + 1;
       }
     },
     fetchClientByIdFailure: (state, action: PayloadAction<string>) => {
@@ -218,6 +222,18 @@ export const clientSlice = createSlice({
 
     setSelectedClient: (state, action: PayloadAction<Client | null>) => {
       state.selectedClient = action.payload;
+      if (action.payload) {
+        const targetId = action.payload.id || (action.payload as any)._id;
+        const index = state.items.findIndex(
+          (c) => c.id === targetId || (c as any)._id === targetId
+        );
+        if (index >= 0) {
+          state.items[index] = action.payload;
+        } else {
+          state.items = [action.payload, ...state.items];
+          state.pagination.totalDocs = (state.pagination.totalDocs || 0) + 1;
+        }
+      }
     },
     clearClientError: (state) => {
       state.error = null;

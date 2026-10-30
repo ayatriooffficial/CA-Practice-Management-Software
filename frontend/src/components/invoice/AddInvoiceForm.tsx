@@ -65,6 +65,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
   const [activeInvoiceColor, setActiveInvoiceColor] = useState<string>("#3D6A9E");
   const [isPreviewActive, setIsPreviewActive] = useState<boolean>(isView);
 
+  
   // Dates
   const [invoiceDate, setInvoiceDate] = useState(() => initialData?.date || new Date().toLocaleDateString('en-GB'));
   const [dueDate, setDueDate] = useState(() => initialData?.dueDate || new Date().toLocaleDateString('en-GB'));
@@ -142,6 +143,8 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
       : filteredClients.slice(0, 5);
 
   const [serviceCatalog, setServiceCatalog] = useState<Service[]>([]);
+  // console.log(serviceCatalog);
+  
 
   // Organization Selection (Fetched from actual DB)
   const [organizations, setOrganizations] = useState<OrganizationDetails[]>([]);
@@ -203,9 +206,17 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
         price: 0,
         amount: 0,
         total: 0,
+        governmentFee:0,
+professionalFee:0,
+totalServiceFee:0,
+tax:'18%',
       },
     ];
   });
+
+
+  // console.log(services);
+  
 
   // Note
   const [note, setNote] = useState(() => initialData?.notes || '');
@@ -628,7 +639,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
   };
 
   // Calculations (Subtotal, GST, and Total with GST added)
-  const subTotal = services.reduce((sum, s) => sum + s.amount, 0);
+  const subTotal = services.reduce((sum, s) => sum + (s.totalServiceFee || s.amount), 0);
   const cgstAmount = Math.round((subTotal * 0.09) * 100) / 100;
   const sgstAmount = Math.round((subTotal * 0.09) * 100) / 100;
   const totalPayable = Math.round((subTotal + cgstAmount + sgstAmount) * 100) / 100;
@@ -645,9 +656,13 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
           );
           if (matchedSrv) {
             if (matchedSrv.professionalFee) {
-              updated.price = matchedSrv.professionalFee;
-              updated.amount = (updated.quantity || 1) * matchedSrv.professionalFee;
-              updated.total = updated.amount;
+              updated.price =matchedSrv?.totalServiceFee|| matchedSrv.professionalFee;
+              updated.amount =matchedSrv?.totalServiceFee|| (updated.quantity || 1) * matchedSrv.professionalFee;
+              updated.governmentFee=matchedSrv?.governmentFee;
+              updated.professionalFee=matchedSrv?.professionalFee;
+              updated.totalServiceFee=matchedSrv?.totalServiceFee;
+              updated.total =totalPayable||matchedSrv?.totalServiceFee|| updated.amount;
+              updated.tax=matchedSrv?.taxRate;
             }
             if (matchedSrv.description && !updated.description) {
               updated.description = matchedSrv.description;
@@ -1539,7 +1554,7 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                             type="number"
                             min={0}
                             placeholder=""
-                            value={srv.price === 0 ? '' : srv.price}
+                            value={srv.totalServiceFee === 0 ? '' : srv.totalServiceFee}
                             onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
                             className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
                           />
@@ -1550,14 +1565,14 @@ export const AddInvoiceForm: React.FC<AddInvoiceFormProps> = ({
                           <input
                             type="text"
                             disabled
-                            value={srv.amount === 0 ? '0' : srv.amount}
+                            value={(srv.totalServiceFee== 0 ? '0' : srv.totalServiceFee || srv.amount === 0 ? '0' : srv.amount)}
                             className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-gray-50 dark:bg-gray-800 text-xs text-gray-600 outline-none"
                           />
                         </div>
 
                         {/* Total & Trash */}
                         <div className="col-span-1 flex items-center justify-end gap-2 font-bold text-gray-900 dark:text-white">
-                          <span>₹{srv.total.toFixed(2)}</span>
+                          <span>₹{srv.totalServiceFee?.toFixed(2)}</span>
                           {services.length > 1 && (
                             <button
                               type="button"

@@ -58,9 +58,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   });
 
   // Commercial & Tax
+   // 1. State for Government / Third-Party Fees
+  const [governmentFee, setGovernmentFee] = useState<string>(
+    initialService?.governmentFee !== undefined ? String(initialService.governmentFee) : "0"
+  );
+  
+  // 2. State for Professional Fees
   const [professionalFee, setProfessionalFee] = useState<string>(
     initialService?.professionalFee !== undefined ? String(initialService.professionalFee) : "0"
   );
+  
+  // 3. Calculated Total Service Fees (Automatically updates when either fee changes)
+  const totalServiceFees = 
+    (parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0);
+
+
+
+
   const [taxRate, setTaxRate] = useState(initialService?.taxRate || "18%");
   const [sacCode, setSacCode] = useState(initialService?.sacCode || "998231");
   const [exemptionReason, setExemptionReason] = useState(initialService?.exemptionReason || "");
@@ -91,12 +105,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     }
   };
 
-  const isDirty = useMemo(() => {
+const isDirty = useMemo(() => {
     if (!initialService) {
       return Boolean(
         name ||
         category ||
         description ||
+        governmentFee !== "0" ||
         professionalFee !== "0" ||
         note ||
         sacCode !== "998231"
@@ -109,6 +124,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       difficulty !== (initialService.difficulty || "Medium") ||
       description !== (initialService.description || "") ||
       isRecurring !== initialService.isRecurring ||
+      governmentFee !== String(initialService.governmentFee || 0) ||
       professionalFee !== String(initialService.professionalFee || 0) ||
       taxRate !== (initialService.taxRate || "18%") ||
       sacCode !== (initialService.sacCode || "") ||
@@ -125,6 +141,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     difficulty,
     description,
     isRecurring,
+    governmentFee,
     professionalFee,
     taxRate,
     sacCode,
@@ -135,7 +152,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     note,
     initialService,
   ]);
-
   const handleCancelAttempt = () => {
     if (isDirty) {
       setShowDiscardModal(true);
@@ -160,6 +176,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       errs.professionalFee = "Enter a valid professional fee (cannot be negative)";
     }
 
+    if (governmentFee === "" || isNaN(Number(governmentFee)) || Number(governmentFee) < 0) {
+      errs.governmentFee = "Enter a valid government fee (cannot be negative)";
+    }
+
+    if (professionalFee === "" || isNaN(Number(professionalFee)) || Number(professionalFee) < 0) {
+      errs.professionalFee = "Enter a valid professional fee (cannot be negative)";
+    }
     if (sacCode.trim() && !/^\d{6}$/.test(sacCode.trim())) {
       errs.sacCode = "SAC Code must be a 6-digit numeric code (e.g. 998231)";
     }
@@ -195,25 +218,30 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     setIsSubmitting(true);
     try {
       await onSave({
-        ...(initialService?.id ? { id: initialService.id } : {}),
-        name: name.trim(),
-        category: category.trim(),
-        frequency,
-        difficulty,
-        description: description.trim(),
-        isRecurring,
-        recurringSchedule: isRecurring ? recurringSchedule : undefined,
-        professionalFee: Number(professionalFee) || 0,
-        taxRate,
-        sacCode: sacCode.trim(),
-        exemptionReason: exemptionReason.trim(),
-        maxOopBudget: Number(maxOopBudget) || 0,
-        tatDays: Number(tatDays) || 0,
-        tatHours: tatHours.trim(),
-        note: note.trim(),
-        sop: sop.trim() || "Standard SOP v1.0",
-        status: initialService?.status || "Active",
-      });
+  ...(initialService?.id ? { id: initialService.id } : {}),
+  name: name.trim(),
+  category: category.trim(),
+  frequency,
+  difficulty,
+  description: description.trim(),
+  isRecurring,
+  recurringSchedule: isRecurring ? recurringSchedule : undefined,
+  
+  // Fee Breakdown & Totals
+  governmentFee: Number(governmentFee) || 0,
+  professionalFee: Number(professionalFee) || 0,
+  totalServiceFee: (Number(governmentFee) || 0) + (Number(professionalFee) || 0),
+  
+  taxRate,
+  sacCode: sacCode.trim(),
+  exemptionReason: exemptionReason.trim(),
+  maxOopBudget: Number(maxOopBudget) || 0,
+  tatDays: Number(tatDays) || 0,
+  tatHours: tatHours.trim(),
+  note: note.trim(),
+  sop: sop.trim() || "Standard SOP v1.0",
+  status: initialService?.status || "Active",
+});
     } catch {
       // Handled in caller
     } finally {
@@ -500,81 +528,84 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 Commercial &amp; Tax
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                {/* Professional Fee */}
-                <div>
-                  <label
-                    htmlFor="sf-fee"
-                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Professional Fee <span className="text-[#e8655a]">*</span>
-                  </label>
-                  <input
-                    id="sf-fee"
-                    type="number"
-                    min={0}
-                    value={professionalFee}
-                    onChange={(e) => {
-                      setProfessionalFee(e.target.value);
-                      clearError("professionalFee");
-                    }}
-                    placeholder="0"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                      errors.professionalFee
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                    }`}
-                  />
-                  {errors.professionalFee && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.professionalFee}</p>
-                  )}
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  
+  {/* 1. Government Fee Input */}
+  <div>
+    <label
+      htmlFor="gov-fee"
+      className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+    >
+      Government Fee <span className="text-[#e8655a]">*</span>
+    </label>
+    <input
+      id="gov-fee"
+      type="number"
+      min={0}
+      value={governmentFee}
+      onChange={(e) => {
+        setGovernmentFee(e.target.value);
+        clearError("governmentFee");
+      }}
+      placeholder="0"
+      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+        errors.governmentFee
+          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+      }`}
+    />
+    {errors.governmentFee && (
+      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.governmentFee}</p>
+    )}
+  </div>
 
-                {/* Tax Rate */}
-                <div>
-                  <label
-                    htmlFor="sf-tax"
-                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Tax Rate
-                  </label>
-                  <Select
-                    id="sf-tax"
-                    value={taxRate}
-                    onChange={(val) => setTaxRate(val)}
-                    options={TAX_RATES}
-                    placeholder="Tax Rate"
-                  />
-                </div>
+  {/* 2. Professional Fee Input */}
+  <div>
+    <label
+      htmlFor="srv-fee"
+      className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+    >
+      Professional Fee <span className="text-[#e8655a]">*</span>
+    </label>
+    <input
+      id="srv-fee"
+      type="number"
+      min={0}
+      value={professionalFee}
+      onChange={(e) => {
+        setProfessionalFee(e.target.value);
+        clearError("professionalFee");
+      }}
+      placeholder="0"
+      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+        errors.professionalFee
+          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+      }`}
+    />
+    {errors.professionalFee && (
+      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.professionalFee}</p>
+    )}
+  </div>
 
-                {/* SAC Code */}
-                <div>
-                  <label
-                    htmlFor="sf-sac"
-                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    SAC Code
-                  </label>
-                  <input
-                    id="sf-sac"
-                    type="text"
-                    value={sacCode}
-                    onChange={(e) => {
-                      setSacCode(e.target.value);
-                      clearError("sacCode");
-                    }}
-                    placeholder="e.g. 998231"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                      errors.sacCode
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                    }`}
-                  />
-                  {errors.sacCode && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.sacCode}</p>
-                  )}
-                </div>
-              </div>
+  {/* 3. Total Service Fee (Calculated & Read-only) */}
+  <div>
+    <label
+      htmlFor="total-fee"
+      className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+    >
+      Total Service Fee
+    </label>
+    <input
+      id="total-fee"
+      type="text"
+      readOnly
+      value={`${((parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0)).toFixed(2)}`}
+      className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 text-xs outline-none bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white font-semibold cursor-not-allowed"
+    />
+  </div>
+
+</div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Exemption Reason */}

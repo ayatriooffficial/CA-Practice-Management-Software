@@ -47,7 +47,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { hydrateClients } from "@/store/features/clients/clientSlice";
+import { hydrateClients, setSelectedClient, fetchClientByIdSuccess } from "@/store/features/clients/clientSlice";
 import {
   useClients,
   useCreateClient,
@@ -55,6 +55,9 @@ import {
   useDeleteClient,
   useRestoreClient,
 } from "@/hooks/useClientsQuery";
+import { useSearchParams, useRouter } from "next/navigation";
+import { ClientTabType } from "./ClientDetailView";
+import { clientApi } from "@/services/clientApi";
 
 export { CLIENT_COLUMNS };
 
@@ -119,6 +122,21 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
+  // Router, searchParams and Redux selected client synchronization
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const paramClientId = searchParams?.get("clientId") || searchParams?.get("id");
+  const paramTab = (searchParams?.get("tab") as ClientTabType) || undefined;
+  const reduxSelectedClient = useAppSelector((state) => state.clients.selectedClient);
+  const [activeDetailTab, setActiveDetailTab] = useState<ClientTabType>("Master");
+
+  // Keep detail tab synchronized with URL param
+  useEffect(() => {
+    if (paramTab) {
+      setActiveDetailTab(paramTab);
+    }
+  }, [paramTab]);
+
   // Column resizing state with persistent storage
   const {
     columnWidths,
@@ -157,6 +175,53 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
 
   const clients = useMemo(() => data?.clients || [], [data?.clients]);
   const pagination = data?.pagination;
+
+  // Synchronize client selection from Redux store or URL params
+  useEffect(() => {
+    // 1. If Redux already has selectedClient matching URL param (or if no URL param given)
+    if (reduxSelectedClient) {
+      const rId = reduxSelectedClient.id || (reduxSelectedClient as any)._id;
+      if (!paramClientId || paramClientId === rId) {
+        setViewingClient(reduxSelectedClient);
+        setViewMode("detail");
+        return;
+      }
+    }
+
+    // 2. If paramClientId is given in URL
+    if (paramClientId) {
+      const foundInList = clients.find(
+        (c) => c.id === paramClientId || (c as any)._id === paramClientId
+      );
+      if (foundInList) {
+        setViewingClient(foundInList);
+        setViewMode("detail");
+        dispatch(setSelectedClient(foundInList));
+        return;
+      }
+
+      // If not yet in loaded clients list, fetch client from API
+      let isMounted = true;
+      clientApi
+        .getClientById(paramClientId)
+        .then((res) => {
+          if (!isMounted) return;
+          if (res && res.data) {
+            setViewingClient(res.data);
+            setViewMode("detail");
+            dispatch(fetchClientByIdSuccess(res.data));
+            dispatch(setSelectedClient(res.data));
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to fetch client for detail view:", err);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [paramClientId, reduxSelectedClient, clients, dispatch]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -345,9 +410,15 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
     return (
       <ClientDetailView
         client={viewingClient}
+        initialTab={activeDetailTab}
         onClose={() => {
           setViewMode("list");
           setViewingClient(null);
+          dispatch(setSelectedClient(null));
+          setActiveDetailTab("Master");
+          if (paramClientId || paramTab) {
+            router.replace("/client");
+          }
         }}
         onEdit={(c) => {
           setEditingClient(c);
@@ -355,6 +426,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         }}
         onClientUpdated={(updated) => {
           setViewingClient(updated);
+          dispatch(setSelectedClient(updated));
         }}
       />
     );
@@ -702,6 +774,8 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
                       onToggleSelect={toggleSelectRow}
                       onView={(c) => {
                         setViewingClient(c);
+                        dispatch(setSelectedClient(c));
+                        setActiveDetailTab("Master");
                         setViewMode("detail");
                       }}
                       onEdit={(c) => {

@@ -38,9 +38,21 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   const [isRecurring, setIsRecurring] = useState(service?.isRecurring ?? true);
 
   // Commercial & Tax
-  const [professionalFee, setProfessionalFee] = useState<string>(
-    service?.professionalFee !== undefined ? String(service.professionalFee) : "0"
-  );
+  // 1. State for Government / Third-Party Fees
+const [governmentFee, setGovernmentFee] = useState<string>(
+  service?.governmentFee !== undefined ? String(service.governmentFee) : "0"
+);
+
+// 2. State for Professional Fees
+const [professionalFee, setProfessionalFee] = useState<string>(
+  service?.professionalFee !== undefined ? String(service.professionalFee) : "0"
+);
+
+// 3. Calculated Total Service Fees (Automatically updates when either fee changes)
+const totalServiceFees = 
+  (parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0);
+
+
   const [taxRate, setTaxRate] = useState(service?.taxRate || "18%");
   const [sacCode, setSacCode] = useState(service?.sacCode || "998231");
   const [exemptionReason, setExemptionReason] = useState(service?.exemptionReason || "");
@@ -410,33 +422,84 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Professional Fee */}
-                    <div>
-                      <label
-                        htmlFor="srv-fee"
-                        className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
-                      >
-                        Professional Fee <span className="text-[#e8655a]">*</span>
-                      </label>
-                      <input
-                        id="srv-fee"
-                        type="number"
-                        min={0}
-                        value={professionalFee}
-                        onChange={(e) => {
-                          setProfessionalFee(e.target.value);
-                          clearError("professionalFee");
-                        }}
-                        placeholder="0"
-                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                          errors.professionalFee
-                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                        }`}
-                      />
-                      {errors.professionalFee && (
-                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.professionalFee}</p>
-                      )}
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  
+  {/* 1. Government Fee Input */}
+  <div>
+    <label
+      htmlFor="gov-fee"
+      className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+    >
+      Government Fee <span className="text-[#e8655a]">*</span>
+    </label>
+    <input
+      id="gov-fee"
+      type="number"
+      min={0}
+      value={governmentFee}
+      onChange={(e) => {
+        setGovernmentFee(e.target.value);
+        clearError("governmentFee");
+      }}
+      placeholder="0"
+      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+        errors.governmentFee
+          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+      }`}
+    />
+    {errors.governmentFee && (
+      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.governmentFee}</p>
+    )}
+  </div>
+
+  {/* 2. Professional Fee Input */}
+  <div>
+    <label
+      htmlFor="srv-fee"
+      className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+    >
+      Professional Fee <span className="text-[#e8655a]">*</span>
+    </label>
+    <input
+      id="srv-fee"
+      type="number"
+      min={0}
+      value={professionalFee}
+      onChange={(e) => {
+        setProfessionalFee(e.target.value);
+        clearError("professionalFee");
+      }}
+      placeholder="0"
+      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
+        errors.professionalFee
+          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+      }`}
+    />
+    {errors.professionalFee && (
+      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.professionalFee}</p>
+    )}
+  </div>
+
+  {/* 3. Total Service Fee (Calculated & Read-only) */}
+  <div>
+    <label
+      htmlFor="total-fee"
+      className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+    >
+      Total Service Fee
+    </label>
+    <input
+      id="total-fee"
+      type="text"
+      readOnly
+      value={`$${((parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0)).toFixed(2)}`}
+      className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 text-xs outline-none bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white font-semibold cursor-not-allowed"
+    />
+  </div>
+
+</div>
 
                     {/* Tax Rate */}
                     <div>

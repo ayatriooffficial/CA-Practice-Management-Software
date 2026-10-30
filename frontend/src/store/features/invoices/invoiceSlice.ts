@@ -187,11 +187,15 @@ export const invoiceSlice = createSlice({
       action: PayloadAction<{
         invoices: InvoiceRecord[];
         proformas: InvoiceRecord[];
+        receipts?: ReceiptRecord[];
       }>
     ) => {
       state.loading = false;
       state.invoices = action.payload.invoices;
       state.proformas = action.payload.proformas;
+      if (action.payload.receipts && action.payload.receipts.length > 0) {
+        state.receipts = action.payload.receipts;
+      }
       state.isLoaded = true;
       state.error = null;
       state.summaryStats = calculateStats(
@@ -500,6 +504,39 @@ export const invoiceSlice = createSlice({
     setActiveReport: (state, action: PayloadAction<string>) => {
       state.activeReport = action.payload;
     },
+    convertProformaToInvoice: (state, action: PayloadAction<{ id: string; newNumber?: string }>) => {
+      const proforma = state.proformas.find((p) => p.id === action.payload.id);
+      if (proforma) {
+        const generatedNumber =
+          action.payload.newNumber ||
+          (proforma.number.startsWith('PI-')
+            ? proforma.number.replace(/^PI-/, 'INV-')
+            : proforma.number.startsWith('PI')
+            ? proforma.number.replace(/^PI/, 'INV')
+            : `INV-2026-${String(state.invoices.length + 1).padStart(4, '0')}`);
+
+        const converted: InvoiceRecord = {
+          ...proforma,
+          id: `inv-${Date.now()}`,
+          type: 'invoice',
+          number: generatedNumber,
+          status: 'Receivable',
+        };
+
+        // Remove from proformas
+        state.proformas = state.proformas.filter((p) => p.id !== action.payload.id);
+        // Add to invoices
+        state.invoices = [converted, ...state.invoices.filter((i) => i.id !== converted.id)];
+
+        state.summaryStats = calculateStats(
+          state.activeTab,
+          state.invoices,
+          state.proformas,
+          state.reimbursements,
+          state.receipts
+        );
+      }
+    },
   },
 });
 
@@ -523,6 +560,7 @@ export const {
   voidInvoiceRequest,
   voidInvoiceSuccess,
   voidInvoiceFailure,
+  convertProformaToInvoice,
   addReimbursement,
   addReceipt,
   updateReceipt,

@@ -53,6 +53,10 @@ export interface ServiceItem {
   quantity: number;
   price: number;
   amount: number;
+  governmentFee?: number;
+  professionalFee?: number;
+  totalServiceFee?: number; 
+  tax?:string;
   total: number;
   isReimbursement?: boolean;
 }
@@ -84,6 +88,7 @@ export interface InvoiceRecord {
   balanceAmount: number;
   financialYear: string;
   createdAt: string;
+  amountForService?:ServiceItem;
   daysPastDue?: number;
   taskId?: string;
   taskAllocations?: { taskId: string; amountPaise: number; creditedPaise?: number }[];
@@ -107,6 +112,7 @@ export interface ReceiptRecord {
   method: PaymentMethod;
   bankAccountId: string;
   bankName: string;
+  amountForService?:ServiceItem;
   invoiceId?: string;
   invoiceNumber?: string;
   invoiceAmount?: number;

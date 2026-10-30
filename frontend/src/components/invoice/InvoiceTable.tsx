@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   PenTool,
   Loader2,
+  CreditCard,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { InvoiceRecord, ReceiptRecord } from './types';
@@ -36,9 +37,11 @@ interface ColumnDef {
 interface InvoiceTableProps {
   onView?: (item: InvoiceRecord | ReceiptRecord) => void;
   onEdit?: (item: InvoiceRecord | ReceiptRecord) => void;
+  onViewDetail?: (item: InvoiceRecord | ReceiptRecord) => void;
+  onRecordPayment?: (item: InvoiceRecord) => void;
 }
 
-export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) => {
+export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onViewDetail, onRecordPayment }) => {
   const {
     activeTab,
     invoices,
@@ -164,8 +167,8 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
     let list = [...rawData];
 
     // Filter by financial year
-    if (financialYear) {
-      list = list.filter((item) => (item as any).financialYear === financialYear);
+    if (financialYear && financialYear !== 'All') {
+      list = list.filter((item) => !(item as any).financialYear || (item as any).financialYear === financialYear);
     }
 
     // Filter by status if not All
@@ -351,7 +354,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-hidden bg-white dark:bg-[#1e293b] select-none transition-colors">
+    <div className="w-full flex-1 flex flex-col  border-[#dde2e8] dark:border-[#334155] rounded-none overflow-hidden bg-white dark:bg-[#1e293b] select-none transition-colors">
       {/* Table Container with Horizontal Scroll */}
       <div className="w-full overflow-x-auto min-h-[350px]">
         <table className="w-full text-left text-xs border-collapse">
@@ -484,9 +487,19 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
 
                       if (col.key === 'number' || col.key === 'receiptNo') {
                         cellContent = (
-                          <span className="font-semibold text-[#31719B] dark:text-[#60a5fa]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onViewDetail) {
+                                onViewDetail(row);
+                              } else {
+                                onView?.(row);
+                              }
+                            }}
+                            className="font-semibold text-[#31719B] dark:text-[#60a5fa] hover:underline text-left cursor-pointer"
+                          >
                             {row[col.key]}
-                          </span>
+                          </button>
                         );
                       } else if (col.key === 'totalPayable' || col.key === 'amount' || col.key === 'balanceAmount') {
                         cellContent = (
@@ -520,8 +533,14 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onView?.(row)}
-                          className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
+                          onClick={() => {
+                            if (onViewDetail) {
+                              onViewDetail(row);
+                            } else {
+                              onView?.(row);
+                            }
+                          }}
+                          className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors cursor-pointer"
                           title="View Details"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -534,6 +553,18 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit }) =>
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* Quick Record Payment on Invoice */}
+                        {activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Paid' && row.status !== 'Cancelled' && (
+                          <button
+                            type="button"
+                            onClick={() => onRecordPayment?.(row)}
+                            className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                            title="Record Payment"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* Sign Invoice with DSC */}
                         {!isEmployee &&
