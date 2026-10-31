@@ -103,7 +103,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     const existing: ClientContact[] = client.contacts || [];
     const promotersMap = new Map<string, any>();
     (client.customerFiles?.promoter || []).forEach((p: any) => {
-      if (p.name) promotersMap.set(p.name.toLowerCase(), p);
+      if (p.name) promotersMap.set(p.name.trim().toLowerCase(), p);
     });
 
     const promoters: ClientContact[] = (client.customerFiles?.promoter || []).map((p, i) => ({
@@ -119,18 +119,66 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     }));
 
     if (existing.length === 0) return promoters;
-    const existingNames = new Set(existing.map((c) => c.name.toLowerCase()));
+    const existingNames = new Set(existing.map((c) => (c.name || "").trim().toLowerCase()));
     const enrichedExisting = existing.map((c) => {
-      const p = promotersMap.get(c.name.toLowerCase());
+      const p = promotersMap.get((c.name || "").trim().toLowerCase());
       return {
         ...c,
         mcaId: c.mcaId || p?.mcaId || c.din,
         mcaPassword: c.mcaPassword || p?.mcaPassword,
       };
     });
-    const unlisted = promoters.filter((p) => !existingNames.has(p.name.toLowerCase()));
+    const unlisted = promoters.filter((p) => !existingNames.has((p.name || "").trim().toLowerCase()));
     return [...enrichedExisting, ...unlisted];
   }, [client.contacts, client.customerFiles?.promoter]);
+
+  // Comprehensive fallback helper to get MCA ID and Password for a director
+  const getDirectorMcaCredentials = (contact: ClientContact) => {
+    const id = contact.mcaId || contact.din || "";
+    let pwd = contact.mcaPassword || "";
+
+    if (!pwd) {
+      // 1. Check client.customerFiles.promoter
+      const contactName = (contact.name || "").trim().toLowerCase();
+      const matchedPromoter = (client.customerFiles?.promoter || []).find((p: any) => {
+        const pName = (p.name || "").trim().toLowerCase();
+        return (
+          (contactName && pName && contactName === pName) ||
+          (contact.pan && p.pan && contact.pan.trim().toUpperCase() === p.pan.trim().toUpperCase()) ||
+          (id && p.mcaId && id.trim() === p.mcaId.trim())
+        );
+      });
+      if (matchedPromoter?.mcaPassword) {
+        pwd = matchedPromoter.mcaPassword;
+      }
+    }
+
+    if (!pwd) {
+      // 2. Check client.passwords for an MCA portal entry
+      const mcaCred = (passwordsList || []).find((p) => {
+        const isMca = p.portal && p.portal.toLowerCase().includes("mca");
+        if (!isMca) return false;
+        if (id && p.userId && p.userId.trim() === id.trim()) return true;
+        if (contact.name && p.remarks && p.remarks.toLowerCase().includes(contact.name.toLowerCase())) return true;
+        return true;
+      });
+      if (mcaCred?.password) {
+        pwd = mcaCred.password;
+      }
+    }
+
+    if (!pwd) {
+      // 3. Check client.customerFiles.statutory
+      const statCred = (client.customerFiles?.statutory || []).find(
+        (s: any) => s.type && s.type.toLowerCase().includes("mca") && s.password
+      );
+      if (statCred?.password) {
+        pwd = statCred.password;
+      }
+    }
+
+    return { id, pwd };
+  };
   // Paginated contacts dataset (limit 3)
   const totalContactPages = Math.max(1, Math.ceil(contactsList.length / CONTACTS_PER_PAGE));
   const safeContactsPage = Math.min(Math.max(1, contactsPage), totalContactPages);
@@ -444,6 +492,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   const isPrimary =
                     contact.isPrimary ||
                     (!contactsList.some((c) => c.isPrimary) && idx === 0 && safeContactsPage === 1);
+                  const { id: directorMcaId, pwd: directorMcaPassword } = getDirectorMcaCredentials(contact);
                   return (
                     <div
                       key={contact.id || idx}
@@ -486,6 +535,37 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1.5">
+                          {(directorMcaId || directorMcaPassword) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                window.postMessage(
+                                  {
+                                    type: "CA_PRACTICE_AUTOFILL_MCA",
+                                    mcaId: directorMcaId,
+                                    mcaPassword: directorMcaPassword,
+                                    directorName: contact.name,
+                                    clientName: client.name,
+                                  },
+                                  "*"
+                                );
+                                if (directorMcaPassword) copyToClipboard(directorMcaPassword, "MCA Password");
+
+                                const hasExt = typeof document !== "undefined" && document.documentElement.dataset.caPracticeExtension;
+                                if (!hasExt) {
+                                  window.open("https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html", "_blank");
+                                  showToast(`Opening MCA login (Password copied to clipboard)`);
+                                } else {
+                                  showToast(`MCA login opened with auto-fill for ${contact.name}`);
+                                }
+                              }}
+                              className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Open MCA Portal and Auto-Fill Credentials via Extension"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Auto-Fill MCA</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -518,13 +598,13 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                         <div>
                           <span className="text-[10px] text-gray-400 block font-medium">MCA ID</span>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono truncate" title={contact.mcaId || contact.din || "-"}>
-                              {contact.mcaId || contact.din || "-"}
+                            <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono truncate" title={directorMcaId || "-"}>
+                              {directorMcaId || "-"}
                             </span>
-                            {(contact.mcaId || contact.din) && (
+                            {directorMcaId && (
                               <button
                                 type="button"
-                                onClick={() => copyToClipboard(contact.mcaId || contact.din || "", "MCA ID")}
+                                onClick={() => copyToClipboard(directorMcaId, "MCA ID")}
                                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-0.5 shrink-0"
                                 title="Copy MCA ID"
                               >
@@ -537,11 +617,11 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                         <div>
                           <span className="text-[10px] text-gray-400 block font-medium">MCA Password</span>
                           <div className="flex items-center gap-1 mt-0.5">
-                            {contact.mcaPassword ? (
+                            {directorMcaPassword ? (
                               <>
                                 <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono text-[11px]">
                                   {revealedMcaPasswords[contact.id || idx]
-                                    ? contact.mcaPassword
+                                    ? directorMcaPassword
                                     : "••••••••"}
                                 </span>
                                 <button
@@ -563,7 +643,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => copyToClipboard(contact.mcaPassword || "", "MCA Password")}
+                                  onClick={() => copyToClipboard(directorMcaPassword, "MCA Password")}
                                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-0.5 shrink-0"
                                   title="Copy MCA Password"
                                 >
@@ -753,9 +833,55 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
                           <td className="py-2.5 px-3.5 border-b border-gray-100 dark:border-gray-800 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {pwd.portal?.toLowerCase().includes("mca") && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    window.postMessage(
+                                      {
+                                        type: "CA_PRACTICE_AUTOFILL_MCA",
+                                        mcaId: pwd.userId || "",
+                                        mcaPassword: pwd.password || "",
+                                        directorName: pwd.remarks || "MCA Credential",
+                                        clientName: client.name,
+                                      },
+                                      "*"
+                                    );
+                                    if (pwd.password) copyToClipboard(pwd.password, "MCA Password");
+
+                                    const hasExt =
+                                      typeof document !== "undefined" &&
+                                      document.documentElement.dataset.caPracticeExtension;
+                                    if (!hasExt) {
+                                      window.open(launchUrl, "_blank");
+                                      showToast("Opening MCA login (Password copied to clipboard)");
+                                    } else {
+                                      showToast("MCA login opened with auto-fill");
+                                    }
+                                  }}
+                                  className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Open MCA Portal and Auto-Fill Credentials via Extension"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>Auto-Fill MCA</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (pwd.portal?.toLowerCase().includes("mca")) {
+                                    window.postMessage(
+                                      {
+                                        type: "CA_PRACTICE_AUTOFILL_MCA",
+                                        mcaId: pwd.userId || "",
+                                        mcaPassword: pwd.password || "",
+                                        directorName: pwd.remarks || "MCA Credential",
+                                        clientName: client.name,
+                                      },
+                                      "*"
+                                    );
+                                    if (pwd.password) copyToClipboard(pwd.password, "MCA Password");
+                                  }
                                   window.open(launchUrl, "_blank", "noopener,noreferrer");
                                   showToast(`Launching ${pwd.portal}...`);
                                 }}

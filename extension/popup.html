@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CA Practice - MCA Auto-Fill</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-box">
+        <div class="logo-icon">CA</div>
+        <div>
+          <h1>MCA Auto-Fill</h1>
+          <p class="subtitle">CA Practice Assistant</p>
+        </div>
+      </div>
+      <span class="badge">v1.0</span>
+    </header>
+
+    <!-- Active Credential Card -->
+    <div class="card" id="credentialCard">
+      <div class="card-header">
+        <span class="card-title" id="clientTitle">Active Credentials</span>
+        <span class="status-dot active"></span>
+      </div>
+
+      <div class="field-group">
+        <label>MCA User ID / DIN</label>
+        <div class="input-with-copy">
+          <input type="text" id="mcaIdInput" placeholder="Enter MCA User ID / DIN">
+          <button type="button" class="icon-btn" id="copyIdBtn" title="Copy MCA ID">📋</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>MCA Password</label>
+        <div class="input-with-copy">
+          <input type="password" id="mcaPasswordInput" placeholder="Enter MCA Password">
+          <button type="button" class="icon-btn" id="togglePassBtn" title="Show/Hide Password">👁️</button>
+          <button type="button" class="icon-btn" id="copyPassBtn" title="Copy Password">📋</button>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button type="button" class="btn btn-primary" id="openAndFillBtn">
+          🚀 Open MCA & Auto-Fill
+        </button>
+        <button type="button" class="btn btn-secondary" id="fillCurrentTabBtn">
+          ⚡ Fill Current Tab
+        </button>
+      </div>
+    </div>
+
+    <!-- Instructions / Tips -->
+    <div class="info-box">
+      <p class="info-text">
+        <strong>Tip:</strong> In CA Practice Master, click <em>"Auto-Fill MCA"</em> next to any director to launch and fill automatically.
+      </p>
+    </div>
+
+    <!-- Status Toast -->
+    <div class="status-toast" id="statusToast"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
