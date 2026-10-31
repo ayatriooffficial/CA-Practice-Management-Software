@@ -609,9 +609,22 @@ export class ClientService {
               designation: p.designation || 'Director',
               pan: p.pan || undefined,
               din: p.mcaId || undefined,
+              mcaId: p.mcaId || undefined,
+              mcaPassword: p.mcaPassword || undefined,
               dinStatus: 'Active',
             });
             existingNames.add(p.name.toLowerCase());
+          } else if (p.name) {
+            const existingIdx = currentContacts.findIndex((c: any) => c.name?.toLowerCase() === p.name.toLowerCase());
+            if (existingIdx >= 0) {
+              if (p.mcaId) {
+                currentContacts[existingIdx].mcaId = p.mcaId;
+                currentContacts[existingIdx].din = currentContacts[existingIdx].din || p.mcaId;
+              }
+              if (p.mcaPassword) {
+                currentContacts[existingIdx].mcaPassword = p.mcaPassword;
+              }
+            }
           }
         });
         client.contacts = currentContacts;
@@ -1277,6 +1290,8 @@ export class ClientService {
       designation: data.designation || 'Director',
       din: data.din || '',
       dinStatus: data.dinStatus || 'Active',
+      mcaId: data.mcaId || data.din || '',
+      mcaPassword: data.mcaPassword || '',
       appointmentDate: data.appointmentDate || '',
       dob: data.dob || '',
       email: data.email || '',
@@ -1295,6 +1310,20 @@ export class ClientService {
     }
     client.contacts.unshift(newContact);
     client.markModified('contacts');
+
+    // Also sync to customerFiles.promoter if matching
+    if (client.customerFiles?.promoter) {
+      const pIdx = client.customerFiles.promoter.findIndex(
+        (p: any) =>
+          (p.name && p.name.trim().toLowerCase() === newContact.name.trim().toLowerCase()) ||
+          (newContact.pan && p.pan && p.pan.trim().toUpperCase() === newContact.pan.trim().toUpperCase())
+      );
+      if (pIdx >= 0) {
+        if (newContact.mcaId) client.customerFiles.promoter[pIdx].mcaId = newContact.mcaId;
+        if (newContact.mcaPassword) client.customerFiles.promoter[pIdx].mcaPassword = newContact.mcaPassword;
+        client.markModified('customerFiles');
+      }
+    }
     return await client.save();
   }
 
@@ -1321,11 +1350,27 @@ export class ClientService {
     contacts[idx] = {
       ...contacts[idx],
       ...data,
+      mcaId: data.mcaId !== undefined ? data.mcaId : (contacts[idx].mcaId || contacts[idx].din || ''),
+      mcaPassword: data.mcaPassword !== undefined ? data.mcaPassword : (contacts[idx].mcaPassword || ''),
       id: contacts[idx].id || contactId,
       updatedAt: new Date().toISOString(),
     };
 
     client.markModified('contacts');
+
+    // Also sync to customerFiles.promoter if matching
+    if (client.customerFiles?.promoter) {
+      const pIdx = client.customerFiles.promoter.findIndex(
+        (p: any) =>
+          (p.name && p.name.trim().toLowerCase() === contacts[idx].name?.trim().toLowerCase()) ||
+          (contacts[idx].pan && p.pan && p.pan.trim().toUpperCase() === contacts[idx].pan.trim().toUpperCase())
+      );
+      if (pIdx >= 0) {
+        if (contacts[idx].mcaId) client.customerFiles.promoter[pIdx].mcaId = contacts[idx].mcaId;
+        if (contacts[idx].mcaPassword) client.customerFiles.promoter[pIdx].mcaPassword = contacts[idx].mcaPassword;
+        client.markModified('customerFiles');
+      }
+    }
     return await client.save();
   }
 

@@ -17,7 +17,7 @@ const promoterSchema = new Schema<IPromoterFile>(
     share: { type: String, trim: true, default: '' },
     designation: { type: String, trim: true, default: '' },
     mcaId: { type: String, trim: true, default: '' },
-    mcaPassword: { type: String, select: false },
+    mcaPassword: { type: String, trim: true, default: '' },
   },
   { _id: true }
 );
@@ -28,7 +28,7 @@ const statutorySchema = new Schema<IStatutoryFile>(
     type: { type: String, required: true, trim: true },
     idNo: { type: String, required: true, trim: true },
     userId: { type: String, trim: true, default: '' },
-    password: { type: String, select: false },
+    password: { type: String, trim: true, default: '' },
     attachment: { type: String, default: null },
   },
   { _id: true }
