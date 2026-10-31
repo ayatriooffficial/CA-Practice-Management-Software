@@ -33,10 +33,24 @@ export const ClientContactsTab: React.FC<ClientContactsTabProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
 
-  // Contacts list directly from client.contacts (no default or demo contacts)
+  // Contacts list from client.contacts and customerFiles.promoter
   const contactsList: ClientContact[] = useMemo(() => {
-    return client.contacts || [];
-  }, [client.contacts]);
+    const existing = client.contacts || [];
+    const promoters = (client.customerFiles?.promoter || []).map((p, i) => ({
+      id: `promoter-${p.key || i + 1}`,
+      name: p.name,
+      isPrimary: i === 0,
+      designation: p.designation || "Director",
+      pan: p.pan,
+      din: p.mcaId,
+      dinStatus: "Active",
+    }));
+
+    if (existing.length === 0) return promoters;
+    const existingNames = new Set(existing.map((c) => c.name.toLowerCase()));
+    const unlisted = promoters.filter((p) => !existingNames.has(p.name.toLowerCase()));
+    return [...existing, ...unlisted];
+  }, [client.contacts, client.customerFiles?.promoter]);
 
   // Filter contacts by search query
   const filteredContacts = useMemo(() => {

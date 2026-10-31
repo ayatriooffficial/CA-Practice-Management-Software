@@ -1,0 +1,14 @@
+// {{pascal}}Validator.ts
+import { z } from 'zod';
+import { validate } from '../../shared/utils/validationHelper';
+
+export const {{pascal}}Validator = {
+create: validate(
+z.object({
+// Example field validation – adjust to actual schema
+name: z.string().min(1, 'Name is required'),
+// Add other fields here
+})
+),
+// Add more validation schemas (update, etc.) as needed
+};

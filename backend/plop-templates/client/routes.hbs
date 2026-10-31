@@ -1,0 +1,16 @@
+// {{name}}.routes.ts
+import { Router } from 'express';
+import { {{pascal}}Controller } from './{{name}}.controller';
+import { {{pascal}}Validator } from './{{name}}.validator';
+
+const router = Router();
+
+// Create
+router.post('/', {{pascal}}Validator.create, {{pascal}}Controller.create{{pascal}});
+
+// List all
+router.get('/', {{pascal}}Controller.getAll{{pascal}}s);
+
+// Add more routes (GET /:id, PATCH /:id, DELETE /:id, etc.) as needed
+
+export default router;

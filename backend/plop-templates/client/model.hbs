@@ -1,0 +1,19 @@
+// {{pascal}}Model.ts
+import { Schema, model, Document } from 'mongoose';
+
+export interface I{{pascal}} extends Document {
+// TODO: define fields
+name: string;
+createdAt?: Date;
+updatedAt?: Date;
+}
+
+const {{pascal}}Schema = new Schema<I{{pascal}}>(
+    {
+    name: { type: String, required: true },
+    // add other fields here
+    },
+    { timestamps: true }
+    );
+
+    export const {{pascal}}Model = model<I{{pascal}}>('{{pascal}}', {{pascal}}Schema);

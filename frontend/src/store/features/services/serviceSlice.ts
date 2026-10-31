@@ -8,6 +8,7 @@ export interface ServiceState {
   selectedService: Service | null;
   stats: ServiceStats | null;
   loading: boolean;
+  loadingMore: boolean;
   mutating: boolean;
   error: string | null;
   pagination: PaginationState;
@@ -20,6 +21,7 @@ const initialState: ServiceState = {
   selectedService: null,
   stats: null,
   loading: false,
+  loadingMore: false,
   mutating: false,
   error: null,
   pagination: {
@@ -85,6 +87,35 @@ export const serviceSlice = createSlice({
     },
     fetchServicesFailure: (state, action: PayloadAction<string>) => {
       state.loading = false;
+      state.error = action.payload;
+    },
+    fetchMoreServicesRequest: (state, action: PayloadAction<ServiceQueryParams | undefined>) => {
+      state.loadingMore = true;
+      state.error = null;
+      if (action.payload) {
+        state.currentParams = { ...state.currentParams, ...action.payload };
+      }
+    },
+    fetchMoreServicesSuccess: (
+      state,
+      action: PayloadAction<{ services: Service[]; pagination?: PaginationState }>
+    ) => {
+      state.loadingMore = false;
+      const existingIds = new Set(state.items.map((s) => s.id));
+      const newItems = action.payload.services.filter((s) => !existingIds.has(s.id));
+      state.items = [...state.items, ...newItems];
+      if (action.payload.pagination) {
+        state.pagination = action.payload.pagination;
+      } else {
+        state.pagination.totalDocs = state.items.length;
+        state.pagination.totalPages = Math.max(
+          1,
+          Math.ceil(state.items.length / (state.pagination.limit || 10))
+        );
+      }
+    },
+    fetchMoreServicesFailure: (state, action: PayloadAction<string>) => {
+      state.loadingMore = false;
       state.error = action.payload;
     },
 
@@ -205,6 +236,9 @@ export const {
   fetchServicesRequest,
   fetchServicesSuccess,
   fetchServicesFailure,
+  fetchMoreServicesRequest,
+  fetchMoreServicesSuccess,
+  fetchMoreServicesFailure,
   fetchServiceByIdRequest,
   fetchServiceByIdSuccess,
   fetchServiceByIdFailure,

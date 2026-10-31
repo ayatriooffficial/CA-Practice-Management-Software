@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     <>
       {/* Desktop Sidebar (hidden on mobile, visible on md+) */}
       <aside
-        className="hidden md:flex app-sidebar sticky top-[var(--header-height)] h-[calc(100vh-var(--header-height))] z-40 shrink-0 flex-col justify-between overflow-visible select-none transition-colors"
+        className="hidden md:flex app-sidebar sticky top-[var(--header-height)] h-[calc(100vh-var(--header-height))] z-40 shrink-0 flex-col justify-between overflow-y-auto overflow-x-hidden no-scrollbar select-none transition-colors"
         style={{
           width: "var(--sidebar-width)",
           backgroundColor: "var(--bg-surface)",
@@ -103,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
         }}
         aria-label="Sidebar Navigation"
       >
-        <div className="flex flex-col items-center py-2 gap-0.5 w-full">
+        <div className="flex flex-col items-center py-2 gap-0.5 w-full flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
           {SIDEBAR_ITEMS.map((item) => {
             if (!isItemVisible(item.id)) return null;
             const Icon = item.icon;
@@ -325,8 +325,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     prefetch={true}
                     onClick={onCloseMobile}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-colors ${isActive
-                        ? "font-bold"
-                        : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"
+                      ? "font-bold"
+                      : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"
                       }`}
                     style={{
                       color: isActive ? "var(--primary)" : "var(--text-main)",
@@ -335,8 +335,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                   >
                     <Icon
                       className={`w-4.5 h-4.5 shrink-0 ${isActive
-                          ? ""
-                          : "text-gray-600 dark:text-gray-300"
+                        ? ""
+                        : "text-gray-600 dark:text-gray-300"
                         }`}
                       style={{
                         color: isActive ? "var(--primary)" : undefined,

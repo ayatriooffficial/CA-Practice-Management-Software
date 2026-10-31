@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useCallback, useId, memo, useMemo } from "react";
+import React, { useState, useCallback, useId, memo, useMemo, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "@/store";
+import { fetchServicesRequest, fetchMoreServicesRequest } from "@/store/features/services/serviceSlice";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -23,6 +26,10 @@ import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
 import {
   Client,
+  ClientContact,
+  ClientLicense,
+  ClientPassword,
+  ClientDocumentInOut,
   CLIENT_TYPES,
   CLIENT_GROUPS,
   PROMOTERS,
@@ -34,6 +41,7 @@ import {
 import { Select } from "@/components/ui/Select";
 import { useLeads } from "@/hooks/useLeadsQuery";
 import { PromoterSearchDropdown, PromoterItem } from "./PromoterSearchDropdown";
+import { ServiceSearchDropdown } from "./ServiceSearchDropdown";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface ClientFormProps {
@@ -74,6 +82,46 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   onCancel,
 }) => {
   const isEditing = Boolean(initialClient?.id);
+
+  // --- Redux: services from store ---
+  const dispatch = useDispatch<AppDispatch>();
+  const storeServices = useSelector((state: RootState) => state.services.items);
+  const servicesLoaded = useSelector((state: RootState) => state.services.isLoaded);
+  const servicesLoading = useSelector((state: RootState) => state.services.loading);
+  const servicesLoadingMore = useSelector((state: RootState) => state.services.loadingMore);
+  const servicesPagination = useSelector((state: RootState) => state.services.pagination);
+
+  const handleFetchServices = useCallback(() => {
+    if (!servicesLoading && storeServices.length === 0) {
+      dispatch(fetchServicesRequest({ page: 1, limit: 10 }));
+    }
+  }, [dispatch, servicesLoading, storeServices.length]);
+
+  const handleLoadMoreServices = useCallback(() => {
+    if (!servicesLoadingMore && !servicesLoading) {
+      const currentPage = servicesPagination?.page || 1;
+      const nextPage = currentPage + 1;
+      dispatch(fetchMoreServicesRequest({ page: nextPage, limit: 10 }));
+    }
+  }, [dispatch, servicesLoadingMore, servicesLoading, servicesPagination?.page]);
+
+  const hasMoreServices = useMemo(() => {
+    if (servicesPagination?.hasNextPage !== undefined) {
+      return Boolean(servicesPagination.hasNextPage);
+    }
+    if (servicesPagination?.totalPages && servicesPagination?.page) {
+      return servicesPagination.page < servicesPagination.totalPages;
+    }
+    if (servicesPagination?.totalDocs) {
+      return storeServices.length < servicesPagination.totalDocs;
+    }
+    return false;
+  }, [servicesPagination, storeServices.length]);
+
+  // Password visibility toggles: statutory rows keyed by row.key, promoter keyed by row.key
+  const [showStatutoryPw, setShowStatutoryPw] = useState<Record<number, boolean>>({});
+  const [showPromoterMcaPw, setShowPromoterMcaPw] = useState<Record<number, boolean>>({});
+  const [customStatutoryKeys, setCustomStatutoryKeys] = useState<Record<number, boolean>>({});
 
   // Form State
   const [clientName, setClientName] = useState(initialClient?.name || "");
@@ -439,6 +487,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       if (prev.length <= 1) return prev;
       return prev.filter((r) => r.key !== key);
     });
+    setCustomStatutoryKeys((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
   };
 
   // Recurring Grid Updates
@@ -564,9 +617,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
     // 9. Statutory Rows Validation
     statutoryRows.forEach((s, idx) => {
-      if (s.type.trim() && !s.idNo.trim()) {
-        errs[`statutory_${idx}`] = `Statutory #${idx + 1}: ID Number is required for selected type "${s.type}"`;
-      } else if (!s.type.trim() && s.idNo.trim()) {
+      const typeVal = s.type.trim() === "__CUSTOM__" ? "" : s.type.trim();
+      if (!typeVal && s.idNo.trim()) {
         errs[`statutory_${idx}`] = `Statutory #${idx + 1}: Statutory Type is required for ID "${s.idNo}"`;
       }
     });
@@ -615,12 +667,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         }));
 
       const cleanStatutory = statutoryRows
-        .filter((s) => s.type.trim() !== "" && s.idNo.trim() !== "")
+        .filter((s) => s.type.trim() !== "" && s.type.trim() !== "__CUSTOM__")
         .map((s, i) => ({
           ...s,
           key: s.key || i + 1,
           type: s.type.trim(),
-          idNo: s.idNo.trim(),
+          idNo: s.idNo.trim() || "-",
           userId: s.userId.trim() || undefined,
           password: s.password?.trim() || undefined,
           attachment: s.attachment || null,
@@ -635,6 +687,109 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           service: r.service.trim(),
           tariff: r.tariff.trim() || "0.00",
         }));
+
+      const recurringServiceNames = cleanRecurring.map((r) => r.service.trim());
+      const allServices = Array.from(
+        new Set([...(initialClient?.services || []), ...recurringServiceNames])
+      );
+
+      const recurringServiceSettings = cleanRecurring.map((r, i) => {
+        const existing = (initialClient?.serviceSettings || []).find(
+          (s: any) => s.serviceName === r.service
+        );
+        return {
+          id: existing?.id || `srv-setting-${i + 1}`,
+          serviceName: r.service,
+          category: r.category,
+          compliance: true,
+          isActive: true,
+          recTask: existing?.recTask || "Enabled",
+          recInvoice: existing?.recInvoice || "Enabled",
+          frequency: existing?.frequency || "Monthly",
+          start: existing?.start || "Day 1",
+          target: existing?.target || "Day 15",
+          end: existing?.end || "Day 20",
+          amount: parseFloat(r.tariff) || 0,
+        };
+      });
+
+      const existingOtherSettings = (initialClient?.serviceSettings || []).filter(
+        (s: any) => !cleanRecurring.some((r) => r.service === s.serviceName)
+      );
+      const allServiceSettings = [...existingOtherSettings, ...recurringServiceSettings];
+
+      // Map Promoters to Contacts & Directors
+      const promoterContacts: ClientContact[] = cleanPromoters.map((p, i) => ({
+        id: `contact-${Date.now()}-${i + 1}`,
+        name: p.name,
+        isPrimary: i === 0,
+        designation: p.designation || "Director",
+        pan: p.pan,
+        din: p.mcaId,
+        mcaId: p.mcaId,
+        mcaPassword: p.mcaPassword,
+        dinStatus: "Active",
+      }));
+      const existingContacts = initialClient?.contacts || [];
+      const existingContactNames = new Set(existingContacts.map((c) => c.name.toLowerCase()));
+      const allContacts = [
+        ...existingContacts,
+        ...promoterContacts.filter((pc) => !existingContactNames.has(pc.name.toLowerCase())),
+      ];
+
+      // Map Statutory Rows to Licenses & Statutory Registrations
+      const statutoryLicenses: ClientLicense[] = cleanStatutory.map((s, i) => ({
+        id: `lic-${Date.now()}-${i + 1}`,
+        name: s.type,
+        licenseNo: s.idNo || "-",
+        file: s.attachment || null,
+        fileUrl: s.attachment || undefined,
+        remarks: s.userId ? `User ID: ${s.userId}` : undefined,
+      }));
+      const existingLicenses = initialClient?.licenses || [];
+      const existingLicNames = new Set(existingLicenses.map((l) => l.name.toLowerCase()));
+      const allLicenses = [
+        ...existingLicenses,
+        ...statutoryLicenses.filter((sl) => !existingLicNames.has(sl.name.toLowerCase())),
+      ];
+
+      // Map Statutory Credentials to Portal Credentials & Passwords
+      const statutoryPasswords: ClientPassword[] = cleanStatutory
+        .filter((s) => Boolean(s.userId || s.password))
+        .map((s, i) => ({
+          id: `pwd-${Date.now()}-${i + 1}`,
+          portal: s.type,
+          userId: s.userId || "-",
+          password: s.password || "",
+          remarks: s.idNo ? `ID: ${s.idNo}` : undefined,
+        }));
+      const existingPasswords = initialClient?.passwords || [];
+      const existingPwdPortals = new Set(existingPasswords.map((p) => p.portal.toLowerCase()));
+      const allPasswords = [
+        ...existingPasswords,
+        ...statutoryPasswords.filter((sp) => !existingPwdPortals.has(sp.portal.toLowerCase())),
+      ];
+
+      // Map Statutory Attachments to Documents Movement (In/Out)
+      const statutoryDocs: ClientDocumentInOut[] = cleanStatutory
+        .filter((s) => Boolean(s.attachment))
+        .map((s, i) => ({
+          id: `doc-${Date.now()}-${i + 1}`,
+          documentName: `${s.type} Registration Document`,
+          personName: clientName.trim() || "Client",
+          date: new Date().toISOString().split("T")[0],
+          status: "In",
+          returnable: false,
+          file: s.attachment,
+          fileUrl: s.attachment || undefined,
+          remarks: `Statutory Type: ${s.type}, ID: ${s.idNo || "-"}`,
+        }));
+      const existingDocs = initialClient?.documentsInOut || [];
+      const existingDocNames = new Set(existingDocs.map((d) => d.documentName.toLowerCase()));
+      const allDocumentsInOut = [
+        ...existingDocs,
+        ...statutoryDocs.filter((sd) => !existingDocNames.has(sd.documentName.toLowerCase())),
+      ];
 
       const finalClient: Client = {
         id: initialClient?.id || "",
@@ -651,7 +806,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         group: group.trim() || "Accounting",
         tags: initialClient?.tags || ["new-client"],
         active: isActive,
-        services: initialClient?.services || [],
+        services: allServices,
+        serviceSettings: allServiceSettings,
+        contacts: allContacts,
+        licenses: allLicenses,
+        passwords: allPasswords,
+        documentsInOut: allDocumentsInOut,
         users: initialClient?.users || ["Aarav"],
         pan: pan.trim().toUpperCase() || undefined,
         dob: dob || undefined,
@@ -1018,11 +1178,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="PAN (e.g. ABCDE1234F)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm uppercase font-mono text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
-                      errors.pan
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                    }`}
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm uppercase font-mono text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.pan
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                   />
                   {errors.pan && (
                     <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
@@ -1057,11 +1216,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Mobile No. (e.g. 9876543210)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
-                      errors.mobile
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                    }`}
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.mobile
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                   />
                   {errors.mobile && (
                     <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
@@ -1095,11 +1253,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Email (e.g. name@domain.com)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
-                      errors.email
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                    }`}
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.email
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                   />
                   {errors.email && (
                     <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
@@ -1251,11 +1408,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Secondary Mobile No."
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${
-                      errors.secondaryMobile
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                    }`}
+                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.secondaryMobile
+                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                      }`}
                   />
                   {errors.secondaryMobile && (
                     <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
@@ -1401,7 +1557,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             id={`promoter-mca-pw-${row.key}`}
                             name={`promoterMcaPw-${row.key}`}
                             aria-label={`Promoter ${idx + 1} MCA Password`}
-                            type="password"
+                            type={showPromoterMcaPw[row.key] ? "text" : "password"}
                             value={row.mcaPassword || ""}
                             onChange={(e) => updatePromoterRow(row.key, "mcaPassword", e.target.value)}
                             placeholder="Password"
@@ -1409,11 +1565,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           />
                           <button
                             type="button"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
-                            title="Password masked"
-                            aria-label="Password masked"
+                            onClick={() => setShowPromoterMcaPw(prev => ({ ...prev, [row.key]: !prev[row.key] }))}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            title={showPromoterMcaPw[row.key] ? "Hide password" : "Show password"}
+                            aria-label={showPromoterMcaPw[row.key] ? "Hide password" : "Show password"}
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            {showPromoterMcaPw[row.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </td>
@@ -1465,21 +1622,59 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         {idx + 1}
                       </td>
                       <td className="px-2 py-2">
-                        <select
-                          id={`statutory-type-${row.key}`}
-                          name={`statutoryType-${row.key}`}
-                          aria-label={`Statutory ${idx + 1} Type`}
-                          value={row.type}
-                          onChange={(e) => updateStatutoryRow(row.key, "type", e.target.value)}
-                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B] cursor-pointer"
-                        >
-                          <option value="">Select</option>
-                          {STATUTORY_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                        {customStatutoryKeys[row.key] || (Boolean(row.type) && !STATUTORY_TYPES.includes(row.type)) ? (
+                          <div className="relative flex items-center">
+                            <input
+                              id={`statutory-type-${row.key}`}
+                              name={`statutoryType-${row.key}`}
+                              aria-label={`Statutory ${idx + 1} Custom Type`}
+                              type="text"
+                              value={row.type === "__CUSTOM__" ? "" : row.type}
+                              onChange={(e) => updateStatutoryRow(row.key, "type", e.target.value)}
+                              placeholder="Enter custom type"
+                              autoFocus
+                              className="h-9 w-full rounded border border-[#31719B] bg-white dark:bg-[#0f172a] pl-2 pr-7 text-xs outline-none focus:ring-1 focus:ring-[#31719B]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCustomStatutoryKeys((prev) => ({ ...prev, [row.key]: false }));
+                                updateStatutoryRow(row.key, "type", "");
+                              }}
+                              className="absolute right-1.5 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                              title="Switch back to predefined list"
+                              aria-label="Switch back to predefined list"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <select
+                            id={`statutory-type-${row.key}`}
+                            name={`statutoryType-${row.key}`}
+                            aria-label={`Statutory ${idx + 1} Type`}
+                            value={row.type}
+                            onChange={(e) => {
+                              if (e.target.value === "__CUSTOM__") {
+                                setCustomStatutoryKeys((prev) => ({ ...prev, [row.key]: true }));
+                                updateStatutoryRow(row.key, "type", "");
+                              } else {
+                                updateStatutoryRow(row.key, "type", e.target.value);
+                              }
+                            }}
+                            className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B] cursor-pointer"
+                          >
+                            <option value="">Select</option>
+                            {STATUTORY_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                            <option value="__CUSTOM__" className="text-[#31719B] font-semibold">
+                              + Custom Type
                             </option>
-                          ))}
-                        </select>
+                          </select>
+                        )}
                       </td>
                       <td className="px-2 py-2">
                         <input
@@ -1511,7 +1706,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             id={`statutory-pw-${row.key}`}
                             name={`statutoryPassword-${row.key}`}
                             aria-label={`Statutory ${idx + 1} Password`}
-                            type="password"
+                            type={showStatutoryPw[row.key] ? "text" : "password"}
                             value={row.password || ""}
                             onChange={(e) => updateStatutoryRow(row.key, "password", e.target.value)}
                             placeholder="Password"
@@ -1519,11 +1714,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           />
                           <button
                             type="button"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
-                            title="Password masked"
-                            aria-label="Password masked"
+                            onClick={() => setShowStatutoryPw(prev => ({ ...prev, [row.key]: !prev[row.key] }))}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            title={showStatutoryPw[row.key] ? "Hide password" : "Show password"}
+                            aria-label={showStatutoryPw[row.key] ? "Hide password" : "Show password"}
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            {showStatutoryPw[row.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </td>
@@ -1612,16 +1808,28 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         {idx + 1}
                       </td>
                       <td className="px-2 py-2">
+                        {/* Category: derived from store services or fallback to SERVICE_CATEGORIES */}
                         <select
                           id={`recurring-cat-${row.key}`}
                           name={`recurringCategory-${row.key}`}
                           aria-label={`Recurring Service ${idx + 1} Category`}
                           value={row.category}
-                          onChange={(e) => updateRecurringRow(row.key, "category", e.target.value)}
+                          onChange={(e) => {
+                            updateRecurringRow(row.key, "category", e.target.value);
+                            // reset service when category changes
+                            updateRecurringRow(row.key, "service", "");
+                            updateRecurringRow(row.key, "tariff", "0.00");
+                          }}
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B] cursor-pointer"
                         >
                           <option value="">Select</option>
-                          {SERVICE_CATEGORIES.map((c) => (
+                          {/* Merge store categories with static fallback */}
+                          {Array.from(
+                            new Set([
+                              ...storeServices.map((s) => s.category),
+                              ...SERVICE_CATEGORIES,
+                            ])
+                          ).map((c) => (
                             <option key={c} value={c}>
                               {c}
                             </option>
@@ -1629,15 +1837,30 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         </select>
                       </td>
                       <td className="px-2 py-2">
-                        <input
+                        {/* Service Name: searchable dropdown from store filtered by selected category */}
+                        <ServiceSearchDropdown
                           id={`recurring-srv-${row.key}`}
                           name={`recurringService-${row.key}`}
                           aria-label={`Recurring Service ${idx + 1} Service Name`}
-                          type="text"
                           value={row.service}
-                          onChange={(e) => updateRecurringRow(row.key, "service", e.target.value)}
-                          placeholder="Service Name"
-                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs outline-none focus:border-[#31719B]"
+                          services={storeServices}
+                          loadingServices={servicesLoading}
+                          loadingMoreServices={servicesLoadingMore}
+                          isLoaded={servicesLoaded}
+                          hasMoreServices={hasMoreServices}
+                          onFetchServices={handleFetchServices}
+                          onLoadMoreServices={handleLoadMoreServices}
+                          filterCategory={row.category || undefined}
+                          onSelect={(svc) => {
+                            updateRecurringRow(row.key, "category", svc.category);
+                            updateRecurringRow(row.key, "service", svc.name);
+                            updateRecurringRow(row.key, "tariff", String(svc.totalServiceFee ?? "0.00"));
+                          }}
+                          onClear={() => {
+                            updateRecurringRow(row.key, "service", "");
+                            updateRecurringRow(row.key, "tariff", "0.00");
+                          }}
+                          placeholder="Select Service"
                         />
                       </td>
                       <td className="px-2 py-2">

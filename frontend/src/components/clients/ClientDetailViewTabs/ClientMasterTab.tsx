@@ -21,6 +21,7 @@ import {
   FileBadge,
 } from "lucide-react";
 import { Client, ClientContact, ClientPassword, ClientLicense, ClientServiceSetting } from "@/data/crmData";
+import { Pagination } from "@/components/ui/Pagination";
 import { ClientGstLinksCard } from "./ClientGstLinksCard";
 import { ClientMasterSuggestionsCard } from "./ClientMasterSuggestionsCard";
 import { isGstReturnServiceEnabled } from "./utils";
@@ -67,11 +68,12 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     return isGstReturnServiceEnabled(client, allServices);
   }, [client, allServices]);
 
-  // Contacts state
+  // Contacts state & pagination (limit 3)
+  const CONTACTS_PER_PAGE = 3;
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
-  const [showAllContacts, setShowAllContacts] = useState(false);
-  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [contactsPage, setContactsPage] = useState(1);
+  const [revealedMcaPasswords, setRevealedMcaPasswords] = useState<Record<string, boolean>>({});
 
   // Licenses state
   const [showAllLicenses, setShowAllLicenses] = useState(false);
@@ -96,26 +98,84 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     showToast(`${label} copied to clipboard`);
   };
 
-  // Contacts dataset
-  const contactsList = useMemo(() => client.contacts || [], [client.contacts]);
-  const primaryContact = useMemo(() => {
-    if (selectedContactId) {
-      const found = contactsList.find((c) => c.id === selectedContactId);
-      if (found) return found;
-    }
-    return contactsList.find((c) => c.isPrimary) || contactsList[0];
-  }, [contactsList, selectedContactId]);
+  // Contacts dataset (merges contacts with customerFiles.promoter)
+  const contactsList: ClientContact[] = useMemo(() => {
+    const existing: ClientContact[] = client.contacts || [];
+    const promotersMap = new Map<string, any>();
+    (client.customerFiles?.promoter || []).forEach((p: any) => {
+      if (p.name) promotersMap.set(p.name.toLowerCase(), p);
+    });
 
-  const otherContacts = useMemo(() => {
-    if (!primaryContact) return [];
-    return contactsList.filter((c) => c.id !== primaryContact.id);
-  }, [contactsList, primaryContact]);
+    const promoters: ClientContact[] = (client.customerFiles?.promoter || []).map((p, i) => ({
+      id: `promoter-${p.key || i + 1}`,
+      name: p.name,
+      isPrimary: i === 0,
+      designation: p.designation || "Director",
+      pan: p.pan,
+      din: p.mcaId,
+      mcaId: p.mcaId,
+      mcaPassword: p.mcaPassword,
+      dinStatus: "Active",
+    }));
 
-  // Passwords dataset (max 5 visible initially, scrollable)
-  const passwordsList = useMemo(() => client.passwords || [], [client.passwords]);
+    if (existing.length === 0) return promoters;
+    const existingNames = new Set(existing.map((c) => c.name.toLowerCase()));
+    const enrichedExisting = existing.map((c) => {
+      const p = promotersMap.get(c.name.toLowerCase());
+      return {
+        ...c,
+        mcaId: c.mcaId || p?.mcaId || c.din,
+        mcaPassword: c.mcaPassword || p?.mcaPassword,
+      };
+    });
+    const unlisted = promoters.filter((p) => !existingNames.has(p.name.toLowerCase()));
+    return [...enrichedExisting, ...unlisted];
+  }, [client.contacts, client.customerFiles?.promoter]);
+  // Paginated contacts dataset (limit 3)
+  const totalContactPages = Math.max(1, Math.ceil(contactsList.length / CONTACTS_PER_PAGE));
+  const safeContactsPage = Math.min(Math.max(1, contactsPage), totalContactPages);
 
-  // Licenses dataset (2 visible initially, show more on click)
-  const licensesList = useMemo(() => client.licenses || [], [client.licenses]);
+  const paginatedContacts = useMemo(() => {
+    const start = (safeContactsPage - 1) * CONTACTS_PER_PAGE;
+    return contactsList.slice(start, start + CONTACTS_PER_PAGE);
+  }, [contactsList, safeContactsPage]);
+
+  // Passwords dataset (merges passwords with customerFiles.statutory credentials)
+  const passwordsList: ClientPassword[] = useMemo(() => {
+    const existing: ClientPassword[] = client.passwords || [];
+    const statutoryPwds: ClientPassword[] = (client.customerFiles?.statutory || [])
+      .filter((s) => Boolean(s.userId || s.password))
+      .map((s, i) => ({
+        id: `statutory-pwd-${s.key || i + 1}`,
+        portal: s.type,
+        userId: s.userId || "-",
+        password: s.password || "",
+        remarks: s.idNo ? `ID: ${s.idNo}` : undefined,
+      }));
+
+    if (existing.length === 0) return statutoryPwds;
+    const existingPortals = new Set(existing.map((p) => p.portal.toLowerCase()));
+    const unlisted = statutoryPwds.filter((p) => !existingPortals.has(p.portal.toLowerCase()));
+    return [...existing, ...unlisted];
+  }, [client.passwords, client.customerFiles?.statutory]);
+
+  // Licenses dataset (merges licenses with customerFiles.statutory registrations)
+  const licensesList: ClientLicense[] = useMemo(() => {
+    const existing: ClientLicense[] = client.licenses || [];
+    const statutoryLics: ClientLicense[] = (client.customerFiles?.statutory || []).map((s, i) => ({
+      id: `statutory-lic-${s.key || i + 1}`,
+      name: s.type,
+      licenseNo: s.idNo || "-",
+      file: s.attachment || null,
+      fileUrl: s.attachment || undefined,
+      remarks: s.userId ? `User ID: ${s.userId}` : undefined,
+    }));
+
+    if (existing.length === 0) return statutoryLics;
+    const existingNames = new Set(existing.map((l) => l.name.toLowerCase()));
+    const unlisted = statutoryLics.filter((l) => !existingNames.has(l.name.toLowerCase()));
+    return [...existing, ...unlisted];
+  }, [client.licenses, client.customerFiles?.statutory]);
   const visibleLicenses = useMemo(() => {
     if (showAllLicenses) return licensesList;
     return licensesList.slice(0, 2);
@@ -334,7 +394,12 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                     </span>
                   </h3>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Top director shown below • Expand to view all directors
+                    {contactsList.length > 0
+                      ? `Showing ${(safeContactsPage - 1) * CONTACTS_PER_PAGE + 1}–${Math.min(
+                          safeContactsPage * CONTACTS_PER_PAGE,
+                          contactsList.length
+                        )} of ${contactsList.length} directors • Limit 3 per page`
+                      : "No directors registered"}
                   </p>
                 </div>
               </div>
@@ -373,187 +438,185 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="space-y-3.5">
-                {/* Top 1 Selected / Primary Contact Card */}
-                {primaryContact && (
-                  <div className=" border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/20 p-4 shadow-2xs">
-                    <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9  bg-blue-100 dark:bg-blue-900/50 text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center shrink-0 font-bold text-xs">
-                          {primaryContact.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900 dark:text-white capitalize">
-                              {primaryContact.name}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]">
-                              {primaryContact.isPrimary ? "Primary Director" : "Selected Director"}
+              <div className="space-y-3">
+                {/* Paginated list of directors (limit 3) */}
+                {paginatedContacts.map((contact, idx) => {
+                  const isPrimary =
+                    contact.isPrimary ||
+                    (!contactsList.some((c) => c.isPrimary) && idx === 0 && safeContactsPage === 1);
+                  return (
+                    <div
+                      key={contact.id || idx}
+                      className={`border rounded-md p-4 transition-all shadow-2xs ${
+                        isPrimary
+                          ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/20"
+                          : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-xs ${
+                              isPrimary
+                                ? "bg-blue-100 dark:bg-blue-900/50 text-[#31719B] dark:text-[#60a5fa]"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {(contact.name || "D").slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-900 dark:text-white capitalize">
+                                {contact.name}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                  isPrimary
+                                    ? "bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]"
+                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                }`}
+                              >
+                                {isPrimary ? "Primary Director" : "Director"}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500 font-medium">
+                              {contact.designation || "Director"}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500 font-medium">
-                            {primaryContact.designation || "Director"}
-                          </span>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingContact(primaryContact);
-                            setIsAddContactModalOpen(true);
-                          }}
-                          className="h-7 px-2.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-[#31719B] text-gray-600 dark:text-gray-300 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                        >
-                          <Pencil className="w-3 h-3 text-[#31719B]" />
-                          <span>Edit</span>
-                        </button>
-                        {handleDeleteContact && (
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={async () => {
-                              if (confirm(`Remove director ${primaryContact.name}?`)) {
-                                await handleDeleteContact(primaryContact.id || "", primaryContact.name || "");
-                              }
+                            onClick={() => {
+                              setEditingContact(contact);
+                              setIsAddContactModalOpen(true);
                             }}
-                            className="h-7 w-7 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-rose-600 text-gray-400 flex items-center justify-center transition-colors cursor-pointer"
-                            title="Delete Contact"
+                            className="h-7 px-2.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-[#31719B] text-gray-600 dark:text-gray-300 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Pencil className="w-3 h-3 text-[#31719B]" />
+                            <span>Edit</span>
                           </button>
-                        )}
+                          {handleDeleteContact && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (confirm(`Remove director ${contact.name}?`)) {
+                                  await handleDeleteContact(contact.id || "", contact.name || "");
+                                }
+                              }}
+                              className="h-7 w-7 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-rose-600 text-gray-400 flex items-center justify-center transition-colors cursor-pointer"
+                              title="Delete Contact"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-3 text-xs">
-                      <div>
-                        <span className="text-[10px] text-gray-400 block font-medium">DIN</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono">
-                          {primaryContact.din || "-"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 block font-medium">DIN Status</span>
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {primaryContact.dinStatus || "Active"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 block font-medium">Appointment Date</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200">
-                          {primaryContact.appointmentDate || "-"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 block font-medium">Mobile</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200">
-                          {primaryContact.mobile || "-"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 block font-medium">Email</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200 truncate block">
-                          {primaryContact.email || "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Show More Directors Toggle Button */}
-                {otherContacts.length > 0 && (
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowAllContacts(!showAllContacts)}
-                      className="w-full py-2 px-3  border border-dashed border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-gray-800/40 hover:bg-gray-100/80 text-xs font-semibold text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      {showAllContacts ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          <span>Show Less Directors</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          <span>
-                            Show More Directors ({otherContacts.length} additional{" "}
-                            {otherContacts.length === 1 ? "director" : "directors"})
-                          </span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Expandable list of remaining directors */}
-                    {showAllContacts && (
-                      <div className="mt-3 space-y-2.5 animate-in fade-in duration-150">
-                        {otherContacts.map((contact) => (
-                          <div
-                            key={contact.id}
-                            className=" border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e293b] p-3.5 hover:border-gray-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8  bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center font-bold text-xs shrink-0">
-                                {contact.name.slice(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-gray-900 dark:text-white capitalize">
-                                    {contact.name}
-                                  </span>
-                                  <span className="text-[11px] text-gray-400">
-                                    ({contact.designation || "Director"})
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
-                                  <span>DIN: {contact.din || "-"}</span>
-                                  <span>•</span>
-                                  <span>Mob: {contact.mobile || "-"}</span>
-                                  <span>•</span>
-                                  <span>{contact.email || "-"}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-3 text-xs">
+                        <div>
+                          <span className="text-[10px] text-gray-400 block font-medium">MCA ID</span>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono truncate" title={contact.mcaId || contact.din || "-"}>
+                              {contact.mcaId || contact.din || "-"}
+                            </span>
+                            {(contact.mcaId || contact.din) && (
                               <button
                                 type="button"
-                                onClick={() => setSelectedContactId(contact.id || null)}
-                                className="text-[11px] text-[#31719B] font-semibold hover:underline cursor-pointer"
+                                onClick={() => copyToClipboard(contact.mcaId || contact.din || "", "MCA ID")}
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-0.5 shrink-0"
+                                title="Copy MCA ID"
                               >
-                                Set as Top
+                                <Copy className="w-3 h-3" />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingContact(contact);
-                                  setIsAddContactModalOpen(true);
-                                }}
-                                className="h-7 px-2 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-[#31719B] flex items-center gap-1 cursor-pointer"
-                              >
-                                <Pencil className="w-3 h-3 text-[#31719B]" />
-                                <span>Edit</span>
-                              </button>
-                              {handleDeleteContact && (
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-gray-400 block font-medium">MCA Password</span>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {contact.mcaPassword ? (
+                              <>
+                                <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono text-[11px]">
+                                  {revealedMcaPasswords[contact.id || idx]
+                                    ? contact.mcaPassword
+                                    : "••••••••"}
+                                </span>
                                 <button
                                   type="button"
-                                  onClick={async () => {
-                                    if (confirm(`Remove director ${contact.name}?`)) {
-                                      await handleDeleteContact(contact.id || "", contact.name || "");
-                                    }
-                                  }}
-                                  className="h-7 w-7 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-rose-600 flex items-center justify-center cursor-pointer"
+                                  onClick={() =>
+                                    setRevealedMcaPasswords((prev) => ({
+                                      ...prev,
+                                      [contact.id || idx]: !prev[contact.id || idx],
+                                    }))
+                                  }
+                                  className="text-gray-400 hover:text-[#31719B] cursor-pointer p-0.5 shrink-0"
+                                  title={revealedMcaPasswords[contact.id || idx] ? "Hide Password" : "Show Password"}
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  {revealedMcaPasswords[contact.id || idx] ? (
+                                    <EyeOff className="w-3 h-3" />
+                                  ) : (
+                                    <Eye className="w-3 h-3" />
+                                  )}
                                 </button>
-                              )}
-                            </div>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(contact.mcaPassword || "", "MCA Password")}
+                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-0.5 shrink-0"
+                                  title="Copy MCA Password"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-gray-400 font-mono">-</span>
+                            )}
                           </div>
-                        ))}
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-gray-400 block font-medium">DIN</span>
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono block mt-0.5">
+                            {contact.din || "-"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-gray-400 block font-medium">PAN</span>
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono block mt-0.5">
+                            {contact.pan || "-"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-gray-400 block font-medium">Mobile</span>
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 block mt-0.5">
+                            {contact.mobile || "-"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-gray-400 block font-medium">Email</span>
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 truncate block mt-0.5" title={contact.email}>
+                            {contact.email || "-"}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  );
+                })}
+
+                {/* Pagination (Limit 3) */}
+                {contactsList.length > CONTACTS_PER_PAGE && (
+                  <Pagination
+                    currentPage={safeContactsPage}
+                    pageSize={CONTACTS_PER_PAGE}
+                    totalItems={contactsList.length}
+                    onPageChange={(page) => setContactsPage(page)}
+                    className="rounded-md border border-gray-200 dark:border-gray-700 mt-2 px-4 py-2.5"
+                  />
                 )}
               </div>
             )}

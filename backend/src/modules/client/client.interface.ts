@@ -72,6 +72,7 @@ export interface IClientDocumentInOut {
   returnDate?: string;
   remarks?: string;
   file?: string | null;
+  fileUrl?: string | null;
 }
 
 export interface IClientRecurringTaskConfig {
@@ -149,6 +150,8 @@ export interface IClientContact {
   fatherName?: string;
   address?: string;
   createdAt?: string;
+  mcaId?: string;
+  mcaPassword?: string;
 }
 
 export interface IClient {

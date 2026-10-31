@@ -98,6 +98,132 @@ export class ClientService {
       }
     }
 
+    // Sync services array and serviceSettings from customerFiles.recurring if present
+    if (data.customerFiles?.recurring && Array.isArray(data.customerFiles.recurring)) {
+      const recurringServiceNames = data.customerFiles.recurring
+        .map((r) => r.service?.trim())
+        .filter((s): s is string => Boolean(s));
+
+      if (!data.services) {
+        data.services = [];
+      }
+      for (const sName of recurringServiceNames) {
+        if (!data.services.includes(sName)) {
+          data.services.push(sName);
+        }
+      }
+
+      if (!data.serviceSettings) {
+        data.serviceSettings = [];
+      }
+      for (const r of data.customerFiles.recurring) {
+        if (r.service && !data.serviceSettings.some((s) => s.serviceName === r.service)) {
+          data.serviceSettings.push({
+            serviceName: r.service,
+            category: r.category || 'General',
+            compliance: true,
+            isActive: true,
+            recTask: 'Enabled',
+            recInvoice: 'Enabled',
+            frequency: 'Monthly',
+            start: 'Day 1',
+            target: 'Day 15',
+            end: 'Day 20',
+            amount: parseFloat(r.tariff) || 0,
+          });
+        }
+      }
+    }
+
+    // Sync contacts from customerFiles.promoter
+    if (data.customerFiles?.promoter && Array.isArray(data.customerFiles.promoter)) {
+      if (!data.contacts) data.contacts = [];
+      const existingContactNames = new Set(data.contacts.map((c: any) => c.name?.toLowerCase()));
+      data.customerFiles.promoter.forEach((p, i) => {
+        if (p.name && !existingContactNames.has(p.name.toLowerCase())) {
+          data.contacts!.push({
+            name: p.name,
+            isPrimary: i === 0 && data.contacts!.length === 0,
+            designation: p.designation || 'Director',
+            pan: p.pan || undefined,
+            din: p.mcaId || undefined,
+            mcaId: p.mcaId || undefined,
+            mcaPassword: p.mcaPassword || undefined,
+            dinStatus: 'Active',
+          });
+          existingContactNames.add(p.name.toLowerCase());
+        }
+      });
+    }
+
+    // Sync licenses, passwords, and documentsInOut from customerFiles.statutory
+    if (data.customerFiles?.statutory && Array.isArray(data.customerFiles.statutory)) {
+      if (!data.licenses) data.licenses = [];
+      const existingLicNames = new Set(data.licenses.map((l: any) => l.name?.toLowerCase()));
+      data.customerFiles.statutory.forEach((s) => {
+        if (s.type && !existingLicNames.has(s.type.toLowerCase())) {
+          data.licenses!.push({
+            name: s.type,
+            licenseNo: s.idNo || '-',
+            file: s.attachment || null,
+            fileUrl: s.attachment || undefined,
+            remarks: s.userId ? `User ID: ${s.userId}` : undefined,
+          });
+          existingLicNames.add(s.type.toLowerCase());
+        }
+      });
+
+      if (!data.passwords) data.passwords = [];
+      const existingPwdPortals = new Set(data.passwords.map((p: any) => p.portal?.toLowerCase()));
+      data.customerFiles.statutory.forEach((s) => {
+        if ((s.userId || s.password) && s.type && !existingPwdPortals.has(s.type.toLowerCase())) {
+          data.passwords!.push({
+            portal: s.type,
+            userId: s.userId || '-',
+            password: s.password || '',
+            remarks: s.idNo ? `ID: ${s.idNo}` : undefined,
+          });
+          existingPwdPortals.add(s.type.toLowerCase());
+        }
+      });
+
+      if (Array.isArray(data.customerFiles.promoter)) {
+        data.customerFiles.promoter.forEach((p: any) => {
+          if ((p.mcaId || p.mcaPassword) && p.name) {
+            const portalName = `MCA Portal (${p.name})`;
+            if (!existingPwdPortals.has(portalName.toLowerCase())) {
+              data.passwords!.push({
+                portal: portalName,
+                userId: p.mcaId || '-',
+                password: p.mcaPassword || '',
+                remarks: p.pan ? `PAN: ${p.pan}` : undefined,
+              });
+              existingPwdPortals.add(portalName.toLowerCase());
+            }
+          }
+        });
+      }
+
+      if (!data.documentsInOut) data.documentsInOut = [];
+      const existingDocNames = new Set(data.documentsInOut.map((d: any) => d.documentName?.toLowerCase()));
+      data.customerFiles.statutory.forEach((s) => {
+        const docName = `${s.type} Registration Document`;
+        if (s.attachment && !existingDocNames.has(docName.toLowerCase())) {
+          data.documentsInOut!.push({
+            documentName: docName,
+            personName: data.name || 'Client',
+            date: new Date().toISOString().split('T')[0],
+            status: 'In',
+            returnable: false,
+            file: s.attachment,
+            fileUrl: s.attachment,
+            remarks: `Statutory Type: ${s.type}, ID: ${s.idNo || '-'}`,
+          });
+          existingDocNames.add(docName.toLowerCase());
+        }
+      });
+    }
+
     const client = new Client({
       ...data,
       fileNo,
@@ -453,6 +579,100 @@ export class ClientService {
     Object.assign(client, updateData);
     if (updateData.pan) {
       client.pan = updateData.pan.toUpperCase();
+    }
+    if (updateData.customerFiles) {
+      client.markModified('customerFiles');
+      if (Array.isArray(updateData.customerFiles.recurring)) {
+        const recurringNames = updateData.customerFiles.recurring
+          .map((r: any) => r.service?.trim())
+          .filter((s: any): s is string => Boolean(s));
+        if (recurringNames.length > 0) {
+          const currentServices = Array.isArray(client.services) ? [...client.services] : [];
+          for (const sName of recurringNames) {
+            if (!currentServices.includes(sName)) {
+              currentServices.push(sName);
+            }
+          }
+          client.services = currentServices;
+          client.markModified('services');
+        }
+      }
+
+      if (Array.isArray(updateData.customerFiles.promoter)) {
+        const currentContacts = Array.isArray(client.contacts) ? [...client.contacts] : [];
+        const existingNames = new Set(currentContacts.map((c: any) => c.name?.toLowerCase()));
+        updateData.customerFiles.promoter.forEach((p: any, i: number) => {
+          if (p.name && !existingNames.has(p.name.toLowerCase())) {
+            currentContacts.push({
+              name: p.name,
+              isPrimary: i === 0 && currentContacts.length === 0,
+              designation: p.designation || 'Director',
+              pan: p.pan || undefined,
+              din: p.mcaId || undefined,
+              dinStatus: 'Active',
+            });
+            existingNames.add(p.name.toLowerCase());
+          }
+        });
+        client.contacts = currentContacts;
+        client.markModified('contacts');
+      }
+
+      if (Array.isArray(updateData.customerFiles.statutory)) {
+        const currentLicenses = Array.isArray(client.licenses) ? [...client.licenses] : [];
+        const existingLicNames = new Set(currentLicenses.map((l: any) => l.name?.toLowerCase()));
+        updateData.customerFiles.statutory.forEach((s: any) => {
+          if (s.type && !existingLicNames.has(s.type.toLowerCase())) {
+            currentLicenses.push({
+              name: s.type,
+              licenseNo: s.idNo || '-',
+              file: s.attachment || null,
+              fileUrl: s.attachment || undefined,
+              remarks: s.userId ? `User ID: ${s.userId}` : undefined,
+            });
+            existingLicNames.add(s.type.toLowerCase());
+          }
+        });
+        client.licenses = currentLicenses;
+        client.markModified('licenses');
+
+        const currentPasswords = Array.isArray(client.passwords) ? [...client.passwords] : [];
+        const existingPwdPortals = new Set(currentPasswords.map((p: any) => p.portal?.toLowerCase()));
+        updateData.customerFiles.statutory.forEach((s: any) => {
+          if ((s.userId || s.password) && s.type && !existingPwdPortals.has(s.type.toLowerCase())) {
+            currentPasswords.push({
+              portal: s.type,
+              userId: s.userId || '-',
+              password: s.password || '',
+              remarks: s.idNo ? `ID: ${s.idNo}` : undefined,
+            });
+            existingPwdPortals.add(s.type.toLowerCase());
+          }
+        });
+        client.passwords = currentPasswords;
+        client.markModified('passwords');
+
+        const currentDocs = Array.isArray(client.documentsInOut) ? [...client.documentsInOut] : [];
+        const existingDocNames = new Set(currentDocs.map((d: any) => d.documentName?.toLowerCase()));
+        updateData.customerFiles.statutory.forEach((s: any) => {
+          const docName = `${s.type} Registration Document`;
+          if (s.attachment && !existingDocNames.has(docName.toLowerCase())) {
+            currentDocs.push({
+              documentName: docName,
+              personName: client.name || 'Client',
+              date: new Date().toISOString().split('T')[0],
+              status: 'In',
+              returnable: false,
+              file: s.attachment,
+              fileUrl: s.attachment,
+              remarks: `Statutory Type: ${s.type}, ID: ${s.idNo || '-'}`,
+            });
+            existingDocNames.add(docName.toLowerCase());
+          }
+        });
+        client.documentsInOut = currentDocs;
+        client.markModified('documentsInOut');
+      }
     }
     if (updateData.serviceSettings) {
       client.markModified('serviceSettings');

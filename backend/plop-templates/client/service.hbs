@@ -1,0 +1,25 @@
+// {{pascal}}Service.ts
+import { {{pascal}}Model } from './{{name}}.model';
+
+export class {{pascal}}Service {
+static async create{{pascal}}(payload: any) {
+const doc = new {{pascal}}Model(payload);
+return await doc.save();
+}
+
+static async getAll{{pascal}}s(query: any) {
+const page = Number(query.page) || 1;
+const limit = Number(query.limit) || 20;
+const skip = (page - 1) * limit;
+
+const [items, total] = await Promise.all([
+{{pascal}}Model.find().skip(skip).limit(limit),
+{{pascal}}Model.countDocuments(),
+]);
+
+const pagination = { page, limit, total };
+return { items, pagination };
+}
+
+// Add more CRUD methods as needed (update, delete, etc.)
+}

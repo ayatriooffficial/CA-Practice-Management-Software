@@ -1,0 +1,19 @@
+// {{pascal}}Controller.ts
+import { Request, Response } from 'express';
+import { {{pascal}}Service } from './{{name}}.service';
+import { asyncHandler } from '../../shared/utils/asyncHandler';
+import { ApiResponse } from '../../shared/utils/apiResponse';
+
+export class {{pascal}}Controller {
+  static create{{pascal}} = asyncHandler(async (req: Request, res: Response) => {
+    const result = await {{pascal}}Service.create{{pascal}}(req.body);
+    return ApiResponse.created(res, result, '{{pascal}} created');
+  });
+
+  static getAll{{pascal}}s = asyncHandler(async (req: Request, res: Response) => {
+    const { items, pagination } = await {{pascal}}Service.getAll{{pascal}}s(req.query);
+    return ApiResponse.paginated(res, items, pagination, '{{pascal}} list fetched');
+  });
+
+  // Add more CRUD methods as needed
+}

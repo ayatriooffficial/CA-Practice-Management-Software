@@ -7,6 +7,9 @@ import {
   fetchServicesRequest,
   fetchServicesSuccess,
   fetchServicesFailure,
+  fetchMoreServicesRequest,
+  fetchMoreServicesSuccess,
+  fetchMoreServicesFailure,
   fetchServiceByIdRequest,
   fetchServiceByIdSuccess,
   fetchServiceByIdFailure,
@@ -39,6 +42,21 @@ function* handleFetchServices(action: PayloadAction<ServiceQueryParams | undefin
   } catch (error: any) {
     yield put(fetchServicesFailure(error.message || 'Failed to fetch services'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to fetch services' }));
+  }
+}
+
+function* handleFetchMoreServices(action: PayloadAction<ServiceQueryParams | undefined>): Generator<any, void, any> {
+  try {
+    const response: ApiResponse<Service[]> = yield call(serviceApi.getServices, action.payload || {});
+    yield put(
+      fetchMoreServicesSuccess({
+        services: response.data || [],
+        pagination: response.pagination,
+      })
+    );
+  } catch (error: any) {
+    yield put(fetchMoreServicesFailure(error.message || 'Failed to load more services'));
+    yield put(showToast({ type: 'error', message: error.message || 'Failed to load more services' }));
   }
 }
 
@@ -144,6 +162,7 @@ function* handleBulkDeleteServices(
 
 export function* serviceSaga() {
   yield takeLatest(fetchServicesRequest.type, handleFetchServices);
+  yield takeLatest(fetchMoreServicesRequest.type, handleFetchMoreServices);
   yield takeLatest(fetchServiceByIdRequest.type, handleFetchServiceById);
   yield takeLatest(fetchServiceStatsRequest.type, handleFetchServiceStats);
   yield takeLatest(createServiceRequest.type, handleCreateService);

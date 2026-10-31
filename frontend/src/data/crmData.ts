@@ -214,6 +214,8 @@ export interface ClientContact {
   fatherName?: string;
   address?: string;
   createdAt?: string;
+  mcaId?: string;
+  mcaPassword?: string;
 }
 
 export interface Client {

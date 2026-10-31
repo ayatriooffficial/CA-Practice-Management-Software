@@ -38,6 +38,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
   const [designation, setDesignation] = useState("Director");
   const [din, setDin] = useState("");
   const [dinStatus, setDinStatus] = useState("Active");
+  const [mcaId, setMcaId] = useState("");
+  const [mcaPassword, setMcaPassword] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
   const [dob, setDob] = useState("");
   const [email, setEmail] = useState("");
@@ -58,6 +60,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
       setDesignation(editingContact.designation || "Director");
       setDin(editingContact.din === "-" ? "" : editingContact.din || "");
       setDinStatus(editingContact.dinStatus || "Active");
+      setMcaId(editingContact.mcaId === "-" ? "" : editingContact.mcaId || editingContact.din || "");
+      setMcaPassword(editingContact.mcaPassword === "-" ? "" : editingContact.mcaPassword || "");
       setAppointmentDate(toDateInputValue(editingContact.appointmentDate));
       setDob(toDateInputValue(editingContact.dob));
       setEmail(editingContact.email === "-" ? "" : editingContact.email || "");
@@ -73,6 +77,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
       setDesignation("Director");
       setDin("");
       setDinStatus("Active");
+      setMcaId("");
+      setMcaPassword("");
       setAppointmentDate("");
       setDob("");
       setEmail("");
@@ -105,6 +111,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
         designation: designation.trim() || "Director",
         din: din.trim() || "-",
         dinStatus: dinStatus.trim() || "-",
+        mcaId: mcaId.trim() || undefined,
+        mcaPassword: mcaPassword.trim() || undefined,
         appointmentDate: appointmentDate || "-",
         dob: dob || "-",
         email: email.trim() || "-",
@@ -254,6 +262,35 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 <option value="Deactivated">Deactivated</option>
                 <option value="-">-</option>
               </select>
+            </div>
+          </div>
+
+          {/* Row 2.5: MCA ID & MCA Password */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                MCA ID / User ID
+              </label>
+              <input
+                type="text"
+                value={mcaId}
+                onChange={(e) => setMcaId(e.target.value)}
+                placeholder="e.g. director_mca or DIN"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                MCA Password
+              </label>
+              <input
+                type="text"
+                value={mcaPassword}
+                onChange={(e) => setMcaPassword(e.target.value)}
+                placeholder="MCA Portal Password"
+                className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
+              />
             </div>
           </div>
 
