@@ -301,11 +301,11 @@
   // State
   let currentActiveClient = null;
   let currentCredentials = {};
-  let isMinimized = false;
-  let activeTab = "fill"; // "fill" | "search" | "details"
+  let isExpanded = false;      // panel visible above bar?
+  let activeTab = "fill";      // "fill" | "search" | "details"
 
   // -------------------------------------------------------------
-  // Draggable Floating UI Widget
+  // Draggable Floating UI Widget  –  bottom-bar collapsed by default
   // -------------------------------------------------------------
   function createOrUpdateWidget(credentials, clientData) {
     if (window.top !== window.self) return;
@@ -320,63 +320,58 @@
       widget.style.cssText = `
         position: fixed;
         z-index: 2147483647;
-        background: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 12px;
-        box-shadow: 0 12px 30px -5px rgba(0,0,0,0.25), 0 8px 10px -6px rgba(0,0,0,0.1);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 12px;
         color: #1e293b;
-        width: 350px;
+        width: 340px;
         max-width: 95vw;
-        max-height: 90vh;
         display: flex;
         flex-direction: column;
+        border-radius: 10px;
         overflow: hidden;
+        box-shadow: 0 8px 24px -4px rgba(0,0,0,0.22), 0 4px 8px -2px rgba(0,0,0,0.12);
+        border: 1px solid #cbd5e1;
+        background: #fff;
       `;
       document.body.appendChild(widget);
 
-      // Restore saved location
+      // Restore saved position or default to bottom-right
       const savedPos = localStorage.getItem("ca_mca_widget_pos");
       if (savedPos) {
         try {
           const { left, top } = JSON.parse(savedPos);
           if (left !== undefined && top !== undefined) {
             const boundedLeft = Math.max(10, Math.min(window.innerWidth - 360, left));
-            const boundedTop = Math.max(10, Math.min(window.innerHeight - 80, top));
-            widget.style.left = `${boundedLeft}px`;
-            widget.style.top = `${boundedTop}px`;
-            widget.style.right = "auto";
+            const boundedTop  = Math.max(10, Math.min(window.innerHeight - 50, top));
+            widget.style.left   = `${boundedLeft}px`;
+            widget.style.top    = `${boundedTop}px`;
+            widget.style.right  = "auto";
             widget.style.bottom = "auto";
           }
         } catch (e) {
           widget.style.bottom = "20px";
-          widget.style.right = "20px";
+          widget.style.right  = "20px";
         }
       } else {
         widget.style.bottom = "20px";
-        widget.style.right = "20px";
+        widget.style.right  = "20px";
       }
 
-      // Make Draggable
       setupDraggable(widget);
     }
 
     renderWidgetContent(widget);
   }
 
-  // Setup draggable behavior on the widget header
+  // Draggable – whole widget is the drag handle (except buttons/inputs)
   function setupDraggable(widget) {
     let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let origLeft = 0;
-    let origTop = 0;
+    let startX = 0, startY = 0;
+    let origLeft = 0, origTop = 0;
 
     const onMouseDown = (e) => {
-      // Don't drag if clicked on input or button
       if (["INPUT", "BUTTON", "A", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
-      if (e.target.closest("button") || e.target.closest("input")) return;
+      if (e.target.closest("button") || e.target.closest("input") || e.target.closest("select")) return;
 
       isDragging = true;
       startX = e.clientX;
@@ -384,11 +379,11 @@
 
       const rect = widget.getBoundingClientRect();
       origLeft = rect.left;
-      origTop = rect.top;
+      origTop  = rect.top;
 
-      widget.style.left = `${origLeft}px`;
-      widget.style.top = `${origTop}px`;
-      widget.style.right = "auto";
+      widget.style.left   = `${origLeft}px`;
+      widget.style.top    = `${origTop}px`;
+      widget.style.right  = "auto";
       widget.style.bottom = "auto";
       widget.style.userSelect = "none";
 
@@ -400,15 +395,10 @@
       if (!isDragging) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-
-      const width = widget.offsetWidth || 350;
-      const height = widget.offsetHeight || 100;
-
-      let newLeft = Math.max(10, Math.min(window.innerWidth - width - 10, origLeft + dx));
-      let newTop = Math.max(10, Math.min(window.innerHeight - height - 10, origTop + dy));
-
-      widget.style.left = `${newLeft}px`;
-      widget.style.top = `${newTop}px`;
+      const width  = widget.offsetWidth  || 340;
+      const height = widget.offsetHeight || 44;
+      widget.style.left = `${Math.max(10, Math.min(window.innerWidth  - width  - 10, origLeft + dx))}px`;
+      widget.style.top  = `${Math.max(10, Math.min(window.innerHeight - height - 10, origTop  + dy))}px`;
     };
 
     const onMouseUp = () => {
@@ -419,7 +409,7 @@
       document.removeEventListener("mouseup", onMouseUp);
 
       const rect = widget.getBoundingClientRect();
-      const pos = { left: rect.left, top: rect.top };
+      const pos  = { left: rect.left, top: rect.top };
       localStorage.setItem("ca_mca_widget_pos", JSON.stringify(pos));
       chrome.storage?.local?.set({ widgetPosition: pos });
     };
@@ -427,75 +417,71 @@
     widget.addEventListener("mousedown", onMouseDown);
   }
 
-  // Render Widget View
+  // Build the entire widget HTML (bar always visible; panel toggled above it)
   function renderWidgetContent(widget) {
-    if (isMinimized) {
-      renderMinimizedWidget(widget);
-      return;
-    }
+    const clientName = currentCredentials?.clientName || currentActiveClient?.name || "No Client";
+    const panStr     = currentCredentials?.clientPan  || currentActiveClient?.pan  || "";
+    const hasCredentials = !!(currentCredentials?.mcaId || currentCredentials?.mcaPassword);
 
-    const title = currentCredentials?.directorName
-      ? `${currentCredentials.directorName}`
-      : currentCredentials?.clientName || "MCA Portal";
-    const clientName = currentCredentials?.clientName || currentActiveClient?.name || "No Client Selected";
-    const panStr = currentCredentials?.clientPan || currentActiveClient?.pan || "";
-
-    const idVal = currentCredentials?.mcaId || "";
+    const idVal   = currentCredentials?.mcaId      || "";
     const passVal = currentCredentials?.mcaPassword || "";
-
-    // Extract directors list if available from client
     const directors = getClientDirectors(currentActiveClient);
 
+    // Determine bar display text
+    const barLabel = currentCredentials?.directorName
+      ? `${currentCredentials.directorName}`
+      : clientName;
+
+    const chevron = isExpanded ? "▲" : "▼";
+
     widget.innerHTML = `
-      <!-- Header / Drag Bar -->
-      <div id="ca-w-header" style="cursor: grab; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 14px;">
-        <div style="display: flex; align-items: center; gap: 7px; user-select: none;">
-          <span style="color: #64748b; font-size: 15px; line-height: 1;" title="Drag to adjust position">⠿</span>
-          <div style="width: 20px; height: 20px; border-radius: 4px; background: #31719B; color: #fff; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center;">CA</div>
-          <span style="font-weight: 700; color: #0f172a; font-size: 12.5px;">MCA Assistant</span>
+      <!-- ── Expanded Panel (shown above the bar) ── -->
+      <div id="ca-w-panel" style="display:${isExpanded ? "flex" : "none"}; flex-direction:column; background:#fff; border-bottom:1px solid #e2e8f0; max-height:420px; overflow-y:auto;">
+
+        <!-- Panel tab nav -->
+        <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+          <button id="ca-w-tab-fill" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="fill"?"2px solid #31719B":"2px solid transparent"}; background:transparent; color:${activeTab==="fill"?"#31719B":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">⚡ Fill</button>
+          <button id="ca-w-tab-search" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="search"?"2px solid #31719B":"2px solid transparent"}; background:transparent; color:${activeTab==="search"?"#31719B":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">🔍 Search</button>
+          <button id="ca-w-tab-details" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="details"?"2px solid #31719B":"2px solid transparent"}; background:transparent; color:${activeTab==="details"?"#31719B":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">📋 Details</button>
         </div>
-        <div style="display: flex; align-items: center; gap: 4px;">
-          <button id="ca-w-tab-search" style="height: 24px; padding: 0 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: ${activeTab === "search" ? "#31719B" : "#fff"}; color: ${activeTab === "search" ? "#fff" : "#334155"}; font-size: 11px; font-weight: 600; cursor: pointer;" title="Search Client by PAN / Name">🔍 Search</button>
-          <button id="ca-w-tab-details" style="height: 24px; padding: 0 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: ${activeTab === "details" ? "#31719B" : "#fff"}; color: ${activeTab === "details" ? "#fff" : "#334155"}; font-size: 11px; font-weight: 600; cursor: pointer;" title="View all client details">📋 Details</button>
-          <button id="ca-w-min" style="width: 24px; height: 24px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #64748b; font-size: 13px; line-height: 1; cursor: pointer;" title="Minimize Widget">_</button>
-          <button id="ca-w-close" style="width: 24px; height: 24px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #94a3b8; font-size: 15px; line-height: 1; cursor: pointer;" title="Close Widget">&times;</button>
+
+        <!-- Panel body -->
+        <div id="ca-w-panel-body" style="padding:12px 14px; overflow-y:auto;">
+          ${renderActiveTabBody("", clientName, panStr, idVal, passVal, directors)}
         </div>
       </div>
 
-      <!-- Body Container -->
-      <div style="padding: 12px 14px; overflow-y: auto; max-height: calc(85vh - 50px);">
-        ${renderActiveTabBody(title, clientName, panStr, idVal, passVal, directors)}
+      <!-- ── Collapsed Bar (always visible) ── -->
+      <div id="ca-w-bar" style="
+        display:flex; align-items:center; height:44px; padding:0 10px; gap:8px;
+        background:#fff; cursor:grab; user-select:none;
+        border-top:${isExpanded?"1px solid #e2e8f0":"none"};
+      ">
+        <!-- Grip + CA badge -->
+        <span style="color:#94a3b8; font-size:14px; flex-shrink:0;" title="Drag">⠿</span>
+        <div style="width:22px; height:22px; border-radius:5px; background:#31719B; color:#fff; font-size:9px; font-weight:bold; display:flex; align-items:center; justify-content:center; flex-shrink:0;">CA</div>
+
+        <!-- Client name + PAN -->
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:11.5px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${barLabel}">${barLabel}</div>
+          ${panStr ? `<div style="font-size:9.5px; font-family:monospace; color:#64748b;">${panStr}</div>` : ""}
+        </div>
+
+        <!-- Status dot -->
+        <div style="width:7px; height:7px; border-radius:50%; background:${hasCredentials?"#16a34a":"#94a3b8"}; flex-shrink:0;" title="${hasCredentials?"Credentials loaded":"No credentials"}"></div>
+
+        <!-- Quick-fill button -->
+        <button id="ca-w-quick-fill" style="height:28px; padding:0 9px; background:#31719B; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0;" title="Auto-Fill Now">⚡</button>
+
+        <!-- Expand / collapse chevron -->
+        <button id="ca-w-expand-btn" style="width:28px; height:28px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; color:#334155; font-size:13px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;" title="${isExpanded?"Collapse":"Expand"}">${chevron}</button>
+
+        <!-- Close -->
+        <button id="ca-w-close" style="width:24px; height:24px; border:none; background:transparent; color:#94a3b8; font-size:16px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;" title="Close">&times;</button>
       </div>
     `;
 
     bindWidgetEvents(widget);
-  }
-
-  // Minimized state
-  function renderMinimizedWidget(widget) {
-    const title = currentCredentials?.directorName || currentCredentials?.clientName || "MCA";
-    widget.innerHTML = `
-      <div id="ca-w-header-min" style="cursor: grab; display: flex; align-items: center; gap: 8px; background: #ffffff; padding: 8px 12px; user-select: none;">
-        <span style="color: #64748b; font-size: 15px; line-height: 1;" title="Drag to adjust position">⠿</span>
-        <div style="width: 20px; height: 20px; border-radius: 4px; background: #31719B; color: #fff; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center;">CA</div>
-        <span style="font-weight: 700; color: #0f172a; font-size: 12px; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
-        <button id="ca-w-min-fill" style="height: 26px; padding: 0 8px; background: #31719B; color: #fff; border: none; border-radius: 5px; font-weight: 600; font-size: 11px; cursor: pointer;">⚡ Fill</button>
-        <button id="ca-w-expand" style="height: 26px; padding: 0 8px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer;" title="Expand Assistant">＋ Expand</button>
-      </div>
-    `;
-
-    document.getElementById("ca-w-expand")?.addEventListener("click", () => {
-      isMinimized = false;
-      renderWidgetContent(widget);
-    });
-
-    document.getElementById("ca-w-min-fill")?.addEventListener("click", () => {
-      const curId = currentCredentials?.mcaId || "";
-      const curPass = currentCredentials?.mcaPassword || "";
-      if (curId) {
-        window.__caPracticeFill(curId, curPass);
-      }
-    });
   }
 
   // Helper to extract all directors from client
@@ -715,22 +701,43 @@
 
   // Bind UI Events
   function bindWidgetEvents(widget) {
+    // Close
     document.getElementById("ca-w-close")?.addEventListener("click", () => {
       widget.remove();
     });
 
-    document.getElementById("ca-w-min")?.addEventListener("click", () => {
-      isMinimized = true;
+    // Expand / collapse chevron
+    document.getElementById("ca-w-expand-btn")?.addEventListener("click", () => {
+      isExpanded = !isExpanded;
+      renderWidgetContent(widget);
+    });
+
+    // Quick-fill from bar
+    document.getElementById("ca-w-quick-fill")?.addEventListener("click", () => {
+      const curId   = currentCredentials?.mcaId      || "";
+      const curPass = currentCredentials?.mcaPassword || "";
+      if (curId || curPass) {
+        window.__caPracticeFill(curId, curPass);
+      } else {
+        isExpanded = true;
+        activeTab  = "fill";
+        renderWidgetContent(widget);
+      }
+    });
+
+    // Tab nav
+    document.getElementById("ca-w-tab-fill")?.addEventListener("click", () => {
+      activeTab = "fill";
       renderWidgetContent(widget);
     });
 
     document.getElementById("ca-w-tab-search")?.addEventListener("click", () => {
-      activeTab = activeTab === "search" ? "fill" : "search";
+      activeTab = "search";
       renderWidgetContent(widget);
     });
 
     document.getElementById("ca-w-tab-details")?.addEventListener("click", () => {
-      activeTab = activeTab === "details" ? "fill" : "details";
+      activeTab = "details";
       renderWidgetContent(widget);
     });
 
@@ -740,7 +747,8 @@
     });
 
     document.getElementById("ca-w-go-search")?.addEventListener("click", () => {
-      activeTab = "search";
+      activeTab  = "search";
+      isExpanded = true;
       renderWidgetContent(widget);
     });
 
