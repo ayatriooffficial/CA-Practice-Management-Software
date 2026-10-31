@@ -217,7 +217,7 @@ export const LoginForm: React.FC = () => {
                   disabled={!isValidEmail || isLoading}
                   className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!isValidEmail || isLoading
                     ? "bg-[#3D6A9E] cursor-not-allowed"
-                    : "bg-[#3D6A9E] hover:bg-[#5b42e6] hover:shadow"
+                    : "bg-[#3D6A9E] hover:bg-[#3D6A9E] hover:shadow"
                     }`}
                 >
                   {isLoading ? (
@@ -331,7 +331,7 @@ export const LoginForm: React.FC = () => {
                   </div>
                   <Link
                     href={`/signup?email=${encodeURIComponent(cleanEmail)}`}
-                    className="w-full py-2 px-3 text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#5b42e6] rounded-lg text-center transition-colors shadow-2xs flex items-center justify-center gap-1.5"
+                    className="w-full py-2 px-3 text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#3D6A9E] rounded-lg text-center transition-colors shadow-2xs flex items-center justify-center gap-1.5"
                   >
                     <span>Create Organization</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -356,7 +356,7 @@ export const LoginForm: React.FC = () => {
                   disabled={!password.trim() || isLoading}
                   className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!password.trim() || isLoading
                     ? "bg-[#3D6A9E] cursor-not-allowed"
-                    : "bg-[#3D6A9E] hover:bg-[#5b42e6] hover:shadow"
+                    : "bg-[#3D6A9E] hover:bg-[#3D6A9E] hover:shadow"
                     }`}
                 >
                   {isLoading ? (

@@ -290,7 +290,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({
           onClick={() => triggerVerification(digits.join(""))}
           className={`w-full sm:w-auto px-7 h-[47px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${!isComplete || isVerifying || isSuccess || lockoutTimer > 0
             ? "bg-[#3D6A9E] cursor-not-allowed"
-            : "bg-[#3D6A9E] hover:bg-[#5b42e6] shadow-xs hover:shadow"
+            : "bg-[#3D6A9E] hover:bg-[#3D6A9E] shadow-xs hover:shadow"
             }`}
         >
           {isVerifying ? (

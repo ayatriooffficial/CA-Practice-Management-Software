@@ -126,7 +126,7 @@ export const SignupForm: React.FC = () => {
           onClick={() => {
             router.push(`/login?email=${encodeURIComponent(confirmationData.email)}`);
           }}
-          className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#3D6A9E] hover:bg-[#5b42e6] transition-all shadow-sm hover:shadow cursor-pointer flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#3D6A9E] hover:bg-[#3D6A9E] transition-all shadow-sm hover:shadow cursor-pointer flex items-center justify-center gap-2"
         >
           <span>Go to Sign In</span>
         </button>

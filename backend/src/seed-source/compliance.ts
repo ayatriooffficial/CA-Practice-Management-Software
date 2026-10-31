@@ -44,7 +44,7 @@ export const COMPLIANCE_CATEGORIES_DATA: {
   { id: 'cat-payroll', name: 'Payroll', order: 23, mode: 'manual' },
   { id: 'cat-sebi', name: 'SEBI', order: 24, mode: 'manual' },
   { id: 'cat-stpi', name: 'STPI Compliances', order: 25, mode: 'manual' },
-  { id: 'cat-turia-test', name: 'Turia Test', order: 26, mode: 'manual' },
+  { id: 'cat-turia-test', name: 'CA Test', order: 26, mode: 'manual' },
   { id: 'cat-logs', name: 'Logs', order: 27, mode: 'manual' },
 ];
 

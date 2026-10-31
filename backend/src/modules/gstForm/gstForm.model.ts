@@ -83,7 +83,7 @@ const gstFormLinkSchema = new Schema<IGstFormLink>(
     },
     expires_at: {
       type: Date,
-      required: true,
+      default: null,
       index: true,
     },
     submitted_at: {
@@ -108,7 +108,7 @@ const gstFormLinkSchema = new Schema<IGstFormLink>(
 
 // Method to verify if active or expired
 gstFormLinkSchema.methods.isExpired = function (): boolean {
-  return new Date() > this.expires_at;
+  return false;
 };
 
 export const GstFormLinkModel = model<IGstFormLink>(

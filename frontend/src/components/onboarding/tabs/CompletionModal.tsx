@@ -23,7 +23,7 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({ isOpen, onClos
 
         <h3 className="text-xl font-bold text-[var(--text-main)]">Profile Setup Complete!</h3>
         <p className="text-xs text-[var(--text-muted)]">
-          Your organization profile, bank account, and firm preferences are now active in Turia
+          Your organization profile, bank account, and firm preferences are now active in CA Practice
           Practice.
         </p>
 

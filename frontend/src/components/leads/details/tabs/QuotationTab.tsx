@@ -177,7 +177,7 @@ export const QuotationTab = memo(
                               {quotation.billingOrg?.name?.slice(0, 2).toUpperCase() || "TA"}
                             </div>
                             <span className="truncate max-w-[150px]">
-                              {quotation.billingOrg?.name || "Turia Associates Dem"}
+                              {quotation.billingOrg?.name || "CA Associates Demo"}
                             </span>
                           </div>
                         </td>

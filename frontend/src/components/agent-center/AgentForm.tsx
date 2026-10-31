@@ -1320,7 +1320,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] bg-slate-50 font-sans">
-      {/* 1. TOP HEADER & BREADCRUMB (Matches Turia Reference) */}
+      {/* 1. TOP HEADER & BREADCRUMB (Matches Reference) */}
       <header className="bg-white border-b border-slate-200 px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-4 z-20">
         <div>
           {/* Breadcrumb */}
@@ -1334,7 +1334,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
             <span className="text-slate-700 font-semibold">{agentId ? 'Edit Agents' : 'Create Agents'}</span>
           </div>
 
-          {/* Title matching Turia screenshot */}
+          {/* Title matching Reference screenshot */}
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{module} Agents</h1>
           </div>
@@ -1380,7 +1380,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
         </div>
       )}
 
-      {/* 2. TURIA WORKFLOW CANVAS (Subtle Dotted Grid) */}
+      {/* 2. WORKFLOW CANVAS (Subtle Dotted Grid) */}
       <main
         className="relative flex-1 w-full overflow-x-auto overflow-y-auto min-h-[920px] p-4 md:p-6 select-none"
         style={{

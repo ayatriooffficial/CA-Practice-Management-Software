@@ -138,7 +138,7 @@ export const PendingApprovalCard: React.FC = () => {
             type="button"
             onClick={checkStatus}
             disabled={isChecking}
-            className="w-full sm:flex-1 h-11 rounded-lg text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#5b42e6] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+            className="w-full sm:flex-1 h-11 rounded-lg text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#3D6A9E] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? "animate-spin" : ""}`} />
             <span>{isChecking ? "Checking Status..." : "Refresh Status"}</span>

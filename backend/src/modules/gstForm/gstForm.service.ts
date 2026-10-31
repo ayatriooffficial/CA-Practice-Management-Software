@@ -185,7 +185,7 @@ export class GstFormService {
     // 4. Construct custom unique token: e.g. "rajesh-kumar-sharma-AAACA1234A-4d8e7a1b9c2f5e3d"
     const rawToken = `${slugName}-${pan}-${randomEntropy}`;
     const tokenHash = sha256(rawToken);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = null; // Links never expire
     const publicUrl = `${baseUrl}/gst-form/${rawToken}`;
 
     const normalizedTurnoverSlab = String(turnoverSlab || '').toLowerCase().includes('above')
@@ -207,7 +207,7 @@ export class GstFormService {
       custom_url: publicUrl,
       status: 'ACTIVE',
       created_by: createdBy,
-      expires_at: expiresAt,
+      expires_at: null,
     });
 
     // Mark older links as REVOKED / superseded
@@ -338,10 +338,15 @@ export class GstFormService {
     // 4. Try finding by ObjectId fallback
     if (Types.ObjectId.isValid(cleanToken)) {
       link = await GstFormLinkModel.findById(cleanToken);
-      if (link) return link;
     }
 
-    return null;
+    if (link && link.status === 'EXPIRED' && !link.submitted_at && !link.revoked_at) {
+      link.status = 'ACTIVE';
+      link.expires_at = null as any;
+      await link.save();
+    }
+
+    return link;
   }
 
   // 2. Fetch Public Form Context (by token)
@@ -356,12 +361,8 @@ export class GstFormService {
       throw { statusCode: 404, message: 'This link is invalid or does not exist.' };
     }
 
-    // Check expiry
-    if (link.status === 'EXPIRED' || new Date() > new Date(link.expires_at)) {
-      if (link.status !== 'EXPIRED') {
-        link.status = 'EXPIRED';
-        await link.save();
-      }
+    // Check expiry (links never expire unless explicitly revoked or submitted)
+    if (link.status === 'EXPIRED') {
       return {
         isAccessible: false,
         state: 'EXPIRED',
@@ -442,7 +443,7 @@ export class GstFormService {
     return {
       isAccessible: true,
       state: 'ACTIVE',
-      expiresAt: link.expires_at,
+      expiresAt: null,
       header: {
         gstin: link.gstin,
         legalName: link.legal_name,
@@ -490,7 +491,7 @@ export class GstFormService {
       throw { statusCode: 404, message: 'Invalid link' };
     }
 
-    if (link.status !== 'ACTIVE' || new Date() > new Date(link.expires_at)) {
+    if (link.status !== 'ACTIVE') {
       throw { statusCode: 403, message: 'Cannot save draft. Link is expired or already submitted.' };
     }
 
@@ -543,7 +544,7 @@ export class GstFormService {
       throw { statusCode: 400, message: 'This form has already been submitted.' };
     }
 
-    if (link.status !== 'ACTIVE' || new Date() > new Date(link.expires_at)) {
+    if (link.status !== 'ACTIVE') {
       throw { statusCode: 403, message: 'Cannot submit form. Link has expired.' };
     }
 
@@ -1222,11 +1223,14 @@ export class GstFormService {
       }
     });
 
+    // Un-expire any links previously marked EXPIRED from the old 24h limit
+    await GstFormLinkModel.updateMany(
+      { status: 'EXPIRED', submitted_at: null, revoked_at: null },
+      { $set: { status: 'ACTIVE', expires_at: null } }
+    );
+
     return links.map((link) => {
-      let liveStatus = link.status;
-      if (link.status === 'ACTIVE' && new Date() > new Date(link.expires_at)) {
-        liveStatus = 'EXPIRED';
-      }
+      const liveStatus = (link.status === 'EXPIRED' && !link.submitted_at && !link.revoked_at) ? 'ACTIVE' : link.status;
       const matchedSub = subMap.get(String(link._id));
       return {
         ...link,

@@ -848,8 +848,8 @@ const calculatedService = calculateServiceWithGST(amountForService);
                         onChange={(e) => setBankAccountId(e.target.value)}
                         className="w-full rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#6366F1]"
                       >
-                        <option value="Turia Books Technologies Private Limited">
-                          Turia Books Technologies Private Limited
+                        <option value="CA Books Technologies Private Limited">
+                          CA Books Technologies Private Limited
                         </option>
                         {bankAccounts.map((b) => (
                           <option key={b.id} value={b.id}>

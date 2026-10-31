@@ -294,7 +294,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="kishore@turia.com"
+                placeholder="kishore@ca.com"
                 className="w-full h-9 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
               />
             </div>

@@ -62,7 +62,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
 
   const handleExportCSV = () => {
     const timestamp = new Date().toISOString().slice(0, 10);
-    const filename = `turia_${activeTab}_export_${timestamp}.csv`;
+    const filename = `ca_${activeTab}_export_${timestamp}.csv`;
     let csvContent = '';
 
     if (activeTab === 'invoice' || activeTab === 'proforma') {
