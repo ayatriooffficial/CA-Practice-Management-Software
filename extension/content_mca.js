@@ -154,15 +154,17 @@
   }
 
   // Injects script directly into the page's MAIN execution world to access AEM guideBridge & jQuery
-  function injectPageScript(mcaId, mcaPassword) {
+  function injectPageScript(mcaId, mcaPassword, selectOpts, regFieldMap) {
     try {
       const script = document.createElement("script");
       script.textContent = `
         (function() {
           var id = ${JSON.stringify(mcaId || "")};
           var pwd = ${JSON.stringify(mcaPassword || "")};
+          var selOpts = ${JSON.stringify(selectOpts || null)};
+          var regMap = ${JSON.stringify(regFieldMap ? Object.fromEntries(Object.entries(regFieldMap).map(([k,f])=>[f.fieldName,{value:f.value,type:f.type}])) : null)};
 
-          // 1. Adobe AEM Adaptive Forms GuideBridge
+          // 1. Adobe AEM Adaptive Forms GuideBridge – login fields
           try {
             if (window.guideBridge) {
               if (id) {
@@ -172,6 +174,15 @@
               if (pwd) {
                 var p = window.guideBridge.resolveNode("password") || window.guideBridge.resolveNode("pwd");
                 if (p) p.value = pwd;
+              }
+              // Registration fields via guideBridge
+              if (regMap) {
+                Object.keys(regMap).forEach(function(name) {
+                  try {
+                    var node = window.guideBridge.resolveNode(name);
+                    if (node && regMap[name].value) node.value = regMap[name].value;
+                  } catch(ex) {}
+                });
               }
             }
           } catch(e) {}
@@ -190,6 +201,40 @@
                 $('input[type="password"], input[id*="guidepasswordbox___widget"], input[id*="guidepasswordbox"], input[name*="password" i]').each(function() {
                   this.value = pwd;
                   $(this).attr("value", pwd).trigger('input').trigger('change');
+                });
+              }
+              // Single select option via jQuery
+              if (selOpts && selOpts.selectName && selOpts.selectValue) {
+                $('select[name="' + selOpts.selectName + '"]').val(selOpts.selectValue).trigger('change');
+              }
+              // Registration text fields via jQuery
+              if (regMap) {
+                Object.keys(regMap).forEach(function(name) {
+                  var f = regMap[name];
+                  if (!f.value) return;
+                  if (f.type === 'text' || f.type === 'tel') {
+                    $('input[name="' + name + '"]').each(function() {
+                      this.value = f.value;
+                      $(this).attr("value", f.value).trigger('input').trigger('change');
+                    });
+                  }
+                  if (f.type === 'select') {
+                    $('select[name="' + name + '"]').each(function() {
+                      var $sel = $(this);
+                      $sel.find('option').each(function() {
+                        if ($(this).val().toLowerCase() === f.value.toLowerCase() || $(this).text().toLowerCase() === f.value.toLowerCase()) {
+                          $sel.val($(this).val()).trigger('change');
+                        }
+                      });
+                    });
+                  }
+                  if (f.type === 'radio') {
+                    $('input[type="radio"][name="' + name + '"]').each(function() {
+                      if (($(this).val() || '').toLowerCase() === f.value.toLowerCase()) {
+                        $(this).prop('checked', true).trigger('click').trigger('change');
+                      }
+                    });
+                  }
                 });
               }
             }
@@ -302,7 +347,8 @@
   let currentActiveClient = null;
   let currentCredentials = {};
   let isExpanded = false;      // panel visible above bar?
-  let activeTab = "fill";      // "fill" | "search" | "details"
+  let activeTab = "fill";      // "fill" | "search" | "details" | "register"
+  let regSelectedDirector = null; // index into directors array for registration tab
 
   // -------------------------------------------------------------
   // Draggable Floating UI Widget  –  bottom-bar collapsed by default
@@ -441,6 +487,7 @@
         <!-- Panel tab nav -->
         <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#f8fafc;">
           <button id="ca-w-tab-fill" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="fill"?"2px solid #31719B":"2px solid transparent"}; background:transparent; color:${activeTab==="fill"?"#31719B":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">⚡ Fill</button>
+          <button id="ca-w-tab-register" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="register"?"2px solid #e67e22":"2px solid transparent"}; background:transparent; color:${activeTab==="register"?"#e67e22":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">📝 Register</button>
           <button id="ca-w-tab-search" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="search"?"2px solid #31719B":"2px solid transparent"}; background:transparent; color:${activeTab==="search"?"#31719B":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">🔍 Search</button>
           <button id="ca-w-tab-details" style="flex:1; height:32px; border:none; border-bottom:${activeTab==="details"?"2px solid #31719B":"2px solid transparent"}; background:transparent; color:${activeTab==="details"?"#31719B":"#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">📋 Details</button>
         </div>
@@ -517,6 +564,10 @@
 
   // Active Tab Body Switcher
   function renderActiveTabBody(title, clientName, panStr, idVal, passVal, directors) {
+    if (activeTab === "register") {
+      return renderRegistrationTabBody(directors);
+    }
+
     if (activeTab === "search") {
       return `
         <div>
@@ -731,6 +782,12 @@
       renderWidgetContent(widget);
     });
 
+    document.getElementById("ca-w-tab-register")?.addEventListener("click", () => {
+      activeTab = "register";
+      isExpanded = true;
+      renderWidgetContent(widget);
+    });
+
     document.getElementById("ca-w-tab-search")?.addEventListener("click", () => {
       activeTab = "search";
       renderWidgetContent(widget);
@@ -750,6 +807,33 @@
       activeTab  = "search";
       isExpanded = true;
       renderWidgetContent(widget);
+    });
+
+    // ── Registration tab events ──
+    // Director selector for registration
+    document.getElementById("ca-reg-dir-select")?.addEventListener("change", (e) => {
+      regSelectedDirector = parseInt(e.target.value, 10);
+      renderWidgetContent(widget);
+    });
+
+    // Fill-All registration button
+    document.getElementById("ca-reg-fill-all")?.addEventListener("click", () => {
+      fillRegistrationForm();
+    });
+
+    // Individual field fill buttons
+    widget.querySelectorAll(".ca-reg-field-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const fieldName = e.currentTarget.getAttribute("data-field");
+        const fieldValue = e.currentTarget.getAttribute("data-value");
+        const fieldType = e.currentTarget.getAttribute("data-type");
+        fillRegistrationField(fieldName, fieldValue, fieldType);
+        // Update button text briefly
+        const orig = btn.textContent;
+        btn.textContent = "✓";
+        btn.style.color = "#16a34a";
+        setTimeout(() => { btn.textContent = orig; btn.style.color = ""; }, 1200);
+      });
     });
 
     // Toggle Password Visibility
@@ -976,6 +1060,253 @@
           });
         });
       });
+    }
+  }
+
+  // =============================================================
+  // MCA REGISTRATION AUTO-FILL
+  // =============================================================
+
+  // Known MCA User Roles (for dropdown suggestion matching)
+  const MCA_USER_ROLES = [
+    "Director/Designated Partner",
+    "Manager",
+    "Secretary",
+    "Chartered Accountant",
+    "Cost Accountant",
+    "Company Secretary",
+    "Official Liquidator",
+    "Registered Valuer",
+    "Insolvency Professional",
+    "Foreign Company",
+    "Limited Liability Partnership",
+    "Trust",
+    "Society",
+    "Producer Company",
+    "Nidhi Company",
+    "Nodal Officer - IEPF",
+    "Deputy Nodal Officer - IEPF",
+    "Others"
+  ];
+
+  // Build a mapping of AEM field name → { value, type, label } from client/director data
+  function buildRegFieldMap(client, director) {
+    if (!client && !director) return {};
+
+    const clientType = (client?.type || "").toLowerCase();
+    const isCompany  = clientType.includes("company") || clientType.includes("llp") || clientType.includes("pvt") || clientType.includes("ltd");
+
+    // Determine userCategory value
+    const userCategory = isCompany ? "Business user" : "Registered user";
+
+    // Guess best userRole from director designation
+    const desig = (director?.designation || "").toLowerCase();
+    let userRole = "Director/Designated Partner";
+    if (desig.includes("ca") || desig.includes("chartered")) userRole = "Chartered Accountant";
+    else if (desig.includes("cs") || desig.includes("company secretary")) userRole = "Company Secretary";
+    else if (desig.includes("cost") || desig.includes("cma")) userRole = "Cost Accountant";
+    else if (desig.includes("manager")) userRole = "Manager";
+    else if (desig.includes("secretary")) userRole = "Secretary";
+    else if (desig.includes("partner")) userRole = "Director/Designated Partner";
+
+    // Split director name into parts
+    const fullName = (director?.name || "").trim();
+    const nameParts = fullName.split(/\s+/);
+    const firstName  = nameParts[0]  || "";
+    const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : "";
+    const lastName   = nameParts.length > 1 ? nameParts[nameParts.length - 1] : ".";
+
+    const pan    = director?.pan || client?.pan || "";
+    const din    = director?.din || director?.mcaId || "";
+    const email  = director?.email || client?.email || "";
+    const mobile = director?.mobile || client?.mobile || "";
+    const addr   = client?.address || {};
+
+    return {
+      // Category + Role
+      userCategory:  { value: userCategory, type: "radio",  label: "User Category",   fieldName: "userCategory" },
+      userRole:      { value: userRole,      type: "select", label: "User Role",        fieldName: "userRole" },
+      // Identity
+      incomeTaxPan:  { value: pan,           type: "text",   label: "PAN",             fieldName: "incomeTaxPan", altNames: ["incomeTaxPAN"] },
+      firstName:     { value: firstName,     type: "text",   label: "First Name",      fieldName: "firstName" },
+      middleName:    { value: middleName,    type: "text",   label: "Middle Name",     fieldName: "middleName" },
+      lastName:      { value: lastName,      type: "text",   label: "Last Name",       fieldName: "lastName" },
+      din:           { value: din,           type: "text",   label: "DIN / DPIN",      fieldName: "din" },
+      // Contact
+      email:         { value: email,         type: "text",   label: "Email",           fieldName: "email", altNames: ["emailId"] },
+      mobile:        { value: mobile,        type: "tel",    label: "Mobile",          fieldName: "mobile", altNames: ["mobileNo"] },
+      // Address
+      addressLine1:  { value: addr.line1 || addr.addressLine1 || "", type: "text", label: "Address Line 1", fieldName: "addressLine1" },
+      addressLine2:  { value: addr.line2 || addr.addressLine2 || "", type: "text", label: "Address Line 2", fieldName: "addressLine2" },
+      pincode:       { value: addr.pincode  || addr.zip  || "", type: "text",  label: "Pincode", fieldName: "pincode" },
+      state:         { value: addr.state    || "",             type: "text",  label: "State",   fieldName: "state" },
+      country:       { value: addr.country  || "India",        type: "select", label: "Country", fieldName: "country" },
+    };
+  }
+
+  // Render the Registration tab body
+  function renderRegistrationTabBody(directors) {
+    const client = currentActiveClient;
+    if (!client) {
+      return `
+        <div style="padding:10px 0; text-align:center;">
+          <p style="color:#64748b; font-size:12px; margin-bottom:10px;">No client selected. Search first.</p>
+          <button id="ca-w-go-search" style="padding:6px 12px; background:#31719B; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;">🔍 Search Client</button>
+        </div>`;
+    }
+
+    // Director selection
+    const dirIdx  = (regSelectedDirector !== null && directors[regSelectedDirector]) ? regSelectedDirector : 0;
+    const director = directors[dirIdx] || null;
+    const fieldMap = buildRegFieldMap(client, director);
+
+    // Styles helper
+    const rowStyle = "display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid #f1f5f9; gap:6px;";
+    const labelStyle = "font-size:11px; color:#64748b; font-weight:600; min-width:80px; flex-shrink:0;";
+    const valueStyle = "font-size:11px; color:#0f172a; font-family:monospace; flex:1; min-width:0; word-break:break-all;";
+    const btnStyle = "height:22px; padding:0 7px; border:1px solid #cbd5e1; background:#f8fafc; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; flex-shrink:0; color:#31719B;";
+
+    const fieldRows = Object.entries(fieldMap)
+      .filter(([, f]) => f.value)
+      .map(([key, f]) => {
+        const icon = f.type === "radio" ? "🔘" : f.type === "select" ? "▾" : "T";
+        return `
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">${icon} ${f.label}</span>
+            <span style="${valueStyle}" title="${f.value}">${f.value.length > 22 ? f.value.slice(0, 22) + "…" : f.value}</span>
+            <button class="ca-reg-field-btn" data-field="${f.fieldName}" data-value="${f.value.replace(/"/g, "&quot;")}" data-type="${f.type}" style="${btnStyle}">Fill ↗</button>
+          </div>`;
+      }).join("");
+
+    return `
+      <!-- Client banner -->
+      <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:7px; padding:7px 10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#9a3412; text-transform:uppercase;">Registration for</div>
+          <div style="font-size:12px; font-weight:700; color:#0f172a;">${client.name}</div>
+        </div>
+        ${client.pan ? `<span style="font-family:monospace; font-size:10px; background:#fde8d0; color:#9a3412; padding:2px 6px; border-radius:4px; font-weight:700;">${client.pan}</span>` : ""}
+      </div>
+
+      <!-- Director picker -->
+      ${directors.length > 1 ? `
+      <div style="margin-bottom:8px;">
+        <label style="font-size:10.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Select Person to Register:</label>
+        <select id="ca-reg-dir-select" style="width:100%; height:28px; font-size:11.5px; border:1px solid #cbd5e1; border-radius:6px; padding:0 6px; background:#fff; outline:none; cursor:pointer;">
+          ${directors.map((d, i) => `<option value="${i}" ${i===dirIdx?"selected":""}>${d.name} ${d.din||d.mcaId ? "(DIN:"+( d.din||d.mcaId)+")" : ""}</option>`).join("")}
+        </select>
+      </div>` : ""}
+
+      <!-- Field suggestions -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:7px; padding:6px 10px; margin-bottom:8px;">
+        <div style="font-size:10.5px; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase;">Suggested Values (click Fill ↗ per field)</div>
+        ${fieldRows || `<div style="color:#94a3b8; font-size:11px; text-align:center; padding:8px 0;">No data available for this person.</div>`}
+      </div>
+
+      <!-- Fill All button -->
+      <button id="ca-reg-fill-all" style="width:100%; height:34px; background:#e67e22; color:#fff; border:none; border-radius:7px; font-weight:700; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+        📝 Auto-Fill Entire Registration Form
+      </button>
+      <div id="ca-reg-status" style="margin-top:6px; font-size:11px; font-weight:500; display:none;"></div>
+    `;
+  }
+
+  // Fill a single registration field by its AEM name / selector pattern
+  function fillRegistrationField(fieldName, value, type) {
+    if (!value) return false;
+
+    try {
+      // For radio buttons
+      if (type === "radio") {
+        // Try name-based selector first
+        const radios = queryAllDeep(`input[type="radio"][name="${fieldName}"]`);
+        for (const r of radios) {
+          if ((r.value || "").toLowerCase() === value.toLowerCase()) {
+            r.click();
+            r.checked = true;
+            r.dispatchEvent(new Event("change", { bubbles: true }));
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // For select dropdowns
+      if (type === "select") {
+        const selects = queryAllDeep(`select[name="${fieldName}"]`);
+        for (const sel of selects) {
+          // Try exact option match first, then case-insensitive partial
+          for (const opt of sel.options) {
+            if (opt.value.toLowerCase() === value.toLowerCase() || opt.text.toLowerCase() === value.toLowerCase()) {
+              sel.value = opt.value;
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+              // AEM guideBridge page-context fill
+              injectPageScript(null, null, { selectName: fieldName, selectValue: opt.value });
+              return true;
+            }
+          }
+          // Partial match fallback
+          for (const opt of sel.options) {
+            if (opt.text.toLowerCase().includes(value.toLowerCase()) || value.toLowerCase().includes(opt.text.toLowerCase())) {
+              sel.value = opt.value;
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      // For text / tel / email fields
+      const selectors = [
+        `input[name="${fieldName}"]`,
+        `input[id*="${fieldName}"]`,
+      ];
+      for (const sel of selectors) {
+        const fields = queryAllDeep(sel).filter(el => el.type !== "radio" && el.type !== "checkbox");
+        for (const f of fields) {
+          setNativeValue(f, value);
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.warn("[CA Practice] Registration field fill error:", fieldName, err);
+      return false;
+    }
+  }
+
+  // Fill the entire registration form from current client/director data
+  function fillRegistrationForm() {
+    const directors = getClientDirectors(currentActiveClient);
+    const dirIdx    = (regSelectedDirector !== null && directors[regSelectedDirector]) ? regSelectedDirector : 0;
+    const director  = directors[dirIdx] || null;
+    const fieldMap  = buildRegFieldMap(currentActiveClient, director);
+
+    let filledCount = 0;
+    for (const [, f] of Object.entries(fieldMap)) {
+      if (!f.value) continue;
+      const ok = fillRegistrationField(f.fieldName, f.value, f.type);
+      // Try alternate names
+      if (!ok && f.altNames) {
+        for (const alt of f.altNames) {
+          if (fillRegistrationField(alt, f.value, f.type)) { filledCount++; break; }
+        }
+      } else if (ok) {
+        filledCount++;
+      }
+    }
+
+    // Also try AEM guideBridge page-script injection for text fields
+    injectPageScript(null, null, null, fieldMap);
+
+    const statusEl = document.getElementById("ca-reg-status");
+    if (statusEl) {
+      statusEl.style.display = "block";
+      statusEl.style.color   = filledCount > 0 ? "#16a34a" : "#dc2626";
+      statusEl.textContent   = filledCount > 0
+        ? `✓ Filled ${filledCount} field(s). Complete remaining fields manually.`
+        : "Fields not found on this page. Make sure you are on the registration form.";
     }
   }
 
