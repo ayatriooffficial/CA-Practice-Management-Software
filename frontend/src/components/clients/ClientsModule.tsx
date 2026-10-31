@@ -128,6 +128,20 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
   const paramClientId = searchParams?.get("clientId") || searchParams?.get("id");
   const paramTab = (searchParams?.get("tab") as ClientTabType) || undefined;
   const reduxSelectedClient = useAppSelector((state) => state.clients.selectedClient);
+  const reduxClientsList = useAppSelector((state) => state.clients.items);
+
+  // Synchronize clients catalog with MCA Auto-Fill Extension
+  useEffect(() => {
+    if (reduxClientsList && reduxClientsList.length > 0 && typeof window !== "undefined") {
+      window.postMessage(
+        {
+          type: "CA_PRACTICE_SYNC_CLIENTS",
+          clients: reduxClientsList,
+        },
+        "*"
+      );
+    }
+  }, [reduxClientsList]);
   const [activeDetailTab, setActiveDetailTab] = useState<ClientTabType>("Master");
 
   // Keep detail tab synchronized with URL param

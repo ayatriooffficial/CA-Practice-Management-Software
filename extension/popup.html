@@ -16,14 +16,42 @@
           <p class="subtitle">CA Practice Assistant</p>
         </div>
       </div>
-      <span class="badge">v1.0</span>
+      <div style="display: flex; gap: 4px;">
+        <button type="button" class="tab-toggle-btn active" id="fillTabBtn">Fill</button>
+        <button type="button" class="tab-toggle-btn" id="searchTabBtn">🔍 Search</button>
+        <button type="button" class="tab-toggle-btn" id="detailsTabBtn">📋 Details</button>
+      </div>
     </header>
 
-    <!-- Active Credential Card -->
+    <!-- SEARCH VIEW -->
+    <div id="searchViewSection" style="display: none;">
+      <div class="field-group">
+        <label>Search Client by PAN ID / Name / DIN</label>
+        <input type="text" id="popupSearchInput" placeholder="Type PAN (e.g. ABCDE1234F) or Name...">
+      </div>
+      <div id="popupSearchResults" class="search-results-list">
+        <div class="empty-hint">Type PAN ID or Name to search clients.</div>
+      </div>
+    </div>
+
+    <!-- CLIENT DETAILS VIEW -->
+    <div id="detailsViewSection" style="display: none;">
+      <div id="popupDetailsContent" class="details-content-box">
+        <div class="empty-hint">No client currently loaded.</div>
+      </div>
+    </div>
+
+    <!-- ACTIVE CREDENTIAL CARD -->
     <div class="card" id="credentialCard">
       <div class="card-header">
         <span class="card-title" id="clientTitle">Active Credentials</span>
-        <span class="status-dot active"></span>
+        <span class="pan-badge" id="clientPanBadge"></span>
+      </div>
+
+      <!-- Director Switcher -->
+      <div class="field-group" id="directorSelectGroup" style="display: none;">
+        <label>Select Director</label>
+        <select id="directorSelect" class="select-input"></select>
       </div>
 
       <div class="field-group">
@@ -53,10 +81,10 @@
       </div>
     </div>
 
-    <!-- Instructions / Tips -->
+    <!-- Tips -->
     <div class="info-box">
       <p class="info-text">
-        <strong>Tip:</strong> In CA Practice Master, click <em>"Auto-Fill MCA"</em> next to any director to launch and fill automatically.
+        <strong>Tip:</strong> In CA Practice Master, open any client or click <em>"Auto-Fill MCA"</em>. On the MCA portal, you can drag the floating assistant anywhere.
       </p>
     </div>
 
@@ -67,4 +95,3 @@
   <script src="popup.js"></script>
 </body>
 </html>
-

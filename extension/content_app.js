@@ -31,6 +31,28 @@
       return;
     }
 
+    if (event.data?.type === "CA_PRACTICE_ACTIVE_CLIENT") {
+      const { client } = event.data;
+      if (client) {
+        chrome.runtime.sendMessage({
+          type: "SET_ACTIVE_CLIENT",
+          client
+        });
+      }
+      return;
+    }
+
+    if (event.data?.type === "CA_PRACTICE_SYNC_CLIENTS") {
+      const { clients } = event.data;
+      if (Array.isArray(clients) && clients.length > 0) {
+        chrome.runtime.sendMessage({
+          type: "SYNC_CLIENTS",
+          clients
+        });
+      }
+      return;
+    }
+
     if (event.data?.type === "CA_PRACTICE_AUTOFILL_MCA") {
       const { mcaId, mcaPassword, clientName, directorName } = event.data;
 

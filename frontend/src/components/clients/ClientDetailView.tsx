@@ -100,6 +100,19 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 }) => {
   const { canView, canAddEdit, canDelete } = usePermission();
   const [client, setClient] = useState<Client>(initialClient);
+
+  // Synchronize active client with MCA Auto-Fill Extension
+  useEffect(() => {
+    if (client && typeof window !== "undefined") {
+      window.postMessage(
+        {
+          type: "CA_PRACTICE_ACTIVE_CLIENT",
+          client,
+        },
+        "*"
+      );
+    }
+  }, [client]);
   const [activeTab, setActiveTab] = useState<ClientTabType>(initialTab);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
