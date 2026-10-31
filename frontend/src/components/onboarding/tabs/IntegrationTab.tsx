@@ -186,11 +186,11 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({
       <div className="p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] space-y-1.5">
         <span className="font-semibold text-[var(--text-main)] italic block">Disclaimer</span>
         <p className="italic">
-          Turia does not send emails to your clients or save your files in our server. Turia lets you
+          CA Practice does not send emails to your clients or save your files in our server. CA Practice lets you
           connect your Gmail to send emails and Google Drive for file storage.
         </p>
         <p className="italic">
-          Turia&apos;s does not share or transfer information received from Google APIs to any other
+          CA Practice does not share or transfer information received from Google APIs to any other
           app. The app adheres to{" "}
           <span className="underline text-[var(--text-main)]">
             Google API Services User Data Policy

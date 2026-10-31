@@ -4,7 +4,6 @@ import React, { useState, useMemo } from "react";
 import {
   FileText,
   Clock,
-  Sparkles,
   CheckCircle2,
   Lock,
   ArrowRight,
@@ -20,7 +19,6 @@ import {
   CreditCard,
   Percent,
 } from "lucide-react";
-import { formatReturnPeriod } from "./gstFormUtils";
 
 export interface Step0Selection {
   returns: {
@@ -270,41 +268,6 @@ export const Step0SectionSelector: React.FC<Step0SectionSelectorProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
-      {/* Client Overview Card */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-6 border border-[#dde2e8] dark:border-[#334155] shadow-sm">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#31719B]/10 text-[#31719B] dark:text-[#64B5D6]">
-                GST Data Collection
-              </span>
-              <span className="text-xs text-gray-500 font-medium">
-                Period: {formatReturnPeriod(header.returnPeriod)}
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-              {header.legalName || header.tradeName}
-            </h1>
-            <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-0.5">
-              GSTIN: {header.gstin} · {header.filingFrequency} Filing · {header.turnoverSlab}
-            </p>
-          </div>
-
-          {/* Start from Last Period Button */}
-          {clientContext?.hasPreviousSubmission && onStartFromLastPeriod && (
-            <button
-              type="button"
-              onClick={onStartFromLastPeriod}
-              disabled={isCarryingOver}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-[#31719B] text-[#31719B] dark:text-[#64B5D6] dark:border-[#64B5D6] hover:bg-[#31719B]/5 transition-all shadow-sm disabled:opacity-50"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {isCarryingOver ? "Loading Previous..." : "Start from last period"}
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Nil Return Quick Toggle */}
       <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

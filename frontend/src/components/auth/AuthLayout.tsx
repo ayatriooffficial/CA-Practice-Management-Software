@@ -15,7 +15,6 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
   visualScene,
   variant = "login",
 }) => {
-  const isSignup = variant === "signup";
 
   return (
     <div className="w-full min-h-screen flex flex-col lg:flex-row bg-white dark:bg-[#111827]">
@@ -45,16 +44,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
       </div>
 
       {/* Right 50% Form Panel */}
-      <div
-        className={`w-full lg:w-1/2 min-h-[calc(100vh-64px)] lg:min-h-screen flex items-center bg-white dark:bg-[#0f172a] ${isSignup
-          ? "justify-start py-8 px-6 lg:pl-[45px] lg:pr-[45px]"
-          : "justify-center p-6 lg:p-0"
-          }`}
-      >
-        <div
-          className={`w-full flex flex-col justify-center ${isSignup ? "max-w-[570px]" : "max-w-[560px]"
-            }`}
-        >
+      <div className="w-full lg:w-1/2 min-h-[calc(100vh-64px)] lg:min-h-screen flex items-center justify-center p-6 lg:p-0 lg:py-8 bg-white dark:bg-[#0f172a]">
+        <div className="w-full flex flex-col justify-center max-w-[560px] my-auto">
           {/* Header Typography: exact 30px, weight 500, 12px gap to subtitle, 30px gap to form */}
           <div className="mb-[30px] flex flex-col gap-[12px]">
             <h1 className="text-[30px] font-medium tracking-tight text-[#1e293b] dark:text-white leading-[1.2]">

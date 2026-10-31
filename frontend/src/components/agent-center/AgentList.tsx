@@ -437,7 +437,7 @@ export default function AgentList() {
             </div>
           </div>
 
-          {/* Table Container matching Turia Opening Pages */}
+          {/* Table Container matching Reference Opening Pages */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
             <table className="w-full text-left text-sm table-fixed">
               <thead className="border-b border-slate-200 bg-white text-xs font-semibold text-slate-700">
@@ -702,7 +702,7 @@ export default function AgentList() {
                 )}
               </tbody>
             </table>
-            {/* Table Footer matching Turia */}
+            {/* Table Footer matching Reference */}
             <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-xs text-slate-500">
               <div className="flex items-center gap-1.5 text-slate-600">
                 <span>Rows per page: 15</span>

@@ -39,7 +39,7 @@ export const GstFormHeader: React.FC<GstFormHeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-gray-900 dark:text-white text-sm">
-                Turia Practice · GST Return Filing Portal
+                CA Practice · GST Return Filing Portal
               </span>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                 Official Client Portal

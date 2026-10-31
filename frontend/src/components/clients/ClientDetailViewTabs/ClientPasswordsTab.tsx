@@ -343,7 +343,7 @@ export const ClientPasswordsTab: React.FC<ClientPasswordsTabProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                    Turia Auto-Fill Extension
+                    CA Auto-Fill Extension
                   </h3>
                   <p className="text-[11px] text-gray-500">
                     Chrome &amp; Edge Browser Extension

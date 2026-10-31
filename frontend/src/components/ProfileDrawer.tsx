@@ -325,7 +325,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
               </div>
             </div>
 
-            {/* Group 2: Turia Demo Videos, Refer & Earn, App Customizer, Enroll Utility, Logout */}
+            {/* Group 2: CA Demo Videos, Refer & Earn, App Customizer, Enroll Utility, Logout */}
             <Link
               href="/reports"
               onClick={onClose}
@@ -334,7 +334,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({ isOpen, onClose })
             >
               <div className="flex items-center gap-3">
                 <Tv2 className="w-4 h-4 text-gray-500 group-hover:text-[var(--primary)] transition-colors" />
-                <span>Turia Demo Videos</span>
+                <span>CA Demo Videos</span>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all" />
             </Link>

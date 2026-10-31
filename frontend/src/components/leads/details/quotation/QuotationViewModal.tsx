@@ -288,7 +288,7 @@ export const QuotationViewModal: React.FC<QuotationViewModalProps> = ({
               </div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
                 <span style="color: #6b7280;">Account Name:</span>
-                <span style="font-weight: 600; color: #1f2937;">${quotation.bankDetails?.accountName || "Turia Books Technologies Private Limited"}</span>
+                <span style="font-weight: 600; color: #1f2937;">${quotation.bankDetails?.accountName || "CA Books Technologies Private Limited"}</span>
               </div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
                 <span style="color: #6b7280;">Account Number:</span>
@@ -672,7 +672,7 @@ Ayatrio Practice`;
                 <div className="flex justify-between">
                   <span className="text-gray-500">Account Name:</span>
                   <span className="font-semibold text-gray-800 dark:text-gray-200">
-                    {quotation.bankDetails?.accountName || "Turia Books Technologies Private Limited"}
+                    {quotation.bankDetails?.accountName || "CA Books Technologies Private Limited"}
                   </span>
                 </div>
                 <div className="flex justify-between">

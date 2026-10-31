@@ -192,7 +192,7 @@ export interface TaskStats {
 
 export const TASK_CATEGORIES = [
   'All Categories',
-  'Turia Test',
+  'CA Test',
   'Stage 1',
   'Loan',
   'Customs',

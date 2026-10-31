@@ -127,9 +127,9 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
     "Consolidated",
     "Test",
     "India Startup",
-    "Turia Associates Demo",
+    "CA Associates Demo",
     "Test Billing Org",
-    "Turia Test",
+    "CA Test",
   ]);
   const [selectedOrg, setSelectedOrg] = useState<string>("Consolidated");
 
@@ -151,11 +151,11 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
     // Default matching screenshot opening balance of ₹909
     return {
       Consolidated: 909,
-      "Turia Associates Demo": 909,
+      "CA Associates Demo": 909,
       Test: 0,
       "India Startup": 0,
       "Test Billing Org": 0,
-      "Turia Test": 0,
+      "CA Test": 0,
     };
   });
 
@@ -172,7 +172,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
   // Form state for Record Payment
   const [payAmount, setPayAmount] = useState<string>("");
   const [payBillingOrg, setPayBillingOrg] = useState<string>(
-    selectedOrg === "Consolidated" ? "Turia Associates Demo" : selectedOrg
+    selectedOrg === "Consolidated" ? "CA Associates Demo" : selectedOrg
   );
   const [payDate, setPayDate] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -244,7 +244,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-01T09:00:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00012",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 3540,
         balance: 0,
@@ -256,7 +256,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-01T10:00:00Z",
         particulars: "GSTR-1 (Monthly)",
         reference: "INV/26-27/123",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 3540,
         credit: null,
         balance: 0,
@@ -268,7 +268,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-06T09:00:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00018",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 11800,
         balance: 0,
@@ -280,7 +280,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-06T11:00:00Z",
         particulars: "Appointment Director",
         reference: "INV/26-27/0135",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 11800,
         credit: null,
         balance: 0,
@@ -292,7 +292,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-07T09:00:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00021",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 11800,
         balance: 0,
@@ -304,7 +304,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-07T09:30:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00019",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 11800,
         balance: 0,
@@ -316,7 +316,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-07T11:00:00Z",
         particulars: "Allotment of Equity",
         reference: "INV/26-27/0136",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 11800,
         credit: null,
         balance: 0,
@@ -328,7 +328,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-07T11:30:00Z",
         particulars: "Allotment of Equity",
         reference: "INV/26-27/0137",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 11800,
         credit: null,
         balance: 0,
@@ -340,7 +340,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-13T09:00:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00026",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 5900,
         balance: 0,
@@ -352,7 +352,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-13T10:00:00Z",
         particulars: "Monthly Accounting",
         reference: "INV/26-27/0152",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 5900,
         credit: null,
         balance: 0,
@@ -364,7 +364,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-14T09:00:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00028",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 3540,
         balance: 0,
@@ -376,7 +376,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-14T09:15:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00027",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 5900,
         balance: 0,
@@ -388,7 +388,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-14T10:00:00Z",
         particulars: "GST 3B - Monthly",
         reference: "INV/26-27/0153",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 3540,
         credit: null,
         balance: 0,
@@ -400,7 +400,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-14T11:00:00Z",
         particulars: "Accounting",
         reference: "INV/26-27/0155",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: 5900,
         credit: null,
         balance: 0,
@@ -412,7 +412,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         rawDate: "2026-04-15T09:00:00Z",
         particulars: "Payment received",
         reference: "RCPT/26-27/00032",
-        billingOrg: "Turia Associates Demo",
+        billingOrg: "CA Associates Demo",
         debit: null,
         credit: 8260,
         balance: 0,
@@ -427,7 +427,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
 
     // 1. Process Tax Invoices (Debit)
     clientMatchingInvoices.taxInvoices.forEach((inv) => {
-      const org = inv.billingOrg || "Turia Associates Demo";
+      const org = inv.billingOrg || "CA Associates Demo";
       const serviceName =
         inv.services && inv.services.length > 0
           ? inv.services[0].serviceName
@@ -448,7 +448,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
 
     // 2. Process Proforma Invoices (Informational or filtered)
     clientMatchingInvoices.proformaInvoices.forEach((pro) => {
-      const org = pro.billingOrg || "Turia Associates Demo";
+      const org = pro.billingOrg || "CA Associates Demo";
       const serviceName =
         pro.services && pro.services.length > 0
           ? pro.services[0].serviceName
@@ -469,7 +469,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
 
     // 3. Process Receipts / Payments Received (Credit)
     clientMatchingReceipts.forEach((rcpt) => {
-      const org = rcpt.billingOrg || "Turia Associates Demo";
+      const org = rcpt.billingOrg || "CA Associates Demo";
       list.push({
         id: `rcpt-${rcpt.id}`,
         date: formatDateDisplay(rcpt.paymentDate),
@@ -681,7 +681,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
           <button
             type="button"
             onClick={() => {
-              setObOrgInput(selectedOrg === "Consolidated" ? "Turia Associates Demo" : selectedOrg);
+              setObOrgInput(selectedOrg === "Consolidated" ? "CA Associates Demo" : selectedOrg);
               setObAmountInput(String(currentOpeningBalance || 909));
               setIsOpeningBalanceModalOpen(true);
             }}
@@ -845,7 +845,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
           <button
             type="button"
             onClick={() => {
-              setObOrgInput(selectedOrg === "Consolidated" ? "Turia Associates Demo" : selectedOrg);
+              setObOrgInput(selectedOrg === "Consolidated" ? "CA Associates Demo" : selectedOrg);
               setObAmountInput(String(currentOpeningBalance));
               setIsOpeningBalanceModalOpen(true);
             }}

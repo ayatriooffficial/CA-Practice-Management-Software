@@ -291,15 +291,8 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
   const activeLink = (links || []).find((l) => l.status === "ACTIVE");
 
   // Calculate remaining time for active link
-  const getTimeRemaining = (expiresAtStr: string) => {
-    if (!expiresAtStr) return "Active";
-    const parsed = new Date(expiresAtStr).getTime();
-    if (isNaN(parsed)) return "Active";
-    const diff = parsed - Date.now();
-    if (diff <= 0) return "Expired";
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${mins}m left`;
+  const getTimeRemaining = (_expiresAtStr?: string | null) => {
+    return "Never Expires";
   };
 
   return (
@@ -318,7 +311,7 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
               </span>
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Generate a secure 24-hour dynamic form link for client data entry (GSTR-1 & GSTR-3B) with zero login.
+              Generate a secure dynamic form link for client data entry (GSTR-1 & GSTR-3B) with zero login.
             </p>
           </div>
         </div>
@@ -343,9 +336,9 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Active Link
               </span>
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                {getTimeRemaining(activeLink.expires_at)}
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                Never Expires
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
                 Period: {activeLink.return_period} ({activeLink.filing_frequency})
@@ -493,7 +486,7 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
                   <th className="py-2.5 px-3">Frequency</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Created At</th>
-                  <th className="py-2.5 px-3">Expires / Submitted</th>
+                  <th className="py-2.5 px-3">Status / Expiry</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -530,16 +523,23 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
                       })}
                     </td>
                     <td className="py-2.5 px-3 text-gray-500">
-                      {item.status === "SUBMITTED" && item.submitted_at
-                        ? new Date(item.submitted_at).toLocaleString("en-IN", {
+                      {item.status === "SUBMITTED" && item.submitted_at ? (
+                        <span className="text-blue-600 dark:text-blue-400">
+                          Submitted on{" "}
+                          {new Date(item.submitted_at).toLocaleString("en-IN", {
                             day: "2-digit",
                             month: "short",
                             hour: "2-digit",
                             minute: "2-digit",
-                          })
-                        : item.status === "ACTIVE"
-                        ? getTimeRemaining(item.expires_at)
-                        : "Expired"}
+                          })}
+                        </span>
+                      ) : item.status === "ACTIVE" ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                          Never Expires
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">{item.status}</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-right space-x-2">
                       {item.status === "ACTIVE" && (

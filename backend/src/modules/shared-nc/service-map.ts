@@ -34,7 +34,7 @@ export const KNOWN_COMPLIANCE_CATEGORIES = [
   { id: 'cat-payroll', name: 'Payroll', order: 22, mode: 'manual' as const },
   { id: 'cat-sebi', name: 'SEBI', order: 23, mode: 'manual' as const },
   { id: 'cat-stpi', name: 'STPI Compliances', order: 24, mode: 'manual' as const },
-  { id: 'cat-turia-test', name: 'Turia Test', order: 25, mode: 'manual' as const },
+  { id: 'cat-turia-test', name: 'CA Test', order: 25, mode: 'manual' as const },
   { id: 'cat-calendar', name: 'Calendar', order: 0, mode: 'manual' as const },
   { id: 'cat-logs', name: 'Logs', order: 26, mode: 'manual' as const },
 ];

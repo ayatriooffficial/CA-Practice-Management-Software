@@ -76,6 +76,10 @@ export default function PublicGstFormPage() {
   // Debounced auto-save timer
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    document.title = "CA Practice · GST Return Filing Portal";
+  }, []);
+
   // Load context on mount
   useEffect(() => {
     if (!token) return;

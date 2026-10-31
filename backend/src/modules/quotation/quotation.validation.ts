@@ -28,16 +28,16 @@ export const createQuotationSchema = z.object({
   billingOrg: z
     .object({
       orgId: z.string().optional().nullable(),
-      name: z.string().default('Turia Associates Demo'),
+      name: z.string().default('CA Associates Demo'),
       address: z.string().default('165, Cambridge Layout Bangalore - 560008 Karnataka'),
       priority: z.string().default('Primary'),
       gstin: z.string().default('29AARCS3638L2ZH'),
       pan: z.string().default('KKXPS8986J'),
       lutNumber: z.string().default('LUT28798'),
       lutDisabled: z.boolean().default(true),
-      email: z.string().default('kavinraj@turia.in'),
+      email: z.string().default('kavinraj@ca.in'),
       mobile: z.string().default('8722750204'),
-      website: z.string().default('https://turia.in/'),
+      website: z.string().default('https://ca.in/'),
     })
     .optional(),
   quotationTo: z.object({
@@ -60,7 +60,7 @@ export const createQuotationSchema = z.object({
     .object({
       paymentType: z.string().default('Bank'),
       bankName: z.string().default('HDFC'),
-      accountName: z.string().default('Turia Books Technologies Private Limited'),
+      accountName: z.string().default('CA Books Technologies Private Limited'),
       accountNumber: z.string().default('8934784834990842'),
       ifsc: z.string().default('HDFC9003928'),
       accountType: z.string().default('Current'),

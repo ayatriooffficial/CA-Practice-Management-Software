@@ -13,7 +13,7 @@ export interface GstLinkItem {
   registration_type: 'Regular' | 'Composition';
   status: 'ACTIVE' | 'EXPIRED' | 'SUBMITTED' | 'REVOKED';
   created_at: string;
-  expires_at: string;
+  expires_at?: string | null;
   submitted_at?: string;
   submission_id?: string;
   custom_slug?: string;
@@ -26,7 +26,7 @@ export interface GstPublicContext {
   isAccessible: boolean;
   state: 'ACTIVE' | 'EXPIRED' | 'SUBMITTED' | 'REVOKED';
   message?: string;
-  expiresAt?: string;
+  expiresAt?: string | null;
   submittedAt?: string;
   header: {
     gstin: string;
@@ -94,7 +94,7 @@ export const gstFormApi = {
     filingFrequency?: string;
     turnoverSlab?: string;
     registrationType?: string;
-  }): Promise<{ linkId: string; rawToken: string; publicUrl: string; expiresAt: string; status: string; customSlug?: string }> {
+  }): Promise<{ linkId: string; rawToken: string; publicUrl: string; expiresAt?: string | null; status: string; customSlug?: string }> {
     const res = await fetch(`${getBaseUrl()}/gst-links`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -131,7 +131,7 @@ export const gstFormApi = {
     return json.data;
   },
 
-  async regenerateLink(linkId: string): Promise<{ linkId: string; rawToken: string; publicUrl: string; expiresAt: string }> {
+  async regenerateLink(linkId: string): Promise<{ linkId: string; rawToken: string; publicUrl: string; expiresAt?: string | null }> {
     const res = await fetch(`${getBaseUrl()}/gst-links/${linkId}/regenerate`, {
       method: 'POST',
       credentials: 'include',

@@ -18,24 +18,24 @@ function getTransporter(): Transporter | null {
     transporter = nodemailer.createTransport(
       isGmail
         ? {
-            service: 'gmail',
-            auth: {
-              user,
-              pass,
-            },
-          }
+          service: 'gmail',
+          auth: {
+            user,
+            pass,
+          },
+        }
         : {
-            host: process.env.SMTP_HOST || env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT || env.SMTP_PORT) || 465,
-            secure: (process.env.SMTP_SECURE || String(env.SMTP_SECURE)) === 'true',
-            auth: {
-              user,
-              pass,
-            },
-            tls: {
-              rejectUnauthorized: false,
-            },
-          }
+          host: process.env.SMTP_HOST || env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT || env.SMTP_PORT) || 465,
+          secure: (process.env.SMTP_SECURE || String(env.SMTP_SECURE)) === 'true',
+          auth: {
+            user,
+            pass,
+          },
+          tls: {
+            rejectUnauthorized: false,
+          },
+        }
     );
   }
 
@@ -447,7 +447,7 @@ export class MailService {
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
           <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-            <div style="background: #6d55f4; padding: 28px 32px; text-align: center;">
+            <div style="background: #3D6A9E; padding: 28px 32px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">CA Practice Management System</h1>
               <p style="color: #e0e7ff; margin: 6px 0 0; font-size: 13px;">Secure Identity Verification</p>
             </div>
@@ -457,7 +457,7 @@ export class MailService {
               <p style="margin: 0 0 24px; font-size: 14px; color: #475569; line-height: 1.6;">Use the following single-use verification code to sign in to your firm workspace:</p>
               
               <div style="background: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 24px;">
-                <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #6d55f4; font-family: 'Courier New', Courier, monospace;">${otpCode}</span>
+                <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #3D6A9E; font-family: 'Courier New', Courier, monospace;">${otpCode}</span>
               </div>
               
               <p style="margin: 0 0 16px; font-size: 12.5px; color: #64748b; line-height: 1.5;">

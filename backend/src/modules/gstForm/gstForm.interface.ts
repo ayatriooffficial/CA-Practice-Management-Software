@@ -21,7 +21,7 @@ export interface IGstFormLink extends Document {
   status: GstLinkStatus;
   created_by?: string;
   created_at: Date;
-  expires_at: Date;
+  expires_at?: Date | null;
   submitted_at?: Date | null;
   revoked_at?: Date | null;
   superseded_by?: Types.ObjectId | null;
