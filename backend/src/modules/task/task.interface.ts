@@ -122,6 +122,7 @@ export interface ITask {
   isTimerRunning?: boolean;
   timerStartedAt?: Date | null;
   timeSpentSeconds?: number;
+  progress?: number;
   orgId?: string | null;
   userId?: string | null;
   createdBy?: string | null;

@@ -134,6 +134,7 @@ export interface TaskItem {
   category: string;
   taskType: TaskType;
   status: TaskStatus;
+  progress?: number;
   description?: string;
   createProformaInvoice?: boolean;
   creatorName?: string;

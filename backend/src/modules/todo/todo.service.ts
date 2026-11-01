@@ -1,17 +1,1178 @@
 import mongoose from 'mongoose';
 import { TodoModel } from './todo.model';
+import { Task } from '../task/task.model';
+import { Client } from '../client/client.model';
+import { UserModel } from '../auth/user.model';
+import {
+  IAdminTaskItem,
+  ITeamTaskItem,
+  ITodoSummary,
+  ITodoCalendarEvent,
+  TaskPriority,
+} from './todo.interface';
+import { CounterService } from '../counter/counter.service';
+import { AppError } from '../../shared/utils/apiError';
+import { logger } from '../../config/logger';
+
+// Helper to determine if a role has Administrative privileges
+export function isAdminRole(role?: string): boolean {
+  if (!role) return false;
+  const r = role.toLowerCase().trim();
+  return ['admin', 'owner', 'partner', 'manager'].includes(r);
+}
+
+// Convert any standard date format to YYYY-MM-DD in Asia/Kolkata timezone
+export function parseDateToYMD(dateVal: any): string | null {
+  if (!dateVal) return null;
+  if (typeof dateVal === 'string') {
+    const s = dateVal.trim();
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // DD/MM/YYYY or DD-MM-YYYY
+    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmy) {
+      const day = dmy[1].padStart(2, '0');
+      const month = dmy[2].padStart(2, '0');
+      const year = dmy[3];
+      return `${year}-${month}-${day}`;
+    }
+  }
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+// Today string in Asia/Kolkata YYYY-MM-DD
+export function getTodayKolkataYMD(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+// Difference in calendar days between target and today (positive = future, negative = past/overdue)
+export function getDaysLeft(targetYMD: string, todayYMD: string): number {
+  const [tY, tM, tD] = targetYMD.split('-').map(Number);
+  const [cY, cM, cD] = todayYMD.split('-').map(Number);
+  const targetUtc = Date.UTC(tY, tM - 1, tD);
+  const currentUtc = Date.UTC(cY, cM - 1, cD);
+  return Math.round((targetUtc - currentUtc) / (1000 * 60 * 60 * 24));
+}
 
 export class TodoService {
   /**
-   * List todos personal to the logged in user
+   * 1. Get role-based To-Do summary stats
    */
+  static async getTodoSummary(
+    orgId: string,
+    user: { userId: string; name: string; role: string }
+  ): Promise<ITodoSummary> {
+    const isAdmin = isAdminRole(user.role);
+    const todayYMD = getTodayKolkataYMD();
+
+    if (isAdmin) {
+      const adminTasks = await this.getAdminTasks(orgId, user.userId);
+      const pendingAdmin = adminTasks.filter((t) => !t.completed);
+      const urgentAdmin = pendingAdmin.filter((t) => t.priority === 'Urgent' || t.status === 'Expired');
+      const completedAdmin = adminTasks.filter((t) => t.completed);
+
+      // Team tasks stats
+      const allTeamTasks = await Task.find({ isDeleted: false }).select(
+        'status targetDueDate checklist progress'
+      ).lean();
+
+      let activeCount = 0;
+      let overdueCount = 0;
+      let completedCount = 0;
+      let progressSum = 0;
+
+      for (const t of allTeamTasks) {
+        if (t.status === 'Completed') {
+          completedCount++;
+          progressSum += 100;
+        } else if (t.status !== 'Cancelled') {
+          activeCount++;
+          const dueYMD = parseDateToYMD(t.targetDueDate);
+          if (dueYMD && dueYMD < todayYMD) {
+            overdueCount++;
+          }
+          const chkTotal = t.checklist?.length || 0;
+          const chkDone = t.checklist?.filter((c: any) => c.completed).length || 0;
+          const prg = chkTotal > 0 ? Math.round((chkDone / chkTotal) * 100) : (t.progress || 0);
+          progressSum += prg;
+        }
+      }
+
+      const totalCalculated = activeCount + completedCount;
+      const avgProgress = totalCalculated > 0 ? Math.round(progressSum / totalCalculated) : 0;
+
+      return {
+        role: 'admin',
+        adminTasksTotal: pendingAdmin.length,
+        adminTasksUrgent: urgentAdmin.length,
+        adminTasksCompleted: completedAdmin.length,
+        teamTasksActive: activeCount,
+        teamTasksOverdue: overdueCount,
+        teamTasksCompleted: completedCount,
+        teamAvgProgress: avgProgress,
+      };
+    } else {
+      // Normal Employee stats
+      const userConditions: any[] = [];
+      if (user.userId) userConditions.push({ assigneeId: user.userId });
+      if (user.name) userConditions.push({ assigneeName: new RegExp(`^${user.name}$`, 'i') });
+
+      const empTasks = await Task.find({
+        isDeleted: false,
+        $or: userConditions,
+      }).select('status targetDueDate checklist progress').lean();
+
+      let total = 0;
+      let pending = 0;
+      let inProgress = 0;
+      let overdue = 0;
+      let completed = 0;
+      let progressSum = 0;
+
+      for (const t of empTasks) {
+        total++;
+        const isDone = t.status === 'Completed';
+        const dueYMD = parseDateToYMD(t.targetDueDate);
+
+        if (isDone) {
+          completed++;
+          progressSum += 100;
+        } else {
+          if (t.status === 'In Progress') inProgress++;
+          else pending++;
+
+          if (dueYMD && dueYMD < todayYMD) overdue++;
+
+          const chkTotal = t.checklist?.length || 0;
+          const chkDone = t.checklist?.filter((c: any) => c.completed).length || 0;
+          const prg = chkTotal > 0 ? Math.round((chkDone / chkTotal) * 100) : (t.progress || 0);
+          progressSum += prg;
+        }
+      }
+
+      return {
+        role: 'employee',
+        assignedTotal: total,
+        assignedPending: pending,
+        assignedInProgress: inProgress,
+        assignedOverdue: overdue,
+        assignedCompleted: completed,
+        overallProgress: total > 0 ? Math.round(progressSum / total) : 0,
+      };
+    }
+  }
+
+  /**
+   * 2. Get Administrative To-Do items (Admin view)
+   * Generated dynamically from real Clients, DSCs, Licenses, Documents, and Tasks.
+   * Deduplicated via deterministic dedupKey and synced with TodoModel resolution state.
+   */
+  static async getAdminTasks(
+    _orgId: string,
+    _userId: string,
+    filters?: { category?: string; status?: string; search?: string }
+  ): Promise<IAdminTaskItem[]> {
+    const todayYMD = getTodayKolkataYMD();
+    const taskItemsMap = new Map<string, IAdminTaskItem>();
+
+    // A. Query all real non-deleted Clients
+    const clients = await Client.find({ isDeleted: false })
+      .select('name legalName fileNo dscs licenses customerFiles documentsInOut status')
+      .lean();
+
+    for (const client of clients) {
+      const clientIdStr = client._id.toString();
+      const clientName = client.name || client.legalName || 'Client';
+
+      // 1. DSCs: Expiry approaching or expired
+      for (const dsc of client.dscs || []) {
+        const dscName = dsc.name || 'Digital Signature';
+        const dscKey = String(dsc.dscId || dsc.id || dscName).trim();
+        const expYMD = parseDateToYMD(dsc.expiryDate);
+
+        if (expYMD) {
+          const daysLeft = getDaysLeft(expYMD, todayYMD);
+          const isExpired = daysLeft < 0 || String(dsc.status || '').toLowerCase() === 'expired';
+          const isApproaching = daysLeft >= 0 && daysLeft <= 30;
+
+          if (isExpired || isApproaching) {
+            const dedupKey = `admin:dsc:${clientIdStr}:${dscKey}:${expYMD}`;
+            const priority: TaskPriority = daysLeft < 0 || daysLeft <= 7 ? 'Urgent' : 'High';
+            const status = daysLeft < 0 ? 'Expired' : 'Expiring Soon';
+            const title = `Renew DSC – ${dscName} (${clientName})`;
+            const description = daysLeft < 0
+              ? `Digital Signature expired on ${dsc.expiryDate}. Token serial: ${dsc.remarks || dsc.vendor || 'N/A'}. Immediate renewal required.`
+              : `Digital Signature expires in ${daysLeft} days on ${dsc.expiryDate}. Initiate client renewal and token verification.`;
+
+            taskItemsMap.set(dedupKey, {
+              id: dedupKey,
+              dedupKey,
+              title,
+              description,
+              category: 'DSC',
+              sourceType: 'dsc',
+              sourceId: dsc.id || dsc.dscId,
+              clientName,
+              clientId: clientIdStr,
+              dueDate: expYMD,
+              daysLeft,
+              priority,
+              status,
+              actionUrl: `/dsc`,
+              actionLabel: 'Open DSC Vault',
+              completed: false,
+              completedAt: null,
+              createdAt: client.createdAt ? new Date(client.createdAt).toISOString() : new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // 2. Licenses: Expiry approaching or expired
+      for (const lic of client.licenses || []) {
+        const licName = lic.name || 'Statutory License';
+        const licNo = lic.licenseNo && lic.licenseNo !== '-' ? lic.licenseNo : '';
+        const expYMD = parseDateToYMD(lic.expiryDate);
+
+        if (expYMD) {
+          const daysLeft = getDaysLeft(expYMD, todayYMD);
+          const isExpired = daysLeft < 0;
+          const isApproaching = daysLeft >= 0 && daysLeft <= 30;
+
+          if (isExpired || isApproaching) {
+            const dedupKey = `admin:license:${clientIdStr}:${lic.id || licName}:${expYMD}`;
+            const priority: TaskPriority = daysLeft < 0 ? 'Urgent' : daysLeft <= 15 ? 'High' : 'Medium';
+            const status = daysLeft < 0 ? 'Expired' : 'Expiring Soon';
+            const title = `Review License Renewal – ${licName} (${clientName})`;
+            const description = daysLeft < 0
+              ? `Practice license ${licNo ? '(' + licNo + ')' : ''} expired on ${lic.expiryDate}. Initiate renewal filing.`
+              : `Practice license ${licNo ? '(' + licNo + ')' : ''} expires in ${daysLeft} days on ${lic.expiryDate}. Prepare renewal documentation.`;
+
+            taskItemsMap.set(dedupKey, {
+              id: dedupKey,
+              dedupKey,
+              title,
+              description,
+              category: 'License',
+              sourceType: 'license',
+              sourceId: lic.id,
+              clientName,
+              clientId: clientIdStr,
+              dueDate: expYMD,
+              daysLeft,
+              priority,
+              status,
+              actionUrl: `/client/${clientIdStr}?tab=licenses`,
+              actionLabel: 'View License',
+              completed: false,
+              completedAt: null,
+              createdAt: client.createdAt ? new Date(client.createdAt).toISOString() : new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // 3. Documents In/Out pending return
+      for (const doc of client.documentsInOut || []) {
+        if (doc.status === 'Out' || doc.returnable === true || doc.returnable === 'Yes') {
+          const docId = doc.id || doc.documentName;
+          const dedupKey = `admin:doc_out:${clientIdStr}:${docId}`;
+          const retYMD = parseDateToYMD(doc.returnDate) || todayYMD;
+          const daysLeft = getDaysLeft(retYMD, todayYMD);
+
+          taskItemsMap.set(dedupKey, {
+            id: dedupKey,
+            dedupKey,
+            title: `Track Document Return – ${doc.documentName} (${clientName})`,
+            description: `Original document handed to ${doc.personName || 'client'} on ${doc.date || 'prior date'} pending physical return.`,
+            category: 'Document',
+            sourceType: 'document',
+            sourceId: doc.id,
+            clientName,
+            clientId: clientIdStr,
+            dueDate: retYMD,
+            daysLeft,
+            priority: daysLeft < 0 ? 'High' : 'Medium',
+            status: daysLeft < 0 ? 'Expired' : 'Pending',
+            actionUrl: `/documents`,
+            actionLabel: 'View Documents',
+            completed: false,
+            completedAt: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      // 4. Missing Mandatory Statutory Documents
+      for (const stat of client.customerFiles?.statutory || []) {
+        if (!stat.attachment && stat.type) {
+          const dedupKey = `admin:stat_doc:${clientIdStr}:${stat.type}`;
+          taskItemsMap.set(dedupKey, {
+            id: dedupKey,
+            dedupKey,
+            title: `Collect Statutory Document – ${stat.type} (${clientName})`,
+            description: `Mandatory ${stat.type} document record has ID ${stat.idNo || 'registered'} but no uploaded file attachment.`,
+            category: 'Document',
+            sourceType: 'document',
+            sourceId: stat.type,
+            clientName,
+            clientId: clientIdStr,
+            dueDate: todayYMD,
+            daysLeft: 0,
+            priority: 'Medium',
+            status: 'Pending',
+            actionUrl: `/documents`,
+            actionLabel: 'Collect Document',
+            completed: false,
+            completedAt: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    // B. Query Tasks with Pending Document Requests or Ready for Final Review
+    const tasks = await Task.find({ isDeleted: false })
+      .select('taskId taskName clientName clientId targetDueDate priority status documentRequests')
+      .lean();
+
+    for (const t of tasks) {
+      const clientIdStr = t.clientId || '';
+      const clientName = t.clientName || 'Client';
+      const dueYMD = parseDateToYMD(t.targetDueDate) || todayYMD;
+      const daysLeft = getDaysLeft(dueYMD, todayYMD);
+
+      // Pending document requests
+      for (const req of t.documentRequests || []) {
+        if (req.status === 'Pending' || req.status === 'Requested') {
+          const reqId = req.id || req.title;
+          const dedupKey = `admin:task_dreq:${t.taskId}:${reqId}`;
+          taskItemsMap.set(dedupKey, {
+            id: dedupKey,
+            dedupKey,
+            title: `Collect Pending Document – ${req.title} (${clientName})`,
+            description: `Mandatory document "${req.title}" requested for Task #${t.taskId} (${t.taskName}) is pending submission from client.`,
+            category: 'Document',
+            sourceType: 'document',
+            sourceId: req.id,
+            clientName,
+            clientId: clientIdStr,
+            dueDate: dueYMD,
+            daysLeft,
+            priority: t.priority || 'Medium',
+            status: 'Pending',
+            actionUrl: `/documents`,
+            actionLabel: 'Document Tracking',
+            completed: false,
+            completedAt: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Review required tasks
+      if (t.status === 'Sent for Review') {
+        const dedupKey = `admin:task_review:${t.taskId}`;
+        taskItemsMap.set(dedupKey, {
+          id: dedupKey,
+          dedupKey,
+          title: `Review Completed Task – ${t.taskName} (${clientName})`,
+          description: `Task #${t.taskId} has been submitted by team member for administrative review and filing approval.`,
+          category: 'Task Review',
+          sourceType: 'task',
+          sourceId: t.taskId,
+          clientName,
+          clientId: clientIdStr,
+          dueDate: dueYMD,
+          daysLeft,
+          priority: 'High',
+          status: 'Pending',
+          actionUrl: `/task/view/${t.taskId}`,
+          actionLabel: 'Review Task',
+          completed: false,
+          completedAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    // C. Reconcile with persistent resolutions in TodoModel (overrides & manual tasks)
+    const storedTodos = await TodoModel.find().lean();
+    for (const stored of storedTodos) {
+      if (stored.dedupKey && taskItemsMap.has(stored.dedupKey)) {
+        const item = taskItemsMap.get(stored.dedupKey)!;
+        item.completed = stored.completed;
+        if (stored.completed) {
+          item.status = 'Completed';
+          item.completedAt = stored.completedAt ? stored.completedAt.toISOString() : new Date().toISOString();
+        }
+      } else if (stored.sourceType === 'manual' || !stored.dedupKey) {
+        // Manual admin personal to-do
+        const manualKey = `manual:${stored._id.toString()}`;
+        const mDueYMD = parseDateToYMD(stored.dueDate) || todayYMD;
+        const mDaysLeft = getDaysLeft(mDueYMD, todayYMD);
+
+        taskItemsMap.set(manualKey, {
+          id: stored._id.toString(),
+          dedupKey: manualKey,
+          title: stored.title,
+          description: stored.description || 'Personal administrative task',
+          category: 'Personal',
+          sourceType: 'manual',
+          sourceId: stored._id.toString(),
+          clientName: stored.clientName || 'Internal Firm',
+          clientId: stored.clientId || undefined,
+          dueDate: mDueYMD,
+          daysLeft: mDaysLeft,
+          priority: (stored.priority as TaskPriority) || 'Medium',
+          status: stored.completed ? 'Completed' : mDaysLeft < 0 ? 'Expired' : 'Pending',
+          actionUrl: `/to-do`,
+          actionLabel: 'View Task',
+          completed: stored.completed,
+          completedAt: stored.completedAt ? stored.completedAt.toISOString() : null,
+          createdAt: stored.createdAt.toISOString(),
+          updatedAt: stored.updatedAt.toISOString(),
+        });
+      }
+    }
+
+    // Convert map to array
+    let result = Array.from(taskItemsMap.values());
+
+    // Apply Filters
+    if (filters?.category && filters.category !== 'All') {
+      result = result.filter((item) => item.category === filters.category);
+    }
+    if (filters?.status && filters.status !== 'All') {
+      if (filters.status === 'Urgent / Expired') {
+        result = result.filter((item) => !item.completed && (item.status === 'Expired' || item.priority === 'Urgent'));
+      } else if (filters.status === 'Expiring Soon') {
+        result = result.filter((item) => !item.completed && item.status === 'Expiring Soon');
+      } else if (filters.status === 'Pending') {
+        result = result.filter((item) => !item.completed && item.status !== 'Expired');
+      } else if (filters.status === 'Completed') {
+        result = result.filter((item) => item.completed);
+      }
+    }
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          item.title.toLowerCase().includes(q) ||
+          item.clientName.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort: Non-completed first sorted by urgency (Expired -> Urgent -> High -> Medium -> Low), completed at bottom
+    const priorityWeight: Record<TaskPriority, number> = {
+      Urgent: 4,
+      High: 3,
+      Medium: 2,
+      Low: 1,
+    };
+
+    result.sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      if (a.status === 'Expired' && b.status !== 'Expired') return -1;
+      if (b.status === 'Expired' && a.status !== 'Expired') return 1;
+      const pDiff = (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0);
+      if (pDiff !== 0) return pDiff;
+      return (a.daysLeft ?? 999) - (b.daysLeft ?? 999);
+    });
+
+    return result;
+  }
+
+  /**
+   * 3. Toggle Administrative Task Completion / Dismissal
+   */
+  static async toggleAdminTask(
+    orgId: string,
+    userId: string,
+    dedupKey: string,
+    completed: boolean
+  ) {
+    if (!dedupKey) {
+      throw AppError.badRequest('dedupKey is required');
+    }
+
+    const orgObjId = mongoose.Types.ObjectId.isValid(orgId)
+      ? new mongoose.Types.ObjectId(orgId)
+      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
+    const userObjId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+
+    // Check if manual to-do or generated dedupKey
+    if (dedupKey.startsWith('manual:')) {
+      const id = dedupKey.replace('manual:', '');
+      const todo = await TodoModel.findById(id);
+      if (todo) {
+        todo.completed = completed;
+        todo.completedAt = completed ? new Date() : null;
+        todo.status = completed ? 'Completed' : 'Pending';
+        await todo.save();
+        return todo;
+      }
+    }
+
+    // Upsert resolution state in TodoModel
+    const updated = await TodoModel.findOneAndUpdate(
+      { dedupKey },
+      {
+        orgId: orgObjId,
+        userId: userObjId,
+        title: `Resolution for ${dedupKey}`,
+        completed,
+        completedAt: completed ? new Date() : null,
+        status: completed ? 'Completed' : 'Pending',
+        dedupKey,
+      },
+      { upsert: true, new: true }
+    );
+
+    return updated;
+  }
+
+  /**
+   * 4. Get Team Tasks (Admin view of delegated employee tasks)
+   */
+  static async getTeamTasks(
+    _orgId: string,
+    filters?: {
+      employeeId?: string;
+      status?: string;
+      priority?: string;
+      category?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{ tasks: ITeamTaskItem[]; total: number; totalPages: number }> {
+    const todayYMD = getTodayKolkataYMD();
+    const query: any = { isDeleted: false };
+
+    if (filters?.employeeId && filters.employeeId !== 'All') {
+      query.$or = [
+        { assigneeId: filters.employeeId },
+        { assigneeName: filters.employeeId },
+      ];
+    }
+
+    if (filters?.priority && filters.priority !== 'All') {
+      query.priority = filters.priority;
+    }
+
+    if (filters?.category && filters.category !== 'All') {
+      query.category = filters.category;
+    }
+
+    if (filters?.status && filters.status !== 'All') {
+      if (filters.status === 'Overdue') {
+        query.status = { $nin: ['Completed', 'Cancelled'] };
+        query.targetDueDate = { $lt: todayYMD };
+      } else {
+        query.status = filters.status;
+      }
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim();
+      query.$or = [
+        { taskName: { $regex: q, $options: 'i' } },
+        { clientName: { $regex: q, $options: 'i' } },
+        { taskId: { $regex: q, $options: 'i' } },
+        { assigneeName: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    const page = Math.max(1, filters?.page || 1);
+    const limit = Math.max(1, Math.min(100, filters?.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const [total, rawTasks] = await Promise.all([
+      Task.countDocuments(query),
+      Task.find(query)
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    const tasks: ITeamTaskItem[] = rawTasks.map((t: any) => {
+      const dueYMD = parseDateToYMD(t.targetDueDate) || '';
+      const isOverdue = t.status !== 'Completed' && t.status !== 'Cancelled' && Boolean(dueYMD && dueYMD < todayYMD);
+      const chkTotal = t.checklist?.length || 0;
+      const chkDone = t.checklist?.filter((c: any) => c.completed).length || 0;
+      const progress = chkTotal > 0 ? Math.round((chkDone / chkTotal) * 100) : (t.progress || (t.status === 'Completed' ? 100 : 0));
+
+      return {
+        id: t._id.toString(),
+        taskId: t.taskId,
+        taskName: t.taskName || 'Untitled Task',
+        description: t.description || '',
+        clientName: t.clientName || 'General Client',
+        clientId: t.clientId || '',
+        category: t.category || 'General',
+        department: t.department || 'General',
+        assigneeId: t.assigneeId || '',
+        assigneeName: t.assigneeName || 'Unassigned',
+        assigneeInitials: t.assigneeInitials || (t.assigneeName ? t.assigneeName.slice(0, 2).toUpperCase() : 'UA'),
+        assigneeColor: t.assigneeColor || '#3B82F6',
+        priority: (t.priority as TaskPriority) || 'Medium',
+        startDate: parseDateToYMD(t.startDate) || '',
+        targetDueDate: dueYMD,
+        endDate: parseDateToYMD(t.endDate) || '',
+        status: t.status || 'Pending',
+        progress,
+        checklistTotal: chkTotal,
+        checklistCompleted: chkDone,
+        isOverdue,
+        checklist: (t.checklist || []).map((c: any) => ({
+          id: c.id || c._id?.toString(),
+          title: c.title,
+          completed: Boolean(c.completed),
+          isMandatory: c.isMandatory !== false,
+        })),
+        comments: (t.comments || []).map((c: any) => ({
+          id: c.id,
+          author: c.author,
+          text: c.text,
+          createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
+        })),
+        createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : new Date().toISOString(),
+      };
+    });
+
+    return {
+      tasks,
+      total,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
+   * 5. Get Employee Tasks (Strictly isolated to logged-in employee)
+   */
+  static async getEmployeeTasks(
+    _orgId: string,
+    user: { userId: string; name: string; role: string },
+    filters?: {
+      status?: string;
+      priority?: string;
+      search?: string;
+    }
+  ): Promise<ITeamTaskItem[]> {
+    const todayYMD = getTodayKolkataYMD();
+
+    const userConditions: any[] = [];
+    if (user.userId) userConditions.push({ assigneeId: user.userId });
+    if (user.name) userConditions.push({ assigneeName: new RegExp(`^${user.name.trim()}$`, 'i') });
+
+    if (userConditions.length === 0) {
+      return [];
+    }
+
+    const query: any = {
+      isDeleted: false,
+      $or: userConditions,
+    };
+
+    if (filters?.priority && filters.priority !== 'All') {
+      query.priority = filters.priority;
+    }
+
+    if (filters?.status && filters.status !== 'All') {
+      if (filters.status === 'Overdue') {
+        query.status = { $nin: ['Completed', 'Cancelled'] };
+        query.targetDueDate = { $lt: todayYMD };
+      } else {
+        query.status = filters.status;
+      }
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim();
+      query.$and = [
+        {
+          $or: [
+            { taskName: { $regex: q, $options: 'i' } },
+            { clientName: { $regex: q, $options: 'i' } },
+            { taskId: { $regex: q, $options: 'i' } },
+          ],
+        },
+      ];
+    }
+
+    const rawTasks = await Task.find(query).sort({ targetDueDate: 1, updatedAt: -1 }).lean();
+
+    return rawTasks.map((t: any) => {
+      const dueYMD = parseDateToYMD(t.targetDueDate) || '';
+      const isOverdue = t.status !== 'Completed' && t.status !== 'Cancelled' && Boolean(dueYMD && dueYMD < todayYMD);
+      const chkTotal = t.checklist?.length || 0;
+      const chkDone = t.checklist?.filter((c: any) => c.completed).length || 0;
+      const progress = chkTotal > 0 ? Math.round((chkDone / chkTotal) * 100) : (t.progress || (t.status === 'Completed' ? 100 : 0));
+
+      return {
+        id: t._id.toString(),
+        taskId: t.taskId,
+        taskName: t.taskName || 'Untitled Task',
+        description: t.description || '',
+        clientName: t.clientName || 'General Client',
+        clientId: t.clientId || '',
+        category: t.category || 'General',
+        department: t.department || 'General',
+        assigneeId: t.assigneeId || user.userId,
+        assigneeName: t.assigneeName || user.name,
+        assigneeInitials: t.assigneeInitials || user.name.slice(0, 2).toUpperCase(),
+        assigneeColor: t.assigneeColor || '#3B82F6',
+        priority: (t.priority as TaskPriority) || 'Medium',
+        startDate: parseDateToYMD(t.startDate) || '',
+        targetDueDate: dueYMD,
+        endDate: parseDateToYMD(t.endDate) || '',
+        status: t.status || 'Pending',
+        progress,
+        checklistTotal: chkTotal,
+        checklistCompleted: chkDone,
+        isOverdue,
+        checklist: (t.checklist || []).map((c: any) => ({
+          id: c.id || c._id?.toString(),
+          title: c.title,
+          completed: Boolean(c.completed),
+          isMandatory: c.isMandatory !== false,
+        })),
+        comments: (t.comments || []).map((c: any) => ({
+          id: c.id,
+          author: c.author,
+          text: c.text,
+          createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
+        })),
+        createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : new Date().toISOString(),
+      };
+    });
+  }
+
+  /**
+   * 6. Admin assigns a task to an employee
+   */
+  static async assignTask(
+    orgId: string,
+    creatorUser: { userId: string; name: string; role: string },
+    data: {
+      title?: string;
+      taskName?: string;
+      description?: string;
+      category?: string;
+      clientId?: string;
+      clientName?: string;
+      assigneeId: string;
+      assigneeName?: string;
+      priority?: TaskPriority;
+      startDate?: string;
+      dueDate?: string;
+      targetDueDate?: string;
+      checklist?: Array<{ title: string; isMandatory?: boolean }>;
+    }
+  ) {
+    if (!isAdminRole(creatorUser.role)) {
+      throw AppError.forbidden('Only administrators and managers are authorized to delegate tasks.');
+    }
+
+    const resolvedTitle = (data.title || data.taskName || '').trim();
+    if (!resolvedTitle) {
+      throw AppError.badRequest('Task title is required.');
+    }
+
+    if (!data.assigneeId) {
+      throw AppError.badRequest('An employee assignment is required.');
+    }
+
+    const resolvedDueDate = (data.dueDate || data.targetDueDate || '').trim();
+    if (!resolvedDueDate) {
+      throw AppError.badRequest('A due date is required.');
+    }
+
+    // Verify employee exists and is active
+    const employee = await UserModel.findById(data.assigneeId).lean();
+    if (!employee || (employee.status as string) === 'deactivated' || (employee.status as string) === 'resigned' || (employee.status as string) === 'suspended') {
+      throw AppError.badRequest('Selected employee is invalid or inactive.');
+    }
+
+    // Get client details if provided
+    let clientName = data.clientName || 'General Client';
+    let clientFileNo = '';
+    let clientPan = '-';
+
+    if (data.clientId && mongoose.Types.ObjectId.isValid(data.clientId)) {
+      const client = await Client.findById(data.clientId).lean();
+      if (client) {
+        clientName = client.name || client.legalName || clientName;
+        clientFileNo = client.fileNo || '';
+        clientPan = client.pan || '-';
+      }
+    }
+
+    // Generate unique Task ID using dedicated CounterService
+    const nextSeq = await CounterService.getNextSequence('taskIdCounter_2026');
+    const taskId = `#TSK${String(nextSeq).padStart(5, '0')}`;
+
+    const formattedChecklist = (data.checklist || []).map((st, idx) => ({
+      id: `chk_${Date.now()}_${idx + 1}`,
+      title: st.title.trim(),
+      completed: false,
+      isMandatory: st.isMandatory !== false,
+    }));
+
+    const newTask = await Task.create({
+      taskId,
+      taskName: resolvedTitle,
+      description: data.description?.trim() || '',
+      category: data.category || 'General',
+      department: data.category || 'General',
+      serviceName: data.category ? `${data.category} Service` : 'Compliance Review',
+      clientId: data.clientId || null,
+      clientName,
+      clientFileNo,
+      clientPan,
+      assigneeId: employee._id.toString(),
+      assigneeName: employee.name,
+      assigneeInitials: employee.initials || employee.name.slice(0, 2).toUpperCase(),
+      assigneeColor: '#3B82F6',
+      priority: data.priority || 'Medium',
+      startDate: parseDateToYMD(data.startDate) || getTodayKolkataYMD(),
+      targetDueDate: parseDateToYMD(resolvedDueDate) || getTodayKolkataYMD(),
+      status: 'Pending',
+      progress: 0,
+      checklist: formattedChecklist,
+      comments: [
+        {
+          id: `cmt_${Date.now()}`,
+          author: creatorUser.name || 'Admin',
+          authorInitials: 'AD',
+          avatarColor: '#3B82F6',
+          text: `Task delegated to ${employee.name} by ${creatorUser.name || 'Admin'} with deadline ${data.dueDate}.`,
+          createdAt: new Date(),
+        },
+      ],
+      creatorName: creatorUser.name || 'Admin',
+      orgId,
+      userId: creatorUser.userId,
+      createdBy: creatorUser.name,
+    });
+
+    logger.info(`✅ To-Do Task created and assigned: ${taskId} to ${employee.name}`);
+    return newTask;
+  }
+
+  /**
+   * 7. Update Task Progress & Status (Employee & Admin)
+   * Supports checklist toggling, progress percentage (0-100), status workflow, and progress notes.
+   */
+  static async updateTaskProgress(
+    _orgId: string,
+    user: { userId: string; name: string; role: string },
+    taskId: string,
+    data: {
+      status?: string;
+      progress?: number;
+      toggleChecklistId?: string;
+      checklistCompleted?: boolean;
+      note?: string;
+      reassignEmployeeId?: string;
+      targetDueDate?: string;
+    }
+  ) {
+    const task = await Task.findOne({
+      $or: [{ taskId }, { _id: mongoose.Types.ObjectId.isValid(taskId) ? new mongoose.Types.ObjectId(taskId) : null }],
+      isDeleted: false,
+    });
+
+    if (!task) {
+      throw AppError.notFound(`Task "${taskId}" not found.`);
+    }
+
+    const isAdmin = isAdminRole(user.role);
+
+    // If non-admin employee, strictly enforce that task is assigned to them
+    if (!isAdmin) {
+      const isAssigned =
+        task.assigneeId === user.userId ||
+        task.assigneeName?.toLowerCase().trim() === user.name?.toLowerCase().trim();
+
+      if (!isAssigned) {
+        throw AppError.forbidden('Access denied. You can only update tasks assigned directly to you.');
+      }
+
+      // Employees cannot reassign tasks to other people
+      if (data.reassignEmployeeId && data.reassignEmployeeId !== task.assigneeId) {
+        throw AppError.forbidden('Employees are not authorized to reassign tasks.');
+      }
+    } else {
+      // Admin reassigning task
+      if (data.reassignEmployeeId) {
+        const emp = await UserModel.findById(data.reassignEmployeeId).lean();
+        if (emp && (emp.status as string) !== 'deactivated' && (emp.status as string) !== 'resigned') {
+          const oldAssignee = task.assigneeName;
+          task.assigneeId = emp._id.toString();
+          task.assigneeName = emp.name;
+          task.assigneeInitials = emp.initials || emp.name.slice(0, 2).toUpperCase();
+          task.comments.push({
+            id: `cmt_${Date.now()}`,
+            author: user.name,
+            authorInitials: 'AD',
+            avatarColor: '#3B82F6',
+            text: `Reassigned task from ${oldAssignee} to ${emp.name} by ${user.name}.`,
+            createdAt: new Date(),
+          } as any);
+        }
+      }
+
+      // Admin updating due date
+      if (data.targetDueDate) {
+        const parsedDue = parseDateToYMD(data.targetDueDate);
+        if (parsedDue) {
+          task.targetDueDate = parsedDue;
+        }
+      }
+    }
+
+    // Toggle or update checklist item
+    if (data.toggleChecklistId) {
+      const item = task.checklist.find(
+        (c: any) => c.id === data.toggleChecklistId || (c as any)._id?.toString() === data.toggleChecklistId
+      );
+      if (item) {
+        item.completed = data.checklistCompleted !== undefined ? data.checklistCompleted : !item.completed;
+        task.markModified('checklist');
+      }
+    }
+
+    // Compute checklist progress
+    const chkTotal = task.checklist?.length || 0;
+    const chkDone = task.checklist?.filter((c: any) => c.completed).length || 0;
+
+    if (chkTotal > 0) {
+      task.progress = Math.round((chkDone / chkTotal) * 100);
+    } else if (data.progress !== undefined) {
+      const p = Math.max(0, Math.min(100, Math.round(data.progress)));
+      task.progress = p;
+    }
+
+    // Handle Status Update
+    if (data.status) {
+      const validStatuses = ['Pending', 'In Progress', 'On Hold', 'Completed', 'Sent for Review', 'Cancelled'];
+      if (!validStatuses.includes(data.status)) {
+        throw AppError.badRequest(`Invalid status "${data.status}". Supported: ${validStatuses.join(', ')}`);
+      }
+
+      if (data.status === 'Completed') {
+        // Validation: Cannot mark completed if mandatory checklist items are not done!
+        if (chkTotal > 0) {
+          const pendingMandatory = task.checklist.filter((c: any) => c.isMandatory !== false && !c.completed);
+          if (pendingMandatory.length > 0) {
+            throw AppError.badRequest(
+              `Cannot mark task as Completed: ${pendingMandatory.length} mandatory checklist item(s) are still pending.`
+            );
+          }
+          // Mark all checklist items completed and progress to 100%
+          task.checklist.forEach((c: any) => {
+            c.completed = true;
+          });
+          task.markModified('checklist');
+          task.progress = 100;
+        } else if (data.progress !== undefined && data.progress < 100) {
+          throw AppError.badRequest('Cannot mark task as Completed with progress less than 100%.');
+        } else {
+          task.progress = 100;
+        }
+      }
+
+      task.status = data.status as any;
+    }
+
+    // Add progress comment note if provided
+    if (data.note && data.note.trim()) {
+      task.comments.push({
+        id: `cmt_${Date.now()}`,
+        author: user.name,
+        authorInitials: user.name ? user.name.slice(0, 2).toUpperCase() : 'U',
+        avatarColor: '#10B981',
+        text: data.note.trim(),
+        createdAt: new Date(),
+      } as any);
+      task.markModified('comments');
+    }
+
+    await task.save();
+    return task;
+  }
+
+  /**
+   * 8. Get Calendar Events for To-Do Module
+   * Reuses the calendar structure of the Notices section.
+   */
+  static async getCalendarEvents(
+    orgId: string,
+    user: { userId: string; name: string; role: string },
+    monthStr?: string // e.g. "2026-11"
+  ): Promise<ITodoCalendarEvent[]> {
+    const todayYMD = getTodayKolkataYMD();
+    const currentMonthPrefix = monthStr || todayYMD.slice(0, 7);
+    const isAdmin = isAdminRole(user.role);
+    const events: ITodoCalendarEvent[] = [];
+
+    if (isAdmin) {
+      // 1. Add Administrative Task Deadlines for that month
+      const adminTasks = await this.getAdminTasks(orgId, user.userId);
+      for (const at of adminTasks) {
+        if (at.dueDate && at.dueDate.startsWith(currentMonthPrefix)) {
+          events.push({
+            id: `ev_admin_${at.dedupKey}`,
+            date: at.dueDate,
+            title: at.title,
+            clientName: at.clientName,
+            category: at.category,
+            type: 'admin_deadline',
+            priority: at.priority,
+            status: at.status,
+            isOverdue: !at.completed && at.dueDate < todayYMD,
+            isCompleted: at.completed,
+            actionUrl: at.actionUrl,
+          });
+        }
+      }
+
+      // 2. Add Team Tasks for that month (target due date & start date)
+      const teamTasks = await Task.find({ isDeleted: false })
+        .select('taskId taskName clientName category priority status targetDueDate startDate progress checklist')
+        .lean();
+
+      for (const t of teamTasks) {
+        const dueYMD = parseDateToYMD(t.targetDueDate);
+        const startYMD = parseDateToYMD(t.startDate);
+        const isDone = t.status === 'Completed';
+
+        if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
+          events.push({
+            id: `ev_task_due_${t.taskId}`,
+            date: dueYMD,
+            title: `Due: ${t.taskName}`,
+            clientName: t.clientName || 'General Client',
+            category: t.category || 'General',
+            type: 'task_due',
+            priority: (t.priority as TaskPriority) || 'Medium',
+            status: t.status,
+            isOverdue: !isDone && dueYMD < todayYMD,
+            isCompleted: isDone,
+            taskId: t.taskId,
+          });
+        }
+
+        if (startYMD && startYMD.startsWith(currentMonthPrefix) && startYMD !== dueYMD) {
+          events.push({
+            id: `ev_task_start_${t.taskId}`,
+            date: startYMD,
+            title: `Starts: ${t.taskName}`,
+            clientName: t.clientName || 'General Client',
+            category: t.category || 'General',
+            type: 'task_start',
+            priority: (t.priority as TaskPriority) || 'Medium',
+            status: t.status,
+            isOverdue: false,
+            isCompleted: isDone,
+            taskId: t.taskId,
+          });
+        }
+      }
+    } else {
+      // Normal Employee Calendar View: STRICTLY only employee's tasks
+      const userConditions: any[] = [];
+      if (user.userId) userConditions.push({ assigneeId: user.userId });
+      if (user.name) userConditions.push({ assigneeName: new RegExp(`^${user.name.trim()}$`, 'i') });
+
+      const empTasks = await Task.find({
+        isDeleted: false,
+        $or: userConditions,
+      })
+        .select('taskId taskName clientName category priority status targetDueDate startDate')
+        .lean();
+
+      for (const t of empTasks) {
+        const dueYMD = parseDateToYMD(t.targetDueDate);
+        const startYMD = parseDateToYMD(t.startDate);
+        const isDone = t.status === 'Completed';
+
+        if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
+          events.push({
+            id: `ev_emp_due_${t.taskId}`,
+            date: dueYMD,
+            title: `Due: ${t.taskName}`,
+            clientName: t.clientName || 'General Client',
+            category: t.category || 'General',
+            type: 'task_due',
+            priority: (t.priority as TaskPriority) || 'Medium',
+            status: t.status,
+            isOverdue: !isDone && dueYMD < todayYMD,
+            isCompleted: isDone,
+            taskId: t.taskId,
+          });
+        }
+
+        if (startYMD && startYMD.startsWith(currentMonthPrefix) && startYMD !== dueYMD) {
+          events.push({
+            id: `ev_emp_start_${t.taskId}`,
+            date: startYMD,
+            title: `Starts: ${t.taskName}`,
+            clientName: t.clientName || 'General Client',
+            category: t.category || 'General',
+            type: 'task_start',
+            priority: (t.priority as TaskPriority) || 'Medium',
+            status: t.status,
+            isOverdue: false,
+            isCompleted: isDone,
+            taskId: t.taskId,
+          });
+        }
+      }
+    }
+
+    return events;
+  }
+
+  // --- Retain existing legacy personal to-dos for AdminWelcomeTodoCard compatibility ---
   static async listUserTodos(orgId: string, userId: string) {
-    const userObjId = new mongoose.Types.ObjectId(userId);
-    const orgObjId = new mongoose.Types.ObjectId(orgId);
+    const userObjId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+    const orgObjId = mongoose.Types.ObjectId.isValid(orgId)
+      ? new mongoose.Types.ObjectId(orgId)
+      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
 
     const items = await TodoModel.find({
       userId: userObjId,
       orgId: orgObjId,
+      sourceType: { $in: ['manual', undefined, null] },
     })
       .sort({ completed: 1, dueDate: 1, createdAt: -1 })
       .lean();
@@ -27,29 +1188,51 @@ export class TodoService {
     }));
   }
 
-  /**
-   * Create a new todo personal to the logged in user
-   */
   static async createTodo(
     orgId: string,
     userId: string,
-    data: { title: string; dueDate?: string | null }
+    data: {
+      title: string;
+      dueDate?: string | null;
+      description?: string;
+      priority?: TaskPriority;
+      category?: string;
+      clientName?: string;
+      clientId?: string;
+    }
   ) {
     if (!data.title || !data.title.trim()) {
-      throw { statusCode: 400, message: 'Title is required' };
+      throw AppError.badRequest('Title is required');
     }
 
+    const orgObjId = mongoose.Types.ObjectId.isValid(orgId)
+      ? new mongoose.Types.ObjectId(orgId)
+      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
+    const userObjId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+
     const todo = await TodoModel.create({
-      orgId: new mongoose.Types.ObjectId(orgId),
-      userId: new mongoose.Types.ObjectId(userId),
+      orgId: orgObjId,
+      userId: userObjId,
       title: data.title.trim(),
+      description: data.description?.trim() || '',
+      priority: data.priority || 'Medium',
+      category: data.category || 'General',
+      clientName: data.clientName?.trim() || 'Internal Firm',
+      clientId: data.clientId || undefined,
       dueDate: data.dueDate?.trim() || null,
       completed: false,
+      sourceType: 'manual',
     });
 
     return {
       id: String(todo._id),
       title: todo.title,
+      description: todo.description,
+      priority: todo.priority,
+      category: todo.category,
+      clientName: todo.clientName,
       completed: todo.completed,
       completedAt: null,
       dueDate: todo.dueDate || null,
@@ -58,38 +1241,45 @@ export class TodoService {
     };
   }
 
-  /**
-   * Update todo
-   */
   static async updateTodo(
-    orgId: string,
-    userId: string,
+    _orgId: string,
+    _userId: string,
     todoId: string,
-    updates: { title?: string; completed?: boolean; dueDate?: string | null }
+    updates: {
+      title?: string;
+      completed?: boolean;
+      dueDate?: string | null;
+      description?: string;
+      priority?: TaskPriority;
+      category?: string;
+    }
   ) {
     if (!mongoose.Types.ObjectId.isValid(todoId)) {
-      throw { statusCode: 400, message: 'Invalid todo ID' };
+      throw AppError.badRequest('Invalid todo ID');
     }
 
-    const todo = await TodoModel.findOne({
-      _id: new mongoose.Types.ObjectId(todoId),
-      orgId: new mongoose.Types.ObjectId(orgId),
-      userId: new mongoose.Types.ObjectId(userId),
-    });
-
+    const todo = await TodoModel.findById(todoId);
     if (!todo) {
-      throw { statusCode: 404, message: 'To-Do item not found' };
+      throw AppError.notFound('To-Do item not found');
     }
 
     if (typeof updates.title === 'string' && updates.title.trim()) {
       todo.title = updates.title.trim();
     }
-
+    if (typeof updates.description === 'string') {
+      todo.description = updates.description.trim();
+    }
+    if (updates.priority) {
+      todo.priority = updates.priority;
+    }
+    if (updates.category) {
+      todo.category = updates.category;
+    }
     if (typeof updates.completed === 'boolean') {
       todo.completed = updates.completed;
       todo.completedAt = updates.completed ? new Date() : null;
+      todo.status = updates.completed ? 'Completed' : 'Pending';
     }
-
     if (updates.dueDate !== undefined) {
       todo.dueDate = updates.dueDate ? updates.dueDate.trim() : null;
     }
@@ -99,6 +1289,9 @@ export class TodoService {
     return {
       id: String(todo._id),
       title: todo.title,
+      description: todo.description,
+      priority: todo.priority,
+      category: todo.category,
       completed: todo.completed,
       completedAt: todo.completedAt ? todo.completedAt.toISOString() : null,
       dueDate: todo.dueDate || null,
@@ -107,25 +1300,11 @@ export class TodoService {
     };
   }
 
-  /**
-   * Delete todo
-   */
-  static async deleteTodo(orgId: string, userId: string, todoId: string) {
+  static async deleteTodo(_orgId: string, _userId: string, todoId: string) {
     if (!mongoose.Types.ObjectId.isValid(todoId)) {
-      throw { statusCode: 400, message: 'Invalid todo ID' };
+      throw AppError.badRequest('Invalid todo ID');
     }
-
-    const res = await TodoModel.deleteOne({
-      _id: new mongoose.Types.ObjectId(todoId),
-      orgId: new mongoose.Types.ObjectId(orgId),
-      userId: new mongoose.Types.ObjectId(userId),
-    });
-
-    if (res.deletedCount === 0) {
-      throw { statusCode: 404, message: 'To-Do item not found' };
-    }
-
-    return { success: true };
+    await TodoModel.findByIdAndDelete(todoId);
+    return { id: todoId };
   }
 }
-

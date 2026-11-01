@@ -24,6 +24,7 @@ import {
   Folder,
   Grip,
   KeyRound,
+  CheckSquare,
   X,
   Building,
   Moon,
@@ -57,6 +58,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "groups", label: "Groups", href: "/groups", icon: UserRoundGroup },
   { id: "services", label: "Services", href: "/services", icon: ShoppingCart },
   { id: "task", label: "Task", href: "/task", icon: ClipboardList },
+  { id: "todo", label: "To-Do", href: "/to-do", icon: CheckSquare },
   { id: "invoice", label: "Invoice", href: "/invoice", icon: ReceiptText },
   { id: "team", label: "Team", href: "/team", icon: UsersRound },
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
@@ -81,6 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     if (id === "reports") return true;
     if (id === "documents") return true;
     if (id === "registry") return true;
+    if (id === "todo") return true;
     if (id === "task") return canView("task_manager");
     if (id === "client") return canView("clients");
     if (id === "leads") return canView("leads");

@@ -15,8 +15,8 @@ declare global {
   }
 }
 
-const DEV_FALLBACK_USER_ID = '6ad9e23bf460aa2e6102c0c8';
-const DEV_FALLBACK_ORG_ID = '6ad9e23bf460aa2e6102c0c6';
+const DEV_FALLBACK_USER_ID = '6ae086fb665d0e6ed6a61015';
+const DEV_FALLBACK_ORG_ID = '6adb442c6ceca77f153c0ba3';
 
 /**
  * Strict JWT Authentication Middleware.

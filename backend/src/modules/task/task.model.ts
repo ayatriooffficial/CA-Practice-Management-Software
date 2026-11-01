@@ -290,6 +290,12 @@ export const taskSchema = new Schema<ITaskDocument>(
       type: Number,
       default: 0,
     },
+    progress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -309,7 +315,6 @@ export const taskSchema = new Schema<ITaskDocument>(
 taskSchema.plugin(softDeletePlugin);
 
 // Compound indexes for optimal query speeds (Production Strategy)
-taskSchema.index({ taskId: 1 }, { unique: true });
 taskSchema.index({ isDeleted: 1, createdAt: -1 });
 taskSchema.index({ status: 1, category: 1, isDeleted: 1 });
 taskSchema.index({ assigneeName: 1, status: 1, isDeleted: 1 });
