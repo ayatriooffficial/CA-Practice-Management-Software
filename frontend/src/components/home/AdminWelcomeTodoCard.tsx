@@ -209,7 +209,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
         <button
           type="button"
           onClick={() => setIsAdding((v) => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-none bg-[#31719B] text-white hover:bg-[#285d80] active:scale-95 transition-all shadow-xs cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#31719B] text-white hover:bg-[#285d80] active:scale-95 transition-all shadow-xs cursor-pointer"
         >
           <Plus size={14} />
           <span>Add Task</span>
@@ -300,7 +300,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
             <button
               type="submit"
               disabled={isSubmitting || !newTitle.trim()}
-              className="px-2.5 py-1 text-xs font-semibold rounded-none bg-[#31719B] text-white hover:bg-[#285d80] disabled:opacity-50 transition-all cursor-pointer"
+              className="px-3 py-1 text-xs font-semibold rounded-full bg-[#31719B] text-white hover:bg-[#285d80] disabled:opacity-50 transition-all cursor-pointer"
             >
               Add
             </button>
