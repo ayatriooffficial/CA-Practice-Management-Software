@@ -64,6 +64,13 @@ export class AttendanceService {
       throw { statusCode: 404, message: 'User record not found.' };
     }
 
+    if ((user.role || '').toLowerCase() === 'admin') {
+      throw {
+        statusCode: 403,
+        message: 'Admins are excluded from attendance tracking and cannot punch in.',
+      };
+    }
+
     // Distance calculation
     let distanceM: number | null = null;
     let workLocation = 'Office';
@@ -112,6 +119,14 @@ export class AttendanceService {
     const todayStr = toISTDateString(now);
 
     const userObjId = new mongoose.Types.ObjectId(params.userId);
+
+    const user = await UserModel.findById(userObjId);
+    if (user && (user.role || '').toLowerCase() === 'admin') {
+      throw {
+        statusCode: 403,
+        message: 'Admins are excluded from attendance tracking and cannot punch out.',
+      };
+    }
 
     const record = await AttendanceModel.findOne({
       userId: userObjId,
@@ -211,12 +226,14 @@ export class AttendanceService {
     const firmObjId = new mongoose.Types.ObjectId(params.firmId);
 
     if (mode === 'admin') {
-      // 1. Total Employees: active users count
+      // 1. Total Employees: active non-admin users count (Admins do not have attendance)
       const activeUsers = await UserModel.find({
         orgId: firmObjId,
         status: { $in: ['active', 'Active'] },
+        role: { $not: /^admin$/i },
       }).lean();
 
+      const nonAdminUserIds = new Set(activeUsers.map((u: any) => String(u._id)));
       const totalEmployeesCount = activeUsers.length;
 
       // Comparison: vs last month (users created or resigned prior to current month)
@@ -231,25 +248,28 @@ export class AttendanceService {
       const employeeDelta = totalEmployeesCount - prevMonthCount;
       const employeeDeltaText = employeeDelta >= 0 ? `+${employeeDelta}` : `${employeeDelta}`;
 
-      // Fetch today's punches
-      const todayPunches = await AttendanceModel.find({
+      // Fetch today's punches (filtered to non-admin active staff)
+      const rawTodayPunches = await AttendanceModel.find({
         firmId: firmObjId,
         date: todayStr,
       }).lean();
+      const todayPunches = rawTodayPunches.filter((p) => nonAdminUserIds.has(String(p.userId)));
 
-      // Fetch yesterday's punches
-      const yesterdayPunches = await AttendanceModel.find({
+      // Fetch yesterday's punches (filtered to non-admin active staff)
+      const rawYesterdayPunches = await AttendanceModel.find({
         firmId: firmObjId,
         date: yesterdayStr,
       }).lean();
+      const yesterdayPunches = rawYesterdayPunches.filter((p) => nonAdminUserIds.has(String(p.userId)));
 
-      // Fetch today's approved leaves
-      const todayLeaves = await LeaveModel.find({
+      // Fetch today's approved leaves (filtered to non-admin active staff)
+      const rawTodayLeaves = await LeaveModel.find({
         firmId: firmObjId,
         status: 'Approved',
         startDate: { $lte: todayStr },
         endDate: { $gte: todayStr },
       }).lean();
+      const todayLeaves = rawTodayLeaves.filter((l) => nonAdminUserIds.has(String(l.userId)));
 
       // Attendance Rate: present today ÷ expected to work today × 100
       const onLeaveCount = todayLeaves.length;
@@ -400,10 +420,11 @@ export class AttendanceService {
     const firmObjId = new mongoose.Types.ObjectId(params.firmId);
     const dateStr = params.dateStr || toISTDateString(getNowIST());
 
-    // 1. All active employees of the firm
+    // 1. All active non-admin employees of the firm (admins never punch or appear in attendance)
     const users = await UserModel.find({
       orgId: firmObjId,
       status: { $in: ['active', 'Active'] },
+      role: { $not: /^admin$/i },
     }).lean();
 
     // 2. Punches on that date

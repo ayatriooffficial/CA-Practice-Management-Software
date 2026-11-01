@@ -11,6 +11,9 @@ import { TodayAttendanceTable } from './TodayAttendanceTable';
 import { MonthlyAttendanceTable } from './MonthlyAttendanceTable';
 import { UpcomingHolidaysTable } from './UpcomingHolidaysTable';
 import { UpcomingLeavesTable } from './UpcomingLeavesTable';
+import { AdminWelcomeTodoCard } from './AdminWelcomeTodoCard';
+import { PendingInvoicingCard } from './PendingInvoicingCard';
+import { CompactTaskCard } from './CompactTaskCard';
 import {
   attendanceApi,
   SummaryCardData,
@@ -138,22 +141,35 @@ export const HomeDashboard: React.FC = () => {
         gap: '24px',
       }}
     >
-      {/* 1. Drag-handle Sub-tabs Header (Attendance, TimeSheet, Task, Sales, Notes) */}
-      <HomeTabs
-        activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
-      />
-
-      {/* 3. Two Top Cards: Welcome & Live Punch Card + Notice Board */}
-      <div className="w-full grid grid-cols-1 lg:grid-cols-2" style={{ gap: '20px' }}>
-        <PunchCard
-          userName={currentUser?.name || 'User'}
-          onPunchChange={handlePunchChange}
+      {/* 1. If NOT admin, show top tab strip. If admin, NO tab strip (Continuous dashboard) */}
+      {!isAdmin && (
+        <HomeTabs
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
         />
-        <NoticeBoardCard isAdmin={isAdmin} />
-      </div>
+      )}
 
-      {/* 4. Summary Metric Cards */}
+      {/* Row 1: Welcome & Notice Board */}
+      {isAdmin ? (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-stretch" style={{ gap: '20px' }}>
+          <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
+            <AdminWelcomeTodoCard userName={currentUser?.name || 'Admin'} />
+          </div>
+          <div className="lg:col-span-5 xl:col-span-4 flex flex-col">
+            <NoticeBoardCard isAdmin={true} />
+          </div>
+        </div>
+      ) : (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2" style={{ gap: '20px' }}>
+          <PunchCard
+            userName={currentUser?.name || 'User'}
+            onPunchChange={handlePunchChange}
+          />
+          <NoticeBoardCard isAdmin={false} />
+        </div>
+      )}
+
+      {/* Row 2: Attendance Stat Cards (For Admin: covers non-admin staff only; For Employee: own stats) */}
       <SummaryCards
         cards={summaryCards}
         mode={isAdmin ? 'admin' : 'employee'}
@@ -162,7 +178,19 @@ export const HomeDashboard: React.FC = () => {
         isLoading={isSummaryLoading}
       />
 
-      {/* 5. Main Attendance Table (Today's Attendance for Admin, Past 5 Days & Today for Employee) */}
+      {/* Row 3 (Admin Only): Compact Tasks & Pending Invoicing Widgets */}
+      {isAdmin && (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ gap: '20px' }}>
+          <div className="flex flex-col">
+            <CompactTaskCard />
+          </div>
+          <div className="flex flex-col">
+            <PendingInvoicingCard />
+          </div>
+        </div>
+      )}
+
+      {/* Row 4: Main Attendance Table (Today's Attendance for Admin, Past 5 Days & Today for Employee) */}
       {isAdmin ? (
         <TodayAttendanceTable
           rows={todayRows}
@@ -177,7 +205,7 @@ export const HomeDashboard: React.FC = () => {
         />
       )}
 
-      {/* 6. Side-by-side Tables: Upcoming Holidays and Upcoming Leaves */}
+      {/* Row 5: Side-by-side Tables: Upcoming Holidays and Upcoming Leaves */}
       <div
         className={`w-full grid ${
           isAdmin ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'

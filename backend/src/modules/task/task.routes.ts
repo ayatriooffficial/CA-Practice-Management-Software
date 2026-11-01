@@ -21,6 +21,7 @@ import {
 const router = Router();
 
 router.get('/stats', TaskController.getTaskStats);
+router.get('/compact-summary', TaskController.getCompactDashboardSummary);
 router.get('/summary-matrix', TaskController.getTaskSummaryMatrix);
 router.get('/profitability-report', authenticate, validateRequest({ query: profitabilityReportQuerySchema }), TaskController.getProfitabilityReport);
 

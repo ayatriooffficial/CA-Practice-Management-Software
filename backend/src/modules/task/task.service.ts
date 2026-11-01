@@ -21,6 +21,7 @@ import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
 import { AgentExecutionService } from '../agentCenter/execution.service';
+import { getNowIST, toISTDateString, offsetISTDate } from '../../shared/utils/istDate';
 
 export class TaskService {
   private static async dispatchAgentTaskEvents(task: ITaskDocument, triggers: string[]) {
@@ -428,6 +429,116 @@ export class TaskService {
     }
 
     return counts;
+  }
+
+  /**
+   * Compact Dashboard Summary for Home Screen Widget
+   * Aggregates due counts, status breakdown, and top groups per status
+   */
+  static async getCompactDashboardSummary(
+    userCtx?: { userId: string | null; orgId?: string | null; role?: string } | null
+  ) {
+    await this.seedInitialTasksIfNeeded();
+
+    const orgId = userCtx?.orgId;
+    const matchFilter: Record<string, any> = { isDeleted: false };
+    if (orgId) {
+      matchFilter.$or = [{ orgId }, { orgId: String(orgId) }];
+    }
+
+    const tasks = await Task.find(matchFilter).lean();
+
+    let pendingCount = 0;
+    let holdCount = 0;
+    let inProgressCount = 0;
+    let completedCount = 0;
+
+    const nowIST = getNowIST();
+    const todayStr = toISTDateString(nowIST);
+    const tomorrowStr = offsetISTDate(todayStr, 1);
+    const next7DaysStr = offsetISTDate(todayStr, 7);
+
+    let dueToday = 0;
+    let dueTomorrow = 0;
+    let dueIn7Days = 0;
+    let overdue = 0;
+
+    const statusGroups: Record<string, Map<string, number>> = {
+      pending: new Map(),
+      hold: new Map(),
+      inProgress: new Map(),
+      completed: new Map(),
+    };
+
+    for (const t of tasks) {
+      const statusLower = (t.status || '').toLowerCase();
+      let tabKey: 'pending' | 'hold' | 'inProgress' | 'completed' = 'pending';
+
+      if (statusLower === 'completed') {
+        completedCount++;
+        tabKey = 'completed';
+      } else if (statusLower.includes('hold')) {
+        holdCount++;
+        tabKey = 'hold';
+      } else if (statusLower.includes('progress') || statusLower.includes('review') || statusLower.includes('change')) {
+        inProgressCount++;
+        tabKey = 'inProgress';
+      } else {
+        pendingCount++;
+        tabKey = 'pending';
+      }
+
+      const groupName = t.serviceName || t.taskName || t.category || 'General';
+      const map = statusGroups[tabKey];
+      map.set(groupName, (map.get(groupName) || 0) + 1);
+
+      if (tabKey !== 'completed') {
+        const dueStr = (t.targetDueDate || '').trim().slice(0, 10);
+        if (dueStr) {
+          if (dueStr < todayStr) {
+            overdue++;
+          } else if (dueStr === todayStr) {
+            dueToday++;
+          } else if (dueStr === tomorrowStr) {
+            dueTomorrow++;
+          } else if (dueStr <= next7DaysStr) {
+            dueIn7Days++;
+          }
+        }
+      }
+    }
+
+    const formatGroups = (map: Map<string, number>, total: number) => {
+      return Array.from(map.entries())
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+    };
+
+    return {
+      dueStats: {
+        dueToday,
+        dueTomorrow,
+        dueIn7Days,
+        overdue,
+      },
+      statusSummary: {
+        pending: pendingCount,
+        hold: holdCount,
+        inProgress: inProgressCount,
+        completed: completedCount,
+        total: tasks.length,
+      },
+      groups: {
+        pending: formatGroups(statusGroups.pending, pendingCount),
+        hold: formatGroups(statusGroups.hold, holdCount),
+        inProgress: formatGroups(statusGroups.inProgress, inProgressCount),
+        completed: formatGroups(statusGroups.completed, completedCount),
+      },
+    };
   }
 
   /**

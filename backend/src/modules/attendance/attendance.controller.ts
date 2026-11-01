@@ -44,6 +44,14 @@ export class AttendanceController {
         return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
       }
 
+      if ((user.role || '').toLowerCase() === 'admin') {
+        return ApiResponse.error(
+          res,
+          'Admins are excluded from attendance tracking and cannot punch in.',
+          HTTP_STATUS.FORBIDDEN
+        );
+      }
+
       const { geo } = req.body || {};
       const record = await AttendanceService.punchIn({
         firmId: user.orgId,
@@ -65,6 +73,14 @@ export class AttendanceController {
       const user = req.user;
       if (!user?.userId || !user?.orgId) {
         return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      if ((user.role || '').toLowerCase() === 'admin') {
+        return ApiResponse.error(
+          res,
+          'Admins are excluded from attendance tracking and cannot punch out.',
+          HTTP_STATUS.FORBIDDEN
+        );
       }
 
       const record = await AttendanceService.punchOut({

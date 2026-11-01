@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { Search, Calendar as CalendarIcon, MoreVertical, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, MoreVertical, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
 import { TodayAttendanceRow } from '../../services/attendanceApi';
 
 interface TodayAttendanceTableProps {
@@ -67,7 +67,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
       case 'Half Day':
         return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40';
       case 'Week Off':
-        return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/40';
+        return 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800/40';
       case 'Holiday':
         return 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/40';
       default:
@@ -239,8 +239,18 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
               </tr>
             ) : paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-xs text-gray-400 border-b border-[#dde2e8] dark:border-[#334155]">
-                  No attendance records found for this date.
+                <td colSpan={8} className="text-center py-8 px-4 border-b border-[#dde2e8] dark:border-[#334155]">
+                  <div className="flex flex-col items-center justify-center gap-1.5 py-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-400 dark:text-slate-500">
+                      <Users size={16} />
+                    </div>
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                      No employee attendance records for this date
+                    </span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                      Non-admin staff attendance sessions will appear here once recorded.
+                    </span>
+                  </div>
                 </td>
               </tr>
             ) : (

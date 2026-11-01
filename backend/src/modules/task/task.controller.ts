@@ -53,6 +53,12 @@ export class TaskController {
     return ApiResponse.success(res, stats, ResponseMessages.SUCCESS);
   });
 
+  static getCompactDashboardSummary = asyncHandler(async (req: Request, res: Response) => {
+    const userCtx = getUserContextFromRequest(req);
+    const summary = await TaskService.getCompactDashboardSummary(userCtx);
+    return ApiResponse.success(res, summary, ResponseMessages.SUCCESS);
+  });
+
   static getTaskSummaryMatrix = asyncHandler(async (req: Request, res: Response) => {
     const userCtx = getUserContextFromRequest(req);
     const groupBy = (req.query.groupBy as string) || 'Assigned To';

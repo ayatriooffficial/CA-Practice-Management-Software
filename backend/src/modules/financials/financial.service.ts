@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { AppError } from '../../shared/utils/apiError';
 import { Task } from '../task/task.model';
+import { Client } from '../client/client.model';
 import { UserModel } from '../auth/user.model';
 import { FinancialInvoice, TaskExpense, FinancialTimeEntry, FinancialReceipt } from './financial.model';
 import { IInvoiceAllocation, PaymentMethod, InvoiceState } from './financial.interface';
@@ -824,5 +825,125 @@ export class FinancialService {
       view: options?.view || 'list',
       rows: pdfRows,
     });
+  }
+
+  /**
+   * Pending Invoicing Summary for Home Dashboard
+   * Aggregates unbilled tasks, pending retainers, overdue invoices, and drafts
+   */
+  static async getInvoicingSummary(ctx: FinancialUserContext) {
+    const orgObjId = new mongoose.Types.ObjectId(ctx.orgId);
+    const orgStr = String(ctx.orgId);
+
+    // 1. Unbilled Tasks: billable tasks not marked as 'Billed'
+    const unbilledTasksCount = await Task.countDocuments({
+      $or: [{ orgId: orgStr }, { orgId: orgObjId }],
+      isDeleted: false,
+      billingType: 'Billable',
+      billingStatus: { $ne: 'Billed' },
+    });
+
+    // 2. Pending Retainer Invoices: recurring retainer tasks pending billing or active clients with recurring agreements
+    const pendingRetainerTasks = await Task.countDocuments({
+      isDeleted: false,
+      billingType: 'Billable',
+      billingStatus: { $ne: 'Billed' },
+      $and: [
+        { $or: [{ orgId: orgStr }, { orgId: orgObjId }] },
+        {
+          $or: [
+            { category: /retainer/i },
+            { serviceName: /retainer/i },
+            { taskType: 'Recurring Task' },
+          ],
+        },
+      ],
+    });
+
+    let recurringClientsCount = 0;
+    try {
+      recurringClientsCount = await Client.countDocuments({
+        $or: [{ orgId: orgStr }, { orgId: orgObjId }],
+        isDeleted: false,
+        status: { $in: ['Active', 'active'] },
+        'customerFiles.recurring.0': { $exists: true },
+      });
+    } catch {
+      // fallback
+    }
+
+    const pendingRetainerCount = Math.max(pendingRetainerTasks, recurringClientsCount);
+
+    // 3. Overdue Invoices: issued invoices past due date
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const issuedInvoices = await FinancialInvoice.find({
+      orgId: orgObjId,
+      kind: 'invoice',
+      state: 'issued',
+    }).lean();
+
+    let overdueCount = 0;
+    let overdueAmount = 0;
+    let totalReceivableAmount = 0;
+
+    for (const inv of issuedInvoices) {
+      const payable = Number(inv.details?.totalPayable) || 0;
+      totalReceivableAmount += payable;
+
+      const dueDateStr = String(inv.details?.dueDate || '').trim().slice(0, 10);
+      const statusStr = String(inv.details?.status || '').trim().toLowerCase();
+
+      if (statusStr === 'overdue' || (dueDateStr && dueDateStr < todayStr)) {
+        overdueCount++;
+        overdueAmount += payable;
+      }
+    }
+
+    // 4. Draft Invoices
+    const draftInvoices = await FinancialInvoice.find({
+      orgId: orgObjId,
+      state: 'draft',
+    }).lean();
+
+    const draftCount = draftInvoices.length;
+    const draftAmount = draftInvoices.reduce((acc, inv) => acc + (Number(inv.details?.totalPayable) || 0), 0);
+
+    return {
+      unbilledTasks: {
+        count: unbilledTasksCount,
+        label: 'Unbilled Tasks',
+        description: 'Tasks not yet billed',
+        link: '/task',
+      },
+      pendingRetainers: {
+        count: pendingRetainerCount,
+        label: 'Pending Retainer Invoices',
+        description: 'Retainer invoices not up to date',
+        link: '/invoice',
+      },
+      overdueInvoices: {
+        count: overdueCount,
+        amount: Math.round(overdueAmount),
+        label: 'Overdue Invoices',
+        description: 'Invoices past payment due date',
+        link: '/invoice',
+      },
+      draftInvoices: {
+        count: draftCount,
+        amount: Math.round(draftAmount),
+        label: 'Draft Invoices',
+        description: 'Invoices prepared and awaiting issue',
+        link: '/invoice',
+      },
+      totalReceivables: {
+        count: issuedInvoices.length,
+        amount: Math.round(totalReceivableAmount),
+        label: 'Total Receivables',
+        description: 'Total active issued invoices awaiting settlement',
+        link: '/invoice',
+      },
+    };
   }
 }

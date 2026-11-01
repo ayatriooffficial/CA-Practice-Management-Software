@@ -152,10 +152,9 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
   return (
     <>
       <div
-        className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-xs"
+        className="w-full h-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-2xs"
         style={{
           padding: '20px 24px',
-          minHeight: '220px',
         }}
       >
         {/* Header */}
