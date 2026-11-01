@@ -44,9 +44,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
 
   // Layout State
   const [activeSection, setActiveSection] = useState<TuriaNavSection>("my-todo");
+  const [adminScope, setAdminScope] = useState<"my_work" | "team_work" | "all_work">("my_work");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isCalendarView, setIsCalendarView] = useState(false);
-  const [dateFilterTab, setDateFilterTab] = useState<"all" | "today" | "tomorrow" | "upcoming">("all");
+  const [dateFilterTab, setDateFilterTab] = useState<"all" | "today" | "tomorrow" | "upcoming" | "overdue">("all");
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,8 +94,65 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
       else setIsRefreshing(true);
 
       if (isAdmin) {
-        const res = await todoApi.getTeamTasks({ limit: 100 });
-        setRawTasks(res.tasks || []);
+        const [teamRes, adminRes] = await Promise.all([
+          todoApi.getTeamTasks({ limit: 100 }).catch(() => ({ tasks: [], total: 0 })),
+          todoApi.getAdminTasks().catch(() => []),
+        ]);
+
+        const mappedAdminTasks: TeamTaskItem[] = (adminRes || []).map((at) => ({
+          id: at.dedupKey || at.id,
+          taskId: at.sourceId || at.id,
+          taskName: at.title,
+          description: at.description,
+          category: at.category,
+          clientName: at.clientName,
+          clientId: at.clientId,
+          assigneeId: currentUser?.id || "admin",
+          assigneeName: "Ayatrio Admin",
+          assigneeInitials: "AY",
+          assigneeColor: "#6366F1",
+          priority: at.priority,
+          status: at.completed ? "Completed" : at.status === "Expired" ? "Overdue" : "Pending",
+          startDate: at.createdAt ? at.createdAt.slice(0, 10) : "",
+          targetDueDate: at.dueDate,
+          progress: at.completed ? 100 : 0,
+          checklistTotal: 1,
+          checklistCompleted: at.completed ? 1 : 0,
+          checklist: [
+            {
+              id: `chk_${at.id}`,
+              title: at.actionLabel || "Review and resolve obligation",
+              completed: at.completed,
+              isMandatory: true,
+            },
+          ],
+          isOverdue: !at.completed && (at.daysLeft < 0 || at.status === "Expired"),
+          daysLeft: at.daysLeft,
+          createdAt: at.createdAt,
+          updatedAt: at.updatedAt,
+          actionUrl: at.actionUrl,
+          isAdministrative: true,
+        }));
+
+        const seenIds = new Set<string>();
+        const merged: TeamTaskItem[] = [];
+
+        for (const item of mappedAdminTasks) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            merged.push(item);
+          }
+        }
+
+        for (const item of (teamRes.tasks || [])) {
+          const assignedKey = `admin:assigned_task:${item.taskId}`;
+          if (!seenIds.has(item.id) && !seenIds.has(item.taskId) && !seenIds.has(assignedKey)) {
+            seenIds.add(item.id);
+            merged.push(item);
+          }
+        }
+
+        setRawTasks(merged);
       } else {
         const myTasks = await todoApi.getMyTasks();
         setRawTasks(myTasks || []);
@@ -105,11 +163,39 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, currentUser]);
 
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+
+  // Scope counts for Admin: My Work vs Team Work vs All Work
+  const scopeCounts = useMemo(() => {
+    let myWork = 0;
+    let teamWork = 0;
+    let allWork = 0;
+
+    rawTasks.forEach((t) => {
+      const isDone = (t.status || "").toLowerCase() === "completed";
+      if (!isDone) {
+        allWork++;
+        const isMine =
+          (t as any).isAdministrative ||
+          t.assigneeId === currentUser?.id ||
+          t.assigneeName === currentUser?.name ||
+          t.assigneeName?.toLowerCase().includes("admin") ||
+          t.category === "Personal";
+
+        if (isMine) {
+          myWork++;
+        } else {
+          teamWork++;
+        }
+      }
+    });
+
+    return { myWork, teamWork, allWork };
+  }, [rawTasks, currentUser]);
 
   // Calculate sidebar counts
   const sidebarCounts: TuriaSidebarCounts = useMemo(() => {
@@ -127,22 +213,34 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
       if (isDone) {
         completed++;
       } else {
-        // If employee, count tasks assigned to employee; if admin, count active tasks
         if (!isAdmin) {
-          if (t.assigneeId === currentUser?.id || t.assigneeName === currentUser?.name) {
+          myTodo++;
+          if (isImp) important++;
+          if (isRec) recurring++;
+        } else {
+          const isMine =
+            (t as any).isAdministrative ||
+            t.assigneeId === currentUser?.id ||
+            t.assigneeName === currentUser?.name ||
+            t.assigneeName?.toLowerCase().includes("admin") ||
+            t.category === "Personal";
+
+          if (adminScope === "my_work" && isMine) {
+            myTodo++;
+          } else if (adminScope === "team_work" && !isMine) {
+            myTodo++;
+          } else if (adminScope === "all_work") {
             myTodo++;
           }
-        } else {
-          myTodo++;
-        }
 
-        if (isImp) important++;
-        if (isRec) recurring++;
+          if (isImp) important++;
+          if (isRec) recurring++;
+        }
       }
     });
 
     return { myTodo, important, recurring, completed, deleted };
-  }, [rawTasks, isAdmin, currentUser]);
+  }, [rawTasks, isAdmin, currentUser, adminScope]);
 
   // Filter tasks based on all active criteria
   const filteredTasks = useMemo(() => {
@@ -163,11 +261,37 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
         list = list.filter((t) =>
           Boolean(t.category?.toLowerCase().includes("recurring") || t.taskName?.toLowerCase().includes("recurring"))
         );
-      } else if (activeSection === "my-todo" && !isAdmin) {
-        // Employee viewing their own tasks
-        list = list.filter(
-          (t) => t.assigneeId === currentUser?.id || t.assigneeName === currentUser?.name
-        );
+      } else if (activeSection === "my-todo") {
+        if (!isAdmin) {
+          // Employee sees their own tasks and personal to-dos
+          list = list.filter(
+            (t) =>
+              t.assigneeId === currentUser?.id ||
+              t.assigneeName === currentUser?.name ||
+              t.category === "Personal"
+          );
+        } else {
+          // Admin filters by scope
+          if (adminScope === "my_work") {
+            list = list.filter(
+              (t) =>
+                (t as any).isAdministrative ||
+                t.assigneeId === currentUser?.id ||
+                t.assigneeName === currentUser?.name ||
+                t.assigneeName?.toLowerCase().includes("admin") ||
+                t.category === "Personal"
+            );
+          } else if (adminScope === "team_work") {
+            list = list.filter(
+              (t) =>
+                !(t as any).isAdministrative &&
+                t.assigneeId !== currentUser?.id &&
+                !t.assigneeName?.toLowerCase().includes("admin") &&
+                t.category !== "Personal"
+            );
+          }
+          // if "all_work", list remains all active tasks
+        }
       }
     }
 
@@ -201,7 +325,9 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
     // 5. Assignee filter (for Admin)
     if (selectedAssigneeId !== "All") {
       list = list.filter(
-        (t) => t.assigneeId === selectedAssigneeId || t.assigneeName === selectedAssigneeId
+        (t) =>
+          t.assigneeId === selectedAssigneeId ||
+          t.assigneeName?.toLowerCase().trim() === selectedAssigneeId.toLowerCase().trim()
       );
     }
 
@@ -236,6 +362,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
   }, [
     rawTasks,
     activeSection,
+    adminScope,
     selectedTag,
     searchQuery,
     selectedClientId,
@@ -253,10 +380,14 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
     currentCompleted: boolean
   ) => {
     try {
-      await todoApi.updateTaskProgress(taskId, {
-        toggleChecklistId: checklistId,
-        checklistCompleted: !currentCompleted,
-      });
+      if (taskId.startsWith("admin:")) {
+        await todoApi.toggleAdminTask(taskId, !currentCompleted);
+      } else {
+        await todoApi.updateTaskProgress(taskId, {
+          toggleChecklistId: checklistId,
+          checklistCompleted: !currentCompleted,
+        });
+      }
       loadTasks(true);
     } catch (err) {
       console.error("Failed to update checklist step:", err);
@@ -265,10 +396,14 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
 
   const handleUpdateStatus = async (taskId: string, newStatus: string) => {
     try {
-      await todoApi.updateTaskProgress(taskId, {
-        status: newStatus,
-        progress: newStatus === "Completed" ? 100 : undefined,
-      });
+      if (taskId.startsWith("admin:")) {
+        await todoApi.toggleAdminTask(taskId, newStatus === "Completed");
+      } else {
+        await todoApi.updateTaskProgress(taskId, {
+          status: newStatus,
+          progress: newStatus === "Completed" ? 100 : undefined,
+        });
+      }
       loadTasks(true);
     } catch (err) {
       console.error("Failed to update status:", err);
@@ -281,10 +416,14 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
     const nextProgress = isCurrentlyDone ? 0 : 100;
 
     try {
-      await todoApi.updateTaskProgress(task.id, {
-        status: nextStatus,
-        progress: nextProgress,
-      });
+      if ((task as any).isAdministrative || task.id.startsWith("admin:") || (task as any).sourceType === "dsc" || (task as any).sourceType === "license" || (task as any).sourceType === "document") {
+        await todoApi.toggleAdminTask(task.id, !isCurrentlyDone);
+      } else {
+        await todoApi.updateTaskProgress(task.id, {
+          status: nextStatus,
+          progress: nextProgress,
+        });
+      }
       loadTasks(true);
     } catch (err) {
       console.error("Failed to toggle completion:", err);
@@ -488,14 +627,30 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
             <select
               value={selectedAssigneeId}
               onChange={(e) => setSelectedAssigneeId(e.target.value)}
-              className="h-9 px-3 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-700 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer"
+              disabled={!isAdmin}
+              className={`h-9 px-3 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-700 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none ${
+                !isAdmin ? "cursor-default opacity-90" : "cursor-pointer"
+              }`}
             >
-              <option value="All">All Assignees</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.name}>
-                  {emp.name}
+              {isAdmin ? (
+                <>
+                  <option value="All">All Assignees</option>
+                  <option value={currentUser?.name || "Ayatrio Admin"}>
+                    {currentUser?.name || "Ayatrio Admin"} (Me)
+                  </option>
+                  {employees
+                    .filter((emp) => emp.name !== currentUser?.name)
+                    .map((emp) => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name}
+                      </option>
+                    ))}
+                </>
+              ) : (
+                <option value={currentUser?.name || "Me"}>
+                  {currentUser?.name || "My Assigned Tasks"}
                 </option>
-              ))}
+              )}
             </select>
             <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
@@ -576,6 +731,9 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
                 onStarTask={handleStarTask}
                 activeFilterTab={dateFilterTab}
                 onTabChange={setDateFilterTab}
+                adminScope={adminScope}
+                onScopeChange={setAdminScope}
+                scopeCounts={scopeCounts}
               />
             </div>
           )}

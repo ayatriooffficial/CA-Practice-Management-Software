@@ -29,8 +29,11 @@ interface TuriaDateTaskViewProps {
   onDeleteTask?: (taskId: string) => void;
   onReassignTask?: (task: TeamTaskItem) => void;
   onStarTask?: (taskId: string) => void;
-  activeFilterTab?: "all" | "today" | "tomorrow" | "upcoming";
-  onTabChange?: (tab: "all" | "today" | "tomorrow" | "upcoming") => void;
+  activeFilterTab?: "all" | "today" | "tomorrow" | "upcoming" | "overdue";
+  onTabChange?: (tab: "all" | "today" | "tomorrow" | "upcoming" | "overdue") => void;
+  adminScope?: "my_work" | "team_work" | "all_work";
+  onScopeChange?: (scope: "my_work" | "team_work" | "all_work") => void;
+  scopeCounts?: { myWork: number; teamWork: number; allWork: number };
 }
 
 const MONTH_SHORT = [
@@ -67,6 +70,9 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
   onStarTask,
   activeFilterTab = "all",
   onTabChange,
+  adminScope = "my_work",
+  onScopeChange,
+  scopeCounts,
 }) => {
   const [expandedTaskIds, setExpandedTaskIds] = useState<Record<string, boolean>>({});
   const [activeMenuTaskId, setActiveMenuTaskId] = useState<string | null>(null);
@@ -122,85 +128,148 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-3">
-      {/* Date Agenda Tabs */}
-      {onTabChange && (
-        <div className="flex items-center gap-1.5 pb-2 border-b border-gray-100 dark:border-border/60">
-          <button
-            type="button"
-            onClick={() => onTabChange("all")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-              activeFilterTab === "all"
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            All Agenda ({tasks.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => onTabChange("today")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-              activeFilterTab === "today"
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            Today (
-            {
-              tasks.filter(
-                (t) =>
-                  categorizeTaskByDate(
-                    t.targetDueDate,
-                    (t.status || "").toLowerCase() === "completed"
-                  ) === "today"
-              ).length
-            }
-            )
-          </button>
-          <button
-            type="button"
-            onClick={() => onTabChange("tomorrow")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-              activeFilterTab === "tomorrow"
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            Tomorrow (
-            {
-              tasks.filter(
-                (t) =>
-                  categorizeTaskByDate(
-                    t.targetDueDate,
-                    (t.status || "").toLowerCase() === "completed"
-                  ) === "tomorrow"
-              ).length
-            }
-            )
-          </button>
-          <button
-            type="button"
-            onClick={() => onTabChange("upcoming")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-              activeFilterTab === "upcoming"
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            Upcoming (
-            {
-              tasks.filter(
-                (t) =>
-                  categorizeTaskByDate(
-                    t.targetDueDate,
-                    (t.status || "").toLowerCase() === "completed"
-                  ) === "upcoming"
-              ).length
-            }
-            )
-          </button>
-        </div>
-      )}
+      {/* Scope Selector & Date Agenda Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100 dark:border-border/60">
+        {/* Date Agenda Tabs */}
+        {onTabChange && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onTabChange("all")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                activeFilterTab === "all"
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              All Agenda ({tasks.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange("today")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                activeFilterTab === "today"
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              Today (
+              {
+                tasks.filter(
+                  (t) =>
+                    categorizeTaskByDate(
+                      t.targetDueDate,
+                      (t.status || "").toLowerCase() === "completed"
+                    ) === "today"
+                ).length
+              }
+              )
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange("tomorrow")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                activeFilterTab === "tomorrow"
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              Tomorrow (
+              {
+                tasks.filter(
+                  (t) =>
+                    categorizeTaskByDate(
+                      t.targetDueDate,
+                      (t.status || "").toLowerCase() === "completed"
+                    ) === "tomorrow"
+                ).length
+              }
+              )
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange("upcoming")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                activeFilterTab === "upcoming"
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              Upcoming (
+              {
+                tasks.filter(
+                  (t) =>
+                    categorizeTaskByDate(
+                      t.targetDueDate,
+                      (t.status || "").toLowerCase() === "completed"
+                    ) === "upcoming"
+                ).length
+              }
+              )
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange("overdue")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                activeFilterTab === "overdue"
+                  ? "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 font-semibold shadow-2xs"
+                  : "text-rose-600/80 dark:text-rose-400/80 hover:bg-rose-50/50 dark:hover:bg-rose-950/20"
+              }`}
+            >
+              Overdue (
+              {
+                tasks.filter(
+                  (t) =>
+                    categorizeTaskByDate(
+                      t.targetDueDate,
+                      (t.status || "").toLowerCase() === "completed"
+                    ) === "overdue"
+                ).length
+              }
+              )
+            </button>
+          </div>
+        )}
+
+        {/* Admin Scope Switcher: My Work | Team Work | All Work */}
+        {isAdmin && onScopeChange && (
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => onScopeChange("my_work")}
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+                adminScope === "my_work"
+                  ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+              }`}
+            >
+              My Work {scopeCounts ? `(${scopeCounts.myWork})` : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => onScopeChange("team_work")}
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+                adminScope === "team_work"
+                  ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+              }`}
+            >
+              Team Work {scopeCounts ? `(${scopeCounts.teamWork})` : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => onScopeChange("all_work")}
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+                adminScope === "all_work"
+                  ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+              }`}
+            >
+              All Work {scopeCounts ? `(${scopeCounts.allWork})` : ""}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Main Table Structure Matching Turia Reference */}
       <div className="rounded-xl border border-gray-200/80 dark:border-border overflow-hidden bg-white dark:bg-card shadow-2xs">
@@ -398,7 +467,16 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
                             </button>
                           )}
 
-                          {task.taskId && (
+                          {(task as any).actionUrl ? (
+                            <a
+                              href={(task as any).actionUrl}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer"
+                              onClick={() => setActiveMenuTaskId(null)}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>View Related Record</span>
+                            </a>
+                          ) : task.taskId ? (
                             <a
                               href={`/task/view/${task.taskId}`}
                               className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer"
@@ -407,7 +485,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
                               <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
                               <span>Open Details</span>
                             </a>
-                          )}
+                          ) : null}
 
                           {isAdmin && onDeleteTask && (
                             <button

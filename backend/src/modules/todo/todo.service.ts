@@ -47,6 +47,19 @@ export function parseDateToYMD(dateVal: any): string | null {
   }).format(d);
 }
 
+// Helper to resolve task due date across targetDueDate, complianceStatus, dueDate, startDate, or createdAt
+export function resolveTaskDueDate(task: any): string {
+  if (!task) return '';
+  const candidate =
+    task.targetDueDate ||
+    task.complianceStatus?.dueDate ||
+    task.dueDate ||
+    task.endDate ||
+    task.startDate ||
+    task.createdAt;
+  return parseDateToYMD(candidate) || '';
+}
+
 // Today string in Asia/Kolkata YYYY-MM-DD
 export function getTodayKolkataYMD(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -205,7 +218,7 @@ export class TodoService {
         if (expYMD) {
           const daysLeft = getDaysLeft(expYMD, todayYMD);
           const isExpired = daysLeft < 0 || String(dsc.status || '').toLowerCase() === 'expired';
-          const isApproaching = daysLeft >= 0 && daysLeft <= 30;
+          const isApproaching = daysLeft >= 0 && daysLeft <= 60;
 
           if (isExpired || isApproaching) {
             const dedupKey = `admin:dsc:${clientIdStr}:${dscKey}:${expYMD}`;
@@ -250,7 +263,7 @@ export class TodoService {
         if (expYMD) {
           const daysLeft = getDaysLeft(expYMD, todayYMD);
           const isExpired = daysLeft < 0;
-          const isApproaching = daysLeft >= 0 && daysLeft <= 30;
+          const isApproaching = daysLeft >= 0 && daysLeft <= 60;
 
           if (isExpired || isApproaching) {
             const dedupKey = `admin:license:${clientIdStr}:${lic.id || licName}:${expYMD}`;
@@ -454,6 +467,46 @@ export class TodoService {
       }
     }
 
+    // D. Query tasks directly assigned to Admin in the Task collection
+    const adminUserConditions: any[] = [];
+    if (_userId) adminUserConditions.push({ assigneeId: _userId });
+    adminUserConditions.push({ assigneeName: new RegExp('admin', 'i') });
+    adminUserConditions.push({ assigneeName: new RegExp('Ayatrio Admin', 'i') });
+
+    const adminAssignedTasks = await Task.find({
+      isDeleted: false,
+      $or: adminUserConditions,
+    }).lean();
+
+    for (const at of adminAssignedTasks) {
+      const taskKey = `admin:assigned_task:${at.taskId || (at as any)._id.toString()}`;
+      const dueYMD = resolveTaskDueDate(at) || todayYMD;
+      const daysLeft = getDaysLeft(dueYMD, todayYMD);
+      const isDone = at.status === 'Completed';
+
+      taskItemsMap.set(taskKey, {
+        id: (at as any)._id.toString(),
+        dedupKey: taskKey,
+        title: at.taskName || 'Assigned Task',
+        description: at.description || 'Task assigned to Admin',
+        category: (at.category as any) || 'Compliance',
+        sourceType: 'task',
+        sourceId: at.taskId,
+        clientName: at.clientName || 'General Client',
+        clientId: at.clientId || undefined,
+        dueDate: dueYMD,
+        daysLeft,
+        priority: (at.priority as TaskPriority) || 'Medium',
+        status: isDone ? 'Completed' : daysLeft < 0 ? 'Expired' : 'Pending',
+        actionUrl: `/task/view/${at.taskId}`,
+        actionLabel: 'Open Task',
+        completed: isDone,
+        completedAt: isDone ? (at.updatedAt ? new Date(at.updatedAt).toISOString() : new Date().toISOString()) : null,
+        createdAt: at.createdAt ? new Date(at.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: at.updatedAt ? new Date(at.updatedAt).toISOString() : new Date().toISOString(),
+      });
+    }
+
     // Convert map to array
     let result = Array.from(taskItemsMap.values());
 
@@ -629,7 +682,8 @@ export class TodoService {
     ]);
 
     const tasks: ITeamTaskItem[] = rawTasks.map((t: any) => {
-      const dueYMD = parseDateToYMD(t.targetDueDate) || '';
+      const dueYMD = resolveTaskDueDate(t);
+      const daysLeft = dueYMD ? getDaysLeft(dueYMD, todayYMD) : 999;
       const isOverdue = t.status !== 'Completed' && t.status !== 'Cancelled' && Boolean(dueYMD && dueYMD < todayYMD);
       const chkTotal = t.checklist?.length || 0;
       const chkDone = t.checklist?.filter((c: any) => c.completed).length || 0;
@@ -657,6 +711,7 @@ export class TodoService {
         checklistTotal: chkTotal,
         checklistCompleted: chkDone,
         isOverdue,
+        daysLeft,
         checklist: (t.checklist || []).map((c: any) => ({
           id: c.id || c._id?.toString(),
           title: c.title,
@@ -695,9 +750,28 @@ export class TodoService {
   ): Promise<ITeamTaskItem[]> {
     const todayYMD = getTodayKolkataYMD();
 
+    const userDoc = mongoose.Types.ObjectId.isValid(user.userId)
+      ? await UserModel.findById(user.userId).lean()
+      : await UserModel.findOne({
+          $or: [
+            { email: user.name },
+            { name: new RegExp(`^${user.name.trim()}$`, 'i') },
+          ],
+        }).lean();
+
     const userConditions: any[] = [];
-    if (user.userId) userConditions.push({ assigneeId: user.userId });
-    if (user.name) userConditions.push({ assigneeName: new RegExp(`^${user.name.trim()}$`, 'i') });
+    if (user.userId) {
+      userConditions.push({ assigneeId: user.userId });
+    }
+    if (userDoc) {
+      userConditions.push({ assigneeId: userDoc._id.toString() });
+      if ((userDoc as any).employeeId) userConditions.push({ assigneeId: (userDoc as any).employeeId });
+      if (userDoc.name) userConditions.push({ assigneeName: new RegExp(`^${userDoc.name.trim()}$`, 'i') });
+      if (userDoc.email) userConditions.push({ assigneeEmail: userDoc.email });
+    }
+    if (user.name) {
+      userConditions.push({ assigneeName: new RegExp(`^${user.name.trim()}$`, 'i') });
+    }
 
     if (userConditions.length === 0) {
       return [];
@@ -736,8 +810,9 @@ export class TodoService {
 
     const rawTasks = await Task.find(query).sort({ targetDueDate: 1, updatedAt: -1 }).lean();
 
-    return rawTasks.map((t: any) => {
-      const dueYMD = parseDateToYMD(t.targetDueDate) || '';
+    const mappedTasks: ITeamTaskItem[] = rawTasks.map((t: any) => {
+      const dueYMD = resolveTaskDueDate(t);
+      const daysLeft = dueYMD ? getDaysLeft(dueYMD, todayYMD) : 999;
       const isOverdue = t.status !== 'Completed' && t.status !== 'Cancelled' && Boolean(dueYMD && dueYMD < todayYMD);
       const chkTotal = t.checklist?.length || 0;
       const chkDone = t.checklist?.filter((c: any) => c.completed).length || 0;
@@ -754,7 +829,7 @@ export class TodoService {
         department: t.department || 'General',
         assigneeId: t.assigneeId || user.userId,
         assigneeName: t.assigneeName || user.name,
-        assigneeInitials: t.assigneeInitials || user.name.slice(0, 2).toUpperCase(),
+        assigneeInitials: t.assigneeInitials || (t.assigneeName ? t.assigneeName.slice(0, 2).toUpperCase() : user.name.slice(0, 2).toUpperCase()),
         assigneeColor: t.assigneeColor || '#3B82F6',
         priority: (t.priority as TaskPriority) || 'Medium',
         startDate: parseDateToYMD(t.startDate) || '',
@@ -765,6 +840,7 @@ export class TodoService {
         checklistTotal: chkTotal,
         checklistCompleted: chkDone,
         isOverdue,
+        daysLeft,
         checklist: (t.checklist || []).map((c: any) => ({
           id: c.id || c._id?.toString(),
           title: c.title,
@@ -781,6 +857,103 @@ export class TodoService {
         updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : new Date().toISOString(),
       };
     });
+
+    // Also fetch personal to-dos created by this employee in TodoModel
+    const userObjId = mongoose.Types.ObjectId.isValid(user.userId)
+      ? new mongoose.Types.ObjectId(user.userId)
+      : null;
+
+    const todoOrConditions: any[] = [
+      { userId: user.userId },
+      ...(userObjId ? [{ userId: userObjId }] : []),
+      ...(userDoc ? [{ userId: userDoc._id }] : []),
+    ];
+
+    const personalQuery: any = {
+      $or: todoOrConditions,
+      sourceType: { $ne: 'admin_resolution' },
+    };
+
+    if (filters?.priority && filters.priority !== 'All') {
+      personalQuery.priority = filters.priority;
+    }
+
+    if (filters?.status && filters.status !== 'All') {
+      if (filters.status === 'Completed') {
+        personalQuery.completed = true;
+      } else if (filters.status === 'Overdue') {
+        personalQuery.completed = false;
+        personalQuery.dueDate = { $lt: todayYMD };
+      } else {
+        personalQuery.completed = false;
+      }
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim();
+      personalQuery.$and = [
+        {
+          $or: [
+            { title: { $regex: q, $options: 'i' } },
+            { clientName: { $regex: q, $options: 'i' } },
+            { description: { $regex: q, $options: 'i' } },
+          ],
+        },
+      ];
+    }
+
+    const personalTodos = await TodoModel.find(personalQuery).sort({ createdAt: -1 }).lean();
+
+    const personalItems: ITeamTaskItem[] = personalTodos.map((pt: any) => {
+      const pDueYMD = parseDateToYMD(pt.dueDate) || todayYMD;
+      const pDaysLeft = getDaysLeft(pDueYMD, todayYMD);
+      const isDone = Boolean(pt.completed);
+      const isOverdue = !isDone && pDaysLeft < 0;
+
+      return {
+        id: pt._id.toString(),
+        taskId: `TD-${pt._id.toString().slice(-5).toUpperCase()}`,
+        taskName: pt.title,
+        description: pt.description || '',
+        clientName: pt.clientName || 'Personal',
+        clientId: pt.clientId || '',
+        category: pt.category || 'Personal',
+        department: pt.category || 'Personal',
+        assigneeId: user.userId,
+        assigneeName: user.name || 'Employee',
+        assigneeInitials: user.name ? user.name.slice(0, 2).toUpperCase() : 'ME',
+        assigneeColor: '#6366F1',
+        priority: (pt.priority as TaskPriority) || 'Medium',
+        startDate: parseDateToYMD(pt.createdAt) || todayYMD,
+        targetDueDate: pDueYMD,
+        endDate: '',
+        status: isDone ? 'Completed' : isOverdue ? 'Overdue' : 'Pending',
+        progress: isDone ? 100 : 0,
+        checklistTotal: 1,
+        checklistCompleted: isDone ? 1 : 0,
+        isOverdue,
+        daysLeft: pDaysLeft,
+        checklist: [
+          {
+            id: `chk_${pt._id.toString()}`,
+            title: pt.title,
+            completed: isDone,
+            isMandatory: true,
+          },
+        ],
+        comments: [],
+        createdAt: pt.createdAt ? new Date(pt.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: pt.updatedAt ? new Date(pt.updatedAt).toISOString() : new Date().toISOString(),
+      };
+    });
+
+    const allItems = [...mappedTasks, ...personalItems];
+    allItems.sort((a, b) => {
+      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+      return (a.targetDueDate || '').localeCompare(b.targetDueDate || '');
+    });
+
+    return allItems;
   }
 
   /**
@@ -962,6 +1135,25 @@ export class TodoService {
     });
 
     if (!task) {
+      // Check if taskId belongs to a personal To-Do or admin responsibility resolution
+      if (mongoose.Types.ObjectId.isValid(taskId)) {
+        const todo = await TodoModel.findById(taskId);
+        if (todo) {
+          const isDone = data.status === 'Completed' || data.checklistCompleted === true || (data.progress !== undefined && data.progress >= 100);
+          todo.completed = isDone;
+          todo.status = isDone ? 'Completed' : 'Pending';
+          todo.completedAt = isDone ? new Date() : null;
+          await todo.save();
+          return todo;
+        }
+      }
+
+      // Check if taskId is a dedupKey (starts with admin: or manual:)
+      if (taskId.startsWith('admin:') || taskId.startsWith('manual:')) {
+        const isDone = data.status === 'Completed' || data.checklistCompleted === true || (data.progress !== undefined && data.progress >= 100);
+        return await this.toggleAdminTask(_orgId, user.userId, taskId, isDone);
+      }
+
       throw AppError.notFound(`Task "${taskId}" not found.`);
     }
 
@@ -1176,8 +1368,8 @@ export class TodoService {
         .lean();
 
       for (const t of teamTasks) {
-        // CANONICAL DEADLINE: targetDueDate first, fallback to startDate
-        const canonicalDate = parseDateToYMD(t.targetDueDate) || parseDateToYMD(t.startDate);
+        // CANONICAL DEADLINE: resolveTaskDueDate across targetDueDate, complianceStatus, startDate
+        const canonicalDate = resolveTaskDueDate(t);
         const isDone = t.status === 'Completed';
 
         if (canonicalDate && canonicalDate.startsWith(currentMonthPrefix)) {
@@ -1208,19 +1400,34 @@ export class TodoService {
       }
     } else {
       // Normal Employee Calendar View: STRICTLY only employee's tasks and employee's personal to-dos
+      const userDoc = mongoose.Types.ObjectId.isValid(user.userId)
+        ? await UserModel.findById(user.userId).lean()
+        : await UserModel.findOne({
+            $or: [
+              { email: user.name },
+              { name: new RegExp(`^${user.name.trim()}$`, 'i') },
+            ],
+          }).lean();
+
       const userConditions: any[] = [];
       if (user.userId) userConditions.push({ assigneeId: user.userId });
+      if (userDoc) {
+        userConditions.push({ assigneeId: userDoc._id.toString() });
+        if ((userDoc as any).employeeId) userConditions.push({ assigneeId: (userDoc as any).employeeId });
+        if (userDoc.name) userConditions.push({ assigneeName: new RegExp(`^${userDoc.name.trim()}$`, 'i') });
+        if (userDoc.email) userConditions.push({ assigneeEmail: userDoc.email });
+      }
       if (user.name) userConditions.push({ assigneeName: new RegExp(`^${user.name.trim()}$`, 'i') });
 
       const empTasks = await Task.find({
         isDeleted: false,
         $or: userConditions,
       })
-        .select('taskId taskName clientName category priority status targetDueDate startDate assigneeName assigneeInitials assigneeColor assigneeId')
+        .select('taskId taskName clientName category priority status targetDueDate complianceStatus dueDate startDate assigneeName assigneeInitials assigneeColor assigneeId')
         .lean();
 
       for (const t of empTasks) {
-        const canonicalDate = parseDateToYMD(t.targetDueDate) || parseDateToYMD(t.startDate);
+        const canonicalDate = resolveTaskDueDate(t);
         const isDone = t.status === 'Completed';
 
         if (canonicalDate && canonicalDate.startsWith(currentMonthPrefix)) {
@@ -1253,31 +1460,38 @@ export class TodoService {
       const userObjId = mongoose.Types.ObjectId.isValid(user.userId)
         ? new mongoose.Types.ObjectId(user.userId)
         : null;
-      if (userObjId) {
-        const personalTodos = await TodoModel.find({ userId: userObjId }).lean();
-        for (const pt of personalTodos) {
-          const dueYMD = parseDateToYMD(pt.dueDate);
-          if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
-            const idKey = `todo:${pt._id.toString()}`;
-            if (!eventMap.has(idKey)) {
-              eventMap.set(idKey, {
-                id: idKey,
-                date: dueYMD,
-                title: pt.title,
-                clientName: pt.clientName || 'Personal',
-                category: pt.category || 'Personal',
-                type: 'personal_todo',
-                priority: (pt.priority as TaskPriority) || 'Medium',
-                status: pt.completed ? 'Completed' : dueYMD < todayYMD ? 'Expired' : 'Pending',
-                isOverdue: !pt.completed && dueYMD < todayYMD,
-                isCompleted: Boolean(pt.completed),
-                isPersonal: true,
-                assigneeName: user.name,
-                assigneeInitials: user.name.slice(0, 2).toUpperCase(),
-                assigneeColor: '#6366F1',
-                actionUrl: '/to-do',
-              });
-            }
+
+      const personalTodos = await TodoModel.find({
+        $or: [
+          ...(userObjId ? [{ userId: userObjId }] : []),
+          { userId: user.userId },
+          ...(userDoc ? [{ userId: userDoc._id }] : []),
+        ],
+        sourceType: { $ne: 'admin_resolution' },
+      }).lean();
+
+      for (const pt of personalTodos) {
+        const dueYMD = parseDateToYMD(pt.dueDate) || todayYMD;
+        if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
+          const idKey = `todo:${pt._id.toString()}`;
+          if (!eventMap.has(idKey)) {
+            eventMap.set(idKey, {
+              id: idKey,
+              date: dueYMD,
+              title: pt.title,
+              clientName: pt.clientName || 'Personal',
+              category: pt.category || 'Personal',
+              type: 'personal_todo',
+              priority: (pt.priority as TaskPriority) || 'Medium',
+              status: pt.completed ? 'Completed' : dueYMD < todayYMD ? 'Expired' : 'Pending',
+              isOverdue: !pt.completed && dueYMD < todayYMD,
+              isCompleted: Boolean(pt.completed),
+              isPersonal: true,
+              assigneeName: user.name,
+              assigneeInitials: user.name.slice(0, 2).toUpperCase(),
+              assigneeColor: '#6366F1',
+              actionUrl: '/to-do',
+            });
           }
         }
       }
