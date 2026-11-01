@@ -851,56 +851,91 @@ export class TodoService {
       }
     }
 
-    // Generate unique Task ID using dedicated CounterService
-    const nextSeq = await CounterService.getNextSequence('taskIdCounter_2026');
-    const taskId = `#TSK${String(nextSeq).padStart(5, '0')}`;
+    // In-memory concurrent lock to prevent race-condition duplicates on rapid clicks
+    const lockKey = `${employee._id.toString()}:${resolvedTitle}:${parseDateToYMD(resolvedDueDate)}`;
+    if ((TodoService as any).ongoingAssignTaskLocks?.has(lockKey)) {
+      logger.info(`Concurrent assignTask in progress for ${lockKey}, reusing in-flight promise`);
+      return await (TodoService as any).ongoingAssignTaskLocks.get(lockKey);
+    }
 
-    const formattedChecklist = (data.checklist || []).map((st, idx) => ({
-      id: `chk_${Date.now()}_${idx + 1}`,
-      title: st.title.trim(),
-      completed: false,
-      isMandatory: st.isMandatory !== false,
-    }));
+    if (!(TodoService as any).ongoingAssignTaskLocks) {
+      (TodoService as any).ongoingAssignTaskLocks = new Map<string, Promise<any>>();
+    }
 
-    const newTask = await Task.create({
-      taskId,
-      taskName: resolvedTitle,
-      description: data.description?.trim() || '',
-      category: data.category || 'General',
-      department: data.category || 'General',
-      serviceName: data.category ? `${data.category} Service` : 'Compliance Review',
-      clientId: data.clientId || null,
-      clientName,
-      clientFileNo,
-      clientPan,
-      assigneeId: employee._id.toString(),
-      assigneeName: employee.name,
-      assigneeInitials: employee.initials || employee.name.slice(0, 2).toUpperCase(),
-      assigneeColor: '#3B82F6',
-      priority: data.priority || 'Medium',
-      startDate: parseDateToYMD(data.startDate) || getTodayKolkataYMD(),
-      targetDueDate: parseDateToYMD(resolvedDueDate) || getTodayKolkataYMD(),
-      status: 'Pending',
-      progress: 0,
-      checklist: formattedChecklist,
-      comments: [
-        {
-          id: `cmt_${Date.now()}`,
-          author: creatorUser.name || 'Admin',
-          authorInitials: 'AD',
-          avatarColor: '#3B82F6',
-          text: `Task delegated to ${employee.name} by ${creatorUser.name || 'Admin'} with deadline ${data.dueDate}.`,
-          createdAt: new Date(),
-        },
-      ],
-      creatorName: creatorUser.name || 'Admin',
-      orgId,
-      userId: creatorUser.userId,
-      createdBy: creatorUser.name,
-    });
+    const taskExecutionPromise = (async () => {
+      // Check for double-click / rapid submission within 10 seconds
+      const tenSecondsAgo = new Date(Date.now() - 10000);
+      const existingRecent = await Task.findOne({
+        taskName: resolvedTitle,
+        assigneeId: employee._id.toString(),
+        targetDueDate: parseDateToYMD(resolvedDueDate),
+        createdAt: { $gte: tenSecondsAgo },
+      }).lean();
+      if (existingRecent) {
+        logger.info(`Idempotent assignTask: reusing task ${existingRecent.taskId} created within 10s`);
+        return existingRecent;
+      }
 
-    logger.info(`✅ To-Do Task created and assigned: ${taskId} to ${employee.name}`);
-    return newTask;
+      // Generate unique Task ID using dedicated CounterService
+      const nextSeq = await CounterService.getNextSequence('taskIdCounter_2026');
+      const taskId = `#TSK${String(nextSeq).padStart(5, '0')}`;
+
+      const formattedChecklist = (data.checklist || []).map((st, idx) => ({
+        id: `chk_${Date.now()}_${idx + 1}`,
+        title: st.title.trim(),
+        completed: false,
+        isMandatory: st.isMandatory !== false,
+      }));
+
+      const newTask = await Task.create({
+        taskId,
+        taskName: resolvedTitle,
+        description: data.description?.trim() || '',
+        category: data.category || 'General',
+        department: data.category || 'General',
+        serviceName: data.category ? `${data.category} Service` : 'Compliance Review',
+        clientId: data.clientId || null,
+        clientName,
+        clientFileNo,
+        clientPan,
+        assigneeId: employee._id.toString(),
+        assigneeName: employee.name,
+        assigneeInitials: employee.initials || employee.name.slice(0, 2).toUpperCase(),
+        assigneeColor: '#3B82F6',
+        priority: data.priority || 'Medium',
+        startDate: parseDateToYMD(data.startDate) || getTodayKolkataYMD(),
+        targetDueDate: parseDateToYMD(resolvedDueDate) || getTodayKolkataYMD(),
+        status: 'Pending',
+        progress: 0,
+        checklist: formattedChecklist,
+        comments: [
+          {
+            id: `cmt_${Date.now()}`,
+            author: creatorUser.name || 'Admin',
+            authorInitials: 'AD',
+            avatarColor: '#3B82F6',
+            text: `Task delegated to ${employee.name} by ${creatorUser.name || 'Admin'} with deadline ${data.dueDate}.`,
+            createdAt: new Date(),
+          },
+        ],
+        creatorName: creatorUser.name || 'Admin',
+        orgId,
+        userId: creatorUser.userId,
+        createdBy: creatorUser.name,
+      });
+
+      logger.info(`✅ To-Do Task created and assigned: ${taskId} to ${employee.name}`);
+      return newTask;
+    })();
+
+    (TodoService as any).ongoingAssignTaskLocks.set(lockKey, taskExecutionPromise);
+    try {
+      return await taskExecutionPromise;
+    } finally {
+      setTimeout(() => {
+        (TodoService as any).ongoingAssignTaskLocks?.delete(lockKey);
+      }, 10000);
+    }
   }
 
   /**
@@ -1048,83 +1083,131 @@ export class TodoService {
 
   /**
    * 8. Get Calendar Events for To-Do Module
-   * Reuses the calendar structure of the Notices section.
+   * Reuses the calendar structure of the Notices section with canonical 1-to-1 event mapping,
+   * Admin personal + team aggregation with employee filtering, and strict employee-only query isolation.
    */
   static async getCalendarEvents(
     orgId: string,
     user: { userId: string; name: string; role: string },
-    monthStr?: string // e.g. "2026-11"
+    monthStr?: string, // e.g. "2026-11"
+    employeeIdFilter?: string
   ): Promise<ITodoCalendarEvent[]> {
     const todayYMD = getTodayKolkataYMD();
     const currentMonthPrefix = monthStr || todayYMD.slice(0, 7);
     const isAdmin = isAdminRole(user.role);
-    const events: ITodoCalendarEvent[] = [];
+    const eventMap = new Map<string, ITodoCalendarEvent>();
 
     if (isAdmin) {
-      // 1. Add Administrative Task Deadlines for that month
-      const adminTasks = await this.getAdminTasks(orgId, user.userId);
-      for (const at of adminTasks) {
-        if (at.dueDate && at.dueDate.startsWith(currentMonthPrefix)) {
-          events.push({
-            id: `ev_admin_${at.dedupKey}`,
-            date: at.dueDate,
-            title: at.title,
-            clientName: at.clientName,
-            category: at.category,
-            type: 'admin_deadline',
-            priority: at.priority,
-            status: at.status,
-            isOverdue: !at.completed && at.dueDate < todayYMD,
-            isCompleted: at.completed,
-            actionUrl: at.actionUrl,
-          });
+      // 1. Admin's Personal To-Dos from TodoModel (if no employee filter, or if employee filter matches admin)
+      if (!employeeIdFilter || employeeIdFilter === 'All' || employeeIdFilter === user.userId || employeeIdFilter === user.name) {
+        const userObjId = mongoose.Types.ObjectId.isValid(user.userId)
+          ? new mongoose.Types.ObjectId(user.userId)
+          : null;
+
+        const personalTodos = await TodoModel.find({
+          $or: [
+            ...(userObjId ? [{ userId: userObjId }] : []),
+            { sourceType: 'manual' },
+          ],
+        }).lean();
+
+        for (const pt of personalTodos) {
+          const dueYMD = parseDateToYMD(pt.dueDate);
+          if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
+            const idKey = `todo:${pt._id.toString()}`;
+            if (!eventMap.has(idKey)) {
+              eventMap.set(idKey, {
+                id: idKey,
+                date: dueYMD,
+                title: pt.title,
+                clientName: pt.clientName || 'Personal',
+                category: pt.category || 'Personal',
+                type: 'personal_todo',
+                priority: (pt.priority as TaskPriority) || 'Medium',
+                status: pt.completed ? 'Completed' : dueYMD < todayYMD ? 'Expired' : 'Pending',
+                isOverdue: !pt.completed && dueYMD < todayYMD,
+                isCompleted: Boolean(pt.completed),
+                isPersonal: true,
+                assigneeName: user.name || 'Admin',
+                assigneeInitials: 'AD',
+                assigneeColor: '#6366F1',
+                actionUrl: '/to-do',
+              });
+            }
+          }
+        }
+
+        // 2. Administrative Task Deadlines (Compliance, Review, DSC/License)
+        const adminTasks = await this.getAdminTasks(orgId, user.userId);
+        for (const at of adminTasks) {
+          if (at.dueDate && at.dueDate.startsWith(currentMonthPrefix)) {
+            const adminKey = `admin:${at.dedupKey}`;
+            if (!eventMap.has(adminKey)) {
+              eventMap.set(adminKey, {
+                id: adminKey,
+                date: at.dueDate,
+                title: at.title,
+                clientName: at.clientName,
+                category: at.category,
+                type: 'admin_deadline',
+                priority: at.priority,
+                status: at.status,
+                isOverdue: !at.completed && at.dueDate < todayYMD,
+                isCompleted: at.completed,
+                isPersonal: true,
+                actionUrl: at.actionUrl,
+              });
+            }
+          }
         }
       }
 
-      // 2. Add Team Tasks for that month (target due date & start date)
-      const teamTasks = await Task.find({ isDeleted: false })
-        .select('taskId taskName clientName category priority status targetDueDate startDate progress checklist')
+      // 3. Team Tasks (assigned to employees or self)
+      const taskQuery: any = { isDeleted: false };
+      if (employeeIdFilter && employeeIdFilter !== 'All') {
+        taskQuery.$or = [
+          { assigneeId: employeeIdFilter },
+          { assigneeName: employeeIdFilter },
+        ];
+      }
+
+      const teamTasks = await Task.find(taskQuery)
+        .select('taskId taskName clientName category priority status targetDueDate startDate assigneeName assigneeInitials assigneeColor assigneeId')
         .lean();
 
       for (const t of teamTasks) {
-        const dueYMD = parseDateToYMD(t.targetDueDate);
-        const startYMD = parseDateToYMD(t.startDate);
+        // CANONICAL DEADLINE: targetDueDate first, fallback to startDate
+        const canonicalDate = parseDateToYMD(t.targetDueDate) || parseDateToYMD(t.startDate);
         const isDone = t.status === 'Completed';
 
-        if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
-          events.push({
-            id: `ev_task_due_${t.taskId}`,
-            date: dueYMD,
-            title: `Due: ${t.taskName}`,
-            clientName: t.clientName || 'General Client',
-            category: t.category || 'General',
-            type: 'task_due',
-            priority: (t.priority as TaskPriority) || 'Medium',
-            status: t.status,
-            isOverdue: !isDone && dueYMD < todayYMD,
-            isCompleted: isDone,
-            taskId: t.taskId,
-          });
-        }
-
-        if (startYMD && startYMD.startsWith(currentMonthPrefix) && startYMD !== dueYMD) {
-          events.push({
-            id: `ev_task_start_${t.taskId}`,
-            date: startYMD,
-            title: `Starts: ${t.taskName}`,
-            clientName: t.clientName || 'General Client',
-            category: t.category || 'General',
-            type: 'task_start',
-            priority: (t.priority as TaskPriority) || 'Medium',
-            status: t.status,
-            isOverdue: false,
-            isCompleted: isDone,
-            taskId: t.taskId,
-          });
+        if (canonicalDate && canonicalDate.startsWith(currentMonthPrefix)) {
+          const taskKey = `task:${t.taskId || (t as any)._id?.toString()}`;
+          // Set once and only once - deduplicated!
+          if (!eventMap.has(taskKey)) {
+            eventMap.set(taskKey, {
+              id: taskKey,
+              date: canonicalDate,
+              title: t.taskName,
+              clientName: t.clientName || 'General Client',
+              category: t.category || 'General',
+              type: 'task_due',
+              priority: (t.priority as TaskPriority) || 'Medium',
+              status: t.status,
+              isOverdue: !isDone && canonicalDate < todayYMD,
+              isCompleted: isDone,
+              taskId: t.taskId,
+              assigneeName: t.assigneeName,
+              assigneeInitials: t.assigneeInitials,
+              assigneeColor: t.assigneeColor,
+              assigneeId: t.assigneeId,
+              isPersonal: false,
+              actionUrl: `/task/view/${t.taskId}`,
+            });
+          }
         }
       }
     } else {
-      // Normal Employee Calendar View: STRICTLY only employee's tasks
+      // Normal Employee Calendar View: STRICTLY only employee's tasks and employee's personal to-dos
       const userConditions: any[] = [];
       if (user.userId) userConditions.push({ assigneeId: user.userId });
       if (user.name) userConditions.push({ assigneeName: new RegExp(`^${user.name.trim()}$`, 'i') });
@@ -1133,49 +1216,74 @@ export class TodoService {
         isDeleted: false,
         $or: userConditions,
       })
-        .select('taskId taskName clientName category priority status targetDueDate startDate')
+        .select('taskId taskName clientName category priority status targetDueDate startDate assigneeName assigneeInitials assigneeColor assigneeId')
         .lean();
 
       for (const t of empTasks) {
-        const dueYMD = parseDateToYMD(t.targetDueDate);
-        const startYMD = parseDateToYMD(t.startDate);
+        const canonicalDate = parseDateToYMD(t.targetDueDate) || parseDateToYMD(t.startDate);
         const isDone = t.status === 'Completed';
 
-        if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
-          events.push({
-            id: `ev_emp_due_${t.taskId}`,
-            date: dueYMD,
-            title: `Due: ${t.taskName}`,
-            clientName: t.clientName || 'General Client',
-            category: t.category || 'General',
-            type: 'task_due',
-            priority: (t.priority as TaskPriority) || 'Medium',
-            status: t.status,
-            isOverdue: !isDone && dueYMD < todayYMD,
-            isCompleted: isDone,
-            taskId: t.taskId,
-          });
+        if (canonicalDate && canonicalDate.startsWith(currentMonthPrefix)) {
+          const taskKey = `task:${t.taskId || (t as any)._id?.toString()}`;
+          if (!eventMap.has(taskKey)) {
+            eventMap.set(taskKey, {
+              id: taskKey,
+              date: canonicalDate,
+              title: t.taskName,
+              clientName: t.clientName || 'General Client',
+              category: t.category || 'General',
+              type: 'task_due',
+              priority: (t.priority as TaskPriority) || 'Medium',
+              status: t.status,
+              isOverdue: !isDone && canonicalDate < todayYMD,
+              isCompleted: isDone,
+              taskId: t.taskId,
+              assigneeName: t.assigneeName,
+              assigneeInitials: t.assigneeInitials,
+              assigneeColor: t.assigneeColor,
+              assigneeId: t.assigneeId,
+              isPersonal: false,
+              actionUrl: `/task/view/${t.taskId}`,
+            });
+          }
         }
+      }
 
-        if (startYMD && startYMD.startsWith(currentMonthPrefix) && startYMD !== dueYMD) {
-          events.push({
-            id: `ev_emp_start_${t.taskId}`,
-            date: startYMD,
-            title: `Starts: ${t.taskName}`,
-            clientName: t.clientName || 'General Client',
-            category: t.category || 'General',
-            type: 'task_start',
-            priority: (t.priority as TaskPriority) || 'Medium',
-            status: t.status,
-            isOverdue: false,
-            isCompleted: isDone,
-            taskId: t.taskId,
-          });
+      // Plus employee's personal to-dos
+      const userObjId = mongoose.Types.ObjectId.isValid(user.userId)
+        ? new mongoose.Types.ObjectId(user.userId)
+        : null;
+      if (userObjId) {
+        const personalTodos = await TodoModel.find({ userId: userObjId }).lean();
+        for (const pt of personalTodos) {
+          const dueYMD = parseDateToYMD(pt.dueDate);
+          if (dueYMD && dueYMD.startsWith(currentMonthPrefix)) {
+            const idKey = `todo:${pt._id.toString()}`;
+            if (!eventMap.has(idKey)) {
+              eventMap.set(idKey, {
+                id: idKey,
+                date: dueYMD,
+                title: pt.title,
+                clientName: pt.clientName || 'Personal',
+                category: pt.category || 'Personal',
+                type: 'personal_todo',
+                priority: (pt.priority as TaskPriority) || 'Medium',
+                status: pt.completed ? 'Completed' : dueYMD < todayYMD ? 'Expired' : 'Pending',
+                isOverdue: !pt.completed && dueYMD < todayYMD,
+                isCompleted: Boolean(pt.completed),
+                isPersonal: true,
+                assigneeName: user.name,
+                assigneeInitials: user.name.slice(0, 2).toUpperCase(),
+                assigneeColor: '#6366F1',
+                actionUrl: '/to-do',
+              });
+            }
+          }
         }
       }
     }
 
-    return events;
+    return Array.from(eventMap.values());
   }
 
   // --- Retain existing legacy personal to-dos for AdminWelcomeTodoCard compatibility ---
@@ -1229,6 +1337,31 @@ export class TodoService {
     const userObjId = mongoose.Types.ObjectId.isValid(userId)
       ? new mongoose.Types.ObjectId(userId)
       : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+
+    // Check for double-click / rapid submission within 10 seconds
+    const tenSecondsAgo = new Date(Date.now() - 10000);
+    const existingRecent = await TodoModel.findOne({
+      userId: userObjId,
+      title: data.title.trim(),
+      dueDate: data.dueDate?.trim() || null,
+      createdAt: { $gte: tenSecondsAgo },
+    }).lean();
+    if (existingRecent) {
+      logger.info(`Idempotent createTodo: reusing todo ${existingRecent._id} created within 10s`);
+      return {
+        id: String(existingRecent._id),
+        title: existingRecent.title,
+        description: existingRecent.description,
+        priority: existingRecent.priority,
+        category: existingRecent.category,
+        clientName: existingRecent.clientName,
+        completed: existingRecent.completed,
+        completedAt: existingRecent.completedAt ? existingRecent.completedAt.toISOString() : null,
+        dueDate: existingRecent.dueDate || null,
+        createdAt: existingRecent.createdAt.toISOString(),
+        updatedAt: existingRecent.updatedAt.toISOString(),
+      };
+    }
 
     const todo = await TodoModel.create({
       orgId: orgObjId,

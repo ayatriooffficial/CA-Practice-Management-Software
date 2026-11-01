@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ChevronLeft, ChevronRight, X, Calendar, AlertCircle, CheckCircle2, Clock, ExternalLink } from "lucide-react";
 import { todoApi, TodoCalendarEvent } from "@/services/todoApi";
+import { teamStore } from "@/components/team/teamStore";
+import { EmployeeRecord } from "@/components/team/types";
 import Link from "next/link";
 
 const MONTH_NAMES = [
@@ -403,16 +405,50 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
   );
 };
 
-export const TodoCalendarView: React.FC = () => {
+interface TodoCalendarViewProps {
+  initialEmployeeFilter?: string;
+  isAdmin?: boolean;
+}
+
+export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
+  initialEmployeeFilter = "All",
+  isAdmin = false,
+}) => {
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth() + 1); // 1-12
   const [events, setEvents] = useState<TodoCalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("All");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [employeeFilter, setEmployeeFilter] = useState<string>(initialEmployeeFilter);
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<TodoCalendarEvent | null>(null);
 
   const monthStr = toMonthString(currentYear, currentMonth);
+
+  // Sync initial employee filter if changed externally
+  useEffect(() => {
+    if (initialEmployeeFilter) {
+      setEmployeeFilter(initialEmployeeFilter);
+    }
+  }, [initialEmployeeFilter]);
+
+  // Load employees for admin calendar filtering
+  useEffect(() => {
+    let mounted = true;
+    teamStore
+      .loadEmployeesFromBackend()
+      .then((emps) => {
+        if (mounted && emps) {
+          setEmployees(emps.filter((e) => (e.status || "").toLowerCase() === "active"));
+        }
+      })
+      .catch((err) => console.error("Error loading employees for calendar filter:", err));
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Today in IST
   const todayStr = useMemo(() => {
@@ -427,14 +463,14 @@ export const TodoCalendarView: React.FC = () => {
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await todoApi.getCalendarEvents(monthStr);
+      const data = await todoApi.getCalendarEvents(monthStr, employeeFilter);
       setEvents(data);
     } catch (err) {
       console.error("Failed to fetch calendar events:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [monthStr]);
+  }, [monthStr, employeeFilter]);
 
   useEffect(() => {
     fetchEvents();
@@ -538,6 +574,23 @@ export const TodoCalendarView: React.FC = () => {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Employee Filter (Admin or Team view) */}
+          {(isAdmin || employees.length > 0) && (
+            <select
+              value={employeeFilter}
+              onChange={(e) => setEmployeeFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border text-xs font-medium focus:outline-hidden bg-surface text-main"
+              style={{ borderColor: "var(--border-main)" }}
+            >
+              <option value="All">All Assignees</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          )}
+
           {/* Type Filter */}
           <select
             value={typeFilter}

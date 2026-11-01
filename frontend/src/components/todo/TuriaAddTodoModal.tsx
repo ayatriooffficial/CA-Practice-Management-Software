@@ -1,26 +1,32 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   Plus,
   Trash2,
   Calendar,
-  User,
-  Building,
   AlertCircle,
   Loader2,
-  CheckSquare,
-  Clock,
-  Star,
   Repeat,
+  ChevronDown,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  List,
+  ListOrdered,
+  Undo2,
+  Redo2,
+  UploadCloud,
+  FileText,
 } from "lucide-react";
 import { todoApi } from "@/services/todoApi";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
 import { teamStore } from "@/components/team/teamStore";
 import { EmployeeRecord } from "@/components/team/types";
-import { getTodayKolkataYMD, getTomorrowKolkataYMD } from "./todoDateUtils";
+import { getTodayKolkataYMD } from "./todoDateUtils";
 
 interface TuriaAddTodoModalProps {
   isOpen: boolean;
@@ -32,13 +38,13 @@ interface TuriaAddTodoModalProps {
   defaultDate?: string;
 }
 
-interface ChecklistInputItem {
+interface SubtaskItem {
   id: string;
   title: string;
   isMandatory: boolean;
 }
 
-const CATEGORY_OPTIONS = [
+const TAG_OPTIONS = [
   "General",
   "GST",
   "Income Tax",
@@ -67,50 +73,41 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
   defaultDate,
 }) => {
   const [taskName, setTaskName] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("General");
+  const [dueDate, setDueDate] = useState(() => defaultDate || getTodayKolkataYMD());
   const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Urgent">("Medium");
-
-  // Client Selection
-  const [clients, setClients] = useState<Client[]>([]);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [selectedTag, setSelectedTag] = useState("General");
   const [selectedClientId, setSelectedClientId] = useState("");
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
-
-  // Assignee Selection
-  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Subtasks
+  const [subtasks, setSubtasks] = useState<SubtaskItem[]>([]);
+  const [newSubtaskText, setNewSubtaskText] = useState("");
+
+  // Attachments
+  const [attachments, setAttachments] = useState<Array<{ name: string; size: string }>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Data sources
+  const [clients, setClients] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
 
-  // Dates
-  const [startDate, setStartDate] = useState(() => getTodayKolkataYMD());
-  const [dueDate, setDueDate] = useState(() => defaultDate || getTodayKolkataYMD());
-
-  // Additional options
-  const [isImportant, setIsImportant] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
-
-  // Checklist
-  const [checklist, setChecklist] = useState<ChecklistInputItem[]>([
-    { id: "1", title: "Collect initial supporting documents", isMandatory: true },
-    { id: "2", title: "Review & draft required computations", isMandatory: true },
-  ]);
-  const [newChecklistText, setNewChecklistText] = useState("");
-  const [newChecklistMandatory, setNewChecklistMandatory] = useState(true);
-
-  // State
+  // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Set default due date when modal opens
+  // Sync default date when opening
   useEffect(() => {
     if (isOpen) {
       setDueDate(defaultDate || getTodayKolkataYMD());
-      setStartDate(getTodayKolkataYMD());
       setErrorMessage(null);
     }
   }, [isOpen, defaultDate]);
 
-  // Load clients & employees
+  // Load clients and employees from backend
   useEffect(() => {
     if (!isOpen) return;
 
@@ -121,12 +118,9 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
       .then((res) => {
         if (mounted && res.data) {
           setClients(res.data);
-          if (res.data.length > 0 && !selectedClientId) {
-            setSelectedClientId(res.data[0].id);
-          }
         }
       })
-      .catch((err) => console.error("Error loading clients for to-do:", err))
+      .catch((err) => console.error("Error loading clients:", err))
       .finally(() => {
         if (mounted) setIsLoadingClients(false);
       });
@@ -147,7 +141,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
           }
         }
       })
-      .catch((err) => console.error("Error loading employees for to-do:", err))
+      .catch((err) => console.error("Error loading employees:", err))
       .finally(() => {
         if (mounted) setIsLoadingEmployees(false);
       });
@@ -155,58 +149,46 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
     return () => {
       mounted = false;
     };
-  }, [isOpen, currentUserId]);
+  }, [isOpen, currentUserId, selectedAssigneeId]);
 
   if (!isOpen) return null;
 
-  const handleAddChecklistItem = () => {
-    if (!newChecklistText.trim()) return;
-    setChecklist((prev) => [
+  const handleAddSubtask = () => {
+    if (!newSubtaskText.trim()) return;
+    setSubtasks((prev) => [
       ...prev,
       {
-        id: `chk_${Date.now()}`,
-        title: newChecklistText.trim(),
-        isMandatory: newChecklistMandatory,
+        id: `sub_${Date.now()}_${prev.length + 1}`,
+        title: newSubtaskText.trim(),
+        isMandatory: true,
       },
     ]);
-    setNewChecklistText("");
-    setNewChecklistMandatory(true);
+    setNewSubtaskText("");
   };
 
-  const handleRemoveChecklistItem = (id: string) => {
-    setChecklist((prev) => prev.filter((item) => item.id !== id));
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleQuickDateSelect = (type: "today" | "tomorrow" | "next_week") => {
-    if (type === "today") {
-      setDueDate(getTodayKolkataYMD());
-    } else if (type === "tomorrow") {
-      setDueDate(getTomorrowKolkataYMD());
-    } else if (type === "next_week") {
-      const d = new Date();
-      d.setDate(d.getDate() + 7);
-      setDueDate(
-        new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(d)
-      );
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
+      setAttachments((prev) => [...prev, { name: file.name, size: sizeStr }]);
     }
+  };
+
+  const handleRemoveAttachment = (idx: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!taskName.trim()) {
-      setErrorMessage("Task title is required.");
-      return;
-    }
-
-    if (isAdmin && !selectedAssigneeId) {
-      setErrorMessage("Please select an employee assignment.");
+    const titleClean = taskName.trim();
+    if (!titleClean) {
+      setErrorMessage("To-Do Title is required.");
       return;
     }
 
@@ -222,39 +204,39 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
       setIsSubmitting(true);
 
       if (isAdmin && selectedAssigneeId) {
-        // Admin delegating / assigning task to an employee or self
+        // Admin delegating / assigning task
         await todoApi.assignTask({
-          taskName: taskName.trim(),
+          taskName: titleClean,
           description: description.trim(),
-          category,
+          category: selectedTag,
           clientId: selectedClientId || undefined,
           clientName: selectedClient ? (selectedClient.name || selectedClient.legalName) : "General Client",
           assigneeId: selectedAssigneeId,
           assigneeName: selectedEmployee?.name || currentUserName || "Unassigned",
-          priority: isImportant && priority !== "Urgent" ? "High" : priority,
-          startDate,
+          priority,
+          startDate: getTodayKolkataYMD(),
           targetDueDate: dueDate,
-          checklist: checklist.map((c) => ({
-            title: c.title,
-            isMandatory: c.isMandatory,
+          checklist: subtasks.map((st) => ({
+            title: st.title,
+            isMandatory: st.isMandatory,
           })),
         });
       } else {
-        // Employee creating a task or personal to-do
-        await todoApi.createTodo(taskName.trim(), dueDate, {
+        // Employee or personal to-do creation
+        await todoApi.createTodo(titleClean, dueDate, {
           description: description.trim(),
-          priority: isImportant && priority !== "Urgent" ? "High" : priority,
-          category,
+          priority,
+          category: selectedTag,
           clientName: selectedClient ? (selectedClient.name || selectedClient.legalName) : "Personal",
           clientId: selectedClientId || undefined,
         });
       }
 
-      // Reset form
+      // Reset fields
       setTaskName("");
       setDescription("");
-      setChecklist([]);
-      setIsImportant(false);
+      setSubtasks([]);
+      setAttachments([]);
       setIsRecurring(false);
       onSuccess();
       onClose();
@@ -267,370 +249,409 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-2xl bg-white dark:bg-card rounded-2xl shadow-2xl border border-gray-200 dark:border-border overflow-hidden flex flex-col max-h-[92vh] transition-colors"
+        className="w-full max-w-lg bg-white dark:bg-card rounded-2xl shadow-2xl border border-gray-100 dark:border-border overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-border/60 bg-gray-50/50 dark:bg-background/40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40">
-              <CheckSquare className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
-                {isAdmin ? "Create & Assign To-Do Task" : "Create New To-Do Task"}
-              </h2>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                {isAdmin
-                  ? "Assign deliverable to an employee with due date, client, and checklist."
-                  : "Add a task to your daily agenda with due date and priority."}
-              </p>
-            </div>
+        {/* Soft Lavender Header matching Turia reference */}
+        <div className="bg-[#EEF2FD] dark:bg-indigo-950/40 px-6 py-4 flex items-center justify-between border-b border-indigo-100/60 dark:border-indigo-900/40 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-[#1E293B] dark:text-white tracking-tight">
+              New To-Do
+            </h2>
+            <p className="text-xs text-[#64748B] dark:text-gray-400 mt-0.5">
+              Fill in the details below
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200/60 dark:border-slate-700 shadow-2xs flex items-center justify-center cursor-pointer transition-colors"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Modal Body Form */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {errorMessage && (
-            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          {/* Task Title */}
+          {/* 1. To-Do Title * */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Task Title <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              To-Do Title <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={taskName}
               onChange={(e) => setTaskName(e.target.value)}
-              placeholder="e.g. File Monthly GSTR-3B Return for March 2026"
-              className="w-full px-3.5 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              placeholder="e.g. Call to discuss pricing"
+              className="w-full h-10 px-3.5 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
             />
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Description / Notes
-            </label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add key deliverables, client instructions, or compliance notes..."
-              className="w-full px-3.5 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-            />
-          </div>
-
-          {/* Client & Assignee Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Client Select */}
+          {/* 2. Due Date & Priority Row */}
+          <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                Client / Company
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Due Date
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full h-10 px-3.5 pr-9 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer transition-all"
+                />
+                <Calendar className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Priority
+              </label>
+              <div className="relative">
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as any)}
+                  className="w-full h-10 px-3.5 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Recurrence Box Card */}
+          <div className="border border-gray-200/80 dark:border-border rounded-xl p-3 flex items-center justify-between bg-white dark:bg-card">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#EEF2FD] dark:bg-indigo-950/60 text-[#5551FF] flex items-center justify-center shrink-0 border border-indigo-100/80 dark:border-indigo-900/40">
+                <Repeat className="w-4 h-4 stroke-[2.2]" />
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-gray-900 dark:text-white">
+                  Recurrence
+                </span>
+                <span className="block text-[11px] text-gray-400 dark:text-gray-500">
+                  Repeat this to-do automatically
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsRecurring((prev) => !prev)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isRecurring ? "bg-[#5551FF]" : "bg-gray-200 dark:bg-slate-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isRecurring ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* 4. Tag & Client Selectors */}
+          <div className="grid grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Tag
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedTag}
+                  onChange={(e) => setSelectedTag(e.target.value)}
+                  className="w-full h-10 px-3.5 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
+                >
+                  <option value="">Select Tag</option>
+                  {TAG_OPTIONS.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Client
               </label>
               <div className="relative">
                 <select
                   value={selectedClientId}
                   onChange={(e) => setSelectedClientId(e.target.value)}
-                  disabled={isLoadingClients}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer"
+                  className="w-full h-10 px-3.5 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
                 >
-                  <option value="">General / Internal Practice</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name || c.legalName} {c.fileNo ? `(${c.fileNo})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">
-                  ▼
-                </div>
-              </div>
-            </div>
-
-            {/* Assignee Select (Admin assigns to employee; employee sees self) */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                Assignee {isAdmin && <span className="text-red-500">*</span>}
-              </label>
-              {isAdmin ? (
-                <div className="relative">
-                  <select
-                    value={selectedAssigneeId}
-                    onChange={(e) => setSelectedAssigneeId(e.target.value)}
-                    disabled={isLoadingEmployees}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer"
-                  >
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.role} • {emp.department || "Audit & Tax"})
+                  <option value="">Select Client</option>
+                  {isLoadingClients ? (
+                    <option disabled>Loading clients...</option>
+                  ) : (
+                    clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name || c.legalName}
                       </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">
-                    ▼
-                  </div>
-                </div>
-              ) : (
-                <div className="px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                  <User className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>{currentUserName || "Assigned to You"}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Priority & Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Category */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                Category / Department
-              </label>
-              <div className="relative">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer"
-                >
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
+                    ))
+                  )}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">
-                  ▼
-                </div>
-              </div>
-            </div>
-
-            {/* Priority */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                Priority
-              </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {PRIORITY_OPTIONS.map((p) => {
-                  const isSelected = priority === p;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPriority(p)}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                        isSelected
-                          ? p === "Urgent"
-                            ? "bg-rose-600 text-white shadow-xs"
-                            : p === "High"
-                            ? "bg-amber-600 text-white shadow-xs"
-                            : p === "Medium"
-                            ? "bg-blue-600 text-white shadow-xs"
-                            : "bg-gray-600 text-white shadow-xs"
-                          : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
           </div>
 
-          {/* Due Date & Shortcuts (Critical for Date-Wise View!) */}
+          {/* 5. Assignee Selector */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Target Due Date <span className="text-red-500">*</span>
-              </label>
-              {/* Quick Date Pills */}
-              <div className="flex items-center gap-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Assignee
+            </label>
+            <div className="relative">
+              <select
+                value={selectedAssigneeId}
+                onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                className="w-full h-10 px-3.5 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
+              >
+                <option value="">Assignee</option>
+                {isLoadingEmployees ? (
+                  <option disabled>Loading employees...</option>
+                ) : (
+                  employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.role || "Team Member"})
+                    </option>
+                  ))
+                )}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* 6. Description with Rich Toolbar */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Description
+            </label>
+            <div className="rounded-lg border border-gray-200 dark:border-border overflow-hidden focus-within:ring-1 focus-within:ring-indigo-500">
+              {/* Rich formatting toolbar */}
+              <div className="bg-[#F8FAFC] dark:bg-slate-800/80 px-3 py-1.5 border-b border-gray-200 dark:border-border flex items-center space-x-3 text-gray-500 dark:text-gray-400">
                 <button
                   type="button"
-                  onClick={() => handleQuickDateSelect("today")}
-                  className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium transition-colors cursor-pointer ${
-                    dueDate === getTodayKolkataYMD()
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                  }`}
+                  title="Bold"
+                  onClick={() => setDescription((prev) => `${prev} **bold**`)}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
                 >
-                  Today
+                  <Bold className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDateSelect("tomorrow")}
-                  className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium transition-colors cursor-pointer ${
-                    dueDate === getTomorrowKolkataYMD()
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                  }`}
+                  title="Italic"
+                  onClick={() => setDescription((prev) => `${prev} *italic*`)}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
                 >
-                  Tomorrow
+                  <Italic className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDateSelect("next_week")}
-                  className="text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-colors cursor-pointer"
+                  title="Underline"
+                  onClick={() => setDescription((prev) => `${prev} <u>underline</u>`)}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
                 >
-                  Next Week
+                  <Underline className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Strikethrough"
+                  onClick={() => setDescription((prev) => `${prev} ~~strikethrough~~`)}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
+                >
+                  <Strikethrough className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-px h-3.5 bg-gray-200 dark:bg-slate-700" />
+                <button
+                  type="button"
+                  title="Bullet List"
+                  onClick={() => setDescription((prev) => `${prev}\n• `)}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Numbered List"
+                  onClick={() => setDescription((prev) => `${prev}\n1. `)}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
+                >
+                  <ListOrdered className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-px h-3.5 bg-gray-200 dark:bg-slate-700" />
+                <button
+                  type="button"
+                  title="Undo"
+                  onClick={() => setDescription((prev) => prev.slice(0, -5))}
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Redo"
+                  className="hover:text-gray-800 dark:hover:text-gray-200 p-0.5 rounded cursor-pointer opacity-60"
+                >
+                  <Redo2 className="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
-            <div className="relative">
-              <input
-                type="date"
-                required
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+
+              {/* Textarea */}
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add notes or details..."
+                className="w-full p-3 bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none resize-none"
               />
             </div>
           </div>
 
-          {/* Checklist Items */}
+          {/* 7. Attachments with ☁ Add Attachment button */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Checklist Steps ({checklist.length})
-              </label>
-              <span className="text-[11px] text-gray-400">
-                Steps will automatically track completion progress %
-              </span>
-            </div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Attachments
+            </label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-[#EEF2FD] dark:bg-indigo-950/60 text-[#5551FF] hover:bg-[#E0E7FF] dark:hover:bg-indigo-900/60 font-medium text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4 stroke-[2.2]" />
+              <span>Add Attachment</span>
+            </button>
 
-            {/* Checklist List */}
-            <div className="space-y-1.5 mb-2">
-              {checklist.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-border/60 text-xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-semibold text-[10px] flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </span>
-                    <span className="text-gray-800 dark:text-gray-200 truncate">
-                      {item.title}
-                    </span>
-                    {item.isMandatory && (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/30">
-                        Mandatory
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveChecklistItem(item.id)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+            {/* List attached files */}
+            {attachments.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {attachments.map((att, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between px-3 py-1.5 rounded-md bg-gray-50 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700 text-xs"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                      <span className="truncate text-gray-700 dark:text-gray-300">{att.name}</span>
+                      <span className="text-[10px] text-gray-400">({att.size})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(idx)}
+                      className="text-gray-400 hover:text-rose-500 p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-            {/* Add Checklist Step Input */}
+          {/* 8. Subtasks Row with + Add Button */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Subtasks
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value={newChecklistText}
-                onChange={(e) => setNewChecklistText(e.target.value)}
+                value={newSubtaskText}
+                onChange={(e) => setNewSubtaskText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    handleAddChecklistItem();
+                    handleAddSubtask();
                   }
                 }}
-                placeholder="Add sub-task step and press Enter..."
-                className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="Add new subtask..."
+                className="flex-1 h-9 px-3 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
               <button
                 type="button"
-                onClick={handleAddChecklistItem}
-                className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                onClick={handleAddSubtask}
+                className="h-9 px-3 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 font-medium text-xs flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Step</span>
+                <span>Add</span>
               </button>
             </div>
+
+            {/* Subtasks List */}
+            {subtasks.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {subtasks.map((st) => (
+                  <div
+                    key={st.id}
+                    className="flex items-center justify-between px-3 py-1.5 rounded-md bg-gray-50 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700 text-xs"
+                  >
+                    <span className="truncate text-gray-700 dark:text-gray-300">{st.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtask(st.id)}
+                      className="text-gray-400 hover:text-rose-500 p-0.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Quick Flags (Important & Recurring) */}
-          <div className="flex items-center gap-6 pt-2 border-t border-gray-100 dark:border-border/60">
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={isImportant}
-                onChange={(e) => setIsImportant(e.target.checked)}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              />
-              <span className="flex items-center gap-1">
-                <Star className={`w-3.5 h-3.5 ${isImportant ? "fill-amber-400 text-amber-500" : "text-gray-400"}`} />
-                <span>Mark as Important</span>
-              </span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={isRecurring}
-                onChange={(e) => setIsRecurring(e.target.checked)}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              />
-              <span className="flex items-center gap-1">
-                <Repeat className={`w-3.5 h-3.5 ${isRecurring ? "text-indigo-500" : "text-gray-400"}`} />
-                <span>Recurring Master SOP</span>
-              </span>
-            </label>
+          {/* Modal Footer with Cancel and Add To-Do */}
+          <div className="pt-3 border-t border-gray-100 dark:border-border/60 flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-5 py-2 text-xs font-semibold text-white bg-[#5551FF] hover:bg-[#4338CA] rounded-lg shadow-xs cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <span>Add To-Do</span>
+              )}
+            </button>
           </div>
         </form>
-
-        {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-2.5 px-6 py-3.5 border-t border-gray-100 dark:border-border/60 bg-gray-50/50 dark:bg-background/40">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-semibold text-white bg-[#5B50E5] hover:bg-[#4E43D8] rounded-lg shadow-sm flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Assigning...</span>
-              </>
-            ) : (
-              <>
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>{isAdmin ? "Assign Task" : "Create Task"}</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );

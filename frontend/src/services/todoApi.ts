@@ -103,7 +103,12 @@ export interface TodoCalendarEvent {
   isOverdue: boolean;
   isCompleted: boolean;
   clientName?: string;
+  category?: string;
   assigneeName?: string;
+  assigneeInitials?: string;
+  assigneeColor?: string;
+  assigneeId?: string;
+  isPersonal?: boolean;
   taskId?: string;
   actionUrl?: string;
 }
@@ -233,8 +238,11 @@ export const todoApi = {
   },
 
   // 8. Calendar events for To-Do
-  getCalendarEvents: async (month?: string): Promise<TodoCalendarEvent[]> => {
-    const queryStr = month ? `?month=${encodeURIComponent(month)}` : '';
+  getCalendarEvents: async (month?: string, employeeId?: string): Promise<TodoCalendarEvent[]> => {
+    const q = new URLSearchParams();
+    if (month) q.set('month', month);
+    if (employeeId && employeeId !== 'All') q.set('employeeId', employeeId);
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
     const res = await request<TodoCalendarEvent[]>(`/todos/calendar${queryStr}`, { method: 'GET' });
     return res.data || [];
   },

@@ -543,7 +543,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({ userName
           ) : isCalendarView ? (
             /* Calendar View Integration */
             <div className="flex-1 overflow-y-auto">
-              <TodoCalendarView />
+              <TodoCalendarView
+                initialEmployeeFilter={selectedAssigneeId}
+                isAdmin={isAdmin}
+              />
             </div>
           ) : filteredTasks.length === 0 ? (
             /* Empty State Matching Turia Illustration */

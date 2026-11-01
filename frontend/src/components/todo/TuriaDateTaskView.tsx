@@ -2,25 +2,19 @@
 
 import React, { useState } from "react";
 import {
-  Calendar,
-  Clock,
-  Building,
-  User,
+  AlertTriangle,
+  Star,
   CheckCircle2,
-  AlertCircle,
+  MoreVertical,
+  ChevronDown,
+  Trash2,
+  UserCheck,
   CheckSquare,
   Square,
-  ChevronDown,
-  ChevronRight,
-  MoreVertical,
-  Star,
-  Trash2,
-  ArrowRight,
-  Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { TeamTaskItem } from "@/services/todoApi";
 import {
-  formatFriendlyDate,
   getTodayKolkataYMD,
   getTomorrowKolkataYMD,
   categorizeTaskByDate,
@@ -39,6 +33,29 @@ interface TuriaDateTaskViewProps {
   onTabChange?: (tab: "all" | "today" | "tomorrow" | "upcoming") => void;
 }
 
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+function formatTuriaDueDate(dateStr?: string): { text: string; isWarning: boolean } {
+  if (!dateStr) return { text: "-", isWarning: false };
+  const parts = dateStr.split("-");
+  if (parts.length < 3) return { text: dateStr, isWarning: false };
+  const d = parseInt(parts[2], 10);
+  const m = parseInt(parts[1], 10);
+  const monthName = MONTH_SHORT[m - 1] || "";
+  const dayStr = String(d).padStart(2, "0");
+
+  const todayYMD = getTodayKolkataYMD();
+  const isWarning = dateStr <= todayYMD;
+
+  return {
+    text: `${dayStr} ${monthName}`,
+    isWarning,
+  };
+}
+
 export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
   tasks,
   isAdmin,
@@ -52,290 +69,60 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
   onTabChange,
 }) => {
   const [expandedTaskIds, setExpandedTaskIds] = useState<Record<string, boolean>>({});
+  const [activeMenuTaskId, setActiveMenuTaskId] = useState<string | null>(null);
+  const [starredTaskIds, setStarredTaskIds] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
     setExpandedTaskIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const todayYMD = getTodayKolkataYMD();
-  const tomorrowYMD = getTomorrowKolkataYMD();
-
-  // Categorize tasks into date groups
-  const todayTasks: TeamTaskItem[] = [];
-  const tomorrowTasks: TeamTaskItem[] = [];
-  const upcomingTasks: TeamTaskItem[] = [];
-  const overdueTasks: TeamTaskItem[] = [];
-
-  tasks.forEach((task) => {
-    const isCompleted = (task.status || "").toLowerCase() === "completed";
-    const cat = categorizeTaskByDate(task.targetDueDate, isCompleted);
-    if (cat === "today") todayTasks.push(task);
-    else if (cat === "tomorrow") tomorrowTasks.push(task);
-    else if (cat === "overdue") overdueTasks.push(task);
-    else upcomingTasks.push(task);
-  });
-
-  const renderTaskCard = (task: TeamTaskItem) => {
-    const isCompleted = (task.status || "").toLowerCase() === "completed";
-    const isExpanded = Boolean(expandedTaskIds[task.id]);
-    const checklistTotal = task.checklist?.length || 0;
-    const checklistDone = task.checklist?.filter((c) => c.completed).length || 0;
-    const progress = checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : (task.progress || (isCompleted ? 100 : 0));
-
-    return (
-      <div
-        key={task.id}
-        className={`group p-4 rounded-xl border transition-all ${
-          isCompleted
-            ? "bg-gray-50/70 dark:bg-slate-900/40 border-gray-200/60 dark:border-border/40 opacity-75"
-            : "bg-white dark:bg-card border-gray-200/90 dark:border-border hover:border-indigo-300 dark:hover:border-indigo-700/60 hover:shadow-sm"
-        }`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          {/* Checkbox & Main Info */}
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={() => onToggleCompleteTask(task)}
-              className="mt-0.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer shrink-0"
-              title={isCompleted ? "Mark incomplete" : "Mark completed"}
-            >
-              {isCompleted ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50 dark:fill-emerald-950/40" />
-              ) : (
-                <Square className="w-5 h-5 text-gray-300 group-hover:text-indigo-500" />
-              )}
-            </button>
-
-            <div className="min-w-0 flex-1">
-              {/* Title & Priority Badge */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span
-                  className={`text-xs font-semibold tracking-tight transition-colors ${
-                    isCompleted
-                      ? "line-through text-gray-400 dark:text-gray-500"
-                      : "text-gray-900 dark:text-gray-100"
-                  }`}
-                >
-                  {task.taskName}
-                </span>
-
-                {/* Priority Badge */}
-                <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                    task.priority === "Urgent"
-                      ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60"
-                      : task.priority === "High"
-                      ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60"
-                      : task.priority === "Low"
-                      ? "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400"
-                      : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60"
-                  }`}
-                >
-                  {task.priority || "Medium"}
-                </span>
-
-                {/* Category Badge */}
-                {task.category && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400">
-                    {task.category}
-                  </span>
-                )}
-              </div>
-
-              {/* Description */}
-              {task.description && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
-                  {task.description}
-                </p>
-              )}
-
-              {/* Client & Assignee Meta Row */}
-              <div className="flex items-center gap-3 mt-2.5 flex-wrap text-xs text-gray-500 dark:text-gray-400">
-                {/* Client Name */}
-                {task.clientName && (
-                  <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-medium">
-                    <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span className="truncate max-w-[200px]">{task.clientName}</span>
-                  </div>
-                )}
-
-                {/* Assignee Avatar & Name */}
-                <div className="flex items-center gap-1.5">
-                  <div
-                    className="w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center shrink-0 shadow-2xs"
-                    style={{ backgroundColor: task.assigneeColor || "#3B82F6" }}
-                  >
-                    {task.assigneeInitials || (task.assigneeName ? task.assigneeName.slice(0, 2).toUpperCase() : "UA")}
-                  </div>
-                  <span className="truncate max-w-[140px] text-gray-600 dark:text-gray-300">
-                    {task.assigneeName || "Unassigned"}
-                  </span>
-                </div>
-
-                {/* Due Date & Time Badge */}
-                {task.targetDueDate && (
-                  <div
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
-                      task.isOverdue
-                        ? "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30"
-                        : "text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-800"
-                    }`}
-                  >
-                    <Clock className="w-3 h-3 shrink-0" />
-                    <span>Due {formatFriendlyDate(task.targetDueDate)}</span>
-                  </div>
-                )}
-
-                {/* Progress bar info */}
-                {checklistTotal > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => toggleExpand(task.id)}
-                    className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    <span>
-                      {checklistDone}/{checklistTotal} steps ({progress}%)
-                    </span>
-                    <ChevronDown
-                      className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                )}
-              </div>
-
-              {/* Progress bar indicator */}
-              <div className="mt-2 w-full max-w-md bg-gray-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 rounded-full ${
-                    isCompleted
-                      ? "bg-emerald-500"
-                      : progress >= 66
-                      ? "bg-indigo-600"
-                      : progress >= 33
-                      ? "bg-amber-500"
-                      : "bg-blue-500"
-                  }`}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-
-              {/* Expandable Checklist Steps */}
-              {isExpanded && checklistTotal > 0 && (
-                <div className="mt-3 pl-3 border-l-2 border-indigo-200 dark:border-indigo-900/60 space-y-1.5 animate-in fade-in duration-150">
-                  {task.checklist.map((chk) => (
-                    <div
-                      key={chk.id}
-                      className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onToggleChecklist(task.id, chk.id, chk.completed)}
-                        className="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
-                      >
-                        {chk.completed ? (
-                          <CheckSquare className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <Square className="w-4 h-4 text-gray-400" />
-                        )}
-                      </button>
-                      <span
-                        className={`truncate ${
-                          chk.completed ? "line-through text-gray-400" : ""
-                        }`}
-                      >
-                        {chk.title}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions Right Side */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Status Dropdown */}
-            <select
-              value={task.status || "Pending"}
-              onChange={(e) => onUpdateStatus(task.id, e.target.value)}
-              className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="Pending">Pending</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Under Review">Under Review</option>
-              <option value="Completed">Completed</option>
-            </select>
-
-            {/* Star Important */}
-            <button
-              type="button"
-              onClick={() => onStarTask?.(task.id)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Mark Important"
-            >
-              <Star className="w-4 h-4" />
-            </button>
-
-            {/* Delete button (Admin or Owner) */}
-            {isAdmin && onDeleteTask && (
-              <button
-                type="button"
-                onClick={() => onDeleteTask(task.id)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-                title="Delete To-Do"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+  const handleStarToggle = (id: string) => {
+    setStarredTaskIds((prev) => ({ ...prev, [id]: !prev[id] }));
+    onStarTask?.(id);
   };
 
-  const renderSection = (
-    title: string,
-    subtitle: string,
-    sectionTasks: TeamTaskItem[],
-    accentColor: string,
-    badgeBg: string,
-    badgeText: string
-  ) => {
-    if (sectionTasks.length === 0) return null;
+  // Filter tasks based on activeFilterTab
+  const filteredTasks = tasks.filter((task) => {
+    if (activeFilterTab === "all") return true;
+    const isCompleted = (task.status || "").toLowerCase() === "completed";
+    const cat = categorizeTaskByDate(task.targetDueDate, isCompleted);
+    return cat === activeFilterTab;
+  });
 
+  const getPriorityBadge = (priority?: string) => {
+    const p = (priority || "Medium").toLowerCase();
+    if (p === "urgent") {
+      return (
+        <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#FFF1F2] text-[#E11D48] border border-[#FFE4E6]">
+          Urgent
+        </span>
+      );
+    }
+    if (p === "high") {
+      return (
+        <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">
+          High
+        </span>
+      );
+    }
+    if (p === "low") {
+      return (
+        <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0]">
+          Low
+        </span>
+      );
+    }
+    // Default Medium
     return (
-      <div className="space-y-3">
-        {/* Section Header */}
-        <div className="flex items-center justify-between pb-1.5 border-b border-gray-100 dark:border-border/60">
-          <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${accentColor}`} />
-            <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-              {title}
-            </h4>
-            <span className="text-[11px] text-gray-400 dark:text-gray-500">
-              ({subtitle})
-            </span>
-          </div>
-
-          <span
-            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${badgeBg} ${badgeText}`}
-          >
-            {sectionTasks.length} {sectionTasks.length === 1 ? "task" : "tasks"}
-          </span>
-        </div>
-
-        {/* Task Cards */}
-        <div className="space-y-2.5">
-          {sectionTasks.map((t) => renderTaskCard(t))}
-        </div>
-      </div>
+      <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#FEF3EB] text-[#E07A2C] border border-[#FCD8BE]/60">
+        Medium
+      </span>
     );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Date Agenda View Filter Pills */}
+    <div className="flex flex-col h-full space-y-3">
+      {/* Date Agenda Tabs */}
       {onTabChange && (
         <div className="flex items-center gap-1.5 pb-2 border-b border-gray-100 dark:border-border/60">
           <button
@@ -349,7 +136,6 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
           >
             All Agenda ({tasks.length})
           </button>
-
           <button
             type="button"
             onClick={() => onTabChange("today")}
@@ -359,9 +145,18 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
             }`}
           >
-            Today ({todayTasks.length})
+            Today (
+            {
+              tasks.filter(
+                (t) =>
+                  categorizeTaskByDate(
+                    t.targetDueDate,
+                    (t.status || "").toLowerCase() === "completed"
+                  ) === "today"
+              ).length
+            }
+            )
           </button>
-
           <button
             type="button"
             onClick={() => onTabChange("tomorrow")}
@@ -371,9 +166,18 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
             }`}
           >
-            Tomorrow ({tomorrowTasks.length})
+            Tomorrow (
+            {
+              tasks.filter(
+                (t) =>
+                  categorizeTaskByDate(
+                    t.targetDueDate,
+                    (t.status || "").toLowerCase() === "completed"
+                  ) === "tomorrow"
+              ).length
+            }
+            )
           </button>
-
           <button
             type="button"
             onClick={() => onTabChange("upcoming")}
@@ -383,52 +187,300 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
             }`}
           >
-            Upcoming ({upcomingTasks.length})
+            Upcoming (
+            {
+              tasks.filter(
+                (t) =>
+                  categorizeTaskByDate(
+                    t.targetDueDate,
+                    (t.status || "").toLowerCase() === "completed"
+                  ) === "upcoming"
+              ).length
+            }
+            )
           </button>
         </div>
       )}
 
-      {/* Render sections according to active tab */}
-      {(activeFilterTab === "all" || activeFilterTab === "today") &&
-        renderSection(
-          "TODAY",
-          formatFriendlyDate(todayYMD),
-          todayTasks,
-          "bg-indigo-600",
-          "bg-indigo-50 dark:bg-indigo-950/40",
-          "text-indigo-700 dark:text-indigo-300"
-        )}
+      {/* Main Table Structure Matching Turia Reference */}
+      <div className="rounded-xl border border-gray-200/80 dark:border-border overflow-hidden bg-white dark:bg-card shadow-2xs">
+        {/* Table Header Row */}
+        <div className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-gray-200/80 dark:border-border/80 px-4 py-2.5 flex items-center text-[11px] font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase select-none">
+          <div className="w-16 shrink-0 flex items-center" />
+          <div className="flex-1 min-w-[200px] pr-4">TITLE</div>
+          <div className="w-36 shrink-0 pr-4">CLIENT</div>
+          <div className="w-24 shrink-0 pr-4">TAG</div>
+          <div className="w-24 shrink-0 pr-4">PRIORITY</div>
+          <div className="w-28 shrink-0 pr-4">DUE</div>
+          <div className="w-16 shrink-0 text-center">WHO</div>
+          <div className="w-8 shrink-0" />
+        </div>
 
-      {(activeFilterTab === "all" || activeFilterTab === "tomorrow") &&
-        renderSection(
-          "TOMORROW",
-          formatFriendlyDate(tomorrowYMD),
-          tomorrowTasks,
-          "bg-blue-500",
-          "bg-blue-50 dark:bg-blue-950/40",
-          "text-blue-700 dark:text-blue-300"
-        )}
+        {/* Table Body Rows */}
+        <div className="divide-y divide-gray-100 dark:divide-border/60">
+          {filteredTasks.length === 0 ? (
+            <div className="py-12 text-center text-xs text-gray-400">
+              No tasks found for this view.
+            </div>
+          ) : (
+            filteredTasks.map((task) => {
+              const isCompleted = (task.status || "").toLowerCase() === "completed";
+              const isStarred = Boolean(starredTaskIds[task.id]);
+              const isExpanded = Boolean(expandedTaskIds[task.id]);
+              const dueInfo = formatTuriaDueDate(task.targetDueDate);
 
-      {(activeFilterTab === "all" || activeFilterTab === "upcoming") &&
-        renderSection(
-          "UPCOMING WORK",
-          "Next scheduled deliverables",
-          upcomingTasks,
-          "bg-emerald-500",
-          "bg-emerald-50 dark:bg-emerald-950/40",
-          "text-emerald-700 dark:text-emerald-300"
-        )}
+              const initials =
+                task.assigneeInitials ||
+                (task.assigneeName
+                  ? task.assigneeName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()
+                  : "AS");
 
-      {activeFilterTab === "all" &&
-        overdueTasks.length > 0 &&
-        renderSection(
-          "OVERDUE",
-          "Requires immediate attention",
-          overdueTasks,
-          "bg-rose-500",
-          "bg-rose-50 dark:bg-rose-950/40",
-          "text-rose-700 dark:text-rose-400"
-        )}
+              const checklistTotal = task.checklist?.length || 0;
+              const checklistDone =
+                task.checklist?.filter((c) => c.completed).length || 0;
+
+              return (
+                <div key={task.id} className="group hover:bg-gray-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                  {/* Primary Row Content */}
+                  <div className="px-4 py-3 flex items-center text-xs text-gray-800 dark:text-gray-200">
+                    {/* Circle Checkbox + Star */}
+                    <div className="w-16 shrink-0 flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => onToggleCompleteTask(task)}
+                        className="cursor-pointer text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        title={isCompleted ? "Mark incomplete" : "Mark complete"}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-50 dark:fill-emerald-950/40" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-gray-300 dark:border-slate-600 hover:border-indigo-500 transition-colors" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStarToggle(task.id)}
+                        className={`cursor-pointer transition-colors ${
+                          isStarred
+                            ? "text-amber-400 fill-amber-400"
+                            : "text-gray-300 dark:text-slate-600 hover:text-amber-400"
+                        }`}
+                        title="Star task"
+                      >
+                        <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400" : ""}`} />
+                      </button>
+                    </div>
+
+                    {/* Title + Description Preview */}
+                    <div className="flex-1 min-w-[200px] pr-4 flex items-center gap-2 truncate">
+                      <span
+                        className={`font-semibold cursor-pointer truncate ${
+                          isCompleted
+                            ? "line-through text-gray-400 dark:text-gray-500"
+                            : "text-gray-900 dark:text-white"
+                        }`}
+                        onClick={() => toggleExpand(task.id)}
+                      >
+                        {task.taskName}
+                      </span>
+                      {task.description && (
+                        <span className="text-gray-400 dark:text-gray-500 truncate text-[11px] font-normal">
+                          {task.description}
+                        </span>
+                      )}
+                      {checklistTotal > 0 && (
+                        <span
+                          onClick={() => toggleExpand(task.id)}
+                          className="text-[10px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded cursor-pointer shrink-0"
+                        >
+                          {checklistDone}/{checklistTotal}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Client */}
+                    <div className="w-36 shrink-0 pr-4 truncate text-gray-600 dark:text-gray-300">
+                      {task.clientName && task.clientName !== "General Client" ? (
+                        <span title={task.clientName}>{task.clientName}</span>
+                      ) : (
+                        <span className="text-gray-300 dark:text-slate-600">-</span>
+                      )}
+                    </div>
+
+                    {/* Tag */}
+                    <div className="w-24 shrink-0 pr-4 truncate">
+                      {task.category ? (
+                        <span className="text-[11px] text-gray-600 dark:text-gray-400">
+                          {task.category}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 dark:text-slate-600">-</span>
+                      )}
+                    </div>
+
+                    {/* Priority */}
+                    <div className="w-24 shrink-0 pr-4">
+                      {getPriorityBadge(task.priority)}
+                    </div>
+
+                    {/* Due */}
+                    <div className="w-28 shrink-0 pr-4">
+                      {dueInfo.isWarning ? (
+                        <div className="flex items-center gap-1.5 text-[#D97706] font-semibold text-xs">
+                          <AlertTriangle className="w-3.5 h-3.5 fill-[#FEF3C7] text-[#D97706] stroke-[2.2]" />
+                          <span>{dueInfo.text}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-600 dark:text-gray-400 text-xs">
+                          {dueInfo.text}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Who (Assignee Avatar) */}
+                    <div className="w-16 shrink-0 flex items-center justify-center">
+                      <div
+                        className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold flex items-center justify-center border border-slate-300 dark:border-slate-600 shadow-2xs"
+                        title={task.assigneeName || "Ayatrio Team"}
+                      >
+                        {initials}
+                      </div>
+                    </div>
+
+                    {/* Row Action Menu ⋮ */}
+                    <div className="w-8 shrink-0 relative flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuTaskId((prev) => (prev === task.id ? null : task.id));
+                        }}
+                        className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {/* Dropdown Popover */}
+                      {activeMenuTaskId === task.id && (
+                        <div
+                          className="absolute right-0 top-full mt-1 w-44 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl z-30 p-1.5 text-xs animate-in fade-in zoom-in-95 duration-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onToggleCompleteTask(task);
+                              setActiveMenuTaskId(null);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>{isCompleted ? "Mark Pending" : "Mark Done"}</span>
+                          </button>
+
+                          {isAdmin && onReassignTask && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onReassignTask(task);
+                                setActiveMenuTaskId(null);
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserCheck className="w-3.5 h-3.5 text-blue-500" />
+                              <span>Reassign Task</span>
+                            </button>
+                          )}
+
+                          {task.taskId && (
+                            <a
+                              href={`/task/view/${task.taskId}`}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer"
+                              onClick={() => setActiveMenuTaskId(null)}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>Open Details</span>
+                            </a>
+                          )}
+
+                          {isAdmin && onDeleteTask && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onDeleteTask(task.id);
+                                setActiveMenuTaskId(null);
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center gap-2 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded Subtasks / Details Drawer */}
+                  {isExpanded && (
+                    <div className="px-14 py-3 bg-gray-50/70 dark:bg-slate-900/40 border-t border-gray-100 dark:border-border/60 text-xs space-y-2 animate-in fade-in duration-150">
+                      {task.description && (
+                        <div className="text-gray-600 dark:text-gray-300 text-xs pb-1">
+                          {task.description}
+                        </div>
+                      )}
+
+                      {task.checklist && task.checklist.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                            Checklist / Subtasks ({checklistDone}/{checklistTotal})
+                          </div>
+                          {task.checklist.map((chk) => (
+                            <div key={chk.id} className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => onToggleChecklist(task.id, chk.id, chk.completed)}
+                                className="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                              >
+                                {chk.completed ? (
+                                  <CheckSquare className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-gray-400" />
+                                )}
+                              </button>
+                              <span
+                                className={`${
+                                  chk.completed
+                                    ? "line-through text-gray-400 dark:text-gray-500"
+                                    : "text-gray-700 dark:text-gray-200"
+                                }`}
+                              >
+                                {chk.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-4 pt-2 text-[11px] text-gray-400">
+                        <span>Task ID: {task.taskId || task.id}</span>
+                        <span>Assignee: {task.assigneeName || "Unassigned"}</span>
+                        <span>Status: {task.status || "Pending"}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 };

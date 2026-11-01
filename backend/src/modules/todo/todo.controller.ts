@@ -255,6 +255,7 @@ export class TodoController {
       }
 
       const month = req.query.month as string | undefined;
+      const employeeId = req.query.employeeId as string | undefined;
       const events = await TodoService.getCalendarEvents(
         user.orgId,
         {
@@ -262,7 +263,8 @@ export class TodoController {
           name: user.name || '',
           role: user.role || 'employee',
         },
-        month
+        month,
+        employeeId
       );
 
       return ApiResponse.success(res, events);

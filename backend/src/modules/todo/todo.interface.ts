@@ -97,11 +97,16 @@ export interface ITodoCalendarEvent {
   title: string;
   clientName: string;
   category: string;
-  type: 'admin_deadline' | 'task_due' | 'task_start';
+  type: 'admin_deadline' | 'task_due' | 'task_start' | 'personal_todo';
   priority: TaskPriority;
   status: string;
   isOverdue: boolean;
   isCompleted: boolean;
   actionUrl?: string;
   taskId?: string;
+  assigneeName?: string;
+  assigneeInitials?: string;
+  assigneeColor?: string;
+  assigneeId?: string;
+  isPersonal?: boolean;
 }
