@@ -79,7 +79,7 @@ export const CompactTaskCard: React.FC = () => {
   }, [data]);
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
+    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export const CompactTaskCard: React.FC = () => {
       {/* Due Counts Strip (Chips) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3">
         {/* Due Today */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20">
+        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-none border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20">
           <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
             Due Today
           </span>
@@ -111,7 +111,7 @@ export const CompactTaskCard: React.FC = () => {
         </div>
 
         {/* Due Tomorrow */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-purple-200/60 dark:border-purple-900/40 bg-purple-50/60 dark:bg-purple-950/20">
+        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-none border border-purple-200/60 dark:border-purple-900/40 bg-purple-50/60 dark:bg-purple-950/20">
           <span className="text-[10px] font-medium text-purple-700 dark:text-purple-300">
             Due Tomorrow
           </span>
@@ -121,7 +121,7 @@ export const CompactTaskCard: React.FC = () => {
         </div>
 
         {/* In 7 Days */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20">
+        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-none border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20">
           <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
             In 7 Days
           </span>
@@ -131,7 +131,7 @@ export const CompactTaskCard: React.FC = () => {
         </div>
 
         {/* Overdue */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20">
+        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-none border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20">
           <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300">
             Overdue
           </span>
@@ -142,11 +142,11 @@ export const CompactTaskCard: React.FC = () => {
       </div>
 
       {/* Segmented Control for Status Tabs */}
-      <div className="flex items-center p-1 rounded-lg bg-gray-100/80 dark:bg-[#0f172a] mt-3">
+      <div className="flex items-center p-1 rounded-none bg-gray-100/80 dark:bg-[#0f172a] mt-3">
         <button
           type="button"
           onClick={() => setActiveTab('pending')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+          className={`flex-1 py-1 text-[11px] font-semibold rounded-none transition-all cursor-pointer ${
             activeTab === 'pending'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -158,7 +158,7 @@ export const CompactTaskCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('hold')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+          className={`flex-1 py-1 text-[11px] font-semibold rounded-none transition-all cursor-pointer ${
             activeTab === 'hold'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -170,7 +170,7 @@ export const CompactTaskCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('inProgress')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+          className={`flex-1 py-1 text-[11px] font-semibold rounded-none transition-all cursor-pointer ${
             activeTab === 'inProgress'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -182,7 +182,7 @@ export const CompactTaskCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('completed')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+          className={`flex-1 py-1 text-[11px] font-semibold rounded-none transition-all cursor-pointer ${
             activeTab === 'completed'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -202,7 +202,7 @@ export const CompactTaskCard: React.FC = () => {
               <span className="text-xs">Loading tasks...</span>
             </div>
           ) : error ? (
-            <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs">
+            <div className="p-3 rounded-none bg-red-50 text-red-600 text-xs">
               {error}
             </div>
           ) : currentGroups.length === 0 ? (
@@ -226,9 +226,9 @@ export const CompactTaskCard: React.FC = () => {
                   </div>
 
                   {/* Thin progress bar */}
-                  <div className="w-full h-1.5 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="w-full h-1.5 rounded-none bg-gray-100 dark:bg-slate-800 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-[#31719B] dark:bg-[#3D88BF] transition-all duration-300"
+                      className="h-full rounded-none bg-[#31719B] dark:bg-[#3D88BF] transition-all duration-300"
                       style={{ width: `${barPercent}%` }}
                     />
                   </div>

@@ -54,7 +54,7 @@ export const PendingInvoicingCard: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
+    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export const PendingInvoicingCard: React.FC = () => {
             <span className="text-xs">Loading invoicing metrics...</span>
           </div>
         ) : error ? (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs">
+          <div className="p-3 rounded-none bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs">
             {error}
           </div>
         ) : (
@@ -89,10 +89,10 @@ export const PendingInvoicingCard: React.FC = () => {
             {/* Metric 1: Unbilled Tasks */}
             <Link
               href={data?.unbilledTasks?.link || '/task'}
-              className="group p-3 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-blue-50/30 dark:hover:bg-[#131f38] transition-all flex items-center justify-between"
+              className="group p-3 rounded-none border border-gray-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-blue-50/30 dark:hover:bg-[#131f38] transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-50 dark:bg-blue-950/60 text-[#31719B] dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 shrink-0">
+                <div className="w-10 h-10 rounded-none flex items-center justify-center bg-blue-50 dark:bg-blue-950/60 text-[#31719B] dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 shrink-0">
                   <FileText size={18} />
                 </div>
                 <div>
@@ -115,10 +115,10 @@ export const PendingInvoicingCard: React.FC = () => {
             {/* Metric 2: Pending Retainer Invoices */}
             <Link
               href={data?.pendingRetainers?.link || '/invoice'}
-              className="group p-3 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-emerald-50/30 dark:hover:bg-[#10242a] transition-all flex items-center justify-between"
+              className="group p-3 rounded-none border border-gray-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-emerald-50/30 dark:hover:bg-[#10242a] transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 shrink-0">
+                <div className="w-10 h-10 rounded-none flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 shrink-0">
                   <RotateCw size={18} />
                 </div>
                 <div>
@@ -141,10 +141,10 @@ export const PendingInvoicingCard: React.FC = () => {
             {/* Metric 3: Overdue Invoices */}
             <Link
               href={data?.overdueInvoices?.link || '/invoice'}
-              className="group p-3 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-rose-50/30 dark:hover:bg-[#2b1520] transition-all flex items-center justify-between"
+              className="group p-3 rounded-none border border-gray-100 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-rose-50/30 dark:hover:bg-[#2b1520] transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 shrink-0">
+                <div className="w-10 h-10 rounded-none flex items-center justify-center bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 shrink-0">
                   <AlertCircle size={18} />
                 </div>
                 <div>
@@ -172,10 +172,10 @@ export const PendingInvoicingCard: React.FC = () => {
             {/* Metric 4: Draft Invoices */}
             <Link
               href={data?.draftInvoices?.link || '/invoice'}
-              className="group p-3 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-amber-200 dark:hover:border-amber-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-amber-50/30 dark:hover:bg-[#2a2215] transition-all flex items-center justify-between"
+              className="group p-3 rounded-none border border-gray-100 dark:border-slate-800 hover:border-amber-200 dark:hover:border-amber-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-amber-50/30 dark:hover:bg-[#2a2215] transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 shrink-0">
+                <div className="w-10 h-10 rounded-none flex items-center justify-center bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 shrink-0">
                   <Clock size={18} />
                 </div>
                 <div>

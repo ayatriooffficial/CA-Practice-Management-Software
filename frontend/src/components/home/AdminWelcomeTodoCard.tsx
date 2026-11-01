@@ -194,7 +194,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
   };
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
+    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
       {/* Top Greeting Header */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-slate-800">
         <div>
@@ -209,7 +209,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
         <button
           type="button"
           onClick={() => setIsAdding((v) => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#31719B] text-white hover:bg-[#285d80] active:scale-95 transition-all shadow-xs cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-none bg-[#31719B] text-white hover:bg-[#285d80] active:scale-95 transition-all shadow-xs cursor-pointer"
         >
           <Plus size={14} />
           <span>Add Task</span>
@@ -217,7 +217,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
       </div>
 
       {error && (
-        <div className="mt-2.5 px-3 py-1.5 rounded-md bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs flex items-center justify-between">
+        <div className="mt-2.5 px-3 py-1.5 rounded-none bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs flex items-center justify-between">
           <span>{error}</span>
           <button
             type="button"
@@ -243,7 +243,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
           >
             Today ({todayList.length})
             {activeTab === 'today' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#31719B] dark:bg-[#93c5fd] rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#31719B] dark:bg-[#93c5fd] rounded-none" />
             )}
           </button>
 
@@ -258,7 +258,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
           >
             Upcoming ({upcomingList.length})
             {activeTab === 'upcoming' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#31719B] dark:bg-[#93c5fd] rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#31719B] dark:bg-[#93c5fd] rounded-none" />
             )}
           </button>
 
@@ -273,7 +273,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
           >
             Completed ({completedList.length})
             {activeTab === 'completed' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#31719B] dark:bg-[#93c5fd] rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#31719B] dark:bg-[#93c5fd] rounded-none" />
             )}
           </button>
         </div>
@@ -281,7 +281,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
 
       {/* Inline Add Input Row */}
       {isAdding && (
-        <form onSubmit={handleAddTask} className="mt-3 p-2.5 rounded-lg border border-gray-200 dark:border-[#334155] bg-gray-50/70 dark:bg-[#0f172a] flex flex-wrap items-center gap-2">
+        <form onSubmit={handleAddTask} className="mt-3 p-2.5 rounded-none border border-gray-200 dark:border-[#334155] bg-gray-50/70 dark:bg-[#0f172a] flex flex-wrap items-center gap-2">
           <input
             type="text"
             autoFocus
@@ -295,12 +295,12 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
               type="date"
               value={newDueDate}
               onChange={(e) => setNewDueDate(e.target.value)}
-              className="text-[11px] px-2 py-1 rounded border border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-300 outline-none"
+              className="text-[11px] px-2 py-1 rounded-none border border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-300 outline-none"
             />
             <button
               type="submit"
               disabled={isSubmitting || !newTitle.trim()}
-              className="px-2.5 py-1 text-xs font-semibold rounded bg-[#31719B] text-white hover:bg-[#285d80] disabled:opacity-50 transition-all cursor-pointer"
+              className="px-2.5 py-1 text-xs font-semibold rounded-none bg-[#31719B] text-white hover:bg-[#285d80] disabled:opacity-50 transition-all cursor-pointer"
             >
               Add
             </button>
@@ -324,7 +324,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
           </div>
         ) : currentList.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center py-8 text-gray-400 dark:text-slate-500 gap-1.5">
-            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-[#0f172a] flex items-center justify-center text-gray-400">
+            <div className="w-8 h-8 rounded-none bg-gray-100 dark:bg-[#0f172a] flex items-center justify-center text-gray-400">
               <CheckSquare size={16} />
             </div>
             <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
@@ -345,14 +345,14 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
             return (
               <div
                 key={item.id}
-                className="group flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-transparent hover:border-gray-200 dark:hover:border-[#334155] hover:bg-gray-50/60 dark:hover:bg-[#162032] transition-all"
+                className="group flex items-center justify-between gap-3 px-3 py-2 rounded-none border border-transparent hover:border-gray-200 dark:hover:border-[#334155] hover:bg-gray-50/60 dark:hover:bg-[#162032] transition-all"
               >
                 {/* Left: Checkbox + Title */}
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   <button
                     type="button"
                     onClick={() => handleToggleComplete(item)}
-                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                    className={`w-4 h-4 rounded-none border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                       item.completed
                         ? 'bg-[#10b981] border-[#10b981] text-white'
                         : 'border-gray-300 dark:border-gray-600 hover:border-[#31719B]'
@@ -372,7 +372,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
                         if (e.key === 'Enter') handleSaveEdit(item);
                         if (e.key === 'Escape') setEditingId(null);
                       }}
-                      className="flex-1 text-xs px-2 py-0.5 rounded border border-[#31719B] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none"
+                      className="flex-1 text-xs px-2 py-0.5 rounded-none border border-[#31719B] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none"
                     />
                   ) : (
                     <span
@@ -396,7 +396,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
                 <div className="flex items-center gap-2 shrink-0">
                   {item.dueDate && (
                     <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 border ${
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-none inline-flex items-center gap-1 border ${
                         isOverdue
                           ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900'
                           : 'bg-gray-100 dark:bg-[#0f172a] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-[#334155]'
@@ -411,7 +411,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = ({ user
                     type="button"
                     onClick={(e) => handleDelete(item.id, e)}
                     title="Delete item"
-                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all cursor-pointer"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all cursor-pointer rounded-none"
                   >
                     <Trash2 size={13} />
                   </button>

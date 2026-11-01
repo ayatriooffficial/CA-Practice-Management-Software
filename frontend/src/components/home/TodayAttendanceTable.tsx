@@ -360,7 +360,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
       </div>
 
       {/* Pagination Footer Styled Identically to Leads Table */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-[#1e293b] border-t border-[#dde2e8] dark:border-[#334155] text-xs text-gray-600 dark:text-gray-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-[#1e293b] text-xs text-gray-600 dark:text-gray-400">
         <div>
           Showing {totalCount === 0 ? '0-0 of 0' : `${(page - 1) * rowsPerPage + 1}–${Math.min(page * rowsPerPage, totalCount)} of ${totalCount}`}
         </div>

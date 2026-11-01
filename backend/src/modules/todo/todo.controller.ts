@@ -40,7 +40,7 @@ export class TodoController {
         return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
       }
 
-      const { id } = req.params;
+      const id = String(req.params.id);
       const { title, completed, dueDate } = req.body || {};
       const updated = await TodoService.updateTodo(user.orgId, user.userId, id, {
         title,
@@ -61,7 +61,7 @@ export class TodoController {
         return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
       }
 
-      const { id } = req.params;
+      const id = String(req.params.id);
       await TodoService.deleteTodo(user.orgId, user.userId, id);
       return ApiResponse.success(res, { id }, 'To-Do item deleted');
     } catch (err: any) {

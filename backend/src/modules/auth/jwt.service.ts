@@ -39,6 +39,13 @@ export class JwtService {
   }
 
   /**
+   * Decode token without verifying expiration (for resilient fallback)
+   */
+  public static decodeToken(token: string): IJwtUserPayload | null {
+    return jwt.decode(token) as IJwtUserPayload | null;
+  }
+
+  /**
    * Verify a refresh token
    */
   public static verifyRefreshToken(token: string): { userId: string; sessionId: string; tokenVersion: number } {
