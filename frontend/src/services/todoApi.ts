@@ -70,6 +70,8 @@ export interface TeamTaskItem {
   }>;
   isOverdue: boolean;
   daysLeft: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TodoSummary {
@@ -142,6 +144,8 @@ export const todoApi = {
   getTeamTasks: async (params?: {
     employeeId?: string;
     employee?: string;
+    clientId?: string;
+    clientName?: string;
     status?: string;
     priority?: string;
     category?: string;
@@ -152,6 +156,8 @@ export const todoApi = {
     const q = new URLSearchParams();
     if (params?.employeeId) q.set('employeeId', params.employeeId);
     if (params?.employee) q.set('employee', params.employee);
+    if (params?.clientId) q.set('clientId', params.clientId);
+    if (params?.clientName) q.set('clientName', params.clientName);
     if (params?.status) q.set('status', params.status);
     if (params?.priority) q.set('priority', params.priority);
     if (params?.category) q.set('category', params.category);

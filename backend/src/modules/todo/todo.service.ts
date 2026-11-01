@@ -560,6 +560,8 @@ export class TodoService {
     _orgId: string,
     filters?: {
       employeeId?: string;
+      clientId?: string;
+      clientName?: string;
       status?: string;
       priority?: string;
       category?: string;
@@ -576,6 +578,14 @@ export class TodoService {
         { assigneeId: filters.employeeId },
         { assigneeName: filters.employeeId },
       ];
+    }
+
+    if (filters?.clientId && filters.clientId !== 'All') {
+      query.clientId = filters.clientId;
+    }
+
+    if (filters?.clientName && filters.clientName !== 'All') {
+      query.clientName = new RegExp(`^${filters.clientName.trim()}$`, 'i');
     }
 
     if (filters?.priority && filters.priority !== 'All') {
@@ -814,7 +824,15 @@ export class TodoService {
     }
 
     // Verify employee exists and is active
-    const employee = await UserModel.findById(data.assigneeId).lean();
+    let employee: any = null;
+    if (mongoose.Types.ObjectId.isValid(data.assigneeId)) {
+      employee = await UserModel.findById(data.assigneeId).lean();
+    }
+    if (!employee) {
+      employee = await UserModel.findOne({
+        $or: [{ name: data.assigneeId }, { email: data.assigneeId }],
+      }).lean();
+    }
     if (!employee || (employee.status as string) === 'deactivated' || (employee.status as string) === 'resigned' || (employee.status as string) === 'suspended') {
       throw AppError.badRequest('Selected employee is invalid or inactive.');
     }

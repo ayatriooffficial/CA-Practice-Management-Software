@@ -115,9 +115,11 @@ export class TodoController {
         );
       }
 
-      const { employee, employeeId, status, priority, category, search, page, limit } = req.query as {
+      const { employee, employeeId, clientId, clientName, status, priority, category, search, page, limit } = req.query as {
         employee?: string;
         employeeId?: string;
+        clientId?: string;
+        clientName?: string;
         status?: string;
         priority?: string;
         category?: string;
@@ -128,6 +130,8 @@ export class TodoController {
 
       const teamTasks = await TodoService.getTeamTasks(user.orgId, {
         employeeId: employeeId || employee,
+        clientId,
+        clientName,
         status,
         priority,
         category,
