@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from "lucide-react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { ColumnResizer } from "./ColumnResizer";
 import { TableActionDropdown, DropdownActionItem } from "./TableActionDropdown";
+import { ColumnHeaderMenu } from "./ColumnHeaderMenu";
 import { Pagination } from "./Pagination";
 
 export interface DataTableColumn<T> {
@@ -72,6 +73,82 @@ export function DataTable<T>({
   onRowClick,
   className = "",
 }: DataTableProps<T>) {
+  // Hidden columns state
+  const [hiddenColumnIds, setHiddenColumnIds] = useState<string[]>([]);
+
+  // Visible columns after filtering hidden columns
+  const visibleColumns = useMemo(
+    () => columns.filter((col) => !hiddenColumnIds.includes(col.id)),
+    [columns, hiddenColumnIds]
+  );
+
+  // Sorting state (supports both controlled onSort and internal sorting)
+  const [internalSortKey, setInternalSortKey] = useState<string | null>(sortKey || null);
+  const [internalSortDir, setInternalSortDir] = useState<"asc" | "desc" | null>(sortDirection || null);
+
+  useEffect(() => {
+    if (sortKey !== undefined) setInternalSortKey(sortKey || null);
+  }, [sortKey]);
+
+  useEffect(() => {
+    if (sortDirection !== undefined) setInternalSortDir(sortDirection || null);
+  }, [sortDirection]);
+
+  const effectiveSortKey = sortKey !== undefined ? sortKey : internalSortKey;
+  const effectiveSortDir = sortDirection !== undefined ? sortDirection : internalSortDir;
+
+  const handleSortAsc = useCallback(
+    (colId: string) => {
+      setInternalSortKey(colId);
+      setInternalSortDir("asc");
+      if (onSort) onSort(colId);
+    },
+    [onSort]
+  );
+
+  const handleSortDesc = useCallback(
+    (colId: string) => {
+      setInternalSortKey(colId);
+      setInternalSortDir("desc");
+      if (onSort) onSort(colId);
+    },
+    [onSort]
+  );
+
+  const handleHideColumn = useCallback((colId: string) => {
+    setHiddenColumnIds((prev) => (prev.includes(colId) ? prev : [...prev, colId]));
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    setHiddenColumnIds([]);
+    setInternalSortKey(null);
+    setInternalSortDir(null);
+    if (onSort) onSort("");
+  }, [onSort]);
+
+  // Internal data sorting when external onSort is not used
+  const processedData = useMemo(() => {
+    if (!effectiveSortKey || !effectiveSortDir || onSort) {
+      return data;
+    }
+    const colDef = columns.find((c) => c.id === effectiveSortKey);
+    const key = (colDef?.accessorKey || effectiveSortKey) as keyof T;
+
+    return [...data].sort((a, b) => {
+      const valA = (a as any)[key];
+      const valB = (b as any)[key];
+      if (valA == null && valB == null) return 0;
+      if (valA == null) return 1;
+      if (valB == null) return -1;
+      if (typeof valA === "number" && typeof valB === "number") {
+        return effectiveSortDir === "asc" ? valA - valB : valB - valA;
+      }
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      return effectiveSortDir === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
+    });
+  }, [data, effectiveSortKey, effectiveSortDir, onSort, columns]);
+
   // Column width state for resizing
   const defaultWidths = useRef<Record<string, number>>(
     columns.reduce((acc, col) => {
@@ -144,17 +221,17 @@ export function DataTable<T>({
 
   // Select all logic
   const allSelected =
-    data.length > 0 &&
-    data.every((item, idx) => selectedIds.includes(getRowId(item, idx)));
+    processedData.length > 0 &&
+    processedData.every((item, idx) => selectedIds.includes(getRowId(item, idx)));
 
   const handleToggleSelectAll = () => {
     if (!onSelectionChange) return;
     if (allSelected) {
-      const currentPageIds = new Set(data.map((item, idx) => getRowId(item, idx)));
+      const currentPageIds = new Set(processedData.map((item, idx) => getRowId(item, idx)));
       onSelectionChange(selectedIds.filter((id) => !currentPageIds.has(id)));
     } else {
       const newIds = new Set(selectedIds);
-      data.forEach((item, idx) => newIds.add(getRowId(item, idx)));
+      processedData.forEach((item, idx) => newIds.add(getRowId(item, idx)));
       onSelectionChange(Array.from(newIds));
     }
   };
@@ -171,6 +248,22 @@ export function DataTable<T>({
 
   return (
     <div className={`bg-white dark:bg-[#1e293b] flex flex-col rounded-none border-0 ${className}`}>
+      {/* Hidden Columns Bar with Instant Unhide */}
+      {hiddenColumnIds.length > 0 && (
+        <div className="flex items-center justify-between px-3.5 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-200 select-none">
+          <span>
+            {hiddenColumnIds.length} column{hiddenColumnIds.length > 1 ? "s" : ""} hidden
+          </span>
+          <button
+            type="button"
+            onClick={() => setHiddenColumnIds([])}
+            className="font-semibold underline hover:text-amber-950 dark:hover:text-amber-100 cursor-pointer"
+          >
+            Unhide All Columns
+          </button>
+        </div>
+      )}
+
       {/* Scrollable Spreadsheet Table */}
       <div className="overflow-x-auto scrollbar-slim">
         <table
@@ -195,13 +288,13 @@ export function DataTable<T>({
                     checked={allSelected}
                     onChange={handleToggleSelectAll}
                     aria-label="Select all rows"
-                    className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer"
+                    className="w-4 h-4 rounded-xs text-[#31719B] accent-[#31719B] cursor-pointer"
                   />
                 </th>
               )}
 
               {/* Dynamic Resizable Header Columns */}
-              {columns.map((col) => {
+              {visibleColumns.map((col) => {
                 const colWidth = columnWidths[col.id] || col.width || 150;
                 const alignClass =
                   col.align === "center"
@@ -210,11 +303,14 @@ export function DataTable<T>({
                     ? "text-right"
                     : "text-left";
 
+                const isCurrentSortAsc = effectiveSortKey === col.id && effectiveSortDir === "asc";
+                const isCurrentSortDesc = effectiveSortKey === col.id && effectiveSortDir === "desc";
+
                 return (
                   <th
                     key={col.id}
                     scope="col"
-                    className={`relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap ${alignClass}`}
+                    className={`group/th relative px-3 py-2.5 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap select-none ${alignClass}`}
                     style={{
                       backgroundColor: "var(--orange-havy-light)",
                       width: `${colWidth}px`,
@@ -222,28 +318,50 @@ export function DataTable<T>({
                       maxWidth: `${colWidth}px`,
                     }}
                   >
-                    {col.sortable && onSort ? (
-                      <button
-                        type="button"
-                        onClick={() => onSort(col.id)}
-                        className={`flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none ${
-                          col.align === "right" ? "ml-auto" : col.align === "center" ? "mx-auto" : ""
+                    <div
+                      className={`flex items-center justify-between gap-1 w-full ${
+                        col.align === "right" ? "flex-row-reverse" : ""
+                      }`}
+                    >
+                      {/* Column Header Title & Sort Indicators */}
+                      <div
+                        onClick={() => {
+                          if (col.sortable !== false) {
+                            if (!effectiveSortKey || effectiveSortKey !== col.id) {
+                              handleSortAsc(col.id);
+                            } else if (effectiveSortDir === "asc") {
+                              handleSortDesc(col.id);
+                            } else {
+                              handleClearAll();
+                            }
+                          }
+                        }}
+                        className={`flex items-center gap-1.5 min-w-0 truncate ${
+                          col.sortable !== false ? "cursor-pointer hover:text-[#31719B]" : ""
                         }`}
+                        title={col.header}
                       >
-                        <span>{col.header}</span>
-                        {sortKey === col.id ? (
-                          sortDirection === "asc" ? (
-                            <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
-                          ) : (
-                            <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="w-3 h-3 opacity-30" />
+                        <span className="truncate">{col.header}</span>
+                        {isCurrentSortAsc && (
+                          <ArrowUp className="w-3.5 h-3.5 text-[#31719B] shrink-0" />
                         )}
-                      </button>
-                    ) : (
-                      <span>{col.header}</span>
-                    )}
+                        {isCurrentSortDesc && (
+                          <ArrowDown className="w-3.5 h-3.5 text-[#31719B] shrink-0" />
+                        )}
+                      </div>
+
+                      {/* Hover Three-Dot Column Menu */}
+                      <ColumnHeaderMenu
+                        columnId={col.id}
+                        columnHeader={col.header}
+                        isSortedAsc={isCurrentSortAsc}
+                        isSortedDesc={isCurrentSortDesc}
+                        onSortAsc={() => handleSortAsc(col.id)}
+                        onSortDesc={() => handleSortDesc(col.id)}
+                        onHideColumn={() => handleHideColumn(col.id)}
+                        onClearAll={handleClearAll}
+                      />
+                    </div>
 
                     {/* Drag to resize divider */}
                     <ColumnResizer
@@ -272,7 +390,7 @@ export function DataTable<T>({
             {loading ? (
               <tr>
                 <td
-                  colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}
+                  colSpan={visibleColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}
                   className="py-16 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-[#1e293b]"
                 >
                   <div className="flex flex-col items-center justify-center gap-2">
@@ -281,10 +399,10 @@ export function DataTable<T>({
                   </div>
                 </td>
               </tr>
-            ) : data.length === 0 ? (
+            ) : processedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}
+                  colSpan={visibleColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}
                   className="py-16 text-center text-gray-400 dark:text-gray-500 bg-white dark:bg-[#1e293b]"
                 >
                   <div className="flex flex-col items-center justify-center gap-2">
@@ -294,7 +412,7 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              data.map((item, idx) => {
+              processedData.map((item, idx) => {
                 const rowId = getRowId(item, idx);
                 const isSelected = selectedIds.includes(rowId);
 
@@ -323,13 +441,13 @@ export function DataTable<T>({
                           checked={isSelected}
                           onChange={(e) => handleToggleRow(rowId, e as any)}
                           aria-label={`Select row ${idx + 1}`}
-                          className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer"
+                          className="w-4 h-4 rounded-xs text-[#31719B] accent-[#31719B] cursor-pointer"
                         />
                       </td>
                     )}
 
-                    {/* Data Cells */}
-                    {columns.map((col) => {
+                    {/* Data Cells for visible columns */}
+                    {visibleColumns.map((col) => {
                       const colWidth = columnWidths[col.id] || col.width || 150;
                       const alignClass =
                         col.align === "center"
