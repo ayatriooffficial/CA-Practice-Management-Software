@@ -1,28 +1,57 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import WorkDoneClient from "../../components/workdone/WorkDoneClient";
 import WorkDoneServices from "./WorkDoneServices";
 import type { WorkDoneClient as Client } from "./types";
 import { fetchWorkDoneRequest } from "@/store/features/workdone/workdoneSlice";
 import { RootState } from "@/store";
+import { Button } from "@/components/ui/Button";
 
 export default function WorkDonePage() {
   const dispatch = useDispatch();
-  const { items: clients, loading, error } = useSelector((state: RootState) => state.workdone);
-  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+  const { items: clients, loading, error, pagination } = useSelector(
+    (state: RootState) => state.workdone
+  );
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
 
-  const fetchClients = useCallback(() => {
-    dispatch(fetchWorkDoneRequest(undefined));
-  }, [dispatch]);
+  const fetchClients = useCallback(
+    (currentPage = page, currentLimit = pageSize, currentSearch = search) => {
+      dispatch(
+        fetchWorkDoneRequest({
+          page: currentPage,
+          limit: currentLimit,
+          search: currentSearch.trim() || undefined,
+        })
+      );
+    },
+    [dispatch, page, pageSize, search]
+  );
 
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+    fetchClients(page, pageSize, search);
+  }, [page, pageSize, search, fetchClients]);
 
   const handleRefresh = () => {
-    fetchClients();
+    fetchClients(page, pageSize, search);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
   };
 
   const handleSelectClient = (client: Client) => {
@@ -44,19 +73,6 @@ export default function WorkDonePage() {
       <div className="mx-auto w-full max-w-[1800px]">
         {selectedClient ? (
           <WorkDoneServices client={selectedClient} onBack={handleBack} />
-        ) : loading ? (
-          // Loading State
-          <div className="flex min-h-[300px] flex-col items-center justify-center gap-3">
-            <div
-              className="h-9 w-9 animate-spin rounded-full border-4 border-gray-200"
-              style={{
-                borderTopColor: "var(--primary)",
-              }}
-            />
-            <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-              Loading clients...
-            </p>
-          </div>
         ) : error ? (
           // Error State
           <div
@@ -67,23 +83,35 @@ export default function WorkDonePage() {
             }}
           >
             <h2 className="text-lg font-bold text-red-600">Failed to Load Clients</h2>
-            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>{error}</p>
-            <button
+            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+              {error}
+            </p>
+            <Button
               onClick={handleRefresh}
-              className="mt-5 rounded-lg px-5 py-2 text-sm font-semibold text-white"
-              style={{
-                background: "var(--primary)",
-              }}
+              className="mt-5 rounded-sm"
+              variant="primary"
+              size="md"
             >
               Try Again
-            </button>
+            </Button>
           </div>
         ) : (
-          // Client List
+          // Client List with DataTable and Pagination
           <WorkDoneClient
             clients={clients}
+            loading={loading}
             onSelectClient={handleSelectClient}
             onRefresh={handleRefresh}
+            search={search}
+            onSearchChange={handleSearchChange}
+            pagination={{
+              currentPage: pagination?.page || page,
+              totalItems: pagination?.totalDocs ?? clients.length,
+              pageSize: pagination?.limit || pageSize,
+              onPageChange: handlePageChange,
+              rowsPerPageOptions: [10, 20, 50, 100],
+              onRowsPerPageChange: handlePageSizeChange,
+            }}
           />
         )}
       </div>

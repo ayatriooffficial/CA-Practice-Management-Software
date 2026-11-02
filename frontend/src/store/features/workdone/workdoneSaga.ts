@@ -1,4 +1,4 @@
-import { call, put, takeLatest, all } from 'redux-saga/effects';
+import { call, put, takeLatest } from 'redux-saga/effects';
 import { PayloadAction } from '@reduxjs/toolkit';
 import { SagaIterator } from 'redux-saga';
 import { fetchWorkDoneRequest, fetchWorkDoneSuccess, fetchWorkDoneFailure } from './workdoneSlice';
@@ -9,12 +9,11 @@ function fetchWorkDoneApi(params?: any) {
     return getWorkDone(params ?? {});
 }
 
-
 function* handleFetchWorkDone(action: PayloadAction<Record<string, any> | undefined>): SagaIterator {
     try {
         const response = yield call(fetchWorkDoneApi, action.payload);
-        const clients = response.data;
-        yield put(fetchWorkDoneSuccess({ clients }));
+        const clients = response.data || [];
+        yield put(fetchWorkDoneSuccess({ clients, pagination: response.pagination }));
     } catch (error: any) {
         yield put(fetchWorkDoneFailure(error.message || 'Failed to fetch workdone clients'));
         yield put(showToast({ type: 'error', message: error.message || 'Failed to fetch workdone clients' }));

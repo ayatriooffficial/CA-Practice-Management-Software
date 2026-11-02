@@ -1,8 +1,12 @@
-
 import { FinancialReceipt } from "../financials/financial.model";
+import { PaginationMeta } from "../../shared/utils/apiResponse";
 
 export class FinancialService {
-  static async workDoneClient(): Promise<any> {
+  static async workDoneClient(query: { page?: number | string; limit?: number | string; search?: string } = {}): Promise<{ items: any[]; pagination: PaginationMeta }> {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(query.limit) || 10));
+    const search = (query.search || "").trim().toLowerCase();
+
     const receipts = await FinancialReceipt.find().lean();
 
     const clientMap: { [key: string]: any } = {};
@@ -47,7 +51,7 @@ export class FinancialService {
       const governmentFee = Number(service.governmentFee || 0);
       const professionalFee = Number(service.professionalFee || 0);
 
-      const total=governmentFee+professionalFee;
+      const total = governmentFee + professionalFee;
 
       // GST applies to professional fees
       const gstRate =
@@ -154,7 +158,7 @@ export class FinancialService {
     });
 
     // Remove internal tracking Sets
-    return Object.values(clientMap).map((client: any) => {
+    let clients = Object.values(clientMap).map((client: any) => {
       const {
         countedInvoiceIds,
         countedInvoiceNumbers,
@@ -166,5 +170,29 @@ export class FinancialService {
         outstanding: result.totalCost - result.totalPaid,
       };
     });
+
+    if (search) {
+      clients = clients.filter((client: any) =>
+        (client.businessName && client.businessName.toLowerCase().includes(search)) ||
+        (client.legalName && client.legalName.toLowerCase().includes(search)) ||
+        (client.clientId && client.clientId.toLowerCase().includes(search))
+      );
+    }
+
+    const totalDocs = clients.length;
+    const totalPages = Math.ceil(totalDocs / limit) || 1;
+    const startIndex = (page - 1) * limit;
+    const items = clients.slice(startIndex, startIndex + limit);
+
+    const pagination: PaginationMeta = {
+      page,
+      limit,
+      totalDocs,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+
+    return { items, pagination };
   }
 }
