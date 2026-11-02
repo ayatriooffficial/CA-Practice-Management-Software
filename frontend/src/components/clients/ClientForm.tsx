@@ -76,6 +76,80 @@ interface RecurringRow {
   tariff: string;
 }
 
+const createEmptyPromoterRow = (key: number): PromoterRow => ({
+  key,
+  name: "",
+  pan: "",
+  share: "",
+  designation: "",
+  mcaId: "",
+  mcaPassword: "",
+});
+
+const isPromoterRowEmpty = (r: PromoterRow) =>
+  !r.name?.trim() &&
+  !r.pan?.trim() &&
+  !r.share?.trim() &&
+  !r.designation?.trim() &&
+  !r.mcaId?.trim() &&
+  !r.mcaPassword?.trim();
+
+const ensureTrailingEmptyPromoter = (rows: PromoterRow[]): PromoterRow[] => {
+  if (rows.length === 0) return [createEmptyPromoterRow(1)];
+  const last = rows[rows.length - 1];
+  if (!isPromoterRowEmpty(last)) {
+    const nextKey = Math.max(0, ...rows.map((r) => r.key)) + 1;
+    return [...rows, createEmptyPromoterRow(nextKey)];
+  }
+  return rows;
+};
+
+const createEmptyStatutoryRow = (key: number): StatutoryRow => ({
+  key,
+  type: "",
+  idNo: "",
+  userId: "",
+  password: "",
+  attachment: null,
+});
+
+const isStatutoryRowEmpty = (s: StatutoryRow) =>
+  !s.type?.trim() &&
+  !s.idNo?.trim() &&
+  !s.userId?.trim() &&
+  !s.password?.trim() &&
+  !s.attachment;
+
+const ensureTrailingEmptyStatutory = (rows: StatutoryRow[]): StatutoryRow[] => {
+  if (rows.length === 0) return [createEmptyStatutoryRow(1)];
+  const last = rows[rows.length - 1];
+  if (!isStatutoryRowEmpty(last)) {
+    const nextKey = Math.max(0, ...rows.map((r) => r.key)) + 1;
+    return [...rows, createEmptyStatutoryRow(nextKey)];
+  }
+  return rows;
+};
+
+const createEmptyRecurringRow = (key: number): RecurringRow => ({
+  key,
+  category: "",
+  service: "",
+  tariff: "0.00",
+});
+
+const isRecurringRowEmpty = (r: RecurringRow) =>
+  !r.category?.trim() && !r.service?.trim();
+
+const ensureTrailingEmptyRecurring = (rows: RecurringRow[]): RecurringRow[] => {
+  if (rows.length === 0) return [createEmptyRecurringRow(1)];
+  const last = rows[rows.length - 1];
+  if (!isRecurringRowEmpty(last)) {
+    const nextKey = Math.max(0, ...rows.map((r) => r.key)) + 1;
+    return [...rows, createEmptyRecurringRow(nextKey)];
+  }
+  return rows;
+};
+
 export const ClientForm: React.FC<ClientFormProps> = ({
   initialClient,
   onSave,
@@ -142,10 +216,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [pincode, setPincode] = useState(initialClient?.pincode || "");
   const [photo, setPhoto] = useState<string | null>(initialClient?.photo || null);
 
-  // Customer Files Grid State (Load from initialClient if editing, otherwise starts with 1 blank row)
+  // Customer Files Grid State (Load from initialClient if editing, always ensures at least 1 trailing empty row)
   const [promoterRows, setPromoterRows] = useState<PromoterRow[]>(() => {
     if (initialClient?.customerFiles?.promoter && initialClient.customerFiles.promoter.length > 0) {
-      return initialClient.customerFiles.promoter.map((p: any, idx: number) => ({
+      const mapped = initialClient.customerFiles.promoter.map((p: any, idx: number) => ({
         key: p.key || idx + 1,
         name: p.name || "",
         pan: p.pan || "",
@@ -154,13 +228,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         mcaId: p.mcaId || "",
         mcaPassword: p.mcaPassword || "",
       }));
+      return ensureTrailingEmptyPromoter(mapped);
     }
-    return [{ key: 1, name: "", pan: "", share: "", designation: "", mcaId: "", mcaPassword: "" }];
+    return [createEmptyPromoterRow(1)];
   });
 
   const [statutoryRows, setStatutoryRows] = useState<StatutoryRow[]>(() => {
     if (initialClient?.customerFiles?.statutory && initialClient.customerFiles.statutory.length > 0) {
-      return initialClient.customerFiles.statutory.map((s: any, idx: number) => ({
+      const mapped = initialClient.customerFiles.statutory.map((s: any, idx: number) => ({
         key: s.key || idx + 1,
         type: s.type || "",
         idNo: s.idNo || "",
@@ -168,20 +243,22 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         password: s.password || "",
         attachment: s.attachment || null,
       }));
+      return ensureTrailingEmptyStatutory(mapped);
     }
-    return [{ key: 1, type: "", idNo: "", userId: "", password: "", attachment: null }];
+    return [createEmptyStatutoryRow(1)];
   });
 
   const [recurringRows, setRecurringRows] = useState<RecurringRow[]>(() => {
     if (initialClient?.customerFiles?.recurring && initialClient.customerFiles.recurring.length > 0) {
-      return initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
+      const mapped = initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
         key: r.key || idx + 1,
         category: r.category || "",
         service: r.service || "",
         tariff: r.tariff || "0.00",
       }));
+      return ensureTrailingEmptyRecurring(mapped);
     }
-    return [{ key: 1, category: "", service: "", tariff: "0.00" }];
+    return [createEmptyRecurringRow(1)];
   });
 
   // Re-sync form fields when initialClient changes
@@ -203,41 +280,44 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       setPhoto(initialClient.photo || null);
 
       if (initialClient.customerFiles?.promoter && initialClient.customerFiles.promoter.length > 0) {
-        setPromoterRows(
-          initialClient.customerFiles.promoter.map((p: any, idx: number) => ({
-            key: p.key || idx + 1,
-            name: p.name || "",
-            pan: p.pan || "",
-            share: p.share || "",
-            designation: p.designation || "",
-            mcaId: p.mcaId || "",
-            mcaPassword: p.mcaPassword || "",
-          }))
-        );
+        const mapped = initialClient.customerFiles.promoter.map((p: any, idx: number) => ({
+          key: p.key || idx + 1,
+          name: p.name || "",
+          pan: p.pan || "",
+          share: p.share || "",
+          designation: p.designation || "",
+          mcaId: p.mcaId || "",
+          mcaPassword: p.mcaPassword || "",
+        }));
+        setPromoterRows(ensureTrailingEmptyPromoter(mapped));
+      } else {
+        setPromoterRows([createEmptyPromoterRow(1)]);
       }
 
       if (initialClient.customerFiles?.statutory && initialClient.customerFiles.statutory.length > 0) {
-        setStatutoryRows(
-          initialClient.customerFiles.statutory.map((s: any, idx: number) => ({
-            key: s.key || idx + 1,
-            type: s.type || "",
-            idNo: s.idNo || "",
-            userId: s.userId || "",
-            password: s.password || "",
-            attachment: s.attachment || null,
-          }))
-        );
+        const mapped = initialClient.customerFiles.statutory.map((s: any, idx: number) => ({
+          key: s.key || idx + 1,
+          type: s.type || "",
+          idNo: s.idNo || "",
+          userId: s.userId || "",
+          password: s.password || "",
+          attachment: s.attachment || null,
+        }));
+        setStatutoryRows(ensureTrailingEmptyStatutory(mapped));
+      } else {
+        setStatutoryRows([createEmptyStatutoryRow(1)]);
       }
 
       if (initialClient.customerFiles?.recurring && initialClient.customerFiles.recurring.length > 0) {
-        setRecurringRows(
-          initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
-            key: r.key || idx + 1,
-            category: r.category || "",
-            service: r.service || "",
-            tariff: r.tariff || "0.00",
-          }))
-        );
+        const mapped = initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
+          key: r.key || idx + 1,
+          category: r.category || "",
+          service: r.service || "",
+          tariff: r.tariff || "0.00",
+        }));
+        setRecurringRows(ensureTrailingEmptyRecurring(mapped));
+      } else {
+        setRecurringRows([createEmptyRecurringRow(1)]);
       }
     }
   }, [initialClient]);
@@ -363,7 +443,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   // Promoter Grid Updates (Searchable Dropdown handler)
   const handleSelectPromoter = (key: number, promoter: PromoterItem) => {
     setPromoterRows((prev) => {
-      let updated = prev.map((row) => {
+      const updated = prev.map((row) => {
         if (row.key === key) {
           return {
             ...row,
@@ -376,45 +456,33 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         }
         return row;
       });
-
-      // If last row has data, append next blank row automatically
-      const last = updated[updated.length - 1];
-      if (last.name || last.pan || last.share || last.designation) {
-        updated.push({
-          key: Math.max(...updated.map((r) => r.key)) + 1,
-          name: "",
-          pan: "",
-          share: "",
-          designation: "",
-          mcaId: "",
-          mcaPassword: "",
-        });
-      }
-      return updated;
+      return ensureTrailingEmptyPromoter(updated);
     });
   };
 
   const handleClearPromoter = (key: number) => {
     setPromoterRows((prev) =>
-      prev.map((row) => {
-        if (row.key === key) {
-          return {
-            ...row,
-            name: "",
-            pan: "",
-            mcaId: "",
-            mcaPassword: "",
-          };
-        }
-        return row;
-      })
+      ensureTrailingEmptyPromoter(
+        prev.map((row) => {
+          if (row.key === key) {
+            return {
+              ...row,
+              name: "",
+              pan: "",
+              mcaId: "",
+              mcaPassword: "",
+            };
+          }
+          return row;
+        })
+      )
     );
   };
 
   // Manual input field updates for promoter row
   const updatePromoterRow = (key: number, field: keyof PromoterRow, val: string) => {
     setPromoterRows((prev) => {
-      let updated = prev.map((row) => {
+      const updated = prev.map((row) => {
         if (row.key === key) {
           const next = { ...row, [field]: val };
           // If name is selected or typed, auto-fill PAN & MCA details!
@@ -432,60 +500,34 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         }
         return row;
       });
-
-      // If last row has data, append next blank row automatically
-      const last = updated[updated.length - 1];
-      if (last.name || last.pan || last.share || last.designation) {
-        updated.push({
-          key: Math.max(...updated.map((r) => r.key)) + 1,
-          name: "",
-          pan: "",
-          share: "",
-          designation: "",
-          mcaId: "",
-          mcaPassword: "",
-        });
-      }
-      return updated;
+      return ensureTrailingEmptyPromoter(updated);
     });
   };
 
   const removePromoterRow = (key: number) => {
     setPromoterRows((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((r) => r.key !== key);
+      const filtered = prev.filter((r) => r.key !== key);
+      return ensureTrailingEmptyPromoter(filtered);
     });
   };
 
   // Statutory Grid Updates
   const updateStatutoryRow = (key: number, field: keyof StatutoryRow, val: any) => {
     setStatutoryRows((prev) => {
-      let updated = prev.map((row) => {
+      const updated = prev.map((row) => {
         if (row.key === key) {
           return { ...row, [field]: val };
         }
         return row;
       });
-
-      const last = updated[updated.length - 1];
-      if (last.type || last.idNo || last.userId) {
-        updated.push({
-          key: Math.max(...updated.map((r) => r.key)) + 1,
-          type: "",
-          idNo: "",
-          userId: "",
-          password: "",
-          attachment: null,
-        });
-      }
-      return updated;
+      return ensureTrailingEmptyStatutory(updated);
     });
   };
 
   const removeStatutoryRow = (key: number) => {
     setStatutoryRows((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((r) => r.key !== key);
+      const filtered = prev.filter((r) => r.key !== key);
+      return ensureTrailingEmptyStatutory(filtered);
     });
     setCustomStatutoryKeys((prev) => {
       const copy = { ...prev };
@@ -497,30 +539,20 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   // Recurring Grid Updates
   const updateRecurringRow = (key: number, field: keyof RecurringRow, val: string) => {
     setRecurringRows((prev) => {
-      let updated = prev.map((row) => {
+      const updated = prev.map((row) => {
         if (row.key === key) {
           return { ...row, [field]: val };
         }
         return row;
       });
-
-      const last = updated[updated.length - 1];
-      if (last.category || last.service) {
-        updated.push({
-          key: Math.max(...updated.map((r) => r.key)) + 1,
-          category: "",
-          service: "",
-          tariff: "0.00",
-        });
-      }
-      return updated;
+      return ensureTrailingEmptyRecurring(updated);
     });
   };
 
   const removeRecurringRow = (key: number) => {
     setRecurringRows((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((r) => r.key !== key);
+      const filtered = prev.filter((r) => r.key !== key);
+      return ensureTrailingEmptyRecurring(filtered);
     });
   };
 
@@ -1511,6 +1543,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           maxLength={10}
                           value={row.pan}
                           onChange={(e) => updatePromoterRow(row.key, "pan", e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setPromoterRows((prev) => ensureTrailingEmptyPromoter(prev));
+                            }
+                          }}
                           placeholder="PAN"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs uppercase font-mono outline-none focus:border-[#31719B]"
                         />
@@ -1523,6 +1561,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           type="text"
                           value={row.share}
                           onChange={(e) => updatePromoterRow(row.key, "share", e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setPromoterRows((prev) => ensureTrailingEmptyPromoter(prev));
+                            }
+                          }}
                           placeholder="% of Share"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs outline-none focus:border-[#31719B]"
                         />
@@ -1535,6 +1579,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           type="text"
                           value={row.designation}
                           onChange={(e) => updatePromoterRow(row.key, "designation", e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setPromoterRows((prev) => ensureTrailingEmptyPromoter(prev));
+                            }
+                          }}
                           placeholder="Designation"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs outline-none focus:border-[#31719B]"
                         />
@@ -1547,6 +1597,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           type="text"
                           value={row.mcaId}
                           onChange={(e) => updatePromoterRow(row.key, "mcaId", e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setPromoterRows((prev) => ensureTrailingEmptyPromoter(prev));
+                            }
+                          }}
                           placeholder="MCA ID"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs outline-none focus:border-[#31719B]"
                         />
@@ -1560,6 +1616,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             type={showPromoterMcaPw[row.key] ? "text" : "password"}
                             value={row.mcaPassword || ""}
                             onChange={(e) => updatePromoterRow(row.key, "mcaPassword", e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                setPromoterRows((prev) => ensureTrailingEmptyPromoter(prev));
+                              }
+                            }}
                             placeholder="Password"
                             className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-2.5 pr-7 text-xs outline-none focus:border-[#31719B]"
                           />
@@ -1575,11 +1637,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         </div>
                       </td>
                       <td className="px-2 py-2 text-center">
-                        {promoterRows.length > 1 && (row.name || row.pan) && (
+                        {!isPromoterRowEmpty(row) && (
                           <button
                             type="button"
                             onClick={() => removePromoterRow(row.key)}
-                            className="p-1 text-gray-400 hover:text-[#e8655a] rounded"
+                            className="p-1 text-gray-400 hover:text-[#e8655a] rounded cursor-pointer"
                             title="Remove line"
                             aria-label={`Remove promoter row ${idx + 1}`}
                           >
@@ -1592,6 +1654,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 </tbody>
               </table>
             </div>
+            <button
+              type="button"
+              onClick={() => setPromoterRows((prev) => ensureTrailingEmptyPromoter(prev))}
+              className="mt-1 text-xs font-semibold text-[#31719B] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Promoter</span>
+            </button>
           </div>
 
           {/* Section B: Statutory Details */}
@@ -1684,6 +1754,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           type="text"
                           value={row.idNo}
                           onChange={(e) => updateStatutoryRow(row.key, "idNo", e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setStatutoryRows((prev) => ensureTrailingEmptyStatutory(prev));
+                            }
+                          }}
                           placeholder="ID No"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs font-mono outline-none focus:border-[#31719B]"
                         />
@@ -1696,6 +1772,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           type="text"
                           value={row.userId}
                           onChange={(e) => updateStatutoryRow(row.key, "userId", e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setStatutoryRows((prev) => ensureTrailingEmptyStatutory(prev));
+                            }
+                          }}
                           placeholder="User ID"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs outline-none focus:border-[#31719B]"
                         />
@@ -1709,6 +1791,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             type={showStatutoryPw[row.key] ? "text" : "password"}
                             value={row.password || ""}
                             onChange={(e) => updateStatutoryRow(row.key, "password", e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                setStatutoryRows((prev) => ensureTrailingEmptyStatutory(prev));
+                              }
+                            }}
                             placeholder="Password"
                             className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-2.5 pr-7 text-xs outline-none focus:border-[#31719B]"
                           />
@@ -1763,11 +1851,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         </label>
                       </td>
                       <td className="px-2 py-2 text-center">
-                        {statutoryRows.length > 1 && (row.type || row.idNo) && (
+                        {!isStatutoryRowEmpty(row) && (
                           <button
                             type="button"
                             onClick={() => removeStatutoryRow(row.key)}
-                            className="p-1 text-gray-400 hover:text-[#e8655a] rounded"
+                            className="p-1 text-gray-400 hover:text-[#e8655a] rounded cursor-pointer"
                             title="Remove line"
                             aria-label={`Remove statutory row ${idx + 1}`}
                           >
@@ -1780,6 +1868,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 </tbody>
               </table>
             </div>
+            <button
+              type="button"
+              onClick={() => setStatutoryRows((prev) => ensureTrailingEmptyStatutory(prev))}
+              className="mt-1 text-xs font-semibold text-[#31719B] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Statutory Details</span>
+            </button>
           </div>
 
           {/* Section C: Recurring Service Obtained */}
@@ -1871,16 +1967,22 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           type="text"
                           value={row.tariff}
                           onChange={(e) => updateRecurringRow(row.key, "tariff", e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              setRecurringRows((prev) => ensureTrailingEmptyRecurring(prev));
+                            }
+                          }}
                           placeholder="0.00"
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs text-right font-mono outline-none focus:border-[#31719B]"
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
-                        {recurringRows.length > 1 && (row.category || row.service) && (
+                        {!isRecurringRowEmpty(row) && (
                           <button
                             type="button"
                             onClick={() => removeRecurringRow(row.key)}
-                            className="p-1 text-gray-400 hover:text-[#e8655a] rounded"
+                            className="p-1 text-gray-400 hover:text-[#e8655a] rounded cursor-pointer"
                             title="Remove line"
                             aria-label={`Remove recurring service row ${idx + 1}`}
                           >
@@ -1893,6 +1995,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 </tbody>
               </table>
             </div>
+            <button
+              type="button"
+              onClick={() => setRecurringRows((prev) => ensureTrailingEmptyRecurring(prev))}
+              className="mt-1 text-xs font-semibold text-[#31719B] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Recurring Service</span>
+            </button>
           </div>
 
           {/* Form Actions (Cancel / Save) */}

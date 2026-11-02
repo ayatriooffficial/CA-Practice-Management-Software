@@ -62,7 +62,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   client,
   allServices,
   onClientUpdated,
-  showToast = () => {},
+  showToast = () => { },
   handleDeleteContact,
   setIsAddNoteOpen,
   handleDeleteNote,
@@ -372,7 +372,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           {/* ========================================================================= */}
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-5 rounded-lg"
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-5 "
           >
             <div className="flex items-center justify-between pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
@@ -393,11 +393,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
               </div>
 
               <span
-                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
-                  client.active !== false
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${client.active !== false
                     ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
                     : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300"
-                }`}
+                  }`}
               >
                 {client.active !== false ? "● Active & In Good Standing" : "● Inactive"}
               </span>
@@ -592,7 +591,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           {/* ========================================================================= */}
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 "
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
@@ -609,9 +608,9 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
                     {contactsList.length > 0
                       ? `Showing ${(safeContactsPage - 1) * CONTACTS_PER_PAGE + 1}–${Math.min(
-                          safeContactsPage * CONTACTS_PER_PAGE,
-                          contactsList.length
-                        )} of ${contactsList.length} directors • Limit 3 per page`
+                        safeContactsPage * CONTACTS_PER_PAGE,
+                        contactsList.length
+                      )} of ${contactsList.length} directors • Limit 3 per page`
                       : "No directors registered"}
                   </p>
                 </div>
@@ -634,7 +633,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {contactsList.length === 0 ? (
-              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30  border border-dashed border-gray-300 dark:border-gray-700">
                 <User className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No directors or contacts registered yet.
@@ -660,20 +659,18 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   return (
                     <div
                       key={contact.id || idx}
-                      className={`border rounded-md p-4 transition-all shadow-2xs ${
-                        isPrimary
+                      className={`border rounded-md p-4 transition-all shadow-2xs ${isPrimary
                           ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20"
                           : "border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-xs ${
-                              isPrimary
+                            className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-xs ${isPrimary
                                 ? "bg-blue-100 dark:bg-blue-900/50 text-[#31719B] dark:text-[#60a5fa]"
                                 : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                            }`}
+                              }`}
                           >
                             {(contact.name || "D").slice(0, 2).toUpperCase()}
                           </div>
@@ -683,11 +680,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                 {contact.name}
                               </span>
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  isPrimary
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${isPrimary
                                     ? "bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]"
                                     : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                                }`}
+                                  }`}
                               >
                                 {isPrimary ? "Primary Director" : "Director"}
                               </span>
@@ -882,7 +878,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           {/* ========================================================================= */}
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 "
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
@@ -965,7 +961,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
             {/* Statutory Registrations from customerFiles.statutory */}
             {statutoryList.length === 0 ? (
-              <div className="py-6 text-center bg-white/60 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+              <div className="py-6 text-center bg-white/60 dark:bg-gray-800/30  border border-dashed border-gray-300 dark:border-gray-700">
                 <ShieldCheck className="w-7 h-7 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No additional statutory records stored.
@@ -1060,7 +1056,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           {/* ========================================================================= */}
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 "
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
@@ -1082,7 +1078,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {recurringServicesList.length === 0 ? (
-              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30  border border-dashed border-gray-300 dark:border-gray-700">
                 <Repeat className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No recurring service engagements configured.
@@ -1130,7 +1126,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           {/* ========================================================================= */}
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 "
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
@@ -1164,7 +1160,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {passwordsList.length === 0 ? (
-              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30  border border-dashed border-gray-300 dark:border-gray-700">
                 <Lock className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No portal credentials stored.
@@ -1356,7 +1352,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           {/* ========================================================================= */}
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 "
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
@@ -1390,7 +1386,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {licensesList.length === 0 ? (
-              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30  border border-dashed border-gray-300 dark:border-gray-700">
                 <Award className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No statutory licenses added.
@@ -1531,7 +1527,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
         <div className="lg:col-span-4 sticky top-4 space-y-4">
           <div
             style={{ backgroundColor: "var(--orange-havy-light)" }}
-            className="border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-hidden flex flex-col max-h-[820px] shadow-xs"
+            className="border border-[#dde2e8] dark:border-[#334155]  overflow-hidden flex flex-col max-h-[820px] shadow-xs"
           >
             {/* Notes Header */}
             <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between gap-2 shrink-0">
@@ -1592,10 +1588,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                         <span className="text-[10px] text-gray-400 block mt-0.5">
                           {note.createdAt
                             ? new Date(note.createdAt).toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
                             : "Recent"}
                         </span>
                       </div>

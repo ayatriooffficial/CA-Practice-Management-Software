@@ -403,7 +403,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
             setSubTab("proforma");
             setPage(1);
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${subTab === "proforma"
+          className={`px-4 py-1.5 rounded-sm text-xs font-semibold transition-all cursor-pointer border ${subTab === "proforma"
             ? "shadow-xs"
             : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
             }`}
@@ -426,7 +426,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
             setSubTab("invoice");
             setPage(1);
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${subTab === "invoice"
+          className={`px-4 py-1.5 rounded-sm text-xs font-semibold transition-all cursor-pointer border ${subTab === "invoice"
             ? "shadow-xs"
             : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
             }`}
@@ -489,7 +489,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
       </div>
 
       {/* Table Container */}
-      <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-xs">
+      <div className="bg-white dark:bg-[#1e293b]   border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
