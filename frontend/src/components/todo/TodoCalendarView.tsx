@@ -1,7 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ChevronLeft, ChevronRight, X, Calendar, AlertCircle, CheckCircle2, Clock, ExternalLink } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Plus,
+  List as ListIcon,
+  Filter,
+} from "lucide-react";
 import { todoApi, TodoCalendarEvent } from "@/services/todoApi";
 import { teamStore } from "@/components/team/teamStore";
 import { EmployeeRecord } from "@/components/team/types";
@@ -16,6 +29,13 @@ const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 type TypeFilter = "All" | "admin_deadline" | "task_due" | "personal_todo";
 type StatusFilter = "All" | "Pending" | "Overdue" | "Completed";
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "All", label: "All statuses" },
+  { value: "Pending", label: "Pending / Upcoming" },
+  { value: "Overdue", label: "Overdue" },
+  { value: "Completed", label: "Completed" },
+];
 
 function toMonthString(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
@@ -95,7 +115,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClose }) =
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-subtle hover:text-main hover:bg-subtle transition-colors"
+            className="p-1 rounded-md text-subtle hover:text-main hover:bg-subtle transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -155,7 +175,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClose }) =
         <div className="mt-6 pt-3 border-t flex justify-end gap-2" style={{ borderColor: "var(--border-main)" }}>
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-subtle transition-colors"
+            className="px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-subtle transition-colors cursor-pointer"
             style={{ borderColor: "var(--border-main)" }}
           >
             Close
@@ -290,6 +310,7 @@ interface CalendarCellProps {
   events: TodoCalendarEvent[];
   todayStr: string;
   onSelectEvent: (ev: TodoCalendarEvent) => void;
+  onCellClick?: () => void;
 }
 
 const CalendarCell: React.FC<CalendarCellProps> = ({
@@ -298,6 +319,7 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
   events,
   todayStr,
   onSelectEvent,
+  onCellClick,
 }) => {
   const [showPopover, setShowPopover] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
@@ -311,7 +333,8 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
   return (
     <div
       ref={cellRef}
-      className={`min-h-[110px] p-2 flex flex-col justify-between transition-colors relative border ${
+      onClick={onCellClick}
+      className={`min-h-[115px] p-2 flex flex-col justify-between transition-colors relative border cursor-pointer hover:bg-slate-50/60 dark:hover:bg-slate-800/40 ${
         !isCurrentMonth ? "opacity-35" : ""
       }`}
       style={{
@@ -320,30 +343,32 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
       }}
     >
       {/* Day number */}
-      <div className="flex items-center gap-1.5 mb-1">
-        {isToday ? (
-          <>
+      <div className="flex items-center justify-between mb-1 pointer-events-none">
+        <div className="flex items-center gap-1.5">
+          {isToday ? (
+            <>
+              <span
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-xs shrink-0"
+                style={{ backgroundColor: "var(--primary)", color: "var(--text-inverse)" }}
+              >
+                {dayNum}
+              </span>
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: "var(--primary)" }}
+              >
+                TODAY
+              </span>
+            </>
+          ) : (
             <span
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-xs shrink-0"
-              style={{ backgroundColor: "var(--primary)", color: "var(--text-inverse)" }}
+              className="text-xs font-medium"
+              style={{ color: isCurrentMonth ? "var(--text-main)" : "var(--text-subtle)" }}
             >
               {dayNum}
             </span>
-            <span
-              className="text-[10px] font-bold uppercase tracking-wider"
-              style={{ color: "var(--primary)" }}
-            >
-              TODAY
-            </span>
-          </>
-        ) : (
-          <span
-            className="text-xs font-medium"
-            style={{ color: isCurrentMonth ? "var(--text-main)" : "var(--text-subtle)" }}
-          >
-            {dayNum}
-          </span>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Event badges */}
@@ -367,7 +392,7 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
                 e.stopPropagation();
                 onSelectEvent(ev);
               }}
-              className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-opacity hover:opacity-85 ${badgeClasses}`}
+              className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-opacity hover:opacity-85 cursor-pointer ${badgeClasses}`}
               title={`${ev.title} (${ev.date})`}
             >
               {ev.title}
@@ -382,7 +407,7 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
               e.stopPropagation();
               setShowPopover(true);
             }}
-            className="text-[10px] font-semibold text-primary hover:underline text-left mt-0.5"
+            className="text-[10px] font-semibold text-primary hover:underline text-left mt-0.5 cursor-pointer"
           >
             +{overflow} more
           </button>
@@ -405,14 +430,22 @@ const CalendarCell: React.FC<CalendarCellProps> = ({
   );
 };
 
-interface TodoCalendarViewProps {
+export interface TodoCalendarViewProps {
   initialEmployeeFilter?: string;
   isAdmin?: boolean;
+  onSwitchToList?: () => void;
+  onAddTodo?: (dateStr?: string) => void;
+  adminScope?: "my_work" | "team_work" | "all_work";
+  onScopeChange?: (scope: "my_work" | "team_work" | "all_work") => void;
 }
 
 export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   initialEmployeeFilter = "All",
   isAdmin = false,
+  onSwitchToList,
+  onAddTodo,
+  adminScope = "my_work",
+  onScopeChange,
 }) => {
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth() + 1); // 1-12
@@ -420,18 +453,32 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("All");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+
   const [employeeFilter, setEmployeeFilter] = useState<string>(initialEmployeeFilter);
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<TodoCalendarEvent | null>(null);
 
   const monthStr = toMonthString(currentYear, currentMonth);
 
-  // Sync initial employee filter if changed externally
+  // Sync initial employee filter
   useEffect(() => {
     if (initialEmployeeFilter) {
       setEmployeeFilter(initialEmployeeFilter);
     }
   }, [initialEmployeeFilter]);
+
+  // Click outside to close status dropdown
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setStatusOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Load employees for admin calendar filtering
   useEffect(() => {
@@ -500,22 +547,41 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     setCurrentMonth(now.getMonth() + 1);
   };
 
-  // Filter events
+  // Filter events based on scope, type, and status
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
+      // Admin Scope Filtering
+      if (isAdmin) {
+        if (adminScope === "my_work") {
+          // My Work shows personal to-dos and owner administrative deadlines
+          if (!ev.isPersonal && ev.type !== "admin_deadline" && ev.type !== "personal_todo") {
+            return false;
+          }
+        } else if (adminScope === "team_work") {
+          // Team Work shows delegated tasks to team members
+          if (ev.isPersonal || ev.type === "admin_deadline") {
+            return false;
+          }
+        }
+      }
+
+      // Type filter
       if (typeFilter !== "All") {
         if (typeFilter === "personal_todo" && ev.type !== "personal_todo") return false;
         if (typeFilter === "admin_deadline" && ev.type !== "admin_deadline") return false;
         if (typeFilter === "task_due" && ev.type !== "task_due" && ev.type !== "task_start") return false;
       }
+
+      // Status filter
       if (statusFilter !== "All") {
         if (statusFilter === "Completed" && !ev.isCompleted) return false;
         if (statusFilter === "Overdue" && !ev.isOverdue) return false;
         if (statusFilter === "Pending" && (ev.isCompleted || ev.isOverdue)) return false;
       }
+
       return true;
     });
-  }, [events, typeFilter, statusFilter]);
+  }, [events, isAdmin, adminScope, typeFilter, statusFilter]);
 
   // Map events by date
   const eventsByDate = useMemo(() => {
@@ -533,53 +599,175 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     [currentYear, currentMonth]
   );
 
+  const currentStatusLabel =
+    STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label || "All statuses";
+
   return (
-    <div
-      className="w-full rounded-xl border p-4 sm:p-6"
-      style={{
-        backgroundColor: "var(--bg-surface)",
-        borderColor: "var(--border-main)",
-      }}
-    >
-      {/* Top Header / Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b" style={{ borderColor: "var(--border-main)" }}>
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-main">
-            {MONTH_NAMES[currentMonth - 1]} {currentYear}
-          </h2>
-          <div className="flex items-center gap-1 border rounded-lg p-0.5" style={{ borderColor: "var(--border-main)" }}>
-            <button
-              onClick={handlePrevMonth}
-              className="p-1 rounded-md text-subtle hover:text-main hover:bg-subtle transition-colors"
-              title="Previous Month"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleToday}
-              className="px-2 py-0.5 text-xs font-semibold rounded-md hover:bg-subtle transition-colors"
-              style={{ color: "var(--primary)" }}
-            >
-              Today
-            </button>
-            <button
-              onClick={handleNextMonth}
-              className="p-1 rounded-md text-subtle hover:text-main hover:bg-subtle transition-colors"
-              title="Next Month"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+    <div className="flex flex-col w-full flex-1 min-h-[calc(100vh-120px)] bg-white dark:bg-card">
+      {/* 1. Filter and Control Bar matching NoticeCalendarView exactly */}
+      <div
+        className="px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 border-b text-xs"
+        style={{
+          backgroundColor: "var(--bg-surface)",
+          borderColor: "var(--border-main)",
+        }}
+      >
+        {/* Left: Month Navigator & Quick Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handlePrevMonth}
+            className="p-1 rounded border hover:opacity-70 transition-colors cursor-pointer"
+            style={{ borderColor: "var(--border-main)", color: "var(--text-subtle)" }}
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div
+            className="flex items-center gap-1 px-2.5 py-1 rounded border font-medium"
+            style={{ borderColor: "var(--border-main)", color: "var(--text-main)" }}
+          >
+            <span>
+              {MONTH_NAMES[currentMonth - 1]} {currentYear}
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={handleNextMonth}
+            className="p-1 rounded border hover:opacity-70 transition-colors cursor-pointer"
+            style={{ borderColor: "var(--border-main)", color: "var(--text-subtle)" }}
+            aria-label="Next month"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleToday}
+            className="px-2.5 py-1 rounded border font-semibold text-xs transition-colors hover:bg-slate-50 cursor-pointer"
+            style={{
+              borderColor: "var(--border-main)",
+              color: "var(--primary)",
+            }}
+          >
+            Today
+          </button>
+          {isLoading && (
+            <span className="text-[10px] animate-pulse" style={{ color: "var(--text-subtle)" }}>
+              Loading…
+            </span>
+          )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Employee Filter (Admin or Team view) */}
-          {(isAdmin || employees.length > 0) && (
+        {/* Right: Scope Switcher + Filters + Mode Toggle + Add To-Do */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Admin Scope Pills: My Work | Team Work | All Work */}
+          {isAdmin && onScopeChange && (
+            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-slate-900/50">
+              {(["my_work", "team_work", "all_work"] as const).map((sc) => {
+                const label = sc === "my_work" ? "My Work" : sc === "team_work" ? "Team Work" : "All Work";
+                const isActive = adminScope === sc;
+                return (
+                  <button
+                    key={sc}
+                    type="button"
+                    onClick={() => onScopeChange(sc)}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs border border-gray-200/60 dark:border-slate-700"
+                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Status Dropdown matching Notices Calendar */}
+          <div className="flex items-center gap-1.5 relative" ref={statusRef}>
+            <span className="uppercase text-[11px] font-semibold tracking-wider" style={{ color: "var(--text-subtle)" }}>
+              STATUS
+            </span>
+            <button
+              type="button"
+              onClick={() => setStatusOpen((v) => !v)}
+              className="flex items-center gap-2 px-2.5 py-1 rounded border font-medium cursor-pointer"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-main)",
+                color: "var(--text-main)",
+              }}
+            >
+              <span>{currentStatusLabel}</span>
+              <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-subtle)" }} />
+            </button>
+
+            {statusOpen && (
+              <div
+                className="absolute z-40 top-full mt-1 right-0 w-44 rounded-md shadow-dropdown border py-1 text-xs"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-main)",
+                }}
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(opt.value);
+                      setStatusOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 hover:opacity-80 transition-colors cursor-pointer ${
+                      statusFilter === opt.value ? "font-semibold" : ""
+                    }`}
+                    style={{
+                      color: statusFilter === opt.value ? "var(--primary)" : "var(--text-main)",
+                      backgroundColor: statusFilter === opt.value ? "var(--bg-active)" : "transparent",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Type Filter Pills: All | Tasks | Administrative | Personal */}
+          <div className="flex items-center gap-1">
+            {[
+              { id: "All", label: "All" },
+              { id: "task_due", label: "Tasks" },
+              { id: "admin_deadline", label: "Administrative" },
+              { id: "personal_todo", label: "Personal" },
+            ].map((pill) => {
+              const isSelected = typeFilter === pill.id;
+              return (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setTypeFilter(pill.id as TypeFilter)}
+                  className="px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer"
+                  style={{
+                    backgroundColor: isSelected ? "var(--primary)" : "var(--bg-surface)",
+                    color: isSelected ? "var(--text-inverse)" : "var(--text-muted)",
+                    border: "1px solid",
+                    borderColor: isSelected ? "var(--primary)" : "var(--border-main)",
+                  }}
+                >
+                  {pill.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Employee Dropdown for Admin */}
+          {isAdmin && employees.length > 0 && (
             <select
               value={employeeFilter}
               onChange={(e) => setEmployeeFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border text-xs font-medium focus:outline-hidden bg-surface text-main"
+              className="h-7 px-2.5 rounded-md border text-xs font-medium bg-white dark:bg-card text-gray-800 dark:text-gray-200 cursor-pointer"
               style={{ borderColor: "var(--border-main)" }}
             >
               <option value="All">All Assignees</option>
@@ -591,70 +779,71 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
             </select>
           )}
 
-          {/* Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-            className="px-3 py-1.5 rounded-lg border text-xs font-medium focus:outline-hidden bg-surface text-main"
-            style={{ borderColor: "var(--border-main)" }}
-          >
-            <option value="All">All Types</option>
-            <option value="admin_deadline">Admin Deadlines</option>
-            <option value="task_due">Assigned Tasks</option>
-            <option value="personal_todo">Personal To-Dos</option>
-          </select>
+          {/* Switch Back to List View Button */}
+          {onSwitchToList && (
+            <button
+              type="button"
+              onClick={onSwitchToList}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-slate-800"
+              style={{ borderColor: "var(--border-main)", color: "var(--text-main)" }}
+            >
+              <ListIcon className="w-3.5 h-3.5 text-indigo-600" />
+              <span>List View</span>
+            </button>
+          )}
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="px-3 py-1.5 rounded-lg border text-xs font-medium focus:outline-hidden bg-surface text-main"
-            style={{ borderColor: "var(--border-main)" }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Pending">Pending / Upcoming</option>
-            <option value="Overdue">Overdue</option>
-            <option value="Completed">Completed</option>
-          </select>
-
-          {isLoading && (
-            <span className="text-xs text-subtle animate-pulse">Loading...</span>
+          {/* Add To-Do Button */}
+          {onAddTodo && (
+            <button
+              type="button"
+              onClick={() => onAddTodo()}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold text-white bg-[#5551FF] hover:bg-[#4338CA] transition-all shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add To-Do</span>
+            </button>
           )}
         </div>
       </div>
 
-      {/* Day Headers (SUN - SAT) */}
-      <div className="grid grid-cols-7 border-t border-l border-r mt-4 rounded-t-lg overflow-hidden" style={{ borderColor: "var(--border-main)" }}>
-        {DAY_NAMES.map((day) => (
+      {/* 2. Full Month Calendar Grid (SUN - SAT) */}
+      <div className="flex-1 w-full overflow-x-auto">
+        <div className="min-w-[850px] w-full flex flex-col">
+          {/* Day of Week Headers */}
           <div
-            key={day}
-            className="py-2 text-center text-[11px] font-bold tracking-wider uppercase border-r last:border-r-0"
+            className="grid grid-cols-7 border-b text-[11px] font-bold uppercase tracking-wider text-center py-2.5"
             style={{
-              backgroundColor: "var(--bg-subtle)",
+              backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-main)",
-              color: "var(--text-subtle)",
+              color: "var(--text-muted)",
             }}
           >
-            {day}
+            {DAY_NAMES.map((d) => (
+              <div key={d}>{d}</div>
+            ))}
           </div>
-        ))}
+
+          {/* 42 Calendar Cells (6 weeks x 7 days) */}
+          <div
+            className="grid grid-cols-7 grid-rows-6"
+            style={{ borderColor: "var(--border-main)" }}
+          >
+            {cells.map((cell) => (
+              <CalendarCell
+                key={cell.date}
+                date={cell.date}
+                isCurrentMonth={cell.isCurrentMonth}
+                events={eventsByDate.get(cell.date) || []}
+                todayStr={todayStr}
+                onSelectEvent={(ev) => setSelectedEvent(ev)}
+                onCellClick={() => onAddTodo?.(cell.date)}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Calendar Grid (42 cells) */}
-      <div className="grid grid-cols-7 border-l border-b rounded-b-lg overflow-hidden" style={{ borderColor: "var(--border-main)" }}>
-        {cells.map((cell) => (
-          <CalendarCell
-            key={cell.date}
-            date={cell.date}
-            isCurrentMonth={cell.isCurrentMonth}
-            events={eventsByDate.get(cell.date) || []}
-            todayStr={todayStr}
-            onSelectEvent={(ev) => setSelectedEvent(ev)}
-          />
-        ))}
-      </div>
-
-      {/* Selected Event Details Modal */}
+      {/* 3. Selected Event Details Modal */}
       <EventDetailModal
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}

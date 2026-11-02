@@ -571,9 +571,19 @@ export class TodoService {
     const orgObjId = mongoose.Types.ObjectId.isValid(orgId)
       ? new mongoose.Types.ObjectId(orgId)
       : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
-    const userObjId = mongoose.Types.ObjectId.isValid(userId)
-      ? new mongoose.Types.ObjectId(userId)
-      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+
+    let userObjId: mongoose.Types.ObjectId;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userObjId = new mongoose.Types.ObjectId(userId);
+    } else {
+      const u = await UserModel.findOne({
+        $or: [
+          { email: userId },
+          { name: new RegExp(`^${String(userId).trim()}$`, 'i') },
+        ],
+      }).lean();
+      userObjId = u ? (u._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+    }
 
     // Check if manual to-do or generated dedupKey
     if (dedupKey.startsWith('manual:')) {
@@ -750,18 +760,38 @@ export class TodoService {
   ): Promise<ITeamTaskItem[]> {
     const todayYMD = getTodayKolkataYMD();
 
-    const userDoc = mongoose.Types.ObjectId.isValid(user.userId)
-      ? await UserModel.findById(user.userId).lean()
-      : await UserModel.findOne({
-          $or: [
-            { email: user.name },
-            { name: new RegExp(`^${user.name.trim()}$`, 'i') },
-          ],
-        }).lean();
+    const lookupQueries: any[] = [];
+    if (user.userId) {
+      if (mongoose.Types.ObjectId.isValid(user.userId)) {
+        lookupQueries.push({ _id: user.userId });
+      }
+      lookupQueries.push({ userId: user.userId });
+      lookupQueries.push({ email: user.userId });
+      lookupQueries.push({ employeeId: user.userId });
+      lookupQueries.push({ name: new RegExp(`^${String(user.userId).trim()}$`, 'i') });
+    }
+    if (user.name) {
+      lookupQueries.push({ name: new RegExp(`^${String(user.name).trim()}$`, 'i') });
+      lookupQueries.push({ email: user.name });
+    }
+    if ((user as any).email) {
+      lookupQueries.push({ email: (user as any).email });
+    }
+
+    const userDoc = lookupQueries.length > 0
+      ? await UserModel.findOne({ $or: lookupQueries }).lean()
+      : null;
 
     const userConditions: any[] = [];
     if (user.userId) {
       userConditions.push({ assigneeId: user.userId });
+      userConditions.push({ assigneeName: new RegExp(`^${String(user.userId).trim()}$`, 'i') });
+    }
+    if (user.name) {
+      userConditions.push({ assigneeName: new RegExp(`^${String(user.name).trim()}$`, 'i') });
+    }
+    if ((user as any).email) {
+      userConditions.push({ assigneeEmail: (user as any).email });
     }
     if (userDoc) {
       userConditions.push({ assigneeId: userDoc._id.toString() });
@@ -859,50 +889,51 @@ export class TodoService {
     });
 
     // Also fetch personal to-dos created by this employee in TodoModel
-    const userObjId = mongoose.Types.ObjectId.isValid(user.userId)
-      ? new mongoose.Types.ObjectId(user.userId)
-      : null;
-
-    const todoOrConditions: any[] = [
-      { userId: user.userId },
-      ...(userObjId ? [{ userId: userObjId }] : []),
-      ...(userDoc ? [{ userId: userDoc._id }] : []),
-    ];
-
-    const personalQuery: any = {
-      $or: todoOrConditions,
-      sourceType: { $ne: 'admin_resolution' },
-    };
-
-    if (filters?.priority && filters.priority !== 'All') {
-      personalQuery.priority = filters.priority;
+    const todoOrConditions: any[] = [];
+    if (mongoose.Types.ObjectId.isValid(user.userId)) {
+      todoOrConditions.push({ userId: user.userId });
+    }
+    if (userDoc && userDoc._id) {
+      todoOrConditions.push({ userId: userDoc._id });
     }
 
-    if (filters?.status && filters.status !== 'All') {
-      if (filters.status === 'Completed') {
-        personalQuery.completed = true;
-      } else if (filters.status === 'Overdue') {
-        personalQuery.completed = false;
-        personalQuery.dueDate = { $lt: todayYMD };
-      } else {
-        personalQuery.completed = false;
+    let personalTodos: any[] = [];
+    if (todoOrConditions.length > 0) {
+      const personalQuery: any = {
+        $or: todoOrConditions,
+        sourceType: { $ne: 'admin_resolution' },
+      };
+
+      if (filters?.priority && filters.priority !== 'All') {
+        personalQuery.priority = filters.priority;
       }
-    }
 
-    if (filters?.search && filters.search.trim()) {
-      const q = filters.search.trim();
-      personalQuery.$and = [
-        {
-          $or: [
-            { title: { $regex: q, $options: 'i' } },
-            { clientName: { $regex: q, $options: 'i' } },
-            { description: { $regex: q, $options: 'i' } },
-          ],
-        },
-      ];
-    }
+      if (filters?.status && filters.status !== 'All') {
+        if (filters.status === 'Completed') {
+          personalQuery.completed = true;
+        } else if (filters.status === 'Overdue') {
+          personalQuery.completed = false;
+          personalQuery.dueDate = { $lt: todayYMD };
+        } else {
+          personalQuery.completed = false;
+        }
+      }
 
-    const personalTodos = await TodoModel.find(personalQuery).sort({ createdAt: -1 }).lean();
+      if (filters?.search && filters.search.trim()) {
+        const q = filters.search.trim();
+        personalQuery.$and = [
+          {
+            $or: [
+              { title: { $regex: q, $options: 'i' } },
+              { clientName: { $regex: q, $options: 'i' } },
+              { description: { $regex: q, $options: 'i' } },
+            ],
+          },
+        ];
+      }
+
+      personalTodos = await TodoModel.find(personalQuery).sort({ createdAt: -1 }).lean();
+    }
 
     const personalItems: ITeamTaskItem[] = personalTodos.map((pt: any) => {
       const pDueYMD = parseDateToYMD(pt.dueDate) || todayYMD;
@@ -1548,9 +1579,19 @@ export class TodoService {
     const orgObjId = mongoose.Types.ObjectId.isValid(orgId)
       ? new mongoose.Types.ObjectId(orgId)
       : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
-    const userObjId = mongoose.Types.ObjectId.isValid(userId)
-      ? new mongoose.Types.ObjectId(userId)
-      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+
+    let userObjId: mongoose.Types.ObjectId;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userObjId = new mongoose.Types.ObjectId(userId);
+    } else {
+      const u = await UserModel.findOne({
+        $or: [
+          { email: userId },
+          { name: new RegExp(`^${String(userId).trim()}$`, 'i') },
+        ],
+      }).lean();
+      userObjId = u ? (u._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+    }
 
     // Check for double-click / rapid submission within 10 seconds
     const tenSecondsAgo = new Date(Date.now() - 10000);

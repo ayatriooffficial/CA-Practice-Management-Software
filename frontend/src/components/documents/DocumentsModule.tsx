@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
+import { Pagination } from "@/components/ui/Pagination";
 import {
   PenTool,
   Loader2,
@@ -40,6 +42,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Check,
+  RotateCcw,
 } from "lucide-react";
 import {
   documentApi,
@@ -72,6 +75,36 @@ export const DocumentsModule: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+
+  // Master Directory Table State matching Clients and Leads
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [directoryStatusFilter, setDirectoryStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [directoryComplianceFilter, setDirectoryComplianceFilter] = useState<"all" | "pending" | "compliant">("all");
+
+  const filteredPeople = useMemo(() => {
+    return people.filter((p) => {
+      if (directoryStatusFilter === "active" && (p.status || "").toLowerCase() !== "active") return false;
+      if (directoryStatusFilter === "inactive" && (p.status || "").toLowerCase() === "active") return false;
+      const pending = p.pendingCount ?? 0;
+      if (directoryComplianceFilter === "pending" && pending === 0) return false;
+      if (directoryComplianceFilter === "compliant" && pending > 0) return false;
+      return true;
+    });
+  }, [people, directoryStatusFilter, directoryComplianceFilter]);
+
+  const paginatedPeople = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredPeople.slice(start, start + pageSize);
+  }, [filteredPeople, page, pageSize]);
+
+  const handleResetDirectoryFilters = () => {
+    setSearchQuery("");
+    setActiveFilter("all");
+    setDirectoryStatusFilter("all");
+    setDirectoryComplianceFilter("all");
+    setPage(1);
+  };
 
   // Detail View Filters
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState<string>("all");
@@ -440,21 +473,24 @@ export const DocumentsModule: React.FC = () => {
       {/* VIEW 1: MASTER DIRECTORY (When no person selected) */}
       {!selectedPersonId && (
         <div className="space-y-4">
-          {/* Search Bar & Filter Tabs Row */}
+          {/* Search Bar & Filter Controls Row matching Clients and Leads */}
           <div
-            className="rounded-xl border p-4 transition-colors flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between"
+            className="rounded-xl border p-4 transition-colors flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between"
             style={{
               backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-main)",
             }}
           >
             {/* Search Input Field */}
-            <div className="relative flex-1 max-w-xl">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search person by name, file number, PAN, mobile, or email..."
                 className="w-full pl-10 pr-9 py-2 rounded-lg text-xs sm:text-sm border transition-colors outline-hidden focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                 style={{
@@ -466,7 +502,10 @@ export const DocumentsModule: React.FC = () => {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                   aria-label="Clear search"
                 >
@@ -475,43 +514,73 @@ export const DocumentsModule: React.FC = () => {
               )}
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+            {/* Filter Controls Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Entity Type Filter Tabs */}
+              <div className="flex items-center gap-1 p-0.5 rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-slate-900/50">
+                {(["all", "client", "team"] as const).map((t) => {
+                  const label = t === "all" ? "All People" : t === "client" ? "Clients" : "Team & Staff";
+                  const isActive = activeFilter === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        setActiveFilter(t);
+                        setPage(1);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs border border-gray-200/60 dark:border-slate-700"
+                          : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Compliance Filter Dropdown */}
+              <select
+                value={directoryComplianceFilter}
+                onChange={(e) => {
+                  setDirectoryComplianceFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                className="h-8 px-2.5 rounded-lg border text-xs font-medium bg-white dark:bg-card text-gray-700 dark:text-gray-200 cursor-pointer"
+                style={{ borderColor: "var(--border-main)" }}
+              >
+                <option value="all">All Compliance</option>
+                <option value="pending">Action Required (Pending)</option>
+                <option value="compliant">Fully Compliant</option>
+              </select>
+
+              {/* Status Filter Dropdown */}
+              <select
+                value={directoryStatusFilter}
+                onChange={(e) => {
+                  setDirectoryStatusFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                className="h-8 px-2.5 rounded-lg border text-xs font-medium bg-white dark:bg-card text-gray-700 dark:text-gray-200 cursor-pointer"
+                style={{ borderColor: "var(--border-main)" }}
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active Only</option>
+                <option value="inactive">Inactive Only</option>
+              </select>
+
+              {/* Reset Button */}
               <button
                 type="button"
-                onClick={() => setActiveFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === "all"
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : "border hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                }`}
-                style={activeFilter !== "all" ? { borderColor: "var(--border-main)" } : undefined}
+                onClick={handleResetDirectoryFilters}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                style={{ borderColor: "var(--border-main)" }}
+                title="Reset filters"
               >
-                All People
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFilter("client")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === "client"
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : "border hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                }`}
-                style={activeFilter !== "client" ? { borderColor: "var(--border-main)" } : undefined}
-              >
-                Clients
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFilter("team")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === "team"
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : "border hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                }`}
-                style={activeFilter !== "team" ? { borderColor: "var(--border-main)" } : undefined}
-              >
-                Team & Staff
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
               </button>
             </div>
           </div>
@@ -531,179 +600,245 @@ export const DocumentsModule: React.FC = () => {
             </div>
           )}
 
-          {/* Loading Skeleton */}
-          {isLoadingPeople && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="rounded-xl border p-4 animate-pulse space-y-3"
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderColor: "var(--border-main)",
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-md w-3/4" />
-                      <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-md w-1/2" />
-                    </div>
-                  </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-md w-full" />
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Table Container matching Clients and Leads */}
+          <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-xs">
+            <div className="flex-1 overflow-auto">
+              <table
+                suppressHydrationWarning
+                className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
+                style={{ width: "max-content" }}
+              >
+                <thead>
+                  <tr
+                    className="text-gray-700 dark:text-gray-300 font-semibold"
+                    style={{ backgroundColor: "var(--orange-havy-light, #f8fafc)" }}
+                  >
+                    <th scope="col" className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-left min-w-[240px]">
+                      Person / Client Name
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-left min-w-[130px]">
+                      Identifier
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-left min-w-[120px]">
+                      Type
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-left min-w-[190px]">
+                      Contact Details
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-center min-w-[110px]">
+                      Total Req.
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-center min-w-[120px]">
+                      Available
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-center min-w-[120px]">
+                      Pending
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-center min-w-[140px]">
+                      Compliance Status
+                    </th>
+                    <th scope="col" className="sticky right-0 z-20 px-4 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-xs font-semibold uppercase tracking-wider text-center min-w-[150px] bg-[#f8fafc] dark:bg-[#1e293b] shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingPeople ? (
+                    [1, 2, 3, 4, 5, 6].map((i) => (
+                      <tr key={i} className="border-b border-[#dde2e8] dark:border-[#334155]">
+                        <td colSpan={9} className="px-4 py-3.5">
+                          <div className="h-5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : filteredPeople.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-16 text-center text-gray-400 font-medium">
+                        {searchQuery
+                          ? `No matching records found for "${searchQuery}".`
+                          : "No document records match current filters."}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedPeople.map((p) => {
+                      const isClient = p.entityType === "client";
+                      const availableCount = p.availableCount ?? p.documentCount;
+                      const pendingCount = p.pendingCount ?? 0;
+                      const totalReq = availableCount + pendingCount;
+                      const isCompliant = pendingCount === 0;
 
-          {/* Empty State: No search results found */}
-          {!isLoadingPeople && !errorMsg && people.length === 0 && (
-            <div
-              className="rounded-xl border p-12 text-center flex flex-col items-center justify-center space-y-3"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-main)",
-              }}
-            >
-              <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
-                <Search className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold" style={{ color: "var(--text-main)" }}>
-                {searchQuery ? `No matching people found for "${searchQuery}"` : "No people records available"}
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500 max-w-sm">
-                {searchQuery
-                  ? "Try checking for typos or searching by PAN, file number, phone number, or entity name."
-                  : "No client or staff records match your current criteria."}
-              </p>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity mt-2 cursor-pointer"
-                >
-                  Clear Search
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* People Grid View */}
-          {!isLoadingPeople && !errorMsg && people.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-1">
-                Showing {people.length} {people.length === 1 ? "record" : "records"}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {people.map((p) => {
-                  const isClient = p.entityType === "client";
-                  const availableCount = p.availableCount ?? p.documentCount;
-                  const pendingCount = p.pendingCount ?? 0;
-
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => handleSelectPerson(p.id)}
-                      className="group rounded-xl border p-4 transition-all hover:shadow-md hover:border-[var(--primary)] cursor-pointer flex flex-col justify-between"
-                      style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-main)",
-                      }}
-                    >
-                      <div>
-                        {/* Header: Avatar, Name, Entity Badge */}
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getAvatarBg(
-                                p.name
-                              )}`}
-                            >
-                              {getInitials(p.name)}
-                            </div>
-                            <div className="min-w-0">
-                              <h3
-                                className="text-sm font-bold truncate group-hover:text-[var(--primary)] transition-colors"
-                                style={{ color: "var(--text-main)" }}
-                                title={p.name}
+                      return (
+                        <tr
+                          key={p.id}
+                          onClick={() => handleSelectPerson(p.id)}
+                          className="group transition-colors hover:bg-[#F6F4F2] dark:hover:bg-[#162032] border-b border-[#dde2e8] dark:border-[#334155] cursor-pointer"
+                        >
+                          {/* Name & Avatar */}
+                          <td className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${getAvatarBg(
+                                  p.name
+                                )}`}
                               >
-                                {p.name}
-                              </h3>
-                              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                <span className="font-mono font-semibold">{p.identifier}</span>
-                                {p.pan && <span>• PAN: {p.pan}</span>}
+                                {getInitials(p.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <div
+                                  className="font-bold text-gray-900 dark:text-white truncate group-hover:text-[var(--primary)] transition-colors"
+                                  title={p.name}
+                                >
+                                  {p.name}
+                                </div>
+                                <div className="text-[11px] text-gray-400 truncate">
+                                  {p.pan ? `PAN: ${p.pan}` : p.group || p.department || "Ayatrio CA"}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </td>
 
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                              isClient
-                                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                                : "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                            }`}
+                          {/* Identifier */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                              {p.identifier}
+                            </span>
+                          </td>
+
+                          {/* Entity Type */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block ${
+                                isClient
+                                  ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                                  : "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                              }`}
+                            >
+                              {isClient ? "Client" : "Staff"}
+                            </span>
+                            <div className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[120px]">
+                              {p.type || (isClient ? "Entity" : "Employee")}
+                            </div>
+                          </td>
+
+                          {/* Contact Details */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs text-gray-600 dark:text-gray-300">
+                            {p.email && (
+                              <div className="flex items-center gap-1.5 truncate max-w-[180px]">
+                                <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span className="truncate">{p.email}</span>
+                              </div>
+                            )}
+                            {p.mobile && (
+                              <div className="flex items-center gap-1.5 text-gray-500 mt-0.5">
+                                <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span>{p.mobile}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Total Required */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold text-gray-700 dark:text-gray-200">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs">
+                              {totalReq} Req
+                            </span>
+                          </td>
+
+                          {/* Available Documents */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <Check className="w-3 h-3 stroke-[2.5]" />
+                              <span>{availableCount} Available</span>
+                            </span>
+                          </td>
+
+                          {/* Pending Documents */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
+                            {pendingCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                <Clock className="w-3 h-3" />
+                                <span>{pendingCount} Pending</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-gray-400 dark:text-gray-500">
+                                0 Pending
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Compliance Status */}
+                          <td className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
+                            {isCompliant ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Compliant</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                <span>Action Req</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td
+                            className="sticky right-0 z-20 px-3.5 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] group-hover:bg-[#F6F4F2] dark:group-hover:bg-[#162032] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {isClient ? "Client" : "Staff"}
-                          </span>
-                        </div>
-
-                        {/* Middle Attributes: Contact details */}
-                        <div
-                          className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 border-t pt-2.5"
-                          style={{ borderColor: "var(--border-main)" }}
-                        >
-                          {p.email && (
-                            <div className="flex items-center gap-2 truncate">
-                              <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="truncate">{p.email}</span>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectPerson(p.id)}
+                                className="p-1.5 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
+                                title="View Documents & Requirements"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPersonId(p.id);
+                                  handleOpenGeneralUpload();
+                                }}
+                                className="p-1.5 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer"
+                                title="Upload Document"
+                              >
+                                <UploadCloud className="w-4 h-4" />
+                              </button>
+                              {isClient && (
+                                <Link
+                                  href={`/client/${p.id}`}
+                                  className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-800 transition-colors"
+                                  title="View Client Master"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </Link>
+                              )}
                             </div>
-                          )}
-                          {p.mobile && (
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span>{p.mobile}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 truncate">
-                            <Briefcase className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="truncate">
-                              {p.group || p.department || p.type || "General Practice"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer: Requirements Count & Action Arrow */}
-                      <div
-                        className="mt-4 pt-2.5 border-t flex items-center justify-between text-xs font-semibold gap-2"
-                        style={{ borderColor: "var(--border-main)" }}
-                      >
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            <Check className="w-3 h-3 stroke-[2.5]" />
-                            <span>{availableCount} Available</span>
-                          </span>
-
-                          {pendingCount > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              <Clock className="w-3 h-3" />
-                              <span>{pendingCount} Pending</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <span className="flex items-center text-[var(--primary)] text-xs group-hover:translate-x-1 transition-transform shrink-0">
-                          <span>View Details</span>
-                          <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {/* Pagination Bar matching Clients and Leads */}
+            <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+              <Pagination
+                currentPage={page}
+                pageSize={pageSize}
+                totalItems={filteredPeople.length}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                showPageSize={true}
+              />
+            </div>
+          </div>
         </div>
       )}
 

@@ -76,7 +76,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
   const [dueDate, setDueDate] = useState(() => defaultDate || getTodayKolkataYMD());
   const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Urgent">("Medium");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [selectedTag, setSelectedTag] = useState("General");
+  const [selectedTag, setSelectedTag] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
   const [description, setDescription] = useState("");
@@ -208,7 +208,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
         await todoApi.assignTask({
           taskName: titleClean,
           description: description.trim(),
-          category: selectedTag,
+          category: selectedTag || "General",
           clientId: selectedClientId || undefined,
           clientName: selectedClient ? (selectedClient.name || selectedClient.legalName) : "General Client",
           assigneeId: selectedAssigneeId,
@@ -226,7 +226,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
         await todoApi.createTodo(titleClean, dueDate, {
           description: description.trim(),
           priority,
-          category: selectedTag,
+          category: selectedTag || "General",
           clientName: selectedClient ? (selectedClient.name || selectedClient.legalName) : "Personal",
           clientId: selectedClientId || undefined,
         });

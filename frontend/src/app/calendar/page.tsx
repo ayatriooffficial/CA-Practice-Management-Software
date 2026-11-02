@@ -1,13 +1,39 @@
-import { EmptyPagePlaceholder } from "@/components/EmptyPagePlaceholder";
+"use client";
+
+import React, { Suspense } from "react";
+import { useAuth } from "@/components/auth/AuthContext";
+import { TuriaTodoWorkspace } from "@/components/todo/TuriaTodoWorkspace";
+import { Loader2 } from "lucide-react";
 
 export default function CalendarPage() {
+  const { currentUser, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-[calc(100vh-var(--header-height))] flex items-center justify-center p-8 bg-surface">
+        <div className="flex flex-col items-center gap-2 text-subtle text-xs">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <span>Loading practice calendar...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <EmptyPagePlaceholder
-      title="Calendar"
-      category="Header"
-      description="Practice-wide schedule for client appointments, partner meetings, and court hearings."
-      iconName="Calendar"
-      actionText="Schedule Event"
-    />
+    <Suspense
+      fallback={
+        <div className="w-full h-[calc(100vh-var(--header-height))] flex items-center justify-center p-8 bg-surface">
+          <div className="flex flex-col items-center gap-2 text-subtle text-xs">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span>Loading calendar...</span>
+          </div>
+        </div>
+      }
+    >
+      <TuriaTodoWorkspace
+        userName={currentUser?.name || "User"}
+        defaultCalendarView={true}
+      />
+    </Suspense>
   );
 }
