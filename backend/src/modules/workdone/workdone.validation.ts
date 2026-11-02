@@ -8,12 +8,19 @@ import { z } from 'zod';
  * Zod schema for validating query parameters of the GET /client-work-done endpoint.
  * - `page`   : optional positive integer (default handled by controller)
  * - `limit`  : optional positive integer
- * - `search` : optional string, trimmed
+ * - `search` : optional string, trimmed, filters out "undefined" or "null" literals
  */
 const workDoneQuerySchema = z.object({
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().optional(),
-    search: z.string().optional().transform((val) => typeof val === 'string' ? val.trim() : val),
+    search: z.string().optional().transform((val) => {
+        if (!val || typeof val !== 'string') return undefined;
+        const trimmed = val.trim();
+        if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
+            return undefined;
+        }
+        return trimmed;
+    }),
 });
 
 /**

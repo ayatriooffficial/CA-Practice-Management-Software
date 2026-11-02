@@ -12,8 +12,16 @@ function fetchWorkDoneApi(params?: any) {
 function* handleFetchWorkDone(action: PayloadAction<Record<string, any> | undefined>): SagaIterator {
     try {
         const response = yield call(fetchWorkDoneApi, action.payload);
-        const clients = response.data || [];
-        yield put(fetchWorkDoneSuccess({ clients, pagination: response.pagination }));
+        const data = response?.data;
+        const clients = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(response)
+            ? response
+            : [];
+        const pagination = response?.pagination || data?.pagination;
+        yield put(fetchWorkDoneSuccess({ clients, pagination }));
     } catch (error: any) {
         yield put(fetchWorkDoneFailure(error.message || 'Failed to fetch workdone clients'));
         yield put(showToast({ type: 'error', message: error.message || 'Failed to fetch workdone clients' }));

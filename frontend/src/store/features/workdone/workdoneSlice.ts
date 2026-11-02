@@ -55,15 +55,16 @@ export const workdoneSlice = createSlice({
             state,
             action: PayloadAction<{ clients: WorkDoneClient[]; pagination?: PaginationState; params?: Record<string, any> }>
         ) => {
-            state.items = action.payload.clients;
+            const list = Array.isArray(action.payload.clients) ? action.payload.clients : [];
+            state.items = list;
             state.isLoaded = true;
             state.loading = false;
             state.error = null;
             if (action.payload.pagination) {
                 state.pagination = action.payload.pagination;
             } else {
-                state.pagination.totalDocs = action.payload.clients.length;
-                state.pagination.totalPages = Math.max(1, Math.ceil(action.payload.clients.length / (state.pagination.limit || 10)));
+                state.pagination.totalDocs = list.length;
+                state.pagination.totalPages = Math.max(1, Math.ceil(list.length / (state.pagination.limit || 10)));
             }
             if (action.payload.params) {
                 state.currentParams = action.payload.params;
@@ -81,20 +82,20 @@ export const workdoneSlice = createSlice({
             action: PayloadAction<{ clients: WorkDoneClient[]; pagination?: PaginationState }>
         ) => {
             state.loading = false;
-            state.items = action.payload.clients;
+            const list = Array.isArray(action.payload.clients) ? action.payload.clients : [];
+            state.items = list;
             state.isLoaded = true;
             if (action.payload.pagination) {
                 state.pagination = action.payload.pagination;
             } else {
-                state.pagination.totalDocs = action.payload.clients.length;
-                state.pagination.totalPages = Math.max(1, Math.ceil(action.payload.clients.length / (state.pagination.limit || 10)));
+                state.pagination.totalDocs = list.length;
+                state.pagination.totalPages = Math.max(1, Math.ceil(list.length / (state.pagination.limit || 10)));
             }
         },
         fetchWorkDoneFailure: (state, action: PayloadAction<string>) => {
             state.loading = false;
             state.error = action.payload;
         },
-        // Additional actions (create, update, delete) can be added similarly
         clearWorkDoneError: (state) => {
             state.error = null;
         },

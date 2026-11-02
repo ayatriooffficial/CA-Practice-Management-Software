@@ -56,7 +56,7 @@ export interface DataTableProps<T> {
 
 export function DataTable<T>({
   columns,
-  data,
+  data = [],
   getRowId = (item: any, idx) => item?.id || item?._id || String(idx),
   selectable = false,
   selectedIds = [],
@@ -127,14 +127,16 @@ export function DataTable<T>({
   }, [onSort]);
 
   // Internal data sorting when external onSort is not used
+  const safeData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+
   const processedData = useMemo(() => {
     if (!effectiveSortKey || !effectiveSortDir || onSort) {
-      return data;
+      return safeData;
     }
     const colDef = columns.find((c) => c.id === effectiveSortKey);
     const key = (colDef?.accessorKey || effectiveSortKey) as keyof T;
 
-    return [...data].sort((a, b) => {
+    return [...safeData].sort((a, b) => {
       const valA = (a as any)[key];
       const valB = (b as any)[key];
       if (valA == null && valB == null) return 0;
@@ -147,7 +149,7 @@ export function DataTable<T>({
       const strB = String(valB).toLowerCase();
       return effectiveSortDir === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
     });
-  }, [data, effectiveSortKey, effectiveSortDir, onSort, columns]);
+  }, [safeData, effectiveSortKey, effectiveSortDir, onSort, columns]);
 
   // Column width state for resizing
   const defaultWidths = useRef<Record<string, number>>(

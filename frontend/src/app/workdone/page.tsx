@@ -20,16 +20,18 @@ export default function WorkDonePage() {
   const [search, setSearch] = useState("");
 
   const fetchClients = useCallback(
-    (currentPage = page, currentLimit = pageSize, currentSearch = search) => {
-      dispatch(
-        fetchWorkDoneRequest({
-          page: currentPage,
-          limit: currentLimit,
-          search: currentSearch.trim() || undefined,
-        })
-      );
+    (currentPage: number, currentLimit: number, currentSearch?: string) => {
+      const payload: Record<string, any> = {
+        page: currentPage,
+        limit: currentLimit,
+      };
+      const trimmed = (currentSearch || "").trim();
+      if (trimmed) {
+        payload.search = trimmed;
+      }
+      dispatch(fetchWorkDoneRequest(payload));
     },
-    [dispatch, page, pageSize, search]
+    [dispatch]
   );
 
   useEffect(() => {
@@ -61,6 +63,8 @@ export default function WorkDonePage() {
   const handleBack = () => {
     setSelectedClient(null);
   };
+
+  const safeClients = Array.isArray(clients) ? clients : [];
 
   return (
     <main
@@ -98,7 +102,7 @@ export default function WorkDonePage() {
         ) : (
           // Client List with DataTable and Pagination
           <WorkDoneClient
-            clients={clients}
+            clients={safeClients}
             loading={loading}
             onSelectClient={handleSelectClient}
             onRefresh={handleRefresh}
@@ -106,7 +110,7 @@ export default function WorkDonePage() {
             onSearchChange={handleSearchChange}
             pagination={{
               currentPage: pagination?.page || page,
-              totalItems: pagination?.totalDocs ?? clients.length,
+              totalItems: pagination?.totalDocs ?? safeClients.length,
               pageSize: pagination?.limit || pageSize,
               onPageChange: handlePageChange,
               rowsPerPageOptions: [10, 20, 50, 100],

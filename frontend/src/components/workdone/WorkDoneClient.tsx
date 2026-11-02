@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 export interface WorkDoneClientProps {
-  clients: Client[];
+  clients?: Client[];
   onSelectClient: (client: Client) => void;
   onRefresh?: () => void;
   loading?: boolean;
@@ -24,7 +24,7 @@ export interface WorkDoneClientProps {
 }
 
 export default function WorkDoneClient({
-  clients,
+  clients = [],
   onSelectClient,
   onRefresh,
   loading = false,
@@ -47,19 +47,21 @@ export default function WorkDoneClient({
     }
   };
 
+  const safeClients = useMemo(() => (Array.isArray(clients) ? clients : []), [clients]);
+
   const filteredClients = useMemo(() => {
     if (controlledSearch !== undefined) {
-      // Backend handled search
-      return clients;
+      // Backend handles search when controlled
+      return safeClients;
     }
     const value = search.toLowerCase().trim();
-    if (!value) return clients;
-    return clients.filter(
+    if (!value) return safeClients;
+    return safeClients.filter(
       (client) =>
         client.businessName?.toLowerCase().includes(value) ||
         client.legalName?.toLowerCase().includes(value)
     );
-  }, [clients, search, controlledSearch]);
+  }, [safeClients, search, controlledSearch]);
 
   const displayData = useMemo(() => {
     if (pagination) {
@@ -221,7 +223,12 @@ export default function WorkDoneClient({
         columns={columns}
         data={displayData}
         loading={loading}
-        getRowId={(client) => client.clientId}
+        getRowId={(client, idx) =>
+          client?.clientId ||
+          (client as any)?.id ||
+          (client as any)?._id ||
+          `client-${idx}`
+        }
         onRowClick={(client) => onSelectClient(client)}
         pagination={effectivePagination}
         actions={(client) => [

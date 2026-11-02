@@ -5,14 +5,15 @@ export class FinancialService {
   static async workDoneClient(query: { page?: number | string; limit?: number | string; search?: string } = {}): Promise<{ items: any[]; pagination: PaginationMeta }> {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.max(1, Math.min(100, Number(query.limit) || 10));
-    const search = (query.search || "").trim().toLowerCase();
+    const rawSearch = typeof query.search === "string" ? query.search.trim() : "";
+    const search = (rawSearch === "undefined" || rawSearch === "null") ? "" : rawSearch.toLowerCase();
 
     const receipts = await FinancialReceipt.find().lean();
 
     const clientMap: { [key: string]: any } = {};
 
     receipts.forEach((receipt: any) => {
-      const clientId = receipt.clientId?.toString() || "unknown";
+      const clientId = receipt.clientId?.toString() || receipt._id?.toString() || "unknown";
 
       if (!clientMap[clientId]) {
         clientMap[clientId] = {
@@ -180,7 +181,7 @@ export class FinancialService {
     }
 
     const totalDocs = clients.length;
-    const totalPages = Math.ceil(totalDocs / limit) || 1;
+    const totalPages = Math.max(1, Math.ceil(totalDocs / limit));
     const startIndex = (page - 1) * limit;
     const items = clients.slice(startIndex, startIndex + limit);
 
