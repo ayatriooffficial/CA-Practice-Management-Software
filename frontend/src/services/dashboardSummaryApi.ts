@@ -28,6 +28,8 @@ export interface CompactTaskSummaryResponse {
     dueTomorrow: number;
     dueIn7Days: number;
     overdue: number;
+    overdueUpTo7Days: number;
+    overdueMoreThan7Days: number;
   };
   statusSummary: {
     pending: number;

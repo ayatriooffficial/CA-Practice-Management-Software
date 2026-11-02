@@ -21,7 +21,7 @@ import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
 import { AgentExecutionService } from '../agentCenter/execution.service';
-import { getNowIST, toISTDateString, offsetISTDate } from '../../shared/utils/istDate';
+import { getNowIST, toISTDateString, offsetISTDate, parseDateToYMD } from '../../shared/utils/istDate';
 
 export class TaskService {
   private static async dispatchAgentTaskEvents(task: ITaskDocument, triggers: string[]) {
@@ -457,11 +457,14 @@ export class TaskService {
     const todayStr = toISTDateString(nowIST);
     const tomorrowStr = offsetISTDate(todayStr, 1);
     const next7DaysStr = offsetISTDate(todayStr, 7);
+    const overdue7DaysAgoStr = offsetISTDate(todayStr, -7);
 
     let dueToday = 0;
     let dueTomorrow = 0;
     let dueIn7Days = 0;
     let overdue = 0;
+    let overdueUpTo7Days = 0;
+    let overdueMoreThan7Days = 0;
 
     const statusGroups: Record<string, Map<string, number>> = {
       pending: new Map(),
@@ -493,10 +496,16 @@ export class TaskService {
       map.set(groupName, (map.get(groupName) || 0) + 1);
 
       if (tabKey !== 'completed') {
-        const dueStr = (t.targetDueDate || '').trim().slice(0, 10);
-        if (dueStr) {
+        const rawDue = t.targetDueDate || (t as any).complianceStatus?.dueDate || (t as any).dueDate || (t as any).endDate;
+        const dueStr = parseDateToYMD(rawDue) || (typeof rawDue === 'string' ? rawDue.trim().slice(0, 10) : '');
+        if (dueStr && /^\d{4}-\d{2}-\d{2}$/.test(dueStr)) {
           if (dueStr < todayStr) {
             overdue++;
+            if (dueStr >= overdue7DaysAgoStr) {
+              overdueUpTo7Days++;
+            } else {
+              overdueMoreThan7Days++;
+            }
           } else if (dueStr === todayStr) {
             dueToday++;
           } else if (dueStr === tomorrowStr) {
@@ -524,6 +533,8 @@ export class TaskService {
         dueTomorrow,
         dueIn7Days,
         overdue,
+        overdueUpTo7Days,
+        overdueMoreThan7Days,
       },
       statusSummary: {
         pending: pendingCount,

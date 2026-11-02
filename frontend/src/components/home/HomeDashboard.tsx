@@ -14,6 +14,7 @@ import { UpcomingLeavesTable } from './UpcomingLeavesTable';
 import { AdminWelcomeTodoCard } from './AdminWelcomeTodoCard';
 import { PendingInvoicingCard } from './PendingInvoicingCard';
 import { CompactTaskCard } from './CompactTaskCard';
+import { TopTaskDueStrip } from './TopTaskDueStrip';
 import {
   attendanceApi,
   SummaryCardData,
@@ -148,6 +149,9 @@ export const HomeDashboard: React.FC = () => {
           onTabChange={(tab) => setActiveTab(tab)}
         />
       )}
+
+      {/* Top Task Due Metrics Strip (Admin Only) */}
+      {isAdmin && <TopTaskDueStrip />}
 
       {/* Row 1: Welcome & Notice Board */}
       {isAdmin ? (
