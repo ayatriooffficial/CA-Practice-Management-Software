@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { Search, Download, ShieldCheck } from "lucide-react";
 import { taskApi } from "@/services/taskApi";
 import { TaskSummaryRow } from "@/data/taskData";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useAuth } from "../auth/AuthContext";
 
 interface TaskSummaryViewProps {
@@ -121,6 +124,219 @@ export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
     link.click();
     document.body.removeChild(link);
   };
+
+  // Pagination states (default limit 10)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const filteredRows = React.useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.toLowerCase();
+    return rows.filter((r) => r.groupLabel.toLowerCase().includes(q));
+  }, [rows, search]);
+
+  const paginatedRows = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, page, pageSize]);
+
+  const summaryColumns: DataTableColumn<TaskSummaryRow>[] = React.useMemo(
+    () => [
+      {
+        id: "groupLabel",
+        header: `${groupBy} (${rows.length})`,
+        minWidth: 190,
+        sortable: true,
+        cell: (row) => (
+          <div className="flex items-center gap-2.5">
+            <span
+              style={{
+                backgroundColor: row.avatarColor ? `${row.avatarColor}18` : "var(--brand-soft)",
+                color: row.avatarColor || "var(--primary)",
+              }}
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 uppercase border border-current/20"
+            >
+              {row.initials || row.groupLabel.substring(0, 2).toUpperCase()}
+            </span>
+            <span className="font-medium text-gray-900 dark:text-white group-hover:text-[#31719B] transition-colors truncate">
+              {row.groupLabel}
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: "pending",
+        header: "Pending",
+        width: 90,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span
+            className={`font-medium ${
+              isHeatMap && row.pending > 0
+                ? "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded"
+                : "text-gray-700 dark:text-gray-300"
+            }`}
+          >
+            {row.pending}
+          </span>
+        ),
+      },
+      {
+        id: "inProgress",
+        header: "In Progress",
+        width: 100,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span
+            className={`font-medium ${
+              isHeatMap && row.inProgress > 0
+                ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded"
+                : "text-gray-700 dark:text-gray-300"
+            }`}
+          >
+            {row.inProgress}
+          </span>
+        ),
+      },
+      {
+        id: "sentForReview",
+        header: "Sent for Review",
+        width: 120,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span
+            className={`font-medium ${
+              isHeatMap && row.sentForReview > 0
+                ? "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded"
+                : "text-gray-700 dark:text-gray-300"
+            }`}
+          >
+            {row.sentForReview}
+          </span>
+        ),
+      },
+      {
+        id: "requestChanges",
+        header: "Request Changes",
+        width: 120,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-medium text-gray-700 dark:text-gray-300">
+            {row.requestChanges}
+          </span>
+        ),
+      },
+      {
+        id: "wipSubTotal",
+        header: "WIP Sub Total",
+        width: 110,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-bold text-[#31719B] dark:text-[#60a5fa]">
+            {row.wipSubTotal}
+          </span>
+        ),
+      },
+      {
+        id: "overdue",
+        header: "Overdue",
+        width: 90,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-bold text-red-600 dark:text-red-400">
+            {row.overdue}
+          </span>
+        ),
+      },
+      {
+        id: "dueToday",
+        header: "Due Today",
+        width: 90,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-medium text-gray-700 dark:text-gray-300">
+            {row.dueToday}
+          </span>
+        ),
+      },
+      {
+        id: "completed",
+        header: "Completed",
+        width: 100,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-medium text-emerald-600 dark:text-emerald-400">
+            {row.completed}
+          </span>
+        ),
+      },
+      {
+        id: "readyToBill",
+        header: "Ready to Bill",
+        width: 100,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-medium text-gray-500">
+            {row.readyToBill}
+          </span>
+        ),
+      },
+      {
+        id: "onHold",
+        header: "On Hold",
+        width: 90,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-medium text-gray-400">
+            {row.onHold}
+          </span>
+        ),
+      },
+      {
+        id: "total",
+        header: "Total",
+        width: 90,
+        align: "center",
+        sortable: true,
+        cell: (row) => (
+          <span className="font-bold text-gray-900 dark:text-white">
+            {row.total}
+          </span>
+        ),
+      },
+      {
+        id: "donePercentage",
+        header: "Done %",
+        width: 90,
+        align: "right",
+        sortable: true,
+        cell: (row) => (
+          <span
+            className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+              row.donePercentage >= 80
+                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40"
+                : row.donePercentage >= 40
+                ? "text-amber-600 bg-amber-50 dark:bg-amber-950/40"
+                : "text-red-600 bg-red-50 dark:bg-red-950/40"
+            }`}
+          >
+            {row.donePercentage}%
+          </span>
+        ),
+      },
+    ],
+    [groupBy, rows.length, isHeatMap]
+  );
 
   return (
     <div className="py-2">

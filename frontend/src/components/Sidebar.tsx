@@ -61,7 +61,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "team", label: "Team", href: "/team", icon: UsersRound },
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
   { id: "documents", label: "Documents", href: "/documents", icon: Files },
-  { id: "registry", label: "Registry", href: "/registry", icon: Grip },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile }) => {
@@ -80,7 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     if (id === "pdf-signer") return !isEmployee;
     if (id === "reports") return true;
     if (id === "documents") return true;
-    if (id === "registry") return true;
     if (id === "task") return canView("task_manager");
     if (id === "client") return canView("clients");
     if (id === "leads") return canView("leads");

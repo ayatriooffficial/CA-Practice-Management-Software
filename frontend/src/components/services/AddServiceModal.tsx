@@ -12,6 +12,7 @@ import {
   EXEMPTION_REASONS,
 } from "@/data/serviceData";
 import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 interface AddServiceModalProps {
@@ -281,7 +282,7 @@ const totalServiceFees =
                       >
                         Service Name <span className="text-red-500">*</span>
                       </label>
-                      <input
+                      <Input
                         id="srv-name"
                         type="text"
                         value={name}
@@ -290,14 +291,10 @@ const totalServiceFees =
                           if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
                         }}
                         placeholder="e.g. TDS Payment (Monthly)"
-                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none transition-colors bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white ${errors.name
-                          ? "border-red-500 focus:ring-1 focus:ring-red-500"
-                          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                          }`}
+                        error={errors.name}
+                        size="md"
+                        className="rounded-sm"
                       />
-                      {errors.name && (
-                        <p className="mt-1 text-[11px] text-red-500">{errors.name}</p>
-                      )}
                     </div>
 
                     {/* Category */}
@@ -432,7 +429,7 @@ const totalServiceFees =
     >
       Government Fee <span className="text-[#e8655a]">*</span>
     </label>
-    <input
+    <Input
       id="gov-fee"
       type="number"
       min={0}
@@ -442,15 +439,10 @@ const totalServiceFees =
         clearError("governmentFee");
       }}
       placeholder="0"
-      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-        errors.governmentFee
-          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-      }`}
+      error={errors.governmentFee}
+      size="md"
+      className="rounded-sm"
     />
-    {errors.governmentFee && (
-      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.governmentFee}</p>
-    )}
   </div>
 
   {/* 2. Professional Fee Input */}
@@ -461,7 +453,7 @@ const totalServiceFees =
     >
       Professional Fee <span className="text-[#e8655a]">*</span>
     </label>
-    <input
+    <Input
       id="srv-fee"
       type="number"
       min={0}
@@ -471,15 +463,10 @@ const totalServiceFees =
         clearError("professionalFee");
       }}
       placeholder="0"
-      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-        errors.professionalFee
-          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-      }`}
+      error={errors.professionalFee}
+      size="md"
+      className="rounded-sm"
     />
-    {errors.professionalFee && (
-      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.professionalFee}</p>
-    )}
   </div>
 
   {/* 3. Total Service Fee (Calculated & Read-only) */}
@@ -490,12 +477,13 @@ const totalServiceFees =
     >
       Total Service Fee
     </label>
-    <input
+    <Input
       id="total-fee"
       type="text"
       readOnly
-      value={`$${((parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0)).toFixed(2)}`}
-      className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 text-xs outline-none bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white font-semibold cursor-not-allowed"
+      value={"₹" + ((parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0)).toFixed(2)}
+      size="md"
+      className="rounded-sm bg-gray-50 dark:bg-[#1e293b] font-semibold cursor-not-allowed"
     />
   </div>
 
@@ -526,7 +514,7 @@ const totalServiceFees =
                       >
                         SAC Code
                       </label>
-                      <input
+                      <Input
                         id="srv-sac"
                         type="text"
                         value={sacCode}
@@ -535,15 +523,10 @@ const totalServiceFees =
                           clearError("sacCode");
                         }}
                         placeholder="e.g. 998231"
-                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                          errors.sacCode
-                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                        }`}
+                        error={errors.sacCode}
+                        size="md"
+                        className="rounded-sm"
                       />
-                      {errors.sacCode && (
-                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.sacCode}</p>
-                      )}
                     </div>
                   </div>
 
@@ -573,7 +556,7 @@ const totalServiceFees =
                       >
                         Max OOP Budget
                       </label>
-                      <input
+                      <Input
                         id="srv-oop"
                         type="number"
                         min={0}
@@ -583,15 +566,10 @@ const totalServiceFees =
                           clearError("maxOopBudget");
                         }}
                         placeholder="0"
-                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                          errors.maxOopBudget
-                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                        }`}
+                        error={errors.maxOopBudget}
+                        size="md"
+                        className="rounded-sm"
                       />
-                      {errors.maxOopBudget && (
-                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.maxOopBudget}</p>
-                      )}
                     </div>
 
                     {/* TAT (days) */}
@@ -602,7 +580,7 @@ const totalServiceFees =
                       >
                         TAT (days)
                       </label>
-                      <input
+                      <Input
                         id="srv-tat-days"
                         type="number"
                         min={0}
@@ -612,15 +590,10 @@ const totalServiceFees =
                           clearError("tatDays");
                         }}
                         placeholder="e.g. 3"
-                        className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                          errors.tatDays
-                            ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                            : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                        }`}
+                        error={errors.tatDays}
+                        size="md"
+                        className="rounded-sm"
                       />
-                      {errors.tatDays && (
-                        <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.tatDays}</p>
-                      )}
                     </div>
                   </div>
 
@@ -632,13 +605,14 @@ const totalServiceFees =
                     >
                       TAT (hours)
                     </label>
-                    <input
+                    <Input
                       id="srv-tat-hours"
                       type="text"
                       value={tatHours}
                       onChange={(e) => setTatHours(e.target.value)}
                       placeholder="00:00"
-                      className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] px-3 text-xs outline-none text-gray-900 dark:text-white focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                      size="md"
+                      className="rounded-sm"
                     />
                   </div>
                 </div>

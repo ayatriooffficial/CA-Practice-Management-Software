@@ -27,6 +27,10 @@ import { useAuth } from '../auth/AuthContext';
 import { pdfSignerApi } from '@/services/pdfSignerApi';
 import { TaskAllocationInput } from '@/services/financialApi';
 import { Pagination } from '../ui/Pagination';
+import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { DropdownActionItem } from '@/components/ui/TableActionDropdown';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface ColumnDef {
   key: string;
@@ -150,7 +154,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null);
 
   // Pagination
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Raw dataset based on active tab
@@ -287,7 +291,156 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
     switch (status) {
       case 'Paid':
       case 'Advance Paid':
-        return (
+          // Enhanced Columns for Reusable DataTable
+  const dataTableColumns = useMemo<DataTableColumn<any>[]>(() => {
+    return columns.map((col) => ({
+      id: col.key,
+      header: col.label,
+      sortable: col.sortable !== false,
+      align: (col.key === "totalPayable" || col.key === "amount" || col.key === "balanceAmount" ? "right" : col.key === "status" ? "center" : "left"),
+      minWidth: col.key === "clientBusinessName" || col.key === "businessName" ? 180 : col.key === "service" ? 160 : 120,
+      cell: (row: any) => {
+        if (col.key === "number" || col.key === "receiptNo") {
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                if (onViewDetail) onViewDetail(row);
+                else onView?.(row);
+              }}
+              className="font-semibold text-[#31719B] dark:text-[#60a5fa] hover:underline text-left cursor-pointer"
+            >
+              {row[col.key] || "#" + row.id.slice(0, 8)}
+            </button>
+          );
+        }
+
+        if (col.key === "clientBusinessName" || col.key === "businessName") {
+          return <span className="font-semibold text-gray-900 dark:text-white truncate block">{row[col.key] || "—"}</span>;
+        }
+
+        if (col.key === "totalPayable" || col.key === "amount" || col.key === "balanceAmount") {
+          const val = row[col.key] ?? 0;
+          return (
+            <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+              {typeof val === "number" ? "₹" + val.toLocaleString("en-IN") : String(val)}
+            </span>
+          );
+        }
+
+        if (col.key === "status") {
+          const s = row.status || "Draft";
+          const isPaid = s === "Paid" || s === "Recorded";
+          const isOverdue = s === "Overdue";
+          const isVoid = s === "Void" || s === "Cancelled";
+          return (
+            <span
+              className={
+                "inline-block px-2.5 py-0.5 rounded text-[10.5px] font-semibold " +
+                (isPaid
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200"
+                  : isOverdue || isVoid
+                  ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200"
+                  : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200")
+              }
+            >
+              {s}
+            </span>
+          );
+        }
+
+        if (col.key === "date" || col.key === "dueDate" || col.key === "paymentDate") {
+          const dateVal = row[col.key];
+          return <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap">{dateVal || "—"}</span>;
+        }
+
+        return <span className="text-gray-700 dark:text-gray-300 truncate block">{row[col.key] || "—"}</span>;
+      },
+    }));
+  }, [columns, onViewDetail, onView]);
+
+  const getInvoiceActions = (row: any): DropdownActionItem[] => {
+    const actions: DropdownActionItem[] = [
+      {
+        label: "View",
+        icon: Eye,
+        onClick: () => {
+          if (onViewDetail) onViewDetail(row);
+          else onView?.(row);
+        },
+      },
+    ];
+
+    if (!isEmployee) {
+      actions.push({
+        label: "Edit",
+        icon: Pencil,
+        onClick: () => onEdit?.(row),
+      });
+    }
+
+    if (!isEmployee && (activeTab === "invoice" || activeTab === "proforma") && row.status !== "Cancelled") {
+      actions.push({
+        label: "Sign with DSC",
+        icon: PenTool,
+        onClick: () => handleSignInvoiceWithDsc(row),
+      });
+    }
+
+    if (activeTab === "invoice" && row.type === "invoice" && row.status !== "Paid" && row.status !== "Cancelled") {
+      actions.push({
+        label: "Record Payment",
+        icon: CreditCard,
+        onClick: () => onRecordPayment?.(row),
+      });
+    }
+
+    if (activeTab === "invoice" && row.type === "invoice" && row.status !== "Cancelled") {
+      if (row.taskAllocations?.length > 0) {
+        actions.push({
+          label: "Issue Credit Note",
+          icon: FileSpreadsheet,
+          onClick: () => {
+            setCreditNoteTarget(row);
+            setCreditAmounts({});
+            setFinancialActionError("");
+          },
+        });
+      }
+      actions.push({
+        label: "Void Invoice",
+        icon: Ban,
+        onClick: () => {
+          const reason = window.prompt("Reason for voiding this issued invoice:");
+          if (reason?.trim()) {
+            void voidInvoice(row, reason.trim()).catch((error) =>
+              setFinancialActionError(error instanceof Error ? error.message : "Invoice could not be voided.")
+            );
+          }
+        },
+      });
+    }
+
+    actions.push({
+      label: "Delete",
+      icon: Trash2,
+      variant: "danger",
+      onClick: () => {
+        if (window.confirm("Are you sure you want to delete this record?")) {
+          if (activeTab === "receipts") {
+            const res = deleteReceipt(row.id);
+            if (!res.success && res.message) alert(res.message);
+          } else {
+            const res = deleteInvoice(row.id);
+            if (!res.success && res.message) alert(res.message);
+          }
+        }
+      },
+    });
+
+    return actions;
+  };
+  return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#dcfce7] text-[#15803d] dark:bg-[#14532d]/40 dark:text-[#86efac]">
             {status}
           </span>

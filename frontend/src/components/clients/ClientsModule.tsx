@@ -32,6 +32,10 @@ import { Select } from "@/components/ui/Select";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
+import { Phone, Pencil, Trash2 } from "lucide-react";
 
 // Dynamically split heavy form and detail drawer from the critical table route
 const ClientForm = dynamic(
@@ -44,6 +48,8 @@ const ClientDetailView = dynamic(
   { ssr: false }
 );
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -419,6 +425,225 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
     setPage(1);
   }, []);
 
+  // DataTable columns adapter for Clients
+  const clientDataTableColumns = useMemo<DataTableColumn<Client>[]>(() => {
+    return [
+      {
+        id: "photo",
+        header: "PHOTO",
+        width: getColumnWidth("photo") || 70,
+        align: "center",
+        cell: (client: Client) => {
+          return client.photo ? (
+            <img
+              src={getDirectFilePreviewUrl(client.photo)}
+              alt=""
+              className="w-7 h-7 rounded-full object-cover mx-auto border border-gray-200"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 mx-auto text-xs font-bold">
+              {client.name.charAt(0).toUpperCase()}
+            </div>
+          );
+        },
+      },
+      {
+        id: "fileNo",
+        header: "FILE NO.",
+        accessorKey: "fileNo",
+        sortable: true,
+        width: getColumnWidth("fileNo") || 130,
+        cell: (client: Client) => (
+          <button
+            type="button"
+            onClick={() => {
+              setViewingClient(client);
+              dispatch(setSelectedClient(client));
+              setActiveDetailTab("Master");
+              setViewMode("detail");
+            }}
+            className="hover:text-[#31719B] hover:underline cursor-pointer truncate max-w-full font-mono text-xs text-gray-600 dark:text-gray-400"
+          >
+            {client.fileNo}
+          </button>
+        ),
+      },
+      {
+        id: "name",
+        header: "NAME",
+        accessorKey: "name",
+        sortable: true,
+        width: getColumnWidth("name") || 220,
+        cell: (client: Client) => {
+          const isDeleted = Boolean((client as any).isDeleted);
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                setViewingClient(client);
+                dispatch(setSelectedClient(client));
+                setActiveDetailTab("Master");
+                setViewMode("detail");
+              }}
+              className="hover:underline cursor-pointer text-left flex items-center gap-1.5 truncate max-w-full font-semibold text-[#31719B]"
+            >
+              <span className="truncate">{client.name}</span>
+              {isDeleted && (
+                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                  Deleted
+                </span>
+              )}
+            </button>
+          );
+        },
+      },
+      {
+        id: "type",
+        header: "TYPE",
+        accessorKey: "type",
+        sortable: true,
+        width: getColumnWidth("type") || 140,
+        cell: (client: Client) => (
+          <span className="capitalize">{client.type?.replace("-", " ")}</span>
+        ),
+      },
+      {
+        id: "mobile",
+        header: "MOBILE",
+        width: getColumnWidth("mobile") || 150,
+        cell: (client: Client) => (
+          <a
+            href={"tel:" + client.mobile}
+            className="flex items-center gap-1 text-[#31719B] hover:underline truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Phone className="w-3 h-3 shrink-0" />
+            <span className="truncate">{client.mobile}</span>
+          </a>
+        ),
+      },
+      {
+        id: "group",
+        header: "GROUP",
+        accessorKey: "group",
+        sortable: true,
+        width: getColumnWidth("group") || 150,
+        cell: (client: Client) => (
+          <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs truncate max-w-full inline-block">
+            {client.group}
+          </span>
+        ),
+      },
+      {
+        id: "tags",
+        header: "TAGS",
+        width: getColumnWidth("tags") || 160,
+        cell: (client: Client) => (
+          <div className="flex flex-wrap gap-1 max-w-full">
+            {client.tags?.slice(0, 2).map((t, idx) => (
+              <span
+                key={(client.id || "c") + "-tag-" + (t || "empty") + "-" + idx}
+                className="px-1.5 py-0.5 text-[10px] rounded bg-[#31719B]/10 text-[#31719B] font-medium truncate"
+              >
+                {t}
+              </span>
+            ))}
+            {(client.tags?.length || 0) > 2 && (
+              <span className="text-[10px] text-gray-400">
+                +{(client.tags?.length || 0) - 2}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "status",
+        header: "STATUS",
+        width: getColumnWidth("status") || 110,
+        cell: (client: Client) => {
+          const isActive = client.active !== false;
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleActive(client.id);
+              }}
+              className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer " + (
+                isActive
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                  : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+              )}
+            >
+              <span className={"w-1.5 h-1.5 rounded-full " + (isActive ? "bg-emerald-500" : "bg-gray-400")} />
+              {isActive ? "Active" : "Inactive"}
+            </button>
+          );
+        },
+      },
+      {
+        id: "users",
+        header: "USERS",
+        width: getColumnWidth("users") || 140,
+        cell: (client: Client) => (
+          <div className="flex items-center gap-1">
+            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold flex items-center justify-center">
+              {client.name?.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-xs text-gray-600 dark:text-gray-400 truncate">Self</span>
+          </div>
+        ),
+      },
+    ];
+  }, [columnWidths, dispatch, handleToggleActive]);
+
+  const getClientActions = useCallback((client: Client): DropdownActionItem[] => {
+    const isDeleted = Boolean((client as any).isDeleted);
+    const actionsList: DropdownActionItem[] = [
+      {
+        label: "View Master",
+        icon: Eye,
+        onClick: () => {
+          setViewingClient(client);
+          dispatch(setSelectedClient(client));
+          setActiveDetailTab("Master");
+          setViewMode("detail");
+        },
+      },
+    ];
+
+    if (!isDeleted) {
+      if (canAddEdit("clients")) {
+        actionsList.push({
+          label: "Edit",
+          icon: Pencil,
+          onClick: () => {
+            setEditingClient(client);
+            setViewMode("create");
+          },
+        });
+      }
+      if (canDelete("clients")) {
+        actionsList.push({
+          label: "Delete",
+          icon: Trash2,
+          variant: "danger",
+          onClick: () => handleDeleteClient(client.id, client.name),
+        });
+      }
+    } else {
+      if (canDelete("clients") && handleRestoreClient) {
+        actionsList.push({
+          label: "Restore",
+          icon: RotateCcw,
+          onClick: () => handleRestoreClient(client.id, client.name),
+        });
+      }
+    }
+
+    return actionsList;
+  }, [canAddEdit, canDelete, dispatch, handleDeleteClient, handleRestoreClient]);
+
   // Detail View Mode matching Screenshots 1-4
   if (viewMode === "detail" && viewingClient) {
     return (
@@ -459,6 +684,9 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
       />
     );
   }
+
+
+
 
   return (
     <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
@@ -618,210 +846,43 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         />
       )}
 
-      {/* Spreadsheet Table */}
+      {/* Spreadsheet Table using reusable DataTable */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
-        <div className="overflow-x-auto scrollbar-slim">
-          <table
-            suppressHydrationWarning
-            className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
-            style={{ width: "max-content" }}
-          >
-            <thead>
-              <tr
-                className="text-gray-700 dark:text-gray-300"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                {/* Frozen Checkbox */}
-                <th
-                  scope="col"
-                  className="sticky left-0 z-30 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
-                >
-                  <input
-                    id="clients-select-all-page"
-                    name="selectAllClients"
-                    aria-label="Select all clients on this page"
-                    title="Select all clients on this page"
-                    type="checkbox"
-                    checked={allCurrentPageSelected}
-                    onChange={toggleSelectAllPage}
-                    className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer"
-                  />
-                </th>
-
-                {/* Dynamic Columns */}
-                {visibleColumns.map((col: ClientColumnDef) => {
-                  const colWidth = getColumnWidth(col.id);
-                  return (
-                    <th
-                      key={col.id}
-                      scope="col"
-                      className="relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
-                      style={{
-                        backgroundColor: "var(--orange-havy-light)",
-                        width: `${colWidth}px`,
-                        minWidth: `${colWidth}px`,
-                        maxWidth: `${colWidth}px`,
-                      }}
-                    >
-                      {col.sortable ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleSort(col.id)}
-                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
-                        >
-                          <span>{col.label}</span>
-                          {sortKey === col.id ? (
-                            sortDirection === "asc" ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
-                            ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3 h-3 opacity-30" />
-                          )}
-                        </button>
-                      ) : (
-                        <span>{col.label}</span>
-                      )}
-                      <ColumnResizer
-                        onMouseDown={(e) => handleResizeStart(col.id, e)}
-                        onDoubleClick={() => resetColumnWidth(col.id)}
-                        isResizing={resizingKey === col.id}
-                      />
-                    </th>
-                  );
-                })}
-
-                {/* Actions Column */}
-                <th
-                  scope="col"
-                  className="sticky right-0 z-30 w-24 min-w-[96px] max-w-[96px] px-3 py-3 font-semibold text-[#000000] dark:text-white border-l border-b border-[#dde2e8] dark:border-[#334155] text-center"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
-                >
-                  ACTIONS
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {isLoading && clients.length === 0 ? (
-                Array.from({ length: 6 }).map((_, rIdx) => (
-                  <tr
-                    key={`client-shimmer-${rIdx}`}
-                    className={`border-b border-[#dde2e8] dark:border-[#334155] ${rIdx % 2 === 0
-                      ? "bg-white dark:bg-[#1e293b]"
-                      : "bg-[#fafafa] dark:bg-[#192437]"
-                      }`}
-                  >
-                    {/* Frozen Checkbox Cell */}
-                    <td className="sticky left-0 z-20 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
-                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-
-                    {/* Columns */}
-                    {visibleColumns.map((col: ClientColumnDef) => {
-                      const colWidth = getColumnWidth(col.id);
-                      return (
-                        <td
-                          key={col.id}
-                          className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
-                          style={{
-                            width: `${colWidth}px`,
-                            minWidth: `${colWidth}px`,
-                            maxWidth: `${colWidth}px`,
-                          }}
-                        >
-                          <div
-                            className="rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer"
-                            style={{
-                              width:
-                                col.id === "photo"
-                                  ? "26px"
-                                  : col.id === "name"
-                                    ? "75%"
-                                    : col.id === "fileNo"
-                                      ? "55%"
-                                      : col.id === "tags"
-                                        ? "65%"
-                                        : "50%",
-                              height: col.id === "photo" ? "26px" : "13px",
-                              borderRadius: col.id === "photo" ? "9999px" : "4px",
-                              margin: col.id === "photo" ? "0 auto" : undefined,
-                            }}
-                          />
-                        </td>
-                      );
-                    })}
-
-                    {/* Actions Cell */}
-                    <td className="sticky right-0 z-20 px-3 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : clients.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={visibleColumns.length + 2}
-                    className="py-16 text-center text-gray-400 font-medium"
-                  >
-                    {showDeleted
-                      ? "Trash is empty."
-                      : "No clients found. Click '+ Add Client' to register a new client."}
-                  </td>
-                </tr>
-              ) : (
-                clients.map((client, index) => {
-                  const uniqueKey = client.id || (client as any)._id || `client-${client.fileNo || index}`;
-                  return (
-                    <ClientTableRow
-                      key={uniqueKey}
-                      client={client}
-                      isSelected={selectedIds.has(client.id)}
-                      visibleColumns={visibleColumns}
-                      columnWidths={columnWidths}
-                      activeMenuId={activeMenuId}
-                      onToggleSelect={toggleSelectRow}
-                      onView={(c) => {
-                        setViewingClient(c);
-                        dispatch(setSelectedClient(c));
-                        setActiveDetailTab("Master");
-                        setViewMode("detail");
-                      }}
-                      onEdit={(c) => {
-                        setEditingClient(c);
-                        setViewMode("create");
-                      }}
-                      onToggleActive={handleToggleActive}
-                      onDelete={handleDeleteClient}
-                      onRestore={handleRestoreClient}
-                      onToggleMenu={setActiveMenuId}
-                    />
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Bar */}
-        <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
-          <Pagination
-            currentPage={page}
-            pageSize={pageSize}
-            totalItems={pagination?.totalDocs || clients.length}
-            onPageChange={setPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
+        <DataTable<Client>
+          columns={clientDataTableColumns}
+          data={clients}
+          selectable={true}
+          selectedIds={Array.from(selectedIds)}
+          onSelectionChange={(ids) => setSelectedIds(new Set(ids))}
+          actions={getClientActions}
+          actionsHeaderLabel="ACTIONS"
+          sortKey={sortKey || undefined}
+          sortDirection={sortDirection}
+          onSort={(key) => toggleSort(key)}
+          loading={isLoading && clients.length === 0}
+          emptyMessage={
+            showDeleted
+              ? "Trash is empty."
+              : "No clients found. Click '+ Add Client' to register a new client."
+          }
+          onRowClick={(client) => {
+            setViewingClient(client);
+            dispatch(setSelectedClient(client));
+            setActiveDetailTab("Master");
+            setViewMode("detail");
+          }}
+          pagination={{
+            currentPage: page,
+            totalItems: pagination?.totalDocs || clients.length,
+            pageSize: pageSize,
+            onPageChange: setPage,
+            rowsPerPageOptions: [10, 20, 50, 100],
+            onRowsPerPageChange: (newLimit) => {
+              setPageSize(newLimit);
               setPage(1);
-            }}
-            showPageSize={true}
-          />
-        </div>
+            },
+          }}
+        />
       </div>
 
       {/* In-App Delete Confirmation Modal */}

@@ -12,6 +12,7 @@ import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail, TaskTemplateI
 import { Client } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { Select, SelectOption } from "@/components/ui/Select";
 
 export interface AddTaskInitialData {
   taskName?: string;
@@ -285,9 +286,9 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   };
 
   // When selected service changes, auto-update frequency and department
-  const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const sId = e.target.value;
+  const handleServiceSelect = (sId: string) => {
     setServiceId(sId);
+    clearError("serviceId");
     const selected = services.find((s) => s.id === sId || s.name === sId);
     if (selected) {
       if (selected.frequency) {
@@ -645,34 +646,27 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Client <span className="text-[var(--danger)]">*</span>
               </label>
-              <select
+              <Select
                 id="task-client"
                 value={clientId}
-                onChange={(e) => {
-                  setClientId(e.target.value);
+                onChange={(val) => {
+                  setClientId(val);
                   clearError("clientId");
                 }}
-                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all truncate ${
-                  errors.clientId
-                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
-                }`}
-              >
-                {isLoadingClients ? (
-                  <option value="">Loading clients...</option>
-                ) : clients.length > 0 ? (
-                  clients.map((c) => {
-                    const cVal = c.id || (c as any)._id || c.fileNo;
-                    return (
-                      <option key={cVal} value={cVal}>
-                        {c.name} {c.fileNo ? `(${c.fileNo})` : ""}
-                      </option>
-                    );
-                  })
-                ) : (
-                  <option value="" disabled>No clients found in database</option>
-                )}
-              </select>
+                options={
+                  isLoadingClients
+                    ? [{ value: "", label: "Loading clients..." }]
+                    : clients.length > 0
+                    ? clients.map((c) => ({
+                        value: c.id || (c as any)._id || c.fileNo,
+                        label: c.name + (c.fileNo ? " (" + c.fileNo + ")" : ""),
+                      }))
+                    : [{ value: "", label: "No clients found in database" }]
+                }
+                placeholder="Select Client..."
+                searchable={true}
+                error={errors.clientId}
+              />
               {errors.clientId && (
                 <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
                   {errors.clientId}
@@ -688,31 +682,24 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Service <span className="text-[var(--danger)]">*</span>
               </label>
-              <select
+              <Select
                 id="task-service"
                 value={serviceId}
-                onChange={(e) => {
-                  handleServiceChange(e);
-                  clearError("serviceId");
-                }}
-                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all truncate ${
-                  errors.serviceId
-                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
-                }`}
-              >
-                {isLoadingServices ? (
-                  <option value="">Loading services...</option>
-                ) : services.length > 0 ? (
-                  services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>No services found in database</option>
-                )}
-              </select>
+                onChange={(val) => handleServiceSelect(val)}
+                options={
+                  isLoadingServices
+                    ? [{ value: "", label: "Loading services..." }]
+                    : services.length > 0
+                    ? services.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                      }))
+                    : [{ value: "", label: "No services found in database" }]
+                }
+                placeholder="Select Service..."
+                searchable={true}
+                error={errors.serviceId}
+              />
               {errors.serviceId && (
                 <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
                   {errors.serviceId}
@@ -728,18 +715,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Frequency
               </label>
-              <select
+              <Select
                 id="task-frequency"
                 value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-muted)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
-              >
-                <option value="Monthly">Monthly</option>
-                <option value="Quarterly">Quarterly</option>
-                <option value="Annually">Annually</option>
-                <option value="One-Time">One-Time</option>
-                <option value="As-Needed">As-Needed</option>
-              </select>
+                onChange={(val) => setFrequency(val)}
+                options={["Monthly", "Quarterly", "Annually", "One-Time", "As-Needed"]}
+                placeholder="Frequency"
+              />
             </div>
 
             {/* Select Period * */}
@@ -750,19 +732,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Select Period <span className="text-[var(--danger)]">*</span>
               </label>
-              <select
+              <Select
                 id="task-period"
                 value={period || getPeriodOptions()[0] || ""}
-                onChange={(e) => setPeriod(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
-              >
-                {getPeriodOptions().map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setPeriod(val)}
+                options={getPeriodOptions()}
+                placeholder="Select Period"
+                searchable={true}
+              />
             </div>
 
             {/* Task Name */}
@@ -806,19 +783,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Financial Year <span className="text-[var(--danger)]">*</span>
               </label>
-              <select
+              <Select
                 id="task-fy"
                 value={financialYear || FINANCIAL_YEARS[0] || ""}
-                onChange={(e) => setFinancialYear(e.target.value)}
-                required
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
-              >
-                {FINANCIAL_YEARS.map((fy) => (
-                  <option key={fy} value={fy}>
-                    {fy}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFinancialYear(val)}
+                options={FINANCIAL_YEARS}
+                placeholder="Financial Year"
+              />
             </div>
 
             {/* Department */}
@@ -829,19 +800,16 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Department
               </label>
-              <select
+              <Select
                 id="task-dept"
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
-              >
-                <option value="">Select Department</option>
-                {TASK_DEPARTMENTS.filter((d) => d !== "All Dept").map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setDepartment(val)}
+                options={[
+                  { value: "", label: "Select Department" },
+                  ...TASK_DEPARTMENTS.filter((d) => d !== "All Dept").map((d) => ({ value: d, label: d })),
+                ]}
+                placeholder="Select Department"
+              />
             </div>
 
             {/* Assignee */}
@@ -852,26 +820,24 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Assignee <span className="text-[var(--danger)]">*</span>
               </label>
-              <select
+              <Select
                 id="task-assignee"
                 value={assigneeId}
-                onChange={(e) => {
-                  setAssigneeId(e.target.value);
+                onChange={(val) => {
+                  setAssigneeId(val);
                   clearError("assigneeId");
                 }}
-                className={`w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border rounded-md text-[var(--text-main)] focus:outline-none transition-all ${
-                  errors.assigneeId
-                    ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                    : "border-[var(--border-main)] focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)]"
-                }`}
-              >
-                <option value="">Select Assignee</option>
-                {teamMembers.map((tm) => (
-                  <option key={tm.id} value={tm.id}>
-                    {tm.initials} - {tm.name} ({tm.role})
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "", label: "Select Assignee" },
+                  ...teamMembers.map((tm) => ({
+                    value: tm.id,
+                    label: tm.initials + " - " + tm.name + " (" + tm.role + ")",
+                  })),
+                ]}
+                placeholder="Select Assignee"
+                searchable={true}
+                error={errors.assigneeId}
+              />
               {errors.assigneeId && (
                 <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
                   {errors.assigneeId}
@@ -887,19 +853,20 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Reviewer
               </label>
-              <select
+              <Select
                 id="task-reviewer"
                 value={reviewerId}
-                onChange={(e) => setReviewerId(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
-              >
-                <option value="">Select Reviewer</option>
-                {teamMembers.map((tm) => (
-                  <option key={tm.id} value={tm.id}>
-                    {tm.initials} - {tm.name} ({tm.role})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setReviewerId(val)}
+                options={[
+                  { value: "", label: "Select Reviewer" },
+                  ...teamMembers.map((tm) => ({
+                    value: tm.id,
+                    label: tm.initials + " - " + tm.name + " (" + tm.role + ")",
+                  })),
+                ]}
+                placeholder="Select Reviewer"
+                searchable={true}
+              />
             </div>
 
             {/* Priority */}
@@ -910,19 +877,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               >
                 Priority
               </label>
-              <select
+              <Select
                 id="task-priority"
                 value={priority}
-                onChange={(e) =>
-                  setPriority(e.target.value as "Low" | "Medium" | "High" | "Urgent")
-                }
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </select>
+                onChange={(val) => setPriority(val as "Low" | "Medium" | "High" | "Urgent")}
+                options={["Low", "Medium", "High", "Urgent"]}
+                placeholder="Priority"
+              />
             </div>
           </div>
 

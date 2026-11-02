@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Zap,
@@ -33,6 +33,11 @@ import { TeamMember } from "@/data/teamData";
 import { teamStore } from "@/components/team/teamStore";
 import { useAuth } from "../auth/AuthContext";
 import { usePermission } from "@/components/team/usePermission";
+import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
@@ -262,6 +267,15 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
       })
     : tasks;
 
+  // Pagination states (default limit 10)
+  const [taskPage, setTaskPage] = useState<number>(1);
+  const [taskPageSize, setTaskPageSize] = useState<number>(10);
+
+  const paginatedTasks = useMemo(() => {
+    const start = (taskPage - 1) * taskPageSize;
+    return displayTasks.slice(start, start + taskPageSize);
+  }, [displayTasks, taskPage, taskPageSize]);
+
   useEffect(() => {
     if (isEmployee) {
       setSelectedAssignee(currentUser?.name || employeeName);
@@ -420,6 +434,170 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   ];
 
   const QUICK_FILTERS = ["All Tasks", "My Tasks", "Due Today", "Live Task"];
+
+
+  // DataTable columns adapter for Tasks
+  const taskDataTableColumns = useMemo<DataTableColumn<TaskItem>[]>(() => {
+    return [
+      {
+        id: "taskId",
+        header: "ID",
+        accessorKey: "taskId",
+        sortable: true,
+        width: colWidths.id || 90,
+        cell: (task: TaskItem) => (
+          <button
+            type="button"
+            onClick={() => onOpenTaskDetail(task.id)}
+            className="hover:underline transition-colors cursor-pointer text-left font-mono font-semibold"
+            style={{ color: "var(--primary)" }}
+          >
+            {task.taskId}
+          </button>
+        ),
+      },
+      {
+        id: "taskName",
+        header: "Task Name",
+        accessorKey: "taskName",
+        sortable: true,
+        width: colWidths.taskName || 170,
+        cell: (task: TaskItem) => (
+          <span className="text-[var(--text-main)] truncate block">
+            {task.taskName}
+          </span>
+        ),
+      },
+      {
+        id: "businessName",
+        header: "Business Name",
+        width: colWidths.businessName || 190,
+        cell: (task: TaskItem) => {
+          const isHexId = (val?: string) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(val));
+          const properClientName =
+            task.clientName && !isHexId(task.clientName)
+              ? task.clientName
+              : (task.legalName && !isHexId(task.legalName)
+                  ? task.legalName
+                  : (task.clientFileNo ? "Client #" + task.clientFileNo : "Client"));
+          const clientInitials = properClientName.substring(0, 2).toUpperCase();
+
+          return (
+            <div className="flex items-center gap-x-2">
+              <span
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                style={{
+                  backgroundColor: "var(--brand-soft)",
+                  color: "var(--primary)",
+                }}
+              >
+                {clientInitials}
+              </span>
+              <div className="truncate">
+                <span className="font-medium text-[var(--text-main)] block truncate">
+                  {properClientName}
+                </span>
+                {task.clientFileNo && (
+                  <span className="text-[10px] text-[var(--text-subtle)] font-mono block">
+                    {task.clientFileNo}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "pan",
+        header: "PAN Number",
+        width: colWidths.pan || 110,
+        cell: (task: TaskItem) => (
+          <span className="font-mono text-[11px] text-[var(--text-subtle)]">
+            {task.clientPan || "-"}
+          </span>
+        ),
+      },
+      {
+        id: "legalName",
+        header: "Legal Name",
+        width: colWidths.legalName || 150,
+        cell: (task: TaskItem) => (
+          <span className="text-[var(--text-muted)] truncate block">
+            {task.legalName || "-"}
+          </span>
+        ),
+      },
+      {
+        id: "category",
+        header: "Category",
+        accessorKey: "category",
+        sortable: true,
+        width: colWidths.category || 120,
+        cell: (task: TaskItem) => (
+          <span className="text-[var(--text-main)]">
+            {task.category || "-"}
+          </span>
+        ),
+      },
+      {
+        id: "service",
+        header: "Service",
+        width: colWidths.service || 150,
+        cell: (task: TaskItem) => (
+          <span className="font-medium text-[var(--text-main)] truncate block">
+            {task.serviceName}
+          </span>
+        ),
+      },
+      {
+        id: "taskType",
+        header: "Task Type",
+        width: colWidths.taskType || 120,
+        cell: (task: TaskItem) => (
+          task.taskType === "One-Time Task" ? (
+            <span className="inline-block px-2 py-0.5 rounded text-[10.5px] font-medium bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 whitespace-nowrap">
+              One-Time Task
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-medium bg-[var(--bg-subtle)] text-[var(--text-muted)] whitespace-nowrap">
+              <Repeat className="w-2.5 h-2.5 mr-1" />
+              Recurring Task
+            </span>
+          )
+        ),
+      },
+      {
+        id: "billingStatus",
+        header: "Billing Status",
+        width: colWidths.billingStatus || 110,
+        cell: (task: TaskItem) => (
+          <span className="inline-block px-2 py-0.5 rounded text-[10.5px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+            {task.billingType === "Billable" ? "Billable" : "Non Billable"}
+          </span>
+        ),
+      },
+    ];
+  }, [colWidths, onOpenTaskDetail]);
+
+  const getTaskActions = useCallback((task: TaskItem): DropdownActionItem[] => {
+    const actionsList: DropdownActionItem[] = [
+      {
+        label: "View Details",
+        icon: Eye,
+        onClick: () => onOpenTaskDetail(task.id),
+      },
+    ];
+
+    if (task.status === "Ready to Bill" && !isEmployee) {
+      actionsList.push({
+        label: "Generate Invoice",
+        icon: ReceiptText,
+        onClick: () => handleGenerateInvoice(task),
+      });
+    }
+
+    return actionsList;
+  }, [isEmployee, handleGenerateInvoice, onOpenTaskDetail]);
 
   return (
     <div className="py-2">
@@ -642,362 +820,31 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
         </div>
       )}
 
-      {/* 4. Resizable Dense Data Table matching Image 4 */}
+      {/* 4. Resizable Dense Data Table using reusable DataTable */}
       <div className="bg-[var(--bg-surface)] overflow-hidden shadow-xs">
-        <div className="overflow-x-auto min-h-[300px]">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr
-                className="text-gray-700 dark:text-gray-300 font-semibold select-none border-b border-[#dde2e8] dark:border-[#334155]"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                {/* Checkbox */}
-                <th
-                  style={{ width: `${colWidths.checkbox}px` }}
-                  className="py-2.5 px-3 text-center"
-                >
-                  <input
-                    type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={
-                      tasks.length > 0 && selectedTaskIds.length === tasks.length
-                    }
-                    className="w-3.5 h-3.5 rounded text-[var(--primary)] border-[var(--border-main)]"
-                  />
-                </th>
-
-                {/* ID */}
-                <th
-                  style={{ width: `${colWidths.id}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <div className="flex items-center space-x-1 cursor-pointer">
-                    <span>ID</span>
-                    <ArrowUpDown className="w-3 h-3 text-[var(--text-subtle)]" />
-                  </div>
-                  <div
-                    onMouseDown={(e) => startResize("id", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Task Name */}
-                <th
-                  style={{ width: `${colWidths.taskName}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Task Name</span>
-                  <div
-                    onMouseDown={(e) => startResize("taskName", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Business Name */}
-                <th
-                  style={{ width: `${colWidths.businessName}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Business Name</span>
-                  <div
-                    onMouseDown={(e) => startResize("businessName", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* PAN Number */}
-                <th
-                  style={{ width: `${colWidths.pan}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>PAN Number</span>
-                  <div
-                    onMouseDown={(e) => startResize("pan", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Legal Name */}
-                <th
-                  style={{ width: `${colWidths.legalName}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Legal Name</span>
-                  <div
-                    onMouseDown={(e) => startResize("legalName", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Category */}
-                <th
-                  style={{ width: `${colWidths.category}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Category</span>
-                  <div
-                    onMouseDown={(e) => startResize("category", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Service */}
-                <th
-                  style={{ width: `${colWidths.service}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Service</span>
-                  <div
-                    onMouseDown={(e) => startResize("service", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Task Type */}
-                <th
-                  style={{ width: `${colWidths.taskType}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Task Type</span>
-                  <div
-                    onMouseDown={(e) => startResize("taskType", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Billing Status */}
-                <th
-                  style={{ width: `${colWidths.billingStatus}px` }}
-                  className="relative py-2.5 px-3 group/th"
-                >
-                  <span>Billing St...</span>
-                  <div
-                    onMouseDown={(e) => startResize("billingStatus", e)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--primary)] transition-colors"
-                  />
-                </th>
-
-                {/* Actions */}
-                <th
-                  style={{ width: `${colWidths.actions}px` }}
-                  className="py-2.5 px-3 text-center"
-                >
-                  <MoreVertical className="w-3.5 h-3.5 text-[var(--text-subtle)] mx-auto" />
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-main)]">
-              {isLoading && displayTasks.length === 0 ? (
-                Array.from({ length: 8 }).map((_, rIdx) => (
-                  <tr
-                    key={`task-shimmer-${rIdx}`}
-                    className={rIdx % 2 === 0 ? "bg-[var(--bg-surface)]" : "bg-[var(--bg-muted)]"}
-                  >
-                    {/* Checkbox */}
-                    <td className="py-2.5 px-3 text-center">
-                      <div className="w-3.5 h-3.5 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* ID */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-3 w-12 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Task Name */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-3.5 w-3/4 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Business Name */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-3.5 w-2/3 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* PAN */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-3 w-16 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Legal Name */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-3.5 w-1/2 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Assignee */}
-                    <td className="py-2.5 px-3">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                        <div className="h-3 w-14 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                      </div>
-                    </td>
-                    {/* Target Date */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-3 w-16 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Priority */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-4 w-12 rounded-full bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Status */}
-                    <td className="py-2.5 px-3">
-                      <div className="h-4 w-16 rounded-full bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                    {/* Actions */}
-                    <td className="py-2.5 px-3 text-center">
-                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-                  </tr>
-                ))
-              ) : displayTasks.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="py-12 text-center text-[var(--text-placeholder)] text-xs">
-                    No tasks found matching your filters.
-                  </td>
-                </tr>
-              ) : (
-                displayTasks.map((task: TaskItem) => {
-                  const isChecked = selectedTaskIds.includes(task.id);
-                  const isHexId = (val?: string) => Boolean(val && /^[0-9a-fA-F]{24}$/.test(val));
-                  const properClientName =
-                    task.clientName && !isHexId(task.clientName)
-                      ? task.clientName
-                      : (task.legalName && !isHexId(task.legalName)
-                          ? task.legalName
-                          : (task.clientFileNo ? `Client #${task.clientFileNo}` : "Client"));
-                  const clientInitials = properClientName.substring(0, 2).toUpperCase();
-
-                  return (
-                    <tr
-                      key={task.id}
-                      className={`hover:bg-[var(--bg-hover)] transition-colors ${isChecked ? "bg-[var(--brand-soft)]" : ""
-                        }`}
-                    >
-                      {/* Checkbox */}
-                      <td className="py-2.5 px-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleSelectTask(task.id)}
-                          className="w-3.5 h-3.5 rounded text-[var(--primary)] border-[var(--border-main)]"
-                        />
-                      </td>
-
-                      {/* ID (Clickable Link to View) */}
-                      <td className="py-2.5 px-3 font-semibold text-[var(--text-main)]">
-                        <button
-                          type="button"
-                          onClick={() => onOpenTaskDetail(task.id)}
-                          className="hover:underline transition-colors cursor-pointer text-left font-mono"
-                          style={{ color: "var(--primary)" }}
-                        >
-                          {task.taskId}
-                        </button>
-                      </td>
-
-                      {/* Task Name */}
-                      <td className="py-2.5 px-3 text-[var(--text-main)] truncate max-w-[140px]">
-                        {task.taskName}
-                      </td>
-
-                      {/* Business Name (Avatar + Code) */}
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-x-2">
-                          <span
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                            style={{
-                              backgroundColor: "var(--brand-soft)",
-                              color: "var(--primary)",
-                            }}
-                          >
-                            {clientInitials}
-                          </span>
-                          <div className="truncate">
-                            <span className="font-medium text-[var(--text-main)] block truncate">
-                              {properClientName}
-                            </span>
-                            {task.clientFileNo && (
-                              <span className="text-[10px] text-[var(--text-subtle)] font-mono block">
-                                {task.clientFileNo}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* PAN Number */}
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-[var(--text-subtle)]">
-                        {task.clientPan || "-"}
-                      </td>
-
-                      {/* Legal Name */}
-                      <td className="py-2.5 px-3 text-[var(--text-muted)] truncate max-w-[160px]">
-                        {task.legalName || "-"}
-                      </td>
-
-                      {/* Category */}
-                      <td className="py-2.5 px-3">
-                        <span className="text-[var(--text-main)]">
-                          {task.category || "-"}
-                        </span>
-                      </td>
-
-                      {/* Service */}
-                      <td className="py-2.5 px-3">
-                        <span className="font-medium text-[var(--text-main)] truncate block">
-                          {task.serviceName}
-                        </span>
-                      </td>
-
-                      {/* Task Type */}
-                      <td className="py-2.5 px-3">
-                        {task.taskType === "One-Time Task" ? (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10.5px] font-medium bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 whitespace-nowrap">
-                            One-Time Task
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-medium bg-[var(--bg-subtle)] text-[var(--text-muted)] whitespace-nowrap">
-                            <Repeat className="w-2.5 h-2.5 mr-1" />
-                            Recurring Task
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Billing Status */}
-                      <td className="py-2.5 px-3">
-                        <span className="inline-block px-2 py-0.5 rounded text-[10.5px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                          {task.billingType === "Billable" ? "Billable" : "Non Billable"}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="flex items-center justify-center space-x-1.5">
-                          {task.status === "Ready to Bill" && !isEmployee && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleGenerateInvoice(task);
-                              }}
-                              title="Generate Invoice from task"
-                              className="px-2.5 py-1 rounded bg-[var(--brand-soft)] hover:bg-[var(--primary-light)] text-[var(--primary)] font-bold text-[10.5px] inline-flex items-center space-x-1 transition-all shadow-2xs whitespace-nowrap cursor-pointer"
-                            >
-                              <ReceiptText className="w-3.5 h-3.5" />
-                              <span>Generate Invoice</span>
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => onOpenTaskDetail(task.id)}
-                            aria-label={`View details for task ${task.taskId}`}
-                            className="text-[var(--text-subtle)] hover:text-[var(--text-main)] p-1 rounded hover:bg-[var(--bg-hover)] cursor-pointer"
-                          >
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<TaskItem>
+          columns={taskDataTableColumns}
+          data={displayTasks}
+          selectable={true}
+          selectedIds={selectedTaskIds}
+          onSelectionChange={setSelectedTaskIds}
+          actions={getTaskActions}
+          actionsHeaderLabel="Actions"
+          loading={isLoading && displayTasks.length === 0}
+          emptyMessage="No tasks found matching your filters."
+          onRowClick={(task) => onOpenTaskDetail(task.id)}
+          pagination={{
+            currentPage: taskPage,
+            totalItems: displayTasks.length,
+            pageSize: taskPageSize,
+            onPageChange: setTaskPage,
+            rowsPerPageOptions: [10, 20, 50, 100],
+            onRowsPerPageChange: (newLimit) => {
+              setTaskPageSize(newLimit);
+              setTaskPage(1);
+            },
+          }}
+        />
       </div>
 
       {/* Bulk Delete Confirmation Modal */}

@@ -13,6 +13,9 @@ import {
 import { ClientServiceSetting } from "@/data/crmData";
 import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
 import { ClientRecurringTaskDrawer } from "./ClientRecurringTaskDrawer";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Pagination } from "@/components/ui/Pagination";
 
 export interface ClientServiceSettingsTabProps {
   serviceSearch: string;
@@ -58,6 +61,8 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
   const [inlineEditingService, setInlineEditingService] = useState<string | null>(null);
   const [inlineRateVal, setInlineRateVal] = useState<string>("");
   const [isSavingInlineRate, setIsSavingInlineRate] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   return (
     <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden">
@@ -178,7 +183,10 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                 </td>
               </tr>
             ) : (
-              Object.entries(groupedServices).map(([category, items]) => {
+              (() => {
+                const categoryEntries = Object.entries(groupedServices);
+                const paginatedCategories = categoryEntries.slice((page - 1) * pageSize, page * pageSize);
+                return paginatedCategories.map(([category, items]) => {
                 const isCollapsed = collapsedCategories[category];
                 const allCategoryCompliance = items.length > 0 && items.every((x) => Boolean(x.isActive !== undefined ? x.isActive : x.compliance));
 
@@ -456,8 +464,9 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                       })}
                   </React.Fragment>
                 );
-              })
-            )}
+              });
+            })()
+          )}
           </tbody>
         </table>
       </div>

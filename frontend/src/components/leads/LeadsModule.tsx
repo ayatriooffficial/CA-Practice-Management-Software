@@ -24,6 +24,12 @@ import {
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
+import { getDirectFilePreviewUrl } from "@/utils/filePreview";
+import { Phone, Pencil, Trash2, RotateCcw } from "lucide-react";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
@@ -356,6 +362,132 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
   );
 
 
+  // DataTable columns adapter
+  const dataTableColumns = useMemo<DataTableColumn<Lead>[]>(() => {
+    const cols: DataTableColumn<Lead>[] = [
+      {
+        id: "fullName",
+        header: "Party Full Name",
+        accessorKey: "fullName",
+        sortable: true,
+        width: getColumnWidth("fullName") || 220,
+        cell: (lead: Lead) => (
+          <div className="flex items-center gap-2.5 text-left truncate">
+            <button
+              type="button"
+              onClick={() => setSelectedLeadForDetails(lead)}
+              className="flex items-center gap-2.5 text-left cursor-pointer group/name hover:opacity-80 transition-opacity truncate max-w-full"
+            >
+              {lead.photo ? (
+                <img
+                  src={getDirectFilePreviewUrl(lead.photo)}
+                  alt=""
+                  className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-[#eef0f3] dark:bg-[#334155] flex items-center justify-center text-gray-400 shrink-0">
+                  <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                </div>
+              )}
+              <span className="font-semibold text-[#31719B] group-hover/name:underline truncate">
+                {lead.fullName}
+              </span>
+            </button>
+          </div>
+        ),
+      },
+    ];
+
+    dynamicColumns.forEach((col: LeadColumnDef) => {
+      cols.push({
+        id: col.key as string,
+        header: col.label,
+        accessorKey: col.key as keyof Lead,
+        sortable: Boolean(col.sortable),
+        width: getColumnWidth(col.key as string) || (INITIAL_LEAD_COLUMN_WIDTHS[col.key as string] || 140),
+        cell: (lead: Lead) => {
+          const val = (lead as any)[col.key];
+          if (col.kind === "timestamp" || col.kind === "date") {
+            return <span>{formatDate(val)}</span>;
+          }
+          if (col.kind === "secret") {
+            return <span className="font-mono text-gray-400">••••••••</span>;
+          }
+          if (col.kind === "phone" && val) {
+            return (
+              <a
+                href={"tel:" + val}
+                className="flex items-center gap-1 text-[#31719B] hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Phone className="w-3 h-3 shrink-0" />
+                <span className="truncate">{val}</span>
+              </a>
+            );
+          }
+          if (col.kind === "email" && val) {
+            return (
+              <a
+                href={"mailto:" + val}
+                className="flex items-center gap-1 text-[#31719B] hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="truncate">{val}</span>
+              </a>
+            );
+          }
+          if (col.kind === "file") {
+            return val ? (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                Attached
+              </span>
+            ) : (
+              <span className="text-gray-300">—</span>
+            );
+          }
+          return <span className="truncate">{val || "—"}</span>;
+        },
+      });
+    });
+
+    return cols;
+  }, [dynamicColumns, columnWidths, formatDate]);
+
+  const getLeadActions = useCallback((lead: Lead): DropdownActionItem[] => {
+    const isDeleted = Boolean((lead as any).isDeleted);
+    const actionsList: DropdownActionItem[] = [];
+
+    if (!isDeleted) {
+      if (canAddEdit("leads")) {
+        actionsList.push({
+          label: "Edit",
+          icon: Pencil,
+          onClick: () => setEditingLead(lead),
+        });
+      }
+      if (canDelete("leads")) {
+        actionsList.push({
+          label: "Delete",
+          icon: Trash2,
+          variant: "danger",
+          onClick: () => handleDeleteLead(lead.id, lead.fullName),
+        });
+      }
+    } else {
+      if (canDelete("leads")) {
+        actionsList.push({
+          label: "Restore",
+          icon: RotateCcw,
+          onClick: () => handleRestoreLead(lead.id, lead.fullName),
+        });
+      }
+    }
+
+    return actionsList;
+  }, [canAddEdit, canDelete, handleDeleteLead, handleRestoreLead]);
+
   if (selectedLeadForDetails) {
     return (
       <div className="w-full">
@@ -387,6 +519,9 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
       </div>
     );
   }
+
+
+
 
   return (
     <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
@@ -484,238 +619,38 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
         />
       )}
 
-      {/* Spreadsheet Table with Memoized Rows */}
+      {/* Spreadsheet Table using reusable DataTable */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
-        <div className="overflow-x-auto scrollbar-slim">
-          <table
-            suppressHydrationWarning
-            className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
-            style={{ width: "max-content" }}
-          >
-            <thead>
-              <tr
-                className="text-gray-700 dark:text-gray-300"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                {/* Frozen Checkbox */}
-                <th
-                  scope="col"
-                  className="sticky left-0 z-30 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
-                >
-                  <input
-                    id="leads-select-all-page"
-                    name="selectAllLeads"
-                    aria-label="Select all leads on this page"
-                    title="Select all leads on this page"
-                    type="checkbox"
-                    checked={allCurrentPageSelected}
-                    onChange={toggleSelectAllPage}
-                    className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer"
-                  />
-                </th>
-
-                {/* Frozen Party Full Name */}
-                <th
-                  scope="col"
-                  className="relative sticky left-[48px] z-30 px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-[#000000] dark:text-white"
-                  style={{
-                    backgroundColor: "var(--orange-havy-light)",
-                    width: `${getColumnWidth("fullName")}px`,
-                    minWidth: `${getColumnWidth("fullName")}px`,
-                    maxWidth: `${getColumnWidth("fullName")}px`,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("fullName")}
-                    className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
-                  >
-                    <span>Party Full Name</span>
-                    {sortKey === "fullName" ? (
-                      sortDirection === "asc" ? (
-                        <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
-                      ) : (
-                        <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
-                    )}
-                  </button>
-                  <ColumnResizer
-                    onMouseDown={(e) => handleResizeStart("fullName", e)}
-                    onDoubleClick={() => resetColumnWidth("fullName")}
-                    isResizing={resizingKey === "fullName"}
-                  />
-                </th>
-
-                {/* Dynamic Columns */}
-                {dynamicColumns.map((col: LeadColumnDef) => {
-                  const colWidth = getColumnWidth(col.key as string);
-                  return (
-                    <th
-                      key={col.key as string}
-                      scope="col"
-                      className="relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
-                      style={{
-                        backgroundColor: "var(--orange-havy-light)",
-                        width: `${colWidth}px`,
-                        minWidth: `${colWidth}px`,
-                        maxWidth: `${colWidth}px`,
-                      }}
-                    >
-                      {col.sortable ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleSort(col.key as keyof Lead)}
-                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
-                        >
-                          <span>{col.label}</span>
-                          {sortKey === col.key ? (
-                            sortDirection === "asc" ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
-                            ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3 h-3 opacity-30" />
-                          )}
-                        </button>
-                      ) : (
-                        <span>{col.label}</span>
-                      )}
-                      <ColumnResizer
-                        onMouseDown={(e) => handleResizeStart(col.key as string, e)}
-                        onDoubleClick={() => resetColumnWidth(col.key as string)}
-                        isResizing={resizingKey === col.key}
-                      />
-                    </th>
-                  );
-                })}
-
-                {/* Frozen Actions */}
-                <th
-                  scope="col"
-                  className="sticky right-0 z-30 w-28 min-w-[112px] max-w-[112px] px-3 py-3 font-semibold text-[#000000] dark:text-white border-l border-b border-[#dde2e8] dark:border-[#334155] text-center"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {isLoading && leads.length === 0 ? (
-                Array.from({ length: 8 }).map((_, rIdx) => (
-                  <tr
-                    key={`lead-shimmer-${rIdx}`}
-                    className={`border-b border-[#dde2e8] dark:border-[#334155] ${
-                      rIdx % 2 === 0
-                        ? "bg-white dark:bg-[#1e293b]"
-                        : "bg-[#fafafa] dark:bg-[#192437]"
-                    }`}
-                  >
-                    {/* Frozen Checkbox Cell */}
-                    <td className="sticky left-0 z-20 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
-                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-
-                    {/* Party Full Name */}
-                    <td
-                      className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
-                      style={{
-                        width: `${getColumnWidth("fullName")}px`,
-                        minWidth: `${getColumnWidth("fullName")}px`,
-                        maxWidth: `${getColumnWidth("fullName")}px`,
-                      }}
-                    >
-                      <div className="h-3.5 w-3/4 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-
-                    {/* Dynamic Columns */}
-                    {dynamicColumns.map((col: LeadColumnDef) => {
-                      const colWidth = getColumnWidth(col.key as string);
-                      return (
-                        <td
-                          key={col.key as string}
-                          className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
-                          style={{
-                            width: `${colWidth}px`,
-                            minWidth: `${colWidth}px`,
-                            maxWidth: `${colWidth}px`,
-                          }}
-                        >
-                          <div
-                            className="h-3.5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer"
-                            style={{
-                              width:
-                                col.key === "pipelineStage"
-                                  ? "60%"
-                                  : col.key === "leadScore"
-                                  ? "40%"
-                                  : "55%",
-                            }}
-                          />
-                        </td>
-                      );
-                    })}
-
-                    {/* Actions Cell */}
-                    <td className="sticky right-0 z-20 px-3 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : leads.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={visibleColumns.length + 2}
-                    className="py-16 text-center text-gray-400 font-medium"
-                  >
-                    {showDeleted
-                      ? "Trash is empty."
-                      : "No leads match this search. Click '+ Add' to create a lead."}
-                  </td>
-                </tr>
-              ) : (
-                leads.map((lead, index) => (
-                  <LeadTableRow
-                    key={lead.id || (lead as any)._id || `lead-${index}`}
-                    lead={lead}
-                    isSelected={selectedIds.has(lead.id)}
-                    dynamicColumns={dynamicColumns}
-                    columnWidths={columnWidths}
-                    formatDate={formatDate}
-                    onToggleSelect={toggleSelectRow}
-                    onSelectLead={setSelectedLeadForDetails}
-                    onEdit={setEditingLead}
-                    onDelete={handleDeleteLead}
-                    onRestore={handleRestoreLead}
-                    onConvert={setConvertingLead}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Bar */}
-        <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
-          <Pagination
-            currentPage={page}
-            pageSize={pageSize}
-            totalItems={pagination?.totalDocs || leads.length}
-            onPageChange={setPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
+        <DataTable<Lead>
+          columns={dataTableColumns}
+          data={leads}
+          selectable={true}
+          selectedIds={Array.from(selectedIds)}
+          onSelectionChange={(ids) => setSelectedIds(new Set(ids))}
+          actions={getLeadActions}
+          actionsHeaderLabel="Actions"
+          sortKey={sortKey || undefined}
+          sortDirection={sortDirection}
+          onSort={(key) => toggleSort(key as keyof Lead)}
+          loading={isLoading && leads.length === 0}
+          emptyMessage={
+            showDeleted
+              ? "Trash is empty."
+              : "No leads match this search. Click '+ Add' to create a lead."
+          }
+          onRowClick={(lead) => setSelectedLeadForDetails(lead)}
+          pagination={{
+            currentPage: page,
+            totalItems: pagination?.totalDocs || leads.length,
+            pageSize: pageSize,
+            onPageChange: setPage,
+            rowsPerPageOptions: [10, 20, 50, 100],
+            onRowsPerPageChange: (newLimit) => {
+              setPageSize(newLimit);
               setPage(1);
-            }}
-            showPageSize={true}
-          />
-        </div>
+            },
+          }}
+        />
       </div>
 
       {/* Edit / Create Modal */}

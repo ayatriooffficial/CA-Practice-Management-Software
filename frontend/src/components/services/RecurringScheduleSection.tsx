@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
 import { ServiceRecurringSchedule, ServiceRecurringPeriod } from "@/data/serviceData";
 
 export interface RecurringScheduleSectionProps {
@@ -116,6 +117,8 @@ export const RecurringScheduleSection: React.FC<RecurringScheduleSectionProps> =
   schedule,
   onChange,
 }) => {
+  
+
   const timingType = schedule.timingType || "after_period";
   const periods = schedule.periods || [];
 
@@ -225,6 +228,146 @@ export const RecurringScheduleSection: React.FC<RecurringScheduleSectionProps> =
     });
   };
 
+const [recPage, setRecPage] = useState(1);
+  const [recPageSize, setRecPageSize] = useState(10);
+
+  const recurringColumns = useMemo<DataTableColumn<ServiceRecurringPeriod>[]>(() => {
+    return [
+      {
+        id: "period",
+        header: "PERIOD",
+        sortable: true,
+        width: 180,
+        cell: (row: ServiceRecurringPeriod) => (
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-900 dark:text-white text-xs">
+                {row.period}
+              </span>
+              {row.isOverride && (
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                  override
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-gray-400 dark:text-gray-400 mt-0.5">
+              {row.subPeriod || "Filing for " + row.period}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "dueIn",
+        header: "DUE IN",
+        sortable: true,
+        width: 150,
+        cell: (row: ServiceRecurringPeriod) => (
+          <div>
+            <div className="font-bold text-[#31719B] dark:text-[#6db0db] text-xs">
+              {row.dueIn}
+            </div>
+            <div className="text-[11px] text-gray-400 dark:text-gray-400 mt-0.5">
+              {timingType === "after_period" ? "after period" : "within period"}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "startDay",
+        header: "START DAY",
+        align: "center",
+        width: 140,
+        cell: (row: ServiceRecurringPeriod) => {
+          const idx = periods.findIndex((p) => p.period === row.period);
+          return (
+            <div className="inline-flex flex-col items-center">
+              <div className="inline-flex items-center h-8 rounded-sm border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 shadow-2xs focus-within:border-[#31719B] focus-within:ring-1 focus-within:ring-[#31719B]">
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={row.startDay}
+                  onChange={(e) =>
+                    handlePeriodDayChange(idx, "startDay", parseInt(e.target.value, 10))
+                  }
+                  className="w-8 text-center font-bold text-xs text-gray-900 dark:text-white outline-none bg-transparent"
+                />
+                <span className="text-[11px] font-medium text-gray-400 pl-1">
+                  Day
+                </span>
+              </div>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 font-medium block">
+                {row.startDate || "—"}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "targetDay",
+        header: "TARGET DAY",
+        align: "center",
+        width: 140,
+        cell: (row: ServiceRecurringPeriod) => {
+          const idx = periods.findIndex((p) => p.period === row.period);
+          return (
+            <div className="inline-flex flex-col items-center">
+              <div className="inline-flex items-center h-8 rounded-sm border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 shadow-2xs focus-within:border-[#ea580c] focus-within:ring-1 focus-within:ring-[#ea580c]">
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={row.targetDay}
+                  onChange={(e) =>
+                    handlePeriodDayChange(idx, "targetDay", parseInt(e.target.value, 10))
+                  }
+                  className="w-8 text-center font-bold text-xs text-gray-900 dark:text-white outline-none bg-transparent"
+                />
+                <span className="text-[11px] font-medium text-gray-400 pl-1">
+                  Day
+                </span>
+              </div>
+              <span className="text-[11px] text-[#ea580c] dark:text-[#fb923c] mt-1.5 font-semibold block">
+                {row.targetDate || "—"}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "dueDay",
+        header: "DUE DAY",
+        align: "center",
+        width: 140,
+        cell: (row: ServiceRecurringPeriod) => {
+          const idx = periods.findIndex((p) => p.period === row.period);
+          return (
+            <div className="inline-flex flex-col items-center">
+              <div className="inline-flex items-center h-8 rounded-sm border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 shadow-2xs focus-within:border-[#e11d48] focus-within:ring-1 focus-within:ring-[#e11d48]">
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={row.dueDay}
+                  onChange={(e) =>
+                    handlePeriodDayChange(idx, "dueDay", parseInt(e.target.value, 10))
+                  }
+                  className="w-8 text-center font-bold text-xs text-gray-900 dark:text-white outline-none bg-transparent"
+                />
+                <span className="text-[11px] font-medium text-gray-400 pl-1">
+                  Day
+                </span>
+              </div>
+              <span className="text-[11px] text-[#e11d48] dark:text-[#f43f5e] mt-1.5 font-semibold block">
+                {row.dueDate || "—"}
+              </span>
+            </div>
+          );
+        },
+      },
+    ];
+  }, [periods, timingType, handlePeriodDayChange]);
+
   return (
     <div className="w-full space-y-4">
       {/* 1. TIMING OPTION CARDS (Matching Screenshot top) */}
@@ -311,141 +454,23 @@ export const RecurringScheduleSection: React.FC<RecurringScheduleSectionProps> =
         </button>
       </div>
 
-      {/* 3. RECURRING SCHEDULE 1-YEAR TABLE (Matching Screenshot Table) */}
-      <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-card">
-        <div className="overflow-x-auto scrollbar-slim">
-          <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-            <thead>
-              <tr
-                className="text-gray-600 dark:text-gray-300"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                <th className="px-4 py-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-bold text-[11px] uppercase tracking-wider text-gray-500">
-                  PERIOD
-                </th>
-                <th className="px-4 py-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-bold text-[11px] uppercase tracking-wider text-gray-500">
-                  DUE IN
-                </th>
-                <th className="px-4 py-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-bold text-[11px] uppercase tracking-wider text-gray-500 text-center">
-                  START DAY
-                </th>
-                <th className="px-4 py-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-bold text-[11px] uppercase tracking-wider text-[#ea580c] dark:text-[#fb923c] text-center">
-                  TARGET DAY
-                </th>
-                <th className="px-4 py-3.5 border-b border-[#dde2e8] dark:border-[#334155] font-bold text-[11px] uppercase tracking-wider text-[#e11d48] dark:text-[#f43f5e] text-center">
-                  DUE DAY
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
-              {periods.map((row, idx) => (
-                <tr
-                  key={`${row.period}-${idx}`}
-                  className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors"
-                >
-                  {/* Column 1: PERIOD */}
-                  <td className="px-4 py-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-900 dark:text-white text-xs">
-                        {row.period}
-                      </span>
-                      {row.isOverride && (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                          override
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-gray-400 dark:text-gray-400 mt-0.5">
-                      {row.subPeriod || `Filing for ${row.period}`}
-                    </div>
-                  </td>
-
-                  {/* Column 2: DUE IN */}
-                  <td className="px-4 py-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                    <div className="font-bold text-[#31719B] dark:text-[#6db0db] text-xs">
-                      {row.dueIn}
-                    </div>
-                    <div className="text-[11px] text-gray-400 dark:text-gray-400 mt-0.5">
-                      {timingType === "after_period" ? "after period" : "within period"}
-                    </div>
-                  </td>
-
-                  {/* Column 3: START DAY */}
-                  <td className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    <div className="inline-flex flex-col items-center">
-                      <div className="inline-flex items-center h-8 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 shadow-2xs focus-within:border-[#31719B] focus-within:ring-1 focus-within:ring-[#31719B]">
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={row.startDay}
-                          onChange={(e) =>
-                            handlePeriodDayChange(idx, "startDay", parseInt(e.target.value, 10))
-                          }
-                          className="w-8 text-center font-bold text-xs text-gray-900 dark:text-white outline-none bg-transparent"
-                        />
-                        <span className="text-[11px] font-medium text-gray-400 pl-1">
-                          Day
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 font-medium block">
-                        {row.startDate || "—"}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Column 4: TARGET DAY */}
-                  <td className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    <div className="inline-flex flex-col items-center">
-                      <div className="inline-flex items-center h-8 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 shadow-2xs focus-within:border-[#ea580c] focus-within:ring-1 focus-within:ring-[#ea580c]">
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={row.targetDay}
-                          onChange={(e) =>
-                            handlePeriodDayChange(idx, "targetDay", parseInt(e.target.value, 10))
-                          }
-                          className="w-8 text-center font-bold text-xs text-gray-900 dark:text-white outline-none bg-transparent"
-                        />
-                        <span className="text-[11px] font-medium text-gray-400 pl-1">
-                          Day
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-[#ea580c] dark:text-[#fb923c] mt-1.5 font-semibold block">
-                        {row.targetDate || "—"}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Column 5: DUE DAY */}
-                  <td className="px-4 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                    <div className="inline-flex flex-col items-center">
-                      <div className="inline-flex items-center h-8 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 shadow-2xs focus-within:border-[#e11d48] focus-within:ring-1 focus-within:ring-[#e11d48]">
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={row.dueDay}
-                          onChange={(e) =>
-                            handlePeriodDayChange(idx, "dueDay", parseInt(e.target.value, 10))
-                          }
-                          className="w-8 text-center font-bold text-xs text-gray-900 dark:text-white outline-none bg-transparent"
-                        />
-                        <span className="text-[11px] font-medium text-gray-400 pl-1">
-                          Day
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-[#e11d48] dark:text-[#f43f5e] mt-1.5 font-semibold block">
-                        {row.dueDate || "—"}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* 3. RECURRING SCHEDULE 1-YEAR TABLE using reusable DataTable */}
+      <div className="border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden shadow-card">
+        <DataTable<ServiceRecurringPeriod>
+          columns={recurringColumns}
+          data={periods}
+          pagination={{
+            currentPage: recPage,
+            totalItems: periods.length,
+            pageSize: recPageSize,
+            onPageChange: setRecPage,
+            rowsPerPageOptions: [10, 20, 50],
+            onRowsPerPageChange: (s) => {
+              setRecPageSize(s);
+              setRecPage(1);
+            },
+          }}
+        />
       </div>
     </div>
   );

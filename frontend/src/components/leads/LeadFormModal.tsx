@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Lead, STATES } from "@/data/crmData";
 import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
@@ -516,7 +517,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                       <label htmlFor="lead-first-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         First Name <span className="text-[#e8655a]">*</span>
                       </label>
-                      <input
+                      <Input
                         id="lead-first-name"
                         name="firstName"
                         aria-label="First Name"
@@ -525,23 +526,17 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         value={formData.firstName || ""}
                         onChange={(e) => handleChange("firstName", e.target.value)}
                         placeholder="First Name"
-                        className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.firstName
-                          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                          : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                          }`}
+                        error={errors.firstName}
+                        size="md"
+                        className="rounded-sm"
                       />
-                      {errors.firstName && (
-                        <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
-                          {errors.firstName}
-                        </span>
-                      )}
                     </div>
 
                     <div>
                       <label htmlFor="lead-middle-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Middle Name
                       </label>
-                      <input
+                      <Input
                         id="lead-middle-name"
                         name="middleName"
                         aria-label="Middle Name"
@@ -549,7 +544,8 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         value={formData.middleName || ""}
                         onChange={(e) => handleChange("middleName", e.target.value)}
                         placeholder="Middle Name"
-                        className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                        size="md"
+                        className="rounded-sm"
                       />
                     </div>
 
@@ -557,7 +553,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                       <label htmlFor="lead-last-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Last Name <span className="text-[#e8655a]">*</span>
                       </label>
-                      <input
+                      <Input
                         id="lead-last-name"
                         name="lastName"
                         aria-label="Last Name"
@@ -566,16 +562,10 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         value={formData.lastName || ""}
                         onChange={(e) => handleChange("lastName", e.target.value)}
                         placeholder="Last Name"
-                        className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.lastName
-                          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                          : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                        }`}
+                        error={errors.lastName}
+                        size="md"
+                        className="rounded-sm"
                       />
-                      {errors.lastName && (
-                        <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
-                          {errors.lastName}
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -585,7 +575,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                       <label htmlFor="lead-full-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Party Full Name (Computed)
                       </label>
-                      <input
+                      <Input
                         id="lead-full-name"
                         name="fullName"
                         aria-label="Party Full Name (Computed)"
@@ -593,7 +583,8 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         value={formData.fullName || ""}
                         readOnly
                         placeholder="Party Full Name"
-                        className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-[#F6F4F2] dark:bg-[#0b1120] px-3 text-sm font-semibold text-[#000000] dark:text-white cursor-not-allowed"
+                        size="md"
+                        className="rounded-sm cursor-not-allowed bg-[#F6F4F2] dark:bg-[#0b1120] font-semibold text-[#000000] dark:text-white"
                       />
                     </div>
 
@@ -601,7 +592,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                       <label htmlFor="lead-abbreviation" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Abbreviation
                       </label>
-                      <input
+                      <Input
                         id="lead-abbreviation"
                         name="abbreviation"
                         aria-label="Abbreviation"
@@ -609,7 +600,8 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         value={formData.abbreviation || ""}
                         onChange={(e) => handleChange("abbreviation", e.target.value)}
                         placeholder="Abbreviation"
-                        className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                        size="md"
+                        className="rounded-sm"
                       />
                     </div>
                   </div>
@@ -620,14 +612,15 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                       <label htmlFor="lead-dob" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                         Date of Birth
                       </label>
-                      <input
+                      <Input
                         id="lead-dob"
                         name="dob"
                         aria-label="Date of Birth"
                         type="date"
                         value={formData.dob || ""}
                         onChange={(e) => handleChange("dob", e.target.value)}
-                        className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                        size="md"
+                        className="rounded-sm"
                       />
                     </div>
 
@@ -663,19 +656,18 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   <label htmlFor="lead-aadhaar-mobile" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Mobile No Linked with Aadhaar
                   </label>
-                  <input
-                    id="lead-aadhaar-mobile"
-                    name="aadhaarMobile"
-                    aria-label="Mobile No Linked with Aadhaar"
-                    type="tel"
-                    maxLength={10}
-                    value={formData.aadhaarMobile || ""}
-                    onChange={(e) =>
-                      handleChange("aadhaarMobile", e.target.value.replace(/\D/g, ""))
-                    }
-                    placeholder="Mobile No Linked with Aadhaar"
-                    className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3 text-sm outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                  />
+                  <Input
+                        id="lead-aadhaar-mobile"
+                        name="aadhaarMobile"
+                        aria-label="Mobile No. Linked with Aadhaar"
+                        type="tel"
+                        maxLength={15}
+                        value={formData.aadhaarMobile || ""}
+                        onChange={(e) => handleChange("aadhaarMobile", e.target.value.replace(/[^\d+ -]/g, ""))}
+                        placeholder="Mobile No. Linked with Aadhaar"
+                        size="md"
+                        className="rounded-sm"
+                      />
                 </div>
 
                 <div>
@@ -710,24 +702,19 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                   <label htmlFor="lead-email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Communication Mail ID
                   </label>
-                  <input
-                    id="lead-email"
-                    name="email"
-                    aria-label="Communication Mail ID"
-                    type="email"
-                    value={formData.email || ""}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    placeholder="Communication Mail ID"
-                    className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.email
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                    }`}
-                  />
-                  {errors.email && (
-                    <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
-                      {errors.email}
-                    </span>
-                  )}
+                  <Input
+                        id="lead-email"
+                        name="email"
+                        aria-label="Communication Email ID"
+                        type="email"
+                        required
+                        value={formData.email || ""}
+                        onChange={(e) => handleChange("email", e.target.value)}
+                        placeholder="Communication Email ID"
+                        error={errors.email}
+                        size="md"
+                        className="rounded-sm"
+                      />
                 </div>
               </div>
             </div>
@@ -748,30 +735,19 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     <label htmlFor="lead-pan" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       PAN No
                     </label>
-                    <input
-                      id="lead-pan"
-                      name="pan"
-                      aria-label="PAN No"
-                      type="text"
-                      maxLength={10}
-                      value={formData.pan || ""}
-                      onChange={(e) =>
-                        handleChange(
-                          "pan",
-                          e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
-                        )
-                      }
-                      placeholder="PAN No"
-                      className={`h-11 w-full rounded-md border px-3 text-sm uppercase font-mono outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.pan
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
-                    />
-                    {errors.pan && (
-                      <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
-                        {errors.pan}
-                      </span>
-                    )}
+                    <Input
+                        id="lead-pan"
+                        name="pan"
+                        aria-label="PAN Number"
+                        type="text"
+                        maxLength={10}
+                        value={formData.pan || ""}
+                        onChange={(e) => handleChange("pan", e.target.value.toUpperCase())}
+                        placeholder="PAN Number"
+                        error={errors.pan}
+                        size="md"
+                        className="uppercase font-mono rounded-sm"
+                      />
                   </div>
 
                   <div>
@@ -812,27 +788,19 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
                     <label htmlFor="lead-aadhaar" className="block text-xs font-medium text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                       Aadhaar No
                     </label>
-                    <input
-                      id="lead-aadhaar"
-                      name="aadhaar"
-                      aria-label="Aadhaar No"
-                      type="text"
-                      maxLength={12}
-                      value={formData.aadhaar || ""}
-                      onChange={(e) =>
-                        handleChange("aadhaar", e.target.value.replace(/\D/g, ""))
-                      }
-                      placeholder="Aadhaar No"
-                      className={`h-11 w-full rounded-md border px-3 text-sm outline-none bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.aadhaar
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
-                    />
-                    {errors.aadhaar && (
-                      <span className="text-[11px] text-[#e8655a] dark:text-rose-400 font-medium block mt-1">
-                        {errors.aadhaar}
-                      </span>
-                    )}
+                    <Input
+                        id="lead-aadhaar"
+                        name="aadhaar"
+                        aria-label="Aadhaar Number"
+                        type="text"
+                        maxLength={12}
+                        value={formData.aadhaar || ""}
+                        onChange={(e) => handleChange("aadhaar", e.target.value.replace(/\D/g, ""))}
+                        placeholder="Aadhaar Number"
+                        error={errors.aadhaar}
+                        size="md"
+                        className="font-mono rounded-sm"
+                      />
                   </div>
                 </div>
 

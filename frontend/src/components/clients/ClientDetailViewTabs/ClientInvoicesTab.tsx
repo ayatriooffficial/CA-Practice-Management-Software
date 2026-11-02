@@ -12,8 +12,8 @@ import { serviceApi } from "@/services/serviceApi";
 import { Service } from "@/data/serviceData";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
 import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from "@/components/onboarding/tabs/InvoiceLivePreview";
-import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
-import { Button } from "@/components/ui/Button";
+import { DataTable, DataTableColumn } from "@/components/ui/dataTable/DataTable";
+import { Button } from "@/components/ui/button/Button";
 import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
 
 interface ClientInvoicesTabProps {
@@ -76,7 +76,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
 
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [primaryOrgName, setPrimaryOrgName] = useState<string>("Ayatrio Practice");
   const [orgDetails, setOrgDetails] = useState<OrganizationDetails | null>(null);
@@ -528,17 +528,16 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
         const isPartial = status === "Partially Paid";
         return (
           <span
-            className={`inline-block px-2.5 py-0.5 rounded-sm text-[11px] font-semibold whitespace-nowrap ${
-              isPaid
-                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
-                : isPending
+            className={`inline-block px-2.5 py-0.5 rounded-sm text-[11px] font-semibold whitespace-nowrap ${isPaid
+              ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+              : isPending
                 ? "bg-[#fee2e2] dark:bg-[#7f1d1d]/40 text-[#b91c1c] dark:text-[#fca5a5]"
                 : isOverdue
-                ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
-                : isPartial
-                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-            }`}
+                  ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
+                  : isPartial
+                    ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+              }`}
           >
             {status}
           </span>

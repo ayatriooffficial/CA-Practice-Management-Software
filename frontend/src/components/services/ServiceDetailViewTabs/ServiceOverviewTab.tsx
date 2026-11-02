@@ -3,6 +3,21 @@
 import React from "react";
 import { Service } from "@/data/serviceData";
 import { Info } from "lucide-react";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+
+interface ScheduleRow {
+  period: string;
+  subPeriod: string;
+  dueIn: string;
+  dueInSub: string;
+  startDay: string;
+  startDaySub: string;
+  targetDay: string;
+  targetDaySub: string;
+  endDay: string;
+  endDaySub: string;
+  isCurrent?: boolean;
+}
 
 interface ServiceOverviewTabProps {
   service: Service;
@@ -119,12 +134,114 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
     }));
   }, [isQuarterly]);
 
+  // Schedule pagination (default limit 10)
+  const [schedulePage, setSchedulePage] = React.useState(1);
+  const [schedulePageSize, setSchedulePageSize] = React.useState(10);
+
+  const paginatedScheduleRows = React.useMemo(() => {
+    const start = (schedulePage - 1) * schedulePageSize;
+    return scheduleRows.slice(start, start + schedulePageSize);
+  }, [scheduleRows, schedulePage, schedulePageSize]);
+
+  const scheduleColumns: DataTableColumn<ScheduleRow>[] = React.useMemo(
+    () => [
+      {
+        id: "period",
+        header: "PERIOD",
+        minWidth: 180,
+        sortable: true,
+        cell: (row: ScheduleRow) => (
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-900 dark:text-white">
+                {row.period}
+              </span>
+              {row.isCurrent && (
+                <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200">
+                  Current
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-gray-400 mt-0.5">
+              {row.subPeriod}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "dueIn",
+        header: "DUE IN",
+        width: 140,
+        sortable: true,
+        cell: (row: ScheduleRow) => (
+          <div>
+            <div className="font-semibold text-[#31719B] dark:text-[#60a5fa]">
+              {row.dueIn}
+            </div>
+            <div className="text-[11px] text-gray-400 mt-0.5">
+              {row.dueInSub}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "startDay",
+        header: "START DAY",
+        width: 140,
+        sortable: true,
+        cell: (row: ScheduleRow) => (
+          <div>
+            <div className="font-semibold text-gray-900 dark:text-white">
+              {row.startDay}
+            </div>
+            <div className="text-[11px] text-gray-400 mt-0.5">
+              {row.startDaySub}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "targetDay",
+        header: "TARGET DAY",
+        width: 140,
+        sortable: true,
+        cell: (row: ScheduleRow) => (
+          <div>
+            <div className="font-semibold text-amber-600 dark:text-amber-400">
+              {row.targetDay}
+            </div>
+            <div className="text-[11px] text-gray-400 mt-0.5">
+              {row.targetDaySub}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "endDay",
+        header: "END DAY (DUE)",
+        width: 150,
+        sortable: true,
+        cell: (row: ScheduleRow) => (
+          <div>
+            <div className="font-semibold text-rose-600 dark:text-rose-400">
+              {row.endDay}
+            </div>
+            <div className="text-[11px] text-gray-400 mt-0.5">
+              {row.endDaySub}
+            </div>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Top 2 Cards: BASIC INFORMATION & COMMERCIAL & TAX matching Screenshot 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Card: BASIC INFORMATION */}
-        <div className="rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs">
+        <div className=" border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs">
           <h4 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-5">
             BASIC INFORMATION
           </h4>
@@ -206,87 +323,87 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
         </div>
 
         {/* Right Card: COMMERCIAL & TAX */}
-        <div className="rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs">
-  <h4 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-5">
-    COMMERCIAL & TAX
-  </h4>
+        <div className=" border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs">
+          <h4 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-5">
+            COMMERCIAL & TAX
+          </h4>
 
-  <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-    {/* Government Fees */}
-    <div>
-      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-        GOVERNMENT FEES
-      </span>
-      <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
-        {service.governmentFee !== undefined ? `₹ ${service.governmentFee.toLocaleString()}` : "—"}
-      </span>
-    </div>
+          <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+            {/* Government Fees */}
+            <div>
+              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                GOVERNMENT FEES
+              </span>
+              <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
+                {service.governmentFee !== undefined ? `₹ ${service.governmentFee.toLocaleString()}` : "—"}
+              </span>
+            </div>
 
-    {/* Professional Fees */}
-    <div>
-      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-        PROFESSIONAL FEES
-      </span>
-      <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
-        {service.professionalFee !== undefined ? `₹ ${service.professionalFee.toLocaleString()}` : "—"}
-      </span>
-    </div>
+            {/* Professional Fees */}
+            <div>
+              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                PROFESSIONAL FEES
+              </span>
+              <span className="text-sm font-bold text-[var(--text-main)] block mt-1">
+                {service.professionalFee !== undefined ? `₹ ${service.professionalFee.toLocaleString()}` : "—"}
+              </span>
+            </div>
 
-    {/* Total Service Fees */}
-    <div className="col-span-2 bg-gray-50 dark:bg-[#1e293b] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
-      <span className="block text-[10.5px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-        TOTAL SERVICE FEES
-      </span>
-      <span className="text-base font-extrabold text-[var(--text-main)] block mt-1">
-        {service.totalServiceFee !== undefined ? `₹ ${service.totalServiceFee.toLocaleString()}` : "—"}
-      </span>
-    </div>
+            {/* Total Service Fees */}
+            <div className="col-span-2 bg-gray-50 dark:bg-[#1e293b] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+              <span className="block text-[10.5px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                TOTAL SERVICE FEES
+              </span>
+              <span className="text-base font-extrabold text-[var(--text-main)] block mt-1">
+                {service.totalServiceFee !== undefined ? `₹ ${service.totalServiceFee.toLocaleString()}` : "—"}
+              </span>
+            </div>
 
-    {/* Tax Rate */}
-    <div>
-      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-        TAX RATE
-      </span>
-      <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-        {service.taxRate || "—"}
-      </span>
-    </div>
+            {/* Tax Rate */}
+            <div>
+              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                TAX RATE
+              </span>
+              <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
+                {service.taxRate || "—"}
+              </span>
+            </div>
 
-    {/* SAC Code */}
-    <div>
-      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-        SAC CODE
-      </span>
-      <span className="text-sm font-mono font-semibold text-[var(--text-main)] block mt-1">
-        {service.sacCode || "—"}
-      </span>
-    </div>
+            {/* SAC Code */}
+            <div>
+              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                SAC CODE
+              </span>
+              <span className="text-sm font-mono font-semibold text-[var(--text-main)] block mt-1">
+                {service.sacCode || "—"}
+              </span>
+            </div>
 
-    {/* Max OOP Budget */}
-    <div>
-      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-        MAX OOP BUDGET
-      </span>
-      <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-        {service.maxOopBudget ? `₹ ${service.maxOopBudget.toLocaleString()}` : "—"}
-      </span>
-    </div>
+            {/* Max OOP Budget */}
+            <div>
+              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                MAX OOP BUDGET
+              </span>
+              <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
+                {service.maxOopBudget ? `₹ ${service.maxOopBudget.toLocaleString()}` : "—"}
+              </span>
+            </div>
 
-    {/* TAT Days */}
-    <div>
-      <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
-        TAT DAYS
-      </span>
-      <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
-        {service.tatDays ? `${service.tatDays}` : "—"}
-      </span>
-    </div>
-  </div>
-</div>
+            {/* TAT Days */}
+            <div>
+              <span className="block text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                TAT DAYS
+              </span>
+              <span className="text-sm font-semibold text-[var(--text-main)] block mt-1">
+                {service.tatDays ? `${service.tatDays}` : "—"}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Bottom Card: Recurring Schedule matching Screenshot 2 */}
-      <div className="rounded-xl border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs space-y-4">
+      <div className=" border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 shadow-xs space-y-4">
         {/* Recurring Schedule Header */}
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-bold text-[var(--text-main)]">
@@ -301,101 +418,23 @@ export const ServiceOverviewTab: React.FC<ServiceOverviewTabProps> = ({ service 
         </div>
 
         {/* Schedule Table */}
-        <div className="border border-[var(--border-main)] rounded-xl overflow-hidden shadow-xs">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--border-main)] bg-gray-50/60 dark:bg-gray-800/40 text-[11px] font-semibold">
-                <th className="py-3 px-4 text-gray-400 uppercase tracking-wider">PERIOD</th>
-                <th className="py-3 px-4 text-gray-400 uppercase tracking-wider">DUE IN</th>
-                <th className="py-3 px-4 text-gray-400 uppercase tracking-wider">
-                  <span className="flex items-center gap-1">
-                    <span>START DAY</span>
-                    <Info className="w-3 h-3 text-gray-400" />
-                  </span>
-                </th>
-                <th className="py-3 px-4 text-amber-500 uppercase tracking-wider">
-                  <span className="flex items-center gap-1">
-                    <span>TARGET DAY</span>
-                    <Info className="w-3 h-3 text-amber-500" />
-                  </span>
-                </th>
-                <th className="py-3 px-4 text-rose-500 uppercase tracking-wider">
-                  <span className="flex items-center gap-1">
-                    <span>END DAY (DUE)</span>
-                    <Info className="w-3 h-3 text-rose-500" />
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-main)] text-xs">
-              {scheduleRows.map((row, idx) => (
-                <tr
-                  key={idx}
-                  className={`hover:bg-gray-50/40 dark:hover:bg-gray-800/20 transition-colors ${
-                    row.isCurrent ? "bg-purple-50/20 dark:bg-purple-950/10" : ""
-                  }`}
-                >
-                  {/* Period Column */}
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[var(--text-main)]">
-                        {row.period}
-                      </span>
-                      {row.isCurrent && (
-                        <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200">
-                          Current
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      {row.subPeriod}
-                    </div>
-                  </td>
-
-                  {/* Due In Column */}
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-indigo-600 dark:text-indigo-400">
-                      {row.dueIn}
-                    </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      {row.dueInSub}
-                    </div>
-                  </td>
-
-                  {/* Start Day Column */}
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-[var(--text-main)]">
-                      {row.startDay}
-                    </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      {row.startDaySub}
-                    </div>
-                  </td>
-
-                  {/* Target Day Column (Amber font) */}
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-amber-600 dark:text-amber-400">
-                      {row.targetDay}
-                    </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      {row.targetDaySub}
-                    </div>
-                  </td>
-
-                  {/* End Day Column (Rose/Red font) */}
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-rose-600 dark:text-rose-400">
-                      {row.endDay}
-                    </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      {row.endDaySub}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<any>
+          columns={scheduleColumns}
+          data={paginatedScheduleRows}
+          getRowId={(row: ScheduleRow, idx: number) => (row.period || "") + "-" + idx}
+          emptyMessage="No recurring schedule generated for this service."
+          pagination={{
+            currentPage: schedulePage,
+            pageSize: schedulePageSize,
+            totalItems: scheduleRows.length,
+            onPageChange: setSchedulePage,
+            rowsPerPageOptions: [10, 12, 24],
+            onRowsPerPageChange: (s: number) => {
+              setSchedulePageSize(s);
+              setSchedulePage(1);
+            },
+          }}
+        />
       </div>
     </div>
   );

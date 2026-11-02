@@ -25,6 +25,7 @@ import {
   MOCK_GSTIN_REGISTRY,
 } from "@/data/crmData";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { Input } from "@/components/ui/Input";
 
 interface ClientFormModalProps {
   client?: Client | null;
@@ -364,7 +365,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   id="client-gstin-input"
                   name="gstinInput"
                   aria-label="Enter 15-character GSTIN number"
@@ -372,7 +373,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   value={gstinInput}
                   onChange={(e) => setGstinInput(e.target.value.toUpperCase())}
                   placeholder="Enter 15-character GSTIN number"
-                  className="flex-1 px-3.5 py-1.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-mono uppercase outline-none focus:border-[#31719B]"
+                  size="md"
+                  className="font-mono uppercase rounded-sm"
                 />
                 <button
                   type="button"
@@ -438,7 +440,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-name" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Client Legal Name <span className="text-[#e8655a]">*</span>
                   </label>
-                  <input
+                  <Input
                     id="client-name"
                     name="clientName"
                     aria-label="Client Legal Name"
@@ -446,25 +448,17 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                     value={formData.name || ""}
                     onChange={(e) => handleChange("name", e.target.value)}
                     placeholder="e.g. Apex Auto Works Pvt Ltd"
-                    className={`w-full px-3.5 py-2.5 rounded-lg border text-sm transition-all outline-none bg-white dark:bg-[#0f172a] ${
-                      errors.name
-                        ? "border-[#e8655a] focus:ring-2 focus:ring-[#e8655a]/20"
-                        : "border-[#dde2e8] dark:border-[#475569] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
-                    }`}
+                    error={errors.name}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.name && (
-                    <p className="mt-1 text-xs text-[#e8655a] font-medium flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.name}
-                    </p>
-                  )}
                 </div>
 
                 <div>
                   <label htmlFor="client-file-no" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     File No.
                   </label>
-                  <input
+                  <Input
                     id="client-file-no"
                     name="fileNo"
                     aria-label="File Number"
@@ -472,7 +466,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                     value={formData.fileNo || ""}
                     onChange={(e) => handleChange("fileNo", e.target.value)}
                     placeholder="e.g. 012"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20 font-mono"
+                    size="md"
+                    className="font-mono rounded-sm"
                   />
                 </div>
 
@@ -520,7 +515,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-pan" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     PAN No
                   </label>
-                  <input
+                  <Input
                     id="client-pan"
                     name="pan"
                     aria-label="PAN No"
@@ -534,27 +529,25 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                       )
                     }
                     placeholder="ABCDE1234F"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm uppercase outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20 font-mono"
+                    error={errors.pan}
+                    size="md"
+                    className="uppercase font-mono rounded-sm"
                   />
-                  {errors.pan && (
-                    <p className="mt-1 text-xs text-[#e8655a] font-medium">
-                      {errors.pan}
-                    </p>
-                  )}
                 </div>
 
                 <div>
                   <label htmlFor="client-dob" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Date of Inc. / DOB
                   </label>
-                  <input
+                  <Input
                     id="client-dob"
                     name="dob"
                     aria-label="Date of Incorporation or Date of Birth"
                     type="date"
                     value={formData.dob || ""}
                     onChange={(e) => handleChange("dob", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    size="md"
+                    className="rounded-sm"
                   />
                 </div>
 
@@ -562,7 +555,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-referred-by" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Referred By
                   </label>
-                  <input
+                  <Input
                     id="client-referred-by"
                     name="referredBy"
                     aria-label="Referred By"
@@ -570,7 +563,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                     value={formData.referredBy || ""}
                     onChange={(e) => handleChange("referredBy", e.target.value)}
                     placeholder="Reference person or partner"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    size="md"
+                    className="rounded-sm"
                   />
                 </div>
               </div>
@@ -598,7 +592,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-mobile" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Primary Mobile <span className="text-[#e8655a]">*</span>
                   </label>
-                  <input
+                  <Input
                     id="client-mobile"
                     name="mobile"
                     aria-label="Primary Mobile"
@@ -609,20 +603,17 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                       handleChange("mobile", e.target.value.replace(/\D/g, ""))
                     }
                     placeholder="10-digit mobile"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    error={errors.mobile}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.mobile && (
-                    <p className="mt-1 text-xs text-[#e8655a] font-medium">
-                      {errors.mobile}
-                    </p>
-                  )}
                 </div>
 
                 <div>
                   <label htmlFor="client-secondary-mobile" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Secondary Mobile
                   </label>
-                  <input
+                  <Input
                     id="client-secondary-mobile"
                     name="secondaryMobile"
                     aria-label="Secondary Mobile"
@@ -636,7 +627,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                       )
                     }
                     placeholder="Alternate contact"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    size="md"
+                    className="rounded-sm"
                   />
                 </div>
 
@@ -644,7 +636,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-email" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Official Email ID
                   </label>
-                  <input
+                  <Input
                     id="client-email"
                     name="email"
                     aria-label="Official Email ID"
@@ -652,13 +644,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                     value={formData.email || ""}
                     onChange={(e) => handleChange("email", e.target.value)}
                     placeholder="accounts@domain.com"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    error={errors.email}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.email && (
-                    <p className="mt-1 text-xs text-[#e8655a] font-medium">
-                      {errors.email}
-                    </p>
-                  )}
                 </div>
 
                 <div className="sm:col-span-3">
@@ -681,7 +670,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-city" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     City
                   </label>
-                  <input
+                  <Input
                     id="client-city"
                     name="city"
                     aria-label="City"
@@ -689,7 +678,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                     value={formData.city || ""}
                     onChange={(e) => handleChange("city", e.target.value)}
                     placeholder="e.g. Ahmedabad"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20"
+                    size="md"
+                    className="rounded-sm"
                   />
                 </div>
 
@@ -717,7 +707,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   <label htmlFor="client-pincode" className="block text-xs font-bold text-gray-700 dark:text-gray-300 py-2 cursor-pointer">
                     Pin Code
                   </label>
-                  <input
+                  <Input
                     id="client-pincode"
                     name="pincode"
                     aria-label="Pin Code"
@@ -728,7 +718,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                       handleChange("pincode", e.target.value.replace(/\D/g, ""))
                     }
                     placeholder="6-digit PIN"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] text-sm outline-none bg-white dark:bg-[#0f172a] focus:border-[#31719B] focus:ring-2 focus:ring-[#31719B]/20 font-mono"
+                    size="md"
+                    className="rounded-sm"
                   />
                   {errors.pincode && (
                     <p className="mt-1 text-xs text-[#e8655a] font-medium">

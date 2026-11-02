@@ -12,6 +12,7 @@ import {
   ServiceRecurringSchedule,
 } from "@/data/serviceData";
 import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import {
   RecurringScheduleSection,
@@ -363,7 +364,7 @@ const isDirty = useMemo(() => {
                   >
                     Service Name <span className="text-[#e8655a]">*</span>
                   </label>
-                  <input
+                  <Input
                     id="sf-name"
                     type="text"
                     value={name}
@@ -372,14 +373,10 @@ const isDirty = useMemo(() => {
                       if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
                     }}
                     placeholder="e.g. TDS Payment (Monthly)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none transition-all bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white ${errors.name
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                      }`}
+                    error={errors.name}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.name && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.name}</p>
-                  )}
                 </div>
 
                 {/* Category */}
@@ -538,7 +535,7 @@ const isDirty = useMemo(() => {
     >
       Government Fee <span className="text-[#e8655a]">*</span>
     </label>
-    <input
+    <Input
       id="gov-fee"
       type="number"
       min={0}
@@ -548,15 +545,10 @@ const isDirty = useMemo(() => {
         clearError("governmentFee");
       }}
       placeholder="0"
-      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-        errors.governmentFee
-          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-      }`}
+      error={errors.governmentFee}
+      size="md"
+      className="rounded-sm"
     />
-    {errors.governmentFee && (
-      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.governmentFee}</p>
-    )}
   </div>
 
   {/* 2. Professional Fee Input */}
@@ -567,7 +559,7 @@ const isDirty = useMemo(() => {
     >
       Professional Fee <span className="text-[#e8655a]">*</span>
     </label>
-    <input
+    <Input
       id="srv-fee"
       type="number"
       min={0}
@@ -577,15 +569,10 @@ const isDirty = useMemo(() => {
         clearError("professionalFee");
       }}
       placeholder="0"
-      className={`h-10 w-full rounded-md border px-3 text-xs outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-        errors.professionalFee
-          ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-          : "border-gray-200 dark:border-gray-700 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-      }`}
+      error={errors.professionalFee}
+      size="md"
+      className="rounded-sm"
     />
-    {errors.professionalFee && (
-      <p className="mt-1 text-[11px] text-[#e8655a] font-medium">{errors.professionalFee}</p>
-    )}
   </div>
 
   {/* 3. Total Service Fee (Calculated & Read-only) */}
@@ -596,12 +583,13 @@ const isDirty = useMemo(() => {
     >
       Total Service Fee
     </label>
-    <input
+    <Input
       id="total-fee"
       type="text"
       readOnly
-      value={`${((parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0)).toFixed(2)}`}
-      className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 text-xs outline-none bg-gray-50 dark:bg-[#1e293b] text-gray-900 dark:text-white font-semibold cursor-not-allowed"
+      value={"₹" + ((parseFloat(governmentFee) || 0) + (parseFloat(professionalFee) || 0)).toFixed(2)}
+      size="md"
+      className="rounded-sm bg-gray-50 dark:bg-[#1e293b] font-semibold cursor-not-allowed"
     />
   </div>
 
@@ -633,7 +621,7 @@ const isDirty = useMemo(() => {
                   >
                     Max OOP Budget
                   </label>
-                  <input
+                  <Input
                     id="sf-oop"
                     type="number"
                     min={0}
@@ -643,15 +631,10 @@ const isDirty = useMemo(() => {
                       clearError("maxOopBudget");
                     }}
                     placeholder="0"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                      errors.maxOopBudget
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                    }`}
+                    error={errors.maxOopBudget}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.maxOopBudget && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.maxOopBudget}</p>
-                  )}
                 </div>
 
                 {/* TAT (days) */}
@@ -662,7 +645,7 @@ const isDirty = useMemo(() => {
                   >
                     TAT (days)
                   </label>
-                  <input
+                  <Input
                     id="sf-tat-days"
                     type="number"
                     min={0}
@@ -672,15 +655,10 @@ const isDirty = useMemo(() => {
                       clearError("tatDays");
                     }}
                     placeholder="e.g. 3"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white transition-all ${
-                      errors.tatDays
-                        ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                        : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
-                    }`}
+                    error={errors.tatDays}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.tatDays && (
-                    <p className="mt-1 text-xs text-[#e8655a]">{errors.tatDays}</p>
-                  )}
                 </div>
               </div>
 
@@ -692,13 +670,14 @@ const isDirty = useMemo(() => {
                 >
                   TAT (hours)
                 </label>
-                <input
+                <Input
                   id="sf-tat-hours"
                   type="text"
                   value={tatHours}
                   onChange={(e) => setTatHours(e.target.value)}
                   placeholder="00:00"
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm outline-none text-gray-900 dark:text-white hover:border-gray-400 focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]"
+                  size="md"
+                  className="rounded-sm"
                 />
               </div>
             </div>

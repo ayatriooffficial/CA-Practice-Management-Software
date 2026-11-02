@@ -25,8 +25,8 @@ import { InvoiceProvider, useInvoice } from "@/components/invoice/InvoiceContext
 import { InvoiceRecord, ReceiptRecord, PaymentMethod } from "@/components/invoice/types";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
 import { RecordPaymentModal } from "@/components/invoice/RecordPaymentModal";
-import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
-import { Button } from "@/components/ui/Button";
+import { DataTable, DataTableColumn } from "@/components/ui/dataTable/DataTable";
+import { Button } from "@/components/ui/button/Button";
 import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
 
 interface ClientLedgerTabProps {
@@ -150,7 +150,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
       if (saved) {
         try {
           return JSON.parse(saved);
-        } catch {}
+        } catch { }
       }
     }
     // Default matching screenshot opening balance of ₹909
@@ -201,7 +201,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Filter client's invoices and receipts
@@ -506,8 +506,8 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
   }, [selectedOrg, openingBalances]);
 
   // Filter transactions by Billing Org and UI secondary filters
-  
-  
+
+
   // Ledger Columns for reusable DataTable
   const ledgerColumns: DataTableColumn<LedgerRow>[] = useMemo(
     () => [
@@ -601,11 +601,10 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         sortable: true,
         cell: (row: LedgerRow) => (
           <span
-            className={`font-bold whitespace-nowrap text-xs ${
-              row.balance < 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-rose-600 dark:text-rose-400"
-            }`}
+            className={`font-bold whitespace-nowrap text-xs ${row.balance < 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400"
+              }`}
           >
             {formatCurrency(row.balance)}
           </span>
@@ -791,11 +790,10 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 key={org}
                 type="button"
                 onClick={() => setSelectedOrg(org)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isSelected
-                    ? "bg-[#31719B] text-white shadow-sm ring-1 ring-[#31719B]"
-                    : "bg-white dark:bg-[#1e293b] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                }`}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isSelected
+                  ? "bg-[#31719B] text-white shadow-sm ring-1 ring-[#31719B]"
+                  : "bg-white dark:bg-[#1e293b] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  }`}
               >
                 {org}
               </button>
@@ -841,11 +839,10 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 key={opt}
                 type="button"
                 onClick={() => setPrimaryFilter(opt)}
-                className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all cursor-pointer ${
-                  primaryFilter === opt
-                    ? "bg-[#31719B] text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all cursor-pointer ${primaryFilter === opt
+                  ? "bg-[#31719B] text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  }`}
               >
                 {opt}
               </button>
@@ -859,11 +856,10 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 key={opt}
                 type="button"
                 onClick={() => setTypeFilter(opt)}
-                className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all cursor-pointer ${
-                  typeFilter === opt
-                    ? "bg-[#31719B] text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all cursor-pointer ${typeFilter === opt
+                  ? "bg-[#31719B] text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  }`}
               >
                 {opt}
               </button>
@@ -947,11 +943,10 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
           <div>
             <span className="text-gray-500 dark:text-gray-400">Net Closing Balance</span>
             <p
-              className={`text-sm font-bold mt-0.5 ${
-                summaryStats.closingBalance < 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400"
-              }`}
+              className={`text-sm font-bold mt-0.5 ${summaryStats.closingBalance < 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400"
+                }`}
             >
               {formatCurrency(summaryStats.closingBalance)}{" "}
               <span className="text-[10px] font-normal">

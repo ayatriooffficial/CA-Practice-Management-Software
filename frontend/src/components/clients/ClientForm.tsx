@@ -39,6 +39,7 @@ import {
   MOCK_GSTIN_REGISTRY,
 } from "@/data/crmData";
 import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import { useLeads } from "@/hooks/useLeadsQuery";
 import { PromoterSearchDropdown, PromoterItem } from "./PromoterSearchDropdown";
 import { ServiceSearchDropdown } from "./ServiceSearchDropdown";
@@ -987,7 +988,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         <button
           type="button"
           onClick={() => setShowGstinModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-s text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
           style={{ backgroundColor: "var(--premium-blue-dark)" }}
           onMouseEnter={(e) =>
             (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
@@ -1006,7 +1007,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         {(submitError || Object.keys(errors).length > 0) && (
           <div
             id="client-form-error-banner"
-            className="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
+            className=" border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-4 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200"
           >
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
@@ -1043,7 +1044,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         )}
 
         {/* 2. CARD: Client Info */}
-        <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-4">
+        <div className=" border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-4">
           <h2 className="text-lg font-bold text-[#000000] dark:text-white">
             Client Info
           </h2>
@@ -1103,7 +1104,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       <Pencil className="w-4 h-4" />
                     )}
                   </button>
-                  <input
+
+                  <Input
                     id={fileInputId}
                     name="clientPhoto"
                     aria-label="Upload photo"
@@ -1121,7 +1123,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   Client Name <span className="text-[#e8655a] font-bold">*</span>
                 </label>
                 <div>
-                  <input
+                  <Input
                     id="cf-client-name"
                     name="clientName"
                     aria-label="Client Name"
@@ -1138,17 +1140,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Client Name"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm outline-none transition-all bg-white dark:bg-[#0f172a] text-[#000000] dark:text-white ${errors.clientName
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
+                    error={errors.clientName}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.clientName && (
-                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.clientName}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -1192,7 +1187,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   PAN
                 </label>
                 <div>
-                  <input
+                  <Input
                     id="cf-pan"
                     name="pan"
                     aria-label="PAN"
@@ -1210,17 +1205,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="PAN (e.g. ABCDE1234F)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm uppercase font-mono text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.pan
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
+                    error={errors.pan}
+                    size="md"
+                    className="uppercase font-mono rounded-sm"
                   />
-                  {errors.pan && (
-                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.pan}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -1230,7 +1218,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   Mobile No. <span className="text-[#e8655a] font-bold">*</span>
                 </label>
                 <div>
-                  <input
+                  <Input
                     id="cf-mobile"
                     name="mobile"
                     aria-label="Mobile No."
@@ -1248,17 +1236,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Mobile No. (e.g. 9876543210)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.mobile
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
+                    error={errors.mobile}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.mobile && (
-                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.mobile}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -1268,7 +1249,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   Email
                 </label>
                 <div>
-                  <input
+                  <Input
                     id="cf-email"
                     name="email"
                     aria-label="Email"
@@ -1285,17 +1266,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Email (e.g. name@domain.com)"
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.email
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
+                    error={errors.email}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.email && (
-                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.email}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -1304,7 +1278,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <label htmlFor="cf-city" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   City
                 </label>
-                <input
+                <Input
                   id="cf-city"
                   name="city"
                   aria-label="City"
@@ -1312,7 +1286,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City"
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                  size="md"
+                  className="rounded-sm"
                 />
               </div>
             </div>
@@ -1352,14 +1327,15 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   Date of Birth
                 </label>
                 <div className="relative">
-                  <input
+                  <Input
                     id="cf-dob"
                     name="dob"
                     aria-label="Date of Birth"
                     type="date"
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
-                    className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                    size="md"
+                    className="rounded-sm"
                   />
                 </div>
               </div>
@@ -1404,7 +1380,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <label htmlFor="cf-referred-by" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Referred By
                 </label>
-                <input
+                <Input
                   id="cf-referred-by"
                   name="referredBy"
                   aria-label="Referred By"
@@ -1412,7 +1388,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   value={referredBy}
                   onChange={(e) => setReferredBy(e.target.value)}
                   placeholder="Referred By"
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                  size="md"
+                  className="rounded-sm"
                 />
               </div>
 
@@ -1422,7 +1399,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   Secondary Mobile No.
                 </label>
                 <div>
-                  <input
+                  <Input
                     id="cf-sec-mobile"
                     name="secondaryMobile"
                     aria-label="Secondary Mobile No."
@@ -1440,17 +1417,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                       }
                     }}
                     placeholder="Secondary Mobile No."
-                    className={`h-11 w-full rounded-md border px-3.5 text-sm text-[#000000] dark:text-white outline-none transition-all bg-white dark:bg-[#0f172a] ${errors.secondaryMobile
-                      ? "border-[#e8655a] focus:ring-1 focus:ring-[#e8655a]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
-                      }`}
+                    error={errors.secondaryMobile}
+                    size="md"
+                    className="rounded-sm"
                   />
-                  {errors.secondaryMobile && (
-                    <p className="mt-1 text-xs text-[#e8655a] flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.secondaryMobile}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -1476,7 +1446,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <label htmlFor="cf-pincode" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                   Pincode
                 </label>
-                <input
+                <Input
                   id="cf-pincode"
                   name="pincode"
                   aria-label="Pincode"
@@ -1485,7 +1455,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   value={pincode}
                   onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
                   placeholder="Pincode"
-                  className="h-11 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-3.5 text-sm text-[#000000] dark:text-white outline-none hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+                  size="md"
+                  className="rounded-sm"
                 />
               </div>
             </div>
@@ -1493,7 +1464,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         </div>
 
         {/* 3. CARD: Customer Files (matching Screenshot 5) */}
-        <div className="rounded-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-6">
+        <div className=" border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-5 md:p-6 shadow-card space-y-6">
           {/* Section A: Promoter Details */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">

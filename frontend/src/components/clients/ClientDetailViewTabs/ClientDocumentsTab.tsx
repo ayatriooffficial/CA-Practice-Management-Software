@@ -29,6 +29,9 @@ import { serviceApi } from "@/services/serviceApi";
 import { driveApi, IDocumentItem } from "@/services/driveApi";
 import { usePermission } from "../../team/usePermission";
 import { TableActionDropdown, DropdownActionItem } from "@/components/ui/TableActionDropdown";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export interface ClientDocumentsTabProps {
   client?: Client;
@@ -503,6 +506,270 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
     setIsAddReqDocModalOpen(false);
   };
 
+  // Pagination states (default limit 10)
+  const [reqPage, setReqPage] = useState(1);
+  const [reqPageSize, setReqPageSize] = useState(10);
+  const [movPage, setMovPage] = useState(1);
+  const [movPageSize, setMovPageSize] = useState(10);
+
+  // Columns for Required Compliance Documents
+  const reqColumns = useMemo<DataTableColumn<any>[]>(
+    () => [
+      {
+        id: "title",
+        header: "Required Document",
+        minWidth: 200,
+        sortable: true,
+        cell: (doc) => (
+          <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+            <FileText className="w-4 h-4 text-[#31719B] shrink-0" />
+            <span className="font-semibold">{doc.title}</span>
+          </div>
+        ),
+      },
+      {
+        id: "serviceName",
+        header: "Active Service / Task",
+        width: 180,
+        sortable: true,
+        cell: (doc) => (
+          <div className="text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-gray-900 dark:text-white">{doc.serviceName}</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                Active Service
+              </span>
+            </div>
+            {doc.taskId && (
+              <span className="text-[10px] text-gray-500 font-mono">
+                Task: {doc.taskId}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "type",
+        header: "Type",
+        width: 110,
+        sortable: true,
+        cell: (doc) => (
+          <span
+            className={
+              "inline-block px-2 py-0.5 rounded text-[10px] font-bold " +
+              (doc.isMandatory
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400")
+            }
+          >
+            {doc.isMandatory ? "Mandatory" : "Optional"}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        width: 130,
+        sortable: true,
+        cell: (doc) => {
+          const isReceived = doc.status === "Received";
+          return (
+            <span
+              className={
+                "inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10.5px] font-semibold " +
+                (isReceived
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300")
+              }
+            >
+              {isReceived ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>Uploaded</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span>Not Uploaded</span>
+                </>
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        id: "receivedAt",
+        header: "Uploaded Date",
+        width: 130,
+        sortable: true,
+        cell: (doc) => (
+          <span className="text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {doc.receivedAt
+              ? new Date(doc.receivedAt).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  // Columns for Document Movements (In / Out Register)
+  const movColumns = useMemo<DataTableColumn<ClientDocumentInOut>[]>(
+    () => [
+      {
+        id: "documentName",
+        header: "Document Name",
+        width: 180,
+        sortable: true,
+        cell: (doc, idx) => (
+          <div className="flex items-center gap-2.5 font-medium text-gray-900 dark:text-white">
+            {getAvatarBadge(doc.documentName, idx)}
+            <span className="truncate">{doc.documentName}</span>
+          </div>
+        ),
+      },
+      {
+        id: "status",
+        header: "Direction",
+        width: 100,
+        sortable: true,
+        align: "center",
+        cell: (doc) => (
+          <span
+            className={
+              "inline-block px-2 py-0.5 rounded text-[10px] font-bold " +
+              (doc.status === "In"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300")
+            }
+          >
+            {doc.status}
+          </span>
+        ),
+      },
+      {
+        id: "personName",
+        header: "Person",
+        width: 140,
+        sortable: true,
+        cell: (doc) => (
+          <span className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
+            {doc.personName || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "date",
+        header: "Date",
+        width: 120,
+        sortable: true,
+        cell: (doc) => (
+          <span className="text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {doc.date || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "returnable",
+        header: "Returnable",
+        width: 110,
+        sortable: true,
+        align: "center",
+        cell: (doc) => (
+          <span
+            className={
+              "inline-block px-2 py-0.5 rounded text-[10px] font-bold " +
+              (doc.returnable
+                ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400")
+            }
+          >
+            {doc.returnable ? "Yes" : "No"}
+          </span>
+        ),
+      },
+      {
+        id: "returnDate",
+        header: "Return Date",
+        width: 120,
+        sortable: true,
+        cell: (doc) => (
+          <span className="text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {doc.returnDate || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "remarks",
+        header: "Remarks",
+        minWidth: 160,
+        cell: (doc) => (
+          <span className="text-gray-600 dark:text-gray-300 truncate max-w-xs block">
+            {doc.remarks || "—"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const getReqDocActions = (doc: any): DropdownActionItem[] => {
+    const isReceived = doc.status === "Received";
+    const actions: DropdownActionItem[] = [];
+
+    if (isReceived && (doc.driveWebViewLink || doc.fileUrl)) {
+      actions.push({
+        label: "View in Google Drive",
+        icon: ExternalLink,
+        onClick: () => {
+          window.open(doc.driveWebViewLink || doc.fileUrl, "_blank", "noopener,noreferrer");
+        },
+      });
+    }
+
+    if (canDelete("documents") && doc.isCustom) {
+      actions.push({
+        label: "Delete Requirement",
+        icon: Trash2,
+        variant: "danger",
+        onClick: () => {
+          if (confirm("Delete required document: " + doc.title + "?")) {
+            setCustomReqDocs((prev) => prev.filter((d) => d.docId !== doc.docId));
+          }
+        },
+      });
+    }
+
+    return actions;
+  };
+
+  const getMovementActions = (doc: ClientDocumentInOut): DropdownActionItem[] => {
+    if (!canDelete("documentsInOut")) return [];
+    return [
+      {
+        label: "Delete Movement",
+        icon: Trash2,
+        variant: "danger",
+        onClick: () => handleDeleteDocMovement(doc.id || "", doc.documentName),
+      },
+    ];
+  };
+
+  const paginatedReqDocs = useMemo(() => {
+    const start = (reqPage - 1) * reqPageSize;
+    return filteredRequiredDocs.slice(start, start + reqPageSize);
+  }, [filteredRequiredDocs, reqPage, reqPageSize]);
+
+  const paginatedMovements = useMemo(() => {
+    const start = (movPage - 1) * movPageSize;
+    return filteredMovements.slice(start, start + movPageSize);
+  }, [filteredMovements, movPage, movPageSize]);
+
   return (
     <div className="bg-white dark:bg-[#1e293b] rounded-sm border border-[#dde2e8] dark:border-[#334155] shadow-card overflow-hidden">
       {/* Top Section Switcher & Search Bar */}
@@ -541,18 +808,22 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
           </div>
 
           {/* Search Box */}
-          <div className="relative w-56">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
+          <div className="w-56">
+            <Input
+              size="sm"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setReqPage(1);
+                setMovPage(1);
+              }}
               placeholder={
                 activeSection === "Required"
                   ? "Search required docs..."
                   : "Search movements..."
               }
-              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] pl-8 pr-3 text-xs text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
+              leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
+              onClear={() => setSearch("")}
             />
           </div>
 
@@ -640,356 +911,51 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({
 
       {/* SECTION 1: REQUIRED COMPLIANCE DOCUMENTS (Active Services & Tasks) */}
       {activeSection === "Required" && (
-        <div className="overflow-x-auto scrollbar-slim">
-          <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-            <thead>
-              <tr
-                className="text-gray-700 dark:text-gray-300"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Required Document
-                </th>
-                <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Active Service / Task
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Type
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Status
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Uploaded Date
-                </th>
-                <th className="px-4 py-3 border-b border-[#dde2e8] dark:border-[#334155] font-semibold text-center">
-                  Google Drive Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoadingRequired ? (
-                <tr>
-                  <td colSpan={6} className="py-16 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#31719B]" />
-                    <span className="text-xs text-gray-500 mt-2 block font-medium">
-                      Loading compliance documents...
-                    </span>
-                  </td>
-                </tr>
-              ) : filteredRequiredDocs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400 font-medium">
-                    {activeServices.length === 0
-                      ? "No active services found for this client. Enable services in the Service Settings tab or create tasks to generate required compliance documents."
-                      : "No required documents match the filter criteria."}
-                  </td>
-                </tr>
-              ) : (
-                filteredRequiredDocs.map((doc, idx) => {
-                  const isReceived = doc.status === "Received";
-                  const isUploading = uploadingDocId === doc.docId;
-                  const fileInputId = `client-req-doc-${doc.docId}-${idx}`;
-
-                  return (
-                    <tr
-                      key={`${doc.taskDbId || "svc"}-${doc.docId}-${idx}`}
-                      className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                    >
-                      {/* Document Name */}
-                      <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-medium text-gray-900 dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                          <span className="font-semibold">{doc.title}</span>
-                        </div>
-                      </td>
-
-                      {/* Active Service / Task */}
-                      <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300">
-                        <div className="text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-gray-900 dark:text-white">
-                              {doc.serviceName}
-                            </span>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                              Active Service
-                            </span>
-                          </div>
-                          {doc.taskId && (
-                            <span className="text-[10px] text-gray-500 font-mono">
-                              Task: {doc.taskId}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Type: Mandatory or Optional */}
-                      <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${doc.isMandatory
-                              ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                              : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                            }`}
-                        >
-                          {doc.isMandatory ? "Mandatory" : "Optional"}
-                        </span>
-                      </td>
-
-                      {/* Status: Uploaded / Received vs Not Uploaded / Pending */}
-                      <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                        <span
-                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10.5px] font-semibold ${isReceived
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                            }`}
-                        >
-                          {isReceived ? (
-                            <>
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                              <span>Uploaded</span>
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span>Not Uploaded</span>
-                            </>
-                          )}
-                        </span>
-                      </td>
-
-                      {/* Uploaded Date */}
-                      <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                        {doc.receivedAt
-                          ? new Date(doc.receivedAt).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })
-                          : "—"}
-                      </td>
-
-                      {/* Actions: View, Upload & 3-dots Menu */}
-                      <td className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <input
-                            id={fileInputId}
-                            type="file"
-                            className="hidden"
-                            disabled={isUploading}
-                            onChange={async (e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                const file = e.target.files[0];
-                                await handleUploadReqDoc(
-                                  doc.docId,
-                                  doc.title,
-                                  doc.serviceName,
-                                  file,
-                                  doc.taskDbId
-                                );
-                                e.target.value = "";
-                              }
-                            }}
-                          />
-                          {(() => {
-                            const actions: DropdownActionItem[] = [
-                              {
-                                label: "View Document",
-                                icon: Eye,
-                                disabled: !doc.fileUrl,
-                                onClick: () => {
-                                  if (doc.fileUrl) {
-                                    window.open(doc.fileUrl, "_blank", "noopener,noreferrer");
-                                  }
-                                },
-                              },
-                              {
-                                label: "Sign with DSC (PAdES)",
-                                icon: PenTool,
-                                disabled: !doc.fileUrl,
-                                onClick: () => {
-                                  handleSignDocWithDsc({
-                                    fileName: `${doc.title}.pdf`,
-                                    fileUrl: doc.fileUrl,
-                                    driveFileId: doc.docId,
-                                  });
-                                },
-                              },
-                              {
-                                label: isReceived ? "Edit / Re-upload" : "Upload Document",
-                                icon: Upload,
-                                onClick: () => {
-                                  document.getElementById(fileInputId)?.click();
-                                },
-                              },
-                              {
-                                label: "Remove Requirement",
-                                icon: Trash2,
-                                variant: "danger",
-                                onClick: () => {
-                                  setCustomReqDocs((prev) => prev.filter((d) => d.docId !== doc.docId));
-                                },
-                              },
-                            ];
-
-                            return <TableActionDropdown actions={actions} buttonAriaLabel={`Actions for ${doc.title}`} />;
-                          })()}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<any>
+          columns={reqColumns}
+          data={paginatedReqDocs}
+          actions={getReqDocActions}
+          loading={isLoadingRequired}
+          getRowId={(doc, idx) => (doc.taskDbId || "svc") + "-" + doc.docId + "-" + idx}
+          emptyMessage={
+            activeServices.length === 0
+              ? "No active services found for this client. Enable services in the Service Settings tab or create tasks to generate required compliance documents."
+              : "No required documents match the filter criteria."
+          }
+          pagination={{
+            currentPage: reqPage,
+            pageSize: reqPageSize,
+            totalItems: filteredRequiredDocs.length,
+            onPageChange: setReqPage,
+            rowsPerPageOptions: [10, 25, 50],
+            onRowsPerPageChange: (s) => {
+              setReqPageSize(s);
+              setReqPage(1);
+            },
+          }}
+        />
       )}
 
       {/* SECTION 2: DOCUMENT MOVEMENTS (In / Out Register) */}
       {activeSection === "Movements" && (
-        <div className="overflow-x-auto scrollbar-slim">
-          <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-            <thead>
-              <tr
-                className="text-gray-700 dark:text-gray-300"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Document Name
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Direction
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Person
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Date
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Returnable
-                </th>
-                <th className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Return Date
-                </th>
-                <th className="px-4 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] font-semibold">
-                  Remarks
-                </th>
-                <th className="w-12 px-2 py-3 border-b border-[#dde2e8] dark:border-[#334155] text-center font-semibold">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMovements.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400 font-medium">
-                    No physical document movements recorded. Click "+ Add Movement" to track files.
-                  </td>
-                </tr>
-              ) : (
-                filteredMovements.map((doc, idx) => (
-                  <tr
-                    key={doc.id || idx}
-                    className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors"
-                  >
-                    <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-2.5">
-                        {getAvatarBadge(doc.documentName, idx)}
-                        <span>{doc.documentName}</span>
-                      </div>
-                    </td>
-
-                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${doc.status === "In"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
-                          }`}
-                      >
-                        {doc.status}
-                      </span>
-                    </td>
-
-                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300">
-                      {doc.personName || "—"}
-                    </td>
-
-                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                      {doc.date || "—"}
-                    </td>
-
-                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                      {doc.returnable ? "Yes" : "No"}
-                    </td>
-
-                    <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300">
-                      {doc.returnDate || "—"}
-                    </td>
-
-                    <td className="px-4 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-gray-600 dark:text-gray-300 max-w-xs truncate">
-                      {doc.remarks || "—"}
-                    </td>
-
-                    {/* Three-dots Action Menu */}
-                    <td className="px-2 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                      {(() => {
-                        const docTarget =
-                          doc.fileUrl ||
-                          (doc.file && (doc.file.startsWith("http") || doc.file.startsWith("/")) ? doc.file : null);
-
-                        const actions: DropdownActionItem[] = [
-                          {
-                            label: "View Document",
-                            icon: Eye,
-                            disabled: !docTarget && !doc.file,
-                            onClick: () => {
-                              if (docTarget) {
-                                window.open(docTarget, "_blank", "noopener,noreferrer");
-                              } else if (doc.file) {
-                                alert(`Attached movement file: ${doc.file}`);
-                              }
-                            },
-                          },
-                          {
-                            label: "Sign with DSC (PAdES)",
-                            icon: PenTool,
-                            disabled: !docTarget && !doc.file,
-                            onClick: () => {
-                              handleSignDocWithDsc({
-                                fileName: doc.documentName.toLowerCase().endsWith(".pdf") ? doc.documentName : `${doc.documentName}.pdf`,
-                                fileUrl: docTarget || undefined,
-                              });
-                            },
-                          },
-                          {
-                            label: "Edit",
-                            icon: Edit3,
-                            onClick: () => onEditDocMovement?.(doc),
-                          },
-                          {
-                            label: "Delete",
-                            icon: Trash2,
-                            variant: "danger",
-                            disabled: !canDelete("documentsInOut"),
-                            onClick: () =>
-                              handleDeleteDocMovement(doc.id || "", doc.documentName),
-                          },
-                        ];
-
-                        return (
-                          <TableActionDropdown
-                            actions={actions}
-                            buttonAriaLabel={`Actions for ${doc.documentName}`}
-                          />
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<ClientDocumentInOut>
+          columns={movColumns}
+          data={paginatedMovements}
+          actions={canDelete("documentsInOut") ? getMovementActions : undefined}
+          getRowId={(doc, idx) => doc.id || String(idx)}
+          emptyMessage="No physical document movements recorded. Click '+ Add Movement' to track files."
+          pagination={{
+            currentPage: movPage,
+            pageSize: movPageSize,
+            totalItems: filteredMovements.length,
+            onPageChange: setMovPage,
+            rowsPerPageOptions: [10, 25, 50],
+            onRowsPerPageChange: (s) => {
+              setMovPageSize(s);
+              setMovPage(1);
+            },
+          }}
+        />
       )}
 
       {/* Modal: Add Document Requirement for Active Service */}

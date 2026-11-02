@@ -29,9 +29,14 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
 import { ToastNotification } from "@/components/ui/ToastNotification";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
+import { Clock, BookOpen, Layers, Pencil, Trash2 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermission } from "@/components/team/usePermission";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -319,6 +324,238 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
     setPage(1);
   }, []);
 
+  const DATE_FORMATTER = useMemo(() => new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }), []);
+
+  const CURRENCY_FORMATTER = useMemo(() => new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }), []);
+
+  const formatServiceDate = useCallback((iso?: string): string => {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      return isNaN(d.getTime()) ? iso : DATE_FORMATTER.format(d);
+    } catch {
+      return iso;
+    }
+  }, [DATE_FORMATTER]);
+
+  // DataTable columns adapter for Services
+  const serviceDataTableColumns = useMemo<DataTableColumn<Service>[]>(() => {
+    return [
+      {
+        id: "name",
+        header: "Service Name",
+        accessorKey: "name",
+        sortable: true,
+        width: getColumnWidth("name") || 220,
+        cell: (service: Service) => {
+          const isDeleted = Boolean(service.isDeleted);
+          return (
+            <div className="flex items-center gap-2 truncate">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedService(service);
+                  setViewMode("detail");
+                }}
+                className="text-left font-semibold text-[#000000] dark:text-white hover:text-[#31719B] hover:underline cursor-pointer transition-colors truncate max-w-full"
+              >
+                {service.name}
+              </button>
+              {isDeleted && (
+                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                  Deleted
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "category",
+        header: "Category",
+        accessorKey: "category",
+        sortable: true,
+        width: getColumnWidth("category") || 120,
+        cell: (service: Service) => (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 truncate max-w-full">
+            {service.category}
+          </span>
+        ),
+      },
+      {
+        id: "isRecurring",
+        header: "Recurring",
+        accessorKey: "isRecurring",
+        sortable: true,
+        width: getColumnWidth("isRecurring") || 110,
+        cell: (service: Service) => (
+          <span
+            className={"inline-flex items-center px-2 py-0.5 rounded text-xs " + (
+              service.isRecurring
+                ? "font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                : "font-normal text-gray-500 dark:text-gray-400"
+            )}
+          >
+            {service.isRecurring ? "Recurring" : "One-Time"}
+          </span>
+        ),
+      },
+      {
+        id: "frequency",
+        header: "Frequency",
+        accessorKey: "frequency",
+        sortable: true,
+        width: getColumnWidth("frequency") || 110,
+        cell: (service: Service) => (
+          <div className="flex items-center gap-1.5 truncate">
+            <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <span className="truncate">{service.frequency}</span>
+          </div>
+        ),
+      },
+      {
+        id: "professionalFee",
+        header: "Professional Fee",
+        accessorKey: "professionalFee",
+        sortable: true,
+        width: getColumnWidth("professionalFee") || 130,
+        cell: (service: Service) => (
+          <span className="font-semibold text-gray-900 dark:text-white font-mono text-xs">
+            {CURRENCY_FORMATTER.format(service.professionalFee)}
+          </span>
+        ),
+      },
+      {
+        id: "sop",
+        header: "SOP",
+        width: getColumnWidth("sop") || 140,
+        cell: (service: Service) => (
+          <div className="flex items-center gap-1.5 truncate">
+            <BookOpen className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <span className="truncate">{service.sop || "Standard SOP v1.0"}</span>
+          </div>
+        ),
+      },
+      {
+        id: "subTasks",
+        header: "Sub Tasks",
+        width: getColumnWidth("subTasks") || 110,
+        cell: (service: Service) => (
+          <div className="flex items-center gap-1.5 truncate">
+            <Layers className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <span className="truncate">
+              {service.subTasks && service.subTasks.length > 0
+                ? String(service.subTasks.length) + " Tasks"
+                : "—"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: "difficulty",
+        header: "Difficulty",
+        accessorKey: "difficulty",
+        sortable: true,
+        width: getColumnWidth("difficulty") || 110,
+        cell: (service: Service) => (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 truncate max-w-full">
+            {service.difficulty}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        sortable: true,
+        width: getColumnWidth("status") || 100,
+        align: "center",
+        cell: (service: Service) => (
+          <span
+            className={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium " + (
+              service.status === "Active"
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+            )}
+          >
+            {service.status}
+          </span>
+        ),
+      },
+      {
+        id: "createdAt",
+        header: "Created On",
+        sortable: true,
+        width: getColumnWidth("createdAt") || 120,
+        cell: (service: Service) => (
+          <span className="text-gray-600 dark:text-gray-400">{formatServiceDate(service.createdAt)}</span>
+        ),
+      },
+      {
+        id: "updatedAt",
+        header: "Updated On",
+        sortable: true,
+        width: getColumnWidth("updatedAt") || 120,
+        cell: (service: Service) => (
+          <span className="text-gray-600 dark:text-gray-400">{formatServiceDate(service.updatedAt)}</span>
+        ),
+      },
+    ];
+  }, [columnWidths, CURRENCY_FORMATTER, formatServiceDate]);
+
+  const getServiceActions = useCallback((service: Service): DropdownActionItem[] => {
+    const isDeleted = Boolean(service.isDeleted);
+    const actionsList: DropdownActionItem[] = [
+      {
+        label: "View Details",
+        icon: Eye,
+        onClick: () => {
+          setSelectedService(service);
+          setViewMode("detail");
+        },
+      },
+    ];
+
+    if (!isDeleted) {
+      if (canAddEdit("services")) {
+        actionsList.push({
+          label: "Edit Service",
+          icon: Pencil,
+          onClick: () => {
+            setSelectedService(service);
+            setViewMode("detail");
+          },
+        });
+      }
+      if (canDelete("services")) {
+        actionsList.push({
+          label: "Delete",
+          icon: Trash2,
+          variant: "danger",
+          onClick: () => handleDeleteService(service.id, service.name),
+        });
+      }
+    } else {
+      if (canDelete("services")) {
+        actionsList.push({
+          label: "Restore",
+          icon: RotateCcw,
+          onClick: () => handleRestoreService(service.id, service.name),
+        });
+      }
+    }
+
+    return actionsList;
+  }, [canAddEdit, canDelete, handleDeleteService, handleRestoreService]);
+
   // Dedicated detail view matching Screenshot 1-5
   if (viewMode === "detail" && selectedService) {
     return (
@@ -352,6 +589,9 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
       />
     );
   }
+
+
+
 
   return (
     <div className="w-full flex flex-col gap-y-4 animate-in fade-in duration-150">
@@ -517,206 +757,41 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
         />
       )}
 
-      {/* Spreadsheet / Table (Clean shadow-card, no unnecessary outer border) */}
+      {/* Spreadsheet Table using reusable DataTable */}
       <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
-        <div className="overflow-x-auto scrollbar-slim">
-          <table
-            suppressHydrationWarning
-            className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
-            style={{ width: "max-content" }}
-          >
-            <thead>
-              <tr
-                className="text-gray-700 dark:text-gray-300"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                {/* Frozen Checkbox (Sticky Left: 0px) */}
-                <th
-                  scope="col"
-                  className="sticky left-0 z-30 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
-                >
-                  <input
-                    id="services-select-all"
-                    name="selectAllServices"
-                    aria-label="Select all services on this page"
-                    type="checkbox"
-                    checked={allCurrentPageSelected}
-                    onChange={toggleSelectAllPage}
-                    className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer"
-                  />
-                </th>
-
-                {/* All Service Columns in Clean 1:1 Flow (Service Name, Category, Recurring, ...) */}
-                {ALL_SERVICE_COLUMNS.map((col) => {
-                  const colWidth = getColumnWidth(col.key as string);
-                  return (
-                    <th
-                      key={col.key as string}
-                      scope="col"
-                      className="relative px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap"
-                      style={{
-                        backgroundColor: "var(--orange-havy-light)",
-                        width: `${colWidth}px`,
-                        minWidth: `${colWidth}px`,
-                        maxWidth: `${colWidth}px`,
-                      }}
-                    >
-                      {col.sortable ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleSort(col.key as keyof Service)}
-                          className="flex items-center gap-1.5 hover:text-[#31719B] transition-colors cursor-pointer select-none"
-                        >
-                          <span>{col.label}</span>
-                          {sortKey === col.key && (
-                            sortDirection === "asc" ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-[#31719B]" />
-                            ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-[#31719B]" />
-                            )
-                          )}
-                        </button>
-                      ) : (
-                        <span>{col.label}</span>
-                      )}
-                      <ColumnResizer
-                        onMouseDown={(e) => handleResizeStart(col.key as string, e)}
-                        onDoubleClick={() => resetColumnWidth(col.key as string)}
-                        isResizing={resizingKey === col.key}
-                      />
-                    </th>
-                  );
-                })}
-
-                {/* Actions Header (Sticky Right: 0px) */}
-                <th
-                  scope="col"
-                  className="sticky right-0 z-30 w-24 min-w-[96px] max-w-[96px] px-3 py-3 font-semibold text-center border-l border-b border-[#dde2e8] dark:border-[#334155] text-[#000000] dark:text-white"
-                  style={{ backgroundColor: "var(--orange-havy-light)" }}
-                >
-                  ACTIONS
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {isLoading && services.length === 0 ? (
-                Array.from({ length: 8 }).map((_, rIdx) => (
-                  <tr
-                    key={`service-shimmer-${rIdx}`}
-                    className={`border-b border-[#dde2e8] dark:border-[#334155] ${
-                      rIdx % 2 === 0
-                        ? "bg-white dark:bg-[#1e293b]"
-                        : "bg-[#fafafa] dark:bg-[#192437]"
-                    }`}
-                  >
-                    {/* Frozen Checkbox Cell */}
-                    <td className="sticky left-0 z-20 w-12 min-w-[48px] max-w-[48px] px-3 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b]">
-                      <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                    </td>
-
-                    {/* Columns */}
-                    {ALL_SERVICE_COLUMNS.map((col) => {
-                      const colKey = col.key as string;
-                      const colWidth = getColumnWidth(colKey);
-                      return (
-                        <td
-                          key={colKey}
-                          className="px-3.5 py-3 border-r border-b border-[#dde2e8] dark:border-[#334155]"
-                          style={{
-                            width: `${colWidth}px`,
-                            minWidth: `${colWidth}px`,
-                            maxWidth: `${colWidth}px`,
-                          }}
-                        >
-                          <div
-                            className="h-3.5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer"
-                            style={{
-                              width:
-                                colKey === "serviceName"
-                                  ? "75%"
-                                  : colKey === "status"
-                                  ? "50%"
-                                  : colKey === "frequency"
-                                  ? "60%"
-                                  : "55%",
-                            }}
-                          />
-                        </td>
-                      );
-                    })}
-
-                    {/* Actions Cell */}
-                    <td className="sticky right-0 z-20 px-3 py-3 border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-center shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                        <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700/60 animate-shimmer" />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : services.length === 0 ? (
-                <tr>
-                  <td colSpan={ALL_SERVICE_COLUMNS.length + 2} className="px-6 py-16 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
-                      <Briefcase className="w-10 h-10 text-gray-300 dark:text-gray-600" />
-                      <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                        No Services Found
-                      </h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        No services match your filters. Try clearing filters or create a new service.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingService(null);
-                          setViewMode("create");
-                        }}
-                        className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-md text-white text-xs font-semibold shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                        style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add First Service</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                services.map((service, index) => (
-                  <ServiceTableRow
-                    key={service.id || (service as any)._id || `srv-${index}`}
-                    service={service}
-                    isSelected={selectedIds.has(service.id)}
-                    columnWidths={columnWidths}
-                    onToggleSelect={toggleSelectRow}
-                    onEdit={(s) => {
-                      setSelectedService(s);
-                      setViewMode("detail");
-                    }}
-                    onDelete={handleDeleteService}
-                    onRestore={handleRestoreService}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Bar */}
-        <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
-          <Pagination
-            currentPage={page}
-            pageSize={pageSize}
-            totalItems={pagination?.totalDocs || services.length}
-            onPageChange={setPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
+        <DataTable<Service>
+          columns={serviceDataTableColumns}
+          data={services}
+          selectable={true}
+          selectedIds={Array.from(selectedIds)}
+          onSelectionChange={(ids) => setSelectedIds(new Set(ids))}
+          actions={getServiceActions}
+          actionsHeaderLabel="ACTIONS"
+          sortKey={sortKey || undefined}
+          sortDirection={sortDirection}
+          onSort={(key) => toggleSort(key as keyof Service)}
+          loading={isLoading && services.length === 0}
+          emptyMessage={
+            showDeleted
+              ? "Trash is empty."
+              : "No services found matching your filters."
+          }
+          onRowClick={(service) => {
+            setSelectedService(service);
+            setViewMode("detail");
+          }}
+          pagination={{
+            currentPage: page,
+            totalItems: pagination?.totalDocs || services.length,
+            pageSize: pageSize,
+            onPageChange: setPage,
+            rowsPerPageOptions: [10, 20, 50, 100],
+            onRowsPerPageChange: (newLimit) => {
+              setPageSize(newLimit);
               setPage(1);
-            }}
-            showPageSize={true}
-          />
-        </div>
+            },
+          }}
+        />
       </div>
 
       {/* In-App Delete Confirmation Modal */}
