@@ -13,6 +13,7 @@ const publicRouter = Router();
 // Staff Endpoints (under /gst-links)
 staffRouter.post('/', GstFormController.createLink);
 staffRouter.get('/client/:clientId', GstFormController.getClientLinks);
+staffRouter.get('/client/:clientId/submissions', GstFormController.getClientSubmissions);
 staffRouter.post('/:id/revoke', GstFormController.revokeLink);
 staffRouter.post('/:id/regenerate', GstFormController.regenerateLink);
 

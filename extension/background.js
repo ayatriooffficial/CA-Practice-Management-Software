@@ -190,7 +190,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       let list = res.cachedClients || [];
       if (list.length === 0) {
         // Fallback: attempt to fetch from local API if available
-        fetch("http://localhost:5000/api/clients?limit=100")
+        fetch("http://localhost:5000/api/v1/clients?limit=100").catch(() => fetch("http://localhost:5000/api/clients?limit=100"))
           .then((r) => r.json())
           .then((apiRes) => {
             const apiClients = apiRes?.data || [];
@@ -253,6 +253,69 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse(res);
       }
     );
+    return true;
+  }
+
+  // 7. Get Client GST Periods & Submissions
+  if (request.type === "GET_CLIENT_GST_PERIODS") {
+    const clientId = request.clientId;
+    if (!clientId) {
+      sendResponse({ periods: [] });
+      return true;
+    }
+
+    const storageKey = `gstPeriods_${clientId}`;
+    chrome.storage.local.get([storageKey, "selectedGstPeriod"], (stored) => {
+      const cached = stored[storageKey] || [];
+      const selected = stored.selectedGstPeriod || null;
+
+      // Try fetching from backend
+      fetch(`http://localhost:5000/api/v1/gst-links/client/${clientId}/submissions`)
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.success && Array.isArray(res?.data) && res.data.length > 0) {
+            chrome.storage.local.set({ [storageKey]: res.data });
+            sendResponse({ periods: res.data, selectedPeriod: selected });
+          } else {
+            // fallback to getClientLinks
+            return fetch(`http://localhost:5000/api/v1/gst-links/client/${clientId}`)
+              .then((r2) => r2.json())
+              .then((res2) => {
+                const links = res2?.data || [];
+                const synthesized = links.map((l) => ({
+                  period: l.return_period,
+                  periodLabel: l.return_period,
+                  submissionId: l.submission_id,
+                  linkId: l._id,
+                  gstin: l.gstin,
+                  legalName: l.legal_name,
+                  tradeName: l.trade_name,
+                  stateCode: l.state_code,
+                  status: l.status,
+                  turnoverSlab: l.aggregate_turnover_slab,
+                  filingFrequency: l.filing_frequency,
+                }));
+                chrome.storage.local.set({ [storageKey]: synthesized });
+                sendResponse({ periods: synthesized, selectedPeriod: selected });
+              })
+              .catch(() => {
+                sendResponse({ periods: cached, selectedPeriod: selected });
+              });
+          }
+        })
+        .catch(() => {
+          sendResponse({ periods: cached, selectedPeriod: selected });
+        });
+    });
+    return true;
+  }
+
+  // 8. Set or Clear Selected GST Period
+  if (request.type === "SET_SELECTED_GST_PERIOD") {
+    const periodData = request.periodData || null;
+    chrome.storage.local.set({ selectedGstPeriod: periodData }, () => {
+      sendResponse({ success: true, selectedGstPeriod: periodData });
+    });
     return true;
   }
 

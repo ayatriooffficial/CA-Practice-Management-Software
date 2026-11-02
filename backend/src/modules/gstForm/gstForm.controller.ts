@@ -60,6 +60,17 @@ export class GstFormController {
     }
   }
 
+  // CA Staff / Extension: List period-wise submissions & links for a client
+  static async getClientSubmissions(req: Request, res: Response) {
+    try {
+      const clientId = String(req.params.clientId);
+      const submissions = await GstFormService.getSubmissionsForClient(clientId);
+      return ApiResponse.success(res, submissions, 'Client GST submissions retrieved successfully');
+    } catch (err: any) {
+      return ApiResponse.error(res, err.message || 'Failed to retrieve submissions', err.statusCode || 500);
+    }
+  }
+
   // CA Staff: Revoke link
   static async revokeLink(req: Request, res: Response) {
     try {

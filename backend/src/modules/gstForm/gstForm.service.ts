@@ -1242,6 +1242,108 @@ export class GstFormService {
     });
   }
 
+  static async getSubmissionsForClient(clientId: string) {
+    if (!Types.ObjectId.isValid(clientId)) {
+      return [];
+    }
+    const cId = new Types.ObjectId(clientId);
+
+    const submissions = await GstFormSubmissionModel.find({ client_id: cId })
+      .sort({ return_period: -1, submitted_at: -1 })
+      .lean();
+
+    const links = await GstFormLinkModel.find({ client_id: cId })
+      .sort({ return_period: -1, created_at: -1 })
+      .lean();
+
+    const formatPeriod = (periodStr: string) => {
+      if (!periodStr || periodStr.length < 6) return periodStr || 'N/A';
+      const monthNum = parseInt(periodStr.slice(0, 2), 10);
+      const year = periodStr.slice(2);
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      const mName = months[monthNum - 1] || periodStr.slice(0, 2);
+      return mName + ' ' + year;
+    };
+
+    const periodMap = new Map<string, any>();
+
+    for (const sub of submissions) {
+      const rp = sub.return_period || 'UNKNOWN';
+      if (!periodMap.has(rp)) {
+        const rawGstr1 = (sub as any).raw_draft?.gstr1 || sub.gstr1 || {};
+        const b2bInvoices = rawGstr1.b2b || [];
+        const totalB2bVal = b2bInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.val) || 0), 0);
+
+        periodMap.set(rp, {
+          period: rp,
+          periodLabel: formatPeriod(rp),
+          submissionId: String(sub._id),
+          linkId: String(sub.link_id),
+          gstin: sub.gstin,
+          status: 'SUBMITTED',
+          submittedAt: sub.submitted_at,
+          turnoverSlab: (sub as any).turnoverSlab || 'Up to ₹5 crore',
+          b2bCount: b2bInvoices.length,
+          b2bTotalValue: totalB2bVal,
+          gstr1Summary: {
+            b2bCount: b2bInvoices.length,
+            b2bTotalValue: totalB2bVal,
+            invoices: b2bInvoices.slice(0, 10).map((inv: any) => ({
+              inum: inv.inum,
+              idt: inv.idt,
+              val: inv.val,
+              ctin: inv.ctin,
+              cname: inv.cname || '',
+            })),
+          },
+          gstr3bSummary: sub.gstr3b ? {
+            hasGstr3b: true,
+          } : null,
+          payload: {
+            gstr1: sub.gstr1,
+            gstr3b: sub.gstr3b,
+          },
+        });
+      }
+    }
+
+    for (const link of links) {
+      const rp = link.return_period;
+      if (rp && !periodMap.has(rp)) {
+        periodMap.set(rp, {
+          period: rp,
+          periodLabel: formatPeriod(rp),
+          submissionId: null,
+          linkId: String(link._id),
+          gstin: link.gstin,
+          legalName: link.legal_name,
+          tradeName: link.trade_name,
+          stateCode: link.state_code,
+          status: link.status,
+          submittedAt: link.submitted_at || null,
+          turnoverSlab: link.aggregate_turnover_slab,
+          filingFrequency: link.filing_frequency,
+          b2bCount: 0,
+          b2bTotalValue: 0,
+          gstr1Summary: null,
+          gstr3bSummary: null,
+          payload: null,
+        });
+      } else if (rp && periodMap.has(rp)) {
+        const existing = periodMap.get(rp);
+        if (!existing.legalName) existing.legalName = link.legal_name;
+        if (!existing.tradeName) existing.tradeName = link.trade_name;
+        if (!existing.stateCode) existing.stateCode = link.state_code;
+        if (!existing.filingFrequency) existing.filingFrequency = link.filing_frequency;
+      }
+    }
+
+    return Array.from(periodMap.values()).sort((a, b) => (b.period || '').localeCompare(a.period || ''));
+  }
+
   static async revokeLink(linkId: string) {
     const link = await GstFormLinkModel.findById(linkId);
     if (!link) throw { statusCode: 404, message: 'Link not found' };
