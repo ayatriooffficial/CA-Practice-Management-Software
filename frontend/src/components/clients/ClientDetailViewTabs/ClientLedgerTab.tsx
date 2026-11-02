@@ -25,6 +25,9 @@ import { InvoiceProvider, useInvoice } from "@/components/invoice/InvoiceContext
 import { InvoiceRecord, ReceiptRecord, PaymentMethod } from "@/components/invoice/types";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
 import { RecordPaymentModal } from "@/components/invoice/RecordPaymentModal";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { Button } from "@/components/ui/Button";
+import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
 
 interface ClientLedgerTabProps {
   client: Client;
@@ -137,6 +140,8 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
   const [primaryFilter, setPrimaryFilter] = useState<"all" | "invoices" | "payments">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "proforma">("all");
   const [selectedFy, setSelectedFy] = useState<string>("FY 2026-2027");
+  const [ledgerPage, setLedgerPage] = useState<number>(1);
+  const [ledgerRowsPerPage, setLedgerRowsPerPage] = useState<number>(15);
 
   // Opening Balances per Billing Org (Stored in localStorage or state)
   const [openingBalances, setOpeningBalances] = useState<Record<string, number>>(() => {
@@ -501,6 +506,132 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
   }, [selectedOrg, openingBalances]);
 
   // Filter transactions by Billing Org and UI secondary filters
+  
+  
+  // Ledger Columns for reusable DataTable
+  const ledgerColumns: DataTableColumn<LedgerRow>[] = useMemo(
+    () => [
+      {
+        id: "date",
+        header: "Date",
+        width: 120,
+        sortable: true,
+        cell: (row: LedgerRow) => (
+          <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">
+            {row.date}
+          </span>
+        ),
+      },
+      {
+        id: "particulars",
+        header: "Particulars",
+        minWidth: 200,
+        sortable: true,
+        cell: (row: LedgerRow) => {
+          const isReceipt = row.type === "receipt";
+          return (
+            <div className="flex items-center gap-2 text-xs">
+              {isReceipt ? (
+                <div className="w-5 h-5 rounded-xs flex items-center justify-center bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <Receipt className="w-3 h-3" />
+                </div>
+              ) : (
+                <div className="w-5 h-5 rounded-xs flex items-center justify-center bg-[#31719B]/10 dark:bg-[#31719B]/20 text-[#31719B] dark:text-[#3D88BF] shrink-0">
+                  <FileText className="w-3 h-3" />
+                </div>
+              )}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {row.particulars}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "reference",
+        header: "Reference",
+        width: 150,
+        sortable: true,
+        cell: (row: LedgerRow) => (
+          <span className="font-medium text-[#31719B] dark:text-[#3D88BF] hover:underline cursor-pointer whitespace-nowrap text-xs">
+            {row.reference}
+          </span>
+        ),
+      },
+      {
+        id: "billingOrg",
+        header: "Billing Org",
+        width: 170,
+        sortable: true,
+        cell: (row: LedgerRow) => (
+          <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">
+            {row.billingOrg}
+          </span>
+        ),
+      },
+      {
+        id: "debit",
+        header: "Debit (₹)",
+        width: 130,
+        align: "right",
+        sortable: true,
+        cell: (row: LedgerRow) => (
+          <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap text-xs">
+            {row.debit ? `₹${row.debit.toLocaleString("en-IN")}` : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "credit",
+        header: "Credit (₹)",
+        width: 130,
+        align: "right",
+        sortable: true,
+        cell: (row: LedgerRow) => (
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap text-xs">
+            {row.credit ? `₹${row.credit.toLocaleString("en-IN")}` : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "balance",
+        header: "Balance (₹)",
+        width: 140,
+        align: "right",
+        sortable: true,
+        cell: (row: LedgerRow) => (
+          <span
+            className={`font-bold whitespace-nowrap text-xs ${
+              row.balance < 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400"
+            }`}
+          >
+            {formatCurrency(row.balance)}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const getLedgerActions = (row: LedgerRow): DropdownActionItem[] => [
+    {
+      label: "View Reference",
+      icon: Eye,
+      onClick: () => {
+        showToast?.(`Viewing ${row.reference}`);
+      },
+    },
+    {
+      label: "Download Voucher",
+      icon: Download,
+      onClick: () => {
+        showToast?.(`Downloading voucher for ${row.reference}`);
+      },
+    },
+  ];
+
   const processedLedgerRows = useMemo(() => {
     // 1. Filter by Billing Org
     let rows = rawTransactions.filter((r) => {
@@ -555,6 +686,13 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
       closingBalance,
     };
   }, [processedLedgerRows, currentOpeningBalance]);
+
+  // Paginated ledger rows
+  const paginatedLedgerRows = useMemo(() => {
+    const start = (ledgerPage - 1) * ledgerRowsPerPage;
+    return processedLedgerRows.slice(start, start + ledgerRowsPerPage);
+  }, [processedLedgerRows, ledgerPage, ledgerRowsPerPage]);
+
 
   // Save Opening Balance Handler
   const handleSaveOpeningBalance = () => {
@@ -655,7 +793,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 onClick={() => setSelectedOrg(org)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   isSelected
-                    ? "bg-[#6366F1] text-white shadow-sm ring-1 ring-[#6366F1]"
+                    ? "bg-[#31719B] text-white shadow-sm ring-1 ring-[#31719B]"
                     : "bg-white dark:bg-[#1e293b] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
               >
@@ -685,7 +823,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
               setObAmountInput(String(currentOpeningBalance || 909));
               setIsOpeningBalanceModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-[#6366F1] hover:bg-[#4f46e5] text-white shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-[#31719B] hover:bg-[#285d80] text-white shadow-sm transition-colors cursor-pointer"
           >
             <span>Add Opening Balance</span>
           </button>
@@ -705,7 +843,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 onClick={() => setPrimaryFilter(opt)}
                 className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all cursor-pointer ${
                   primaryFilter === opt
-                    ? "bg-[#6366F1] text-white shadow-sm"
+                    ? "bg-[#31719B] text-white shadow-sm"
                     : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
@@ -723,7 +861,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 onClick={() => setTypeFilter(opt)}
                 className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all cursor-pointer ${
                   typeFilter === opt
-                    ? "bg-[#6366F1] text-white shadow-sm"
+                    ? "bg-[#31719B] text-white shadow-sm"
                     : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
@@ -857,97 +995,25 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
         </div>
       </div>
 
-      {/* 4. MAIN LEDGER TABLE (Exact columns and typography from screenshot) */}
-      <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-[#1e293b] shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/40 text-gray-600 dark:text-gray-300 font-semibold">
-                <th className="py-3 px-4 w-[110px]">Date</th>
-                <th className="py-3 px-4">Particulars</th>
-                <th className="py-3 px-4 w-[140px]">Reference</th>
-                <th className="py-3 px-4 w-[180px]">Billing Org</th>
-                <th className="py-3 px-4 text-right w-[120px]">Debit (₹)</th>
-                <th className="py-3 px-4 text-right w-[120px]">Credit (₹)</th>
-                <th className="py-3 px-4 text-right w-[120px]">Balance (₹)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium text-gray-700 dark:text-gray-300">
-              {processedLedgerRows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400 text-xs">
-                    No transactions found for the selected organization and period.
-                  </td>
-                </tr>
-              ) : (
-                processedLedgerRows.map((row) => {
-                  const isReceipt = row.type === "receipt";
-                  return (
-                    <tr
-                      key={row.id}
-                      className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors"
-                    >
-                      {/* Date */}
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {row.date}
-                      </td>
-
-                      {/* Particulars with Icon */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {isReceipt ? (
-                            <div className="w-5 h-5 rounded flex items-center justify-center bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 shrink-0">
-                              <Receipt className="w-3 h-3" />
-                            </div>
-                          ) : (
-                            <div className="w-5 h-5 rounded flex items-center justify-center bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 shrink-0">
-                              <FileText className="w-3 h-3" />
-                            </div>
-                          )}
-                          <span className="font-semibold text-gray-900 dark:text-white">
-                            {row.particulars}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Reference (Clickable Blue ID) */}
-                      <td className="py-3 px-4 font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer whitespace-nowrap">
-                        {row.reference}
-                      </td>
-
-                      {/* Billing Org */}
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {row.billingOrg}
-                      </td>
-
-                      {/* Debit (₹) */}
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                        {row.debit ? `₹${row.debit.toLocaleString("en-IN")}` : "—"}
-                      </td>
-
-                      {/* Credit (₹) */}
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                        {row.credit ? `₹${row.credit.toLocaleString("en-IN")}` : "—"}
-                      </td>
-
-                      {/* Running Balance (₹) */}
-                      <td
-                        className={`py-3 px-4 text-right font-bold whitespace-nowrap ${
-                          row.balance < 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {formatCurrency(row.balance)}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* 4. MAIN LEDGER TABLE (Reusable DataTable with resizable columns, three-dot options, no border, no rounded corners) */}
+      <DataTable<LedgerRow>
+        columns={ledgerColumns}
+        data={paginatedLedgerRows}
+        actions={getLedgerActions}
+        emptyMessage="No transactions found for the selected organization and period."
+        getRowId={(row: LedgerRow) => row.id}
+        pagination={{
+          currentPage: ledgerPage,
+          totalItems: processedLedgerRows.length,
+          pageSize: ledgerRowsPerPage,
+          onPageChange: (p) => setLedgerPage(p),
+          rowsPerPageOptions: [10, 15, 25, 50],
+          onRowsPerPageChange: (newSize) => {
+            setLedgerRowsPerPage(newSize);
+            setLedgerPage(1);
+          },
+        }}
+      />
 
       {/* MODAL: ADD / EDIT OPENING BALANCE */}
       {isOpeningBalanceModalOpen && (
@@ -974,7 +1040,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                 <select
                   value={obOrgInput}
                   onChange={(e) => setObOrgInput(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#6366F1]"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#31719B]"
                 >
                   {availableOrgs.map((org) => (
                     <option key={org} value={org}>
@@ -1004,7 +1070,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                   type="date"
                   value={obDateInput}
                   onChange={(e) => setObDateInput(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#6366F1]"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#31719B]"
                 />
               </div>
 
@@ -1017,7 +1083,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
                   placeholder="e.g. 909"
                   value={obAmountInput}
                   onChange={(e) => setObAmountInput(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#6366F1]"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-800 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-[#31719B]"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">
                   Positive number represents pending receivable from client.
@@ -1036,7 +1102,7 @@ const ClientLedgerInner: React.FC<ClientLedgerTabProps> = ({ client, showToast }
               <button
                 type="button"
                 onClick={handleSaveOpeningBalance}
-                className="px-4 py-1.5 rounded-lg bg-[#6366F1] hover:bg-[#4f46e5] text-white text-xs font-semibold shadow-sm cursor-pointer"
+                className="px-4 py-1.5 rounded-lg bg-[#31719B] hover:bg-[#285d80] text-white text-xs font-semibold shadow-sm cursor-pointer"
               >
                 Save Balance
               </button>

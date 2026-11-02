@@ -12,6 +12,9 @@ import { serviceApi } from "@/services/serviceApi";
 import { Service } from "@/data/serviceData";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
 import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from "@/components/onboarding/tabs/InvoiceLivePreview";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { Button } from "@/components/ui/Button";
+import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
 
 interface ClientInvoicesTabProps {
   client: Client;
@@ -378,6 +381,190 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
     setFormMode("create");
   };
 
+  const invoiceColumns: DataTableColumn<InvoiceRecord>[] = useMemo(() => [
+    {
+      id: "number",
+      header: "ID",
+      width: 140,
+      cell: (record) => (
+        <button
+          type="button"
+          onClick={() => handleView(record)}
+          className="font-mono font-bold text-[#31719B] dark:text-[#60a5fa] hover:underline cursor-pointer"
+        >
+          {record.number || `#${record.id.slice(0, 8)}`}
+        </button>
+      ),
+    },
+    {
+      id: "service",
+      header: "Service",
+      width: 250,
+      cell: (record) => {
+        const servicesList = (record.services || []).map((s) => s.serviceName).filter(Boolean);
+        const primaryService = servicesList[0] || record.source || inUseServices[0]?.serviceName || "General Professional Services";
+        const additionalCount = servicesList.length > 1 ? servicesList.length - 1 : 0;
+        const sBadge = getServiceBadgeStyle(primaryService);
+        const sInitials = getInitials(primaryService);
+
+        return (
+          <div className="flex items-center gap-2">
+            <span className={`w-6 h-6 rounded-sm flex items-center justify-center font-bold text-[9px] shrink-0 ${sBadge.bg} ${sBadge.text}`}>
+              {sInitials}
+            </span>
+            <div className="flex items-center gap-1.5 truncate max-w-[210px]">
+              <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={servicesList.join(", ") || primaryService}>
+                {primaryService}
+              </span>
+              {additionalCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 shrink-0">
+                  +{additionalCount}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "billingOrg",
+      header: "Organization",
+      width: 220,
+      cell: (record) => {
+        const orgName = record.billingOrg || primaryOrgName;
+        const orgInitials = getInitials(orgName);
+        return (
+          <div className="flex items-center gap-2">
+            <span
+              className="w-6 h-6 rounded-sm flex items-center justify-center font-bold text-[9px] shrink-0"
+              style={{ backgroundColor: "var(--primary-light)", color: "var(--primary)" }}
+            >
+              {orgInitials}
+            </span>
+            <span className="text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title={orgName}>
+              {orgName}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "date",
+      header: "Invoice Date",
+      width: 120,
+      sortable: true,
+      cell: (record) => <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(record.date)}</span>,
+    },
+    {
+      id: "totalPayable",
+      header: "Invoice Amount",
+      width: 130,
+      align: "right",
+      cell: (record) => (
+        <span className="font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+          ₹{Number(record.totalPayable || 0).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      id: "balance",
+      header: "Balance",
+      width: 120,
+      align: "right",
+      cell: (record) => {
+        const bal = record.balanceAmount !== undefined ? record.balanceAmount : record.totalPayable || 0;
+        return (
+          <span className="font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+            ₹{Number(bal).toFixed(2)}
+          </span>
+        );
+      },
+    },
+    {
+      id: "linkedUsers",
+      header: "Linked Users",
+      width: 110,
+      align: "center",
+      cell: (record) => {
+        const linkedUser = (record as any).assignee || record.clientId;
+        return linkedUser ? (
+          <div
+            className="inline-flex items-center justify-center w-6 h-6 rounded-sm font-bold text-[9px]"
+            style={{ backgroundColor: "var(--primary-light)", color: "var(--primary)" }}
+          >
+            {getInitials(typeof linkedUser === "string" ? linkedUser : "User")}
+          </div>
+        ) : (
+          <span className="text-gray-400">-</span>
+        );
+      },
+    },
+    {
+      id: "bankAccount",
+      header: "Payment Account",
+      width: 150,
+      cell: (record) => {
+        const paymentAccName =
+          record.bankAccountId && bankMap.has(record.bankAccountId)
+            ? bankMap.get(record.bankAccountId)
+            : "-";
+        return (
+          <span className="text-gray-600 dark:text-gray-400 truncate block" title={paymentAccName}>
+            {paymentAccName}
+          </span>
+        );
+      },
+    },
+    {
+      id: "status",
+      header: "Status",
+      width: 120,
+      align: "center",
+      cell: (record) => {
+        const status = record.status || "Pending";
+        const isPaid = status === "Paid";
+        const isPending = status === "Pending";
+        const isOverdue = status === "Overdue";
+        const isPartial = status === "Partially Paid";
+        return (
+          <span
+            className={`inline-block px-2.5 py-0.5 rounded-sm text-[11px] font-semibold whitespace-nowrap ${
+              isPaid
+                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                : isPending
+                ? "bg-[#fee2e2] dark:bg-[#7f1d1d]/40 text-[#b91c1c] dark:text-[#fca5a5]"
+                : isOverdue
+                ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
+                : isPartial
+                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+            }`}
+          >
+            {status}
+          </span>
+        );
+      },
+    },
+  ], [bankMap, inUseServices, primaryOrgName]);
+
+  const getInvoiceActions = (record: InvoiceRecord): DropdownActionItem[] => [
+    {
+      label: "Preview Format",
+      icon: Eye,
+      onClick: () => handleView(record),
+    },
+    {
+      label: "Edit Invoice",
+      icon: Edit2,
+      onClick: () => handleEdit(record),
+    },
+    {
+      label: "Sign with DSC",
+      icon: PenTool,
+      onClick: () => handleSignInvoiceWithDsc(record),
+    },
+  ];
+
   if (viewMode === "form") {
     return (
       <div className="w-full">
@@ -474,323 +661,36 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
             ))}
           </div> */}
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5" />}
             onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold text-white shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-            style={{ backgroundColor: "var(--premium-blue-dark)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")}
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add</span>
-          </button>
+            Add
+          </Button>
         </div>
       </div>
 
-      {/* Table Container */}
-      <div className="bg-white dark:bg-[#1e293b]   border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr
-                className="border-b border-[#dde2e8] dark:border-[#334155] text-gray-700 dark:text-gray-300 font-semibold"
-                style={{ backgroundColor: "var(--orange-havy-light)" }}
-              >
-                <th className="py-3 px-4 w-[120px]">ID</th>
-                <th className="py-3 px-4 min-w-[220px]">Service</th>
-                <th className="py-3 px-4 min-w-[200px]">Organization</th>
-                <th className="py-3 px-4 min-w-[110px]">Invoice Date</th>
-                <th className="py-3 px-4 text-right min-w-[110px]">Invoice Amount</th>
-                <th className="py-3 px-4 text-right min-w-[110px]">Balance</th>
-                <th className="py-3 px-4 text-center min-w-[110px]">Linked Users</th>
-                <th className="py-3 px-4 min-w-[140px]">Payment Account</th>
-                <th className="py-3 px-4 text-center min-w-[100px]">Status</th>
-                <th className="py-3 px-4 text-center min-w-[130px]">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
-              {paginatedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        No {subTabLabel.toLowerCase()}s found for {client.name}
-                      </p>
-                      <p className="text-[11px] text-gray-400 max-w-sm">
-                        Click the &quot;+ Add&quot; button above to create a {subTabLabel.toLowerCase()} with prefilled services and rates.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleOpenCreate}
-                        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white transition-colors cursor-pointer"
-                        style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
-                        }
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Create {subTabLabel}</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                paginatedItems.map((record) => {
-                  // Resolve actual services from the invoice or match client in-use services
-                  const servicesList = (record.services || [])
-                    .map((s) => s.serviceName)
-                    .filter(Boolean);
-
-                  const primaryService =
-                    servicesList[0] ||
-                    record.source ||
-                    inUseServices[0]?.serviceName ||
-                    "General Professional Services";
-
-                  const additionalCount = servicesList.length > 1 ? servicesList.length - 1 : 0;
-
-                  const sBadge = getServiceBadgeStyle(primaryService);
-                  const sInitials = getInitials(primaryService);
-
-                  const orgName = record.billingOrg || primaryOrgName;
-                  const orgInitials = getInitials(orgName);
-
-                  const paymentAccName =
-                    record.bankAccountId && bankMap.has(record.bankAccountId)
-                      ? bankMap.get(record.bankAccountId)
-                      : "-";
-
-                  const linkedUser = (record as any).assignee || record.clientId;
-
-                  const status = record.status || "Pending";
-                  const isPaid = status === "Paid";
-                  const isPending = status === "Pending";
-                  const isOverdue = status === "Overdue";
-                  const isPartial = status === "Partially Paid";
-
-                  return (
-                    <tr
-                      key={record.id}
-                      onClick={() => handleView(record)}
-                      className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors cursor-pointer group"
-                    >
-                      {/* ID */}
-                      <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        <span
-                          className="font-mono transition-colors"
-                          style={{ color: "var(--text-main)" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-main)")}
-                        >
-                          {record.number || `#${record.id.slice(0, 8)}`}
-                        </span>
-                      </td>
-
-                      {/* Service (Actual in-use services displayed) */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 ${sBadge.bg} ${sBadge.text}`}
-                          >
-                            {sInitials}
-                          </span>
-                          <div className="flex items-center gap-1.5 truncate max-w-[220px]">
-                            <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={servicesList.join(", ") || primaryService}>
-                              {primaryService}
-                            </span>
-                            {additionalCount > 0 && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 shrink-0">
-                                +{additionalCount}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Organization */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0"
-                            style={{
-                              backgroundColor: "var(--primary-light)",
-                              color: "var(--primary)",
-                            }}
-                          >
-                            {orgInitials}
-                          </span>
-                          <span className="text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
-                            {orgName}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Invoice Date */}
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {formatDate(record.date)}
-                      </td>
-
-                      {/* Invoice Amount */}
-                      <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        {Number(record.totalPayable || 0).toFixed(2)}
-                      </td>
-
-                      {/* Balance */}
-                      <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        {Number(
-                          record.balanceAmount !== undefined ? record.balanceAmount : record.totalPayable || 0
-                        ).toFixed(2)}
-                      </td>
-
-                      {/* Linked Users */}
-                      <td className="py-3 px-4 text-center">
-                        {linkedUser ? (
-                          <div
-                            className="inline-flex items-center justify-center w-6 h-6 rounded-full font-bold text-[9px]"
-                            style={{
-                              backgroundColor: "var(--primary-light)",
-                              color: "var(--primary)",
-                            }}
-                          >
-                            {getInitials(typeof linkedUser === "string" ? linkedUser : "User")}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-
-                      {/* Payment Account */}
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400 truncate max-w-[140px]">
-                        {paymentAccName}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap ${isPaid
-                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
-                            : isPending
-                              ? "bg-[#fee2e2] dark:bg-[#7f1d1d]/40 text-[#b91c1c] dark:text-[#fca5a5]"
-                              : isOverdue
-                                ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
-                                : isPartial
-                                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
-                                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                            }`}
-                        >
-                          {status}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleView(record);
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3D6A9E] hover:underline cursor-pointer"
-                            title="Preview Invoice Format"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Preview</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleEdit(record, e)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                            title="Edit Invoice Data"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSignInvoiceWithDsc(record);
-                            }}
-                            disabled={signingInvoiceId === record.id}
-                            className="p-1 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-                            title="Sign with DSC (PAdES)"
-                          >
-                            {signingInvoiceId === record.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
-                            ) : (
-                              <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Bottom Pagination Controls */}
-        <div className="flex flex-wrap items-center justify-end gap-6 px-4 py-3 border-t border-[#dde2e8] dark:border-[#334155] text-xs text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <select
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setPage(1);
-              }}
-              className="bg-transparent border border-[#dde2e8] dark:border-[#334155] rounded px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer focus:outline-none"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-
-          <div>
-            {totalItems > 0 ? (
-              <span>
-                {(page - 1) * rowsPerPage + 1}-
-                {Math.min(page * rowsPerPage, totalItems)} of {totalItems}
-              </span>
-            ) : (
-              <span>0-0 of 0</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              title="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              title="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Resizable Reusable DataTable */}
+      <DataTable<InvoiceRecord>
+        columns={invoiceColumns}
+        data={paginatedItems}
+        actions={getInvoiceActions}
+        emptyMessage={`No ${subTabLabel.toLowerCase()}s found for ${client.name}. Click "+ Add" to create one.`}
+        emptyIcon={<FileText className="w-6 h-6 text-gray-400" />}
+        pagination={{
+          currentPage: page,
+          totalItems,
+          pageSize: rowsPerPage,
+          onPageChange: (p) => setPage(p),
+          rowsPerPageOptions: [10, 25, 50, 100],
+          onRowsPerPageChange: (newSize) => {
+            setRowsPerPage(newSize);
+            setPage(1);
+          },
+        }}
+      />
 
       {/* Full Invoice Preview & Format Switcher Modal */}
       {previewModalRecord && (() => {
