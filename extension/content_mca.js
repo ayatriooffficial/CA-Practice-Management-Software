@@ -349,6 +349,8 @@
   let clientGstPeriods = [];
   let selectedGstPeriod = null; // currently active period checked for lookup
   let expandedPeriodKey = null; // for accordion view
+  let currentWidgetWidth = 360;
+  let currentWidgetHeight = 390;
 
   // Interactive focus tracking state
   let currentFocusedElement = null;
@@ -366,6 +368,16 @@
       loadClientGstPeriods(clientData.id || clientData._id);
     }
 
+    // Restore saved size
+    const savedSize = localStorage.getItem("ca_mca_widget_size");
+    if (savedSize) {
+      try {
+        const s = JSON.parse(savedSize);
+        if (s.width) currentWidgetWidth = Math.max(300, Math.min(window.innerWidth - 30, s.width));
+        if (s.height) currentWidgetHeight = Math.max(220, Math.min(window.innerHeight - 80, s.height));
+      } catch (e) {}
+    }
+
     let widget = document.getElementById("ca-practice-mca-widget");
     if (!widget) {
       widget = document.createElement("div");
@@ -376,15 +388,16 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 12px;
         color: #1e293b;
-        width: 350px;
-        max-width: 95vw;
+        width: ${currentWidgetWidth}px;
+        max-width: 96vw;
         display: flex;
         flex-direction: column;
         border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 10px 25px -3px rgba(0,0,0,0.25), 0 4px 6px -2px rgba(0,0,0,0.1);
+        overflow: visible;
+        box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.22), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
         border: 1px solid #cbd5e1;
         background: #fff;
+        box-sizing: border-box;
       `;
       document.body.appendChild(widget);
 
@@ -411,7 +424,43 @@
       }
 
       setupDraggable(widget);
+
+      // Ensure scoped scrollbar and box-sizing styles exist
+      if (!document.getElementById("ca-practice-widget-styles")) {
+        const styleEl = document.createElement("style");
+        styleEl.id = "ca-practice-widget-styles";
+        styleEl.textContent = `
+          #ca-practice-mca-widget, #ca-practice-mca-widget * {
+            box-sizing: border-box !important;
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(148, 163, 184, 0.35) transparent !important;
+          }
+          #ca-practice-mca-widget *::-webkit-scrollbar {
+            width: 4px !important;
+            height: 4px !important;
+          }
+          #ca-practice-mca-widget *::-webkit-scrollbar-track {
+            background: transparent !important;
+          }
+          #ca-practice-mca-widget *::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.35) !important;
+            border-radius: 4px !important;
+          }
+          #ca-practice-mca-widget *::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.6) !important;
+          }
+          .ca-tab-btn {
+            transition: all 0.15s ease;
+          }
+          .ca-tab-btn:hover {
+            background: #f1f5f9 !important;
+          }
+        `;
+        document.head.appendChild(styleEl);
+      }
+
       setupInteractiveFocusListeners();
+      setupResizable(widget);
     }
 
     renderWidgetContent(widget);
@@ -484,6 +533,60 @@
     };
 
     widget.addEventListener("mousedown", onMouseDown);
+  }
+
+
+  // Setup resizable behavior (drag top bar or corner to resize width/height)
+  function setupResizable(widget) {
+    const handleTop = widget.querySelector("#ca-w-resize-top");
+    const handleCorner = widget.querySelector("#ca-w-resize-corner");
+    const handleLeft = widget.querySelector("#ca-w-resize-left");
+
+    function attachResize(handle, resizeWidth, resizeHeight) {
+      if (!handle) return;
+      handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = widget.offsetWidth || currentWidgetWidth;
+        const panel = widget.querySelector("#ca-w-panel");
+        const startH = panel ? panel.offsetHeight : currentWidgetHeight;
+
+        const onMouseMove = (ev) => {
+          if (resizeWidth) {
+            const dx = startX - ev.clientX; // dragging left expands width
+            const newW = Math.max(300, Math.min(window.innerWidth - 30, startW + dx));
+            widget.style.width = newW + "px";
+            currentWidgetWidth = newW;
+          }
+          if (resizeHeight && panel) {
+            const dy = startY - ev.clientY; // dragging up expands height
+            const newH = Math.max(200, Math.min(window.innerHeight - 90, startH + dy));
+            panel.style.maxHeight = newH + "px";
+            panel.style.height = newH + "px";
+            currentWidgetHeight = newH;
+          }
+        };
+
+        const onMouseUp = () => {
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+          localStorage.setItem("ca_mca_widget_size", JSON.stringify({
+            width: currentWidgetWidth,
+            height: currentWidgetHeight,
+          }));
+        };
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+    }
+
+    attachResize(handleTop, false, true);
+    attachResize(handleLeft, true, false);
+    attachResize(handleCorner, true, true);
   }
 
   // Helper to extract all directors from client
@@ -946,19 +1049,74 @@
 
     widget.innerHTML = `
       <!-- ── Expanded Panel (shown above the bar) ── -->
-      <div id="ca-w-panel" style="display:${isExpanded ? "flex" : "none"}; flex-direction:column; background:#fff; border-bottom:1px solid #e2e8f0; max-height:430px; overflow-y:auto;">
-
-        <!-- Panel tab nav -->
-        <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#f8fafc; overflow-x:auto;">
-          <button id="ca-w-tab-fill" style="flex:1; min-width:65px; height:32px; border:none; border-bottom:${activeTab === "fill" ? "2px solid #31719B" : "2px solid transparent"}; background:transparent; color:${activeTab === "fill" ? "#31719B" : "#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">⚡ Login</button>
-          <button id="ca-w-tab-gst" style="flex:1; min-width:85px; height:32px; border:none; border-bottom:${activeTab === "gst" ? "2px solid #0284c7" : "2px solid transparent"}; background:transparent; color:${activeTab === "gst" ? "#0284c7" : "#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">📊 GST Periods</button>
-          <button id="ca-w-tab-register" style="flex:1; min-width:75px; height:32px; border:none; border-bottom:${activeTab === "register" ? "2px solid #ea580c" : "2px solid transparent"}; background:transparent; color:${activeTab === "register" ? "#ea580c" : "#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">📝 Register</button>
-          <button id="ca-w-tab-search" style="flex:1; min-width:65px; height:32px; border:none; border-bottom:${activeTab === "search" ? "2px solid #31719B" : "2px solid transparent"}; background:transparent; color:${activeTab === "search" ? "#31719B" : "#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">🔍 Search</button>
-          <button id="ca-w-tab-details" style="flex:1; min-width:65px; height:32px; border:none; border-bottom:${activeTab === "details" ? "2px solid #31719B" : "2px solid transparent"}; background:transparent; color:${activeTab === "details" ? "#31719B" : "#64748b"}; font-size:11px; font-weight:700; cursor:pointer;">📋 Master</button>
+      <div id="ca-w-panel" style="
+        display: ${isExpanded ? "flex" : "none"};
+        position: relative;
+        flex-direction: column;
+        background: #fff;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        border-bottom: 1px solid #e2e8f0;
+        max-height: ${currentWidgetHeight}px;
+        height: ${currentWidgetHeight}px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      ">
+        <!-- Top Resize Handle Bar -->
+        <div id="ca-w-resize-top" style="
+          height: 6px;
+          cursor: ns-resize;
+          background: #f1f5f9;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          user-select: none;
+          flex-shrink: 0;
+        " title="Drag up or down to adjust height">
+          <span style="width: 32px; height: 2px; background: #cbd5e1; border-radius: 2px;"></span>
         </div>
 
-        <!-- Panel body -->
-        <div id="ca-w-panel-body" style="padding:12px 14px; overflow-y:auto;">
+        <!-- Top-Left Corner Resize Handle -->
+        <div id="ca-w-resize-corner" style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 16px;
+          height: 16px;
+          cursor: nwse-resize;
+          z-index: 20;
+        " title="Drag corner to adjust width & height"></div>
+
+        <!-- Left Border Resize Handle -->
+        <div id="ca-w-resize-left" style="
+          position: absolute;
+          top: 6px;
+          bottom: 0;
+          left: 0;
+          width: 6px;
+          cursor: ew-resize;
+          z-index: 10;
+        " title="Drag to adjust width"></div>
+
+        <!-- Panel tab nav (Clean, zero horizontal scrollbar) -->
+        <div style="
+          display: flex;
+          border-bottom: 1px solid #e2e8f0;
+          background: #f8fafc;
+          padding: 3px 4px 0 4px;
+          gap: 2px;
+          flex-shrink: 0;
+          overflow: hidden;
+        ">
+          <button id="ca-w-tab-fill" class="ca-tab-btn" style="flex: 1; min-width: 0; height: 28px; border: none; border-bottom: ${activeTab === "fill" ? "2px solid #31719B" : "2px solid transparent"}; background: transparent; color: ${activeTab === "fill" ? "#31719B" : "#64748b"}; font-size: 11px; font-weight: ${activeTab === "fill" ? "700" : "600"}; cursor: pointer; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">⚡ Login</button>
+          <button id="ca-w-tab-gst" class="ca-tab-btn" style="flex: 1; min-width: 0; height: 28px; border: none; border-bottom: ${activeTab === "gst" ? "2px solid #0284c7" : "2px solid transparent"}; background: transparent; color: ${activeTab === "gst" ? "#0284c7" : "#64748b"}; font-size: 11px; font-weight: ${activeTab === "gst" ? "700" : "600"}; cursor: pointer; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📊 GST</button>
+          <button id="ca-w-tab-register" class="ca-tab-btn" style="flex: 1; min-width: 0; height: 28px; border: none; border-bottom: ${activeTab === "register" ? "2px solid #ea580c" : "2px solid transparent"}; background: transparent; color: ${activeTab === "register" ? "#ea580c" : "#64748b"}; font-size: 11px; font-weight: ${activeTab === "register" ? "700" : "600"}; cursor: pointer; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📝 Register</button>
+          <button id="ca-w-tab-search" class="ca-tab-btn" style="flex: 1; min-width: 0; height: 28px; border: none; border-bottom: ${activeTab === "search" ? "2px solid #31719B" : "2px solid transparent"}; background: transparent; color: ${activeTab === "search" ? "#31719B" : "#64748b"}; font-size: 11px; font-weight: ${activeTab === "search" ? "700" : "600"}; cursor: pointer; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🔍 Search</button>
+          <button id="ca-w-tab-details" class="ca-tab-btn" style="flex: 1; min-width: 0; height: 28px; border: none; border-bottom: ${activeTab === "details" ? "2px solid #31719B" : "2px solid transparent"}; background: transparent; color: ${activeTab === "details" ? "#31719B" : "#64748b"}; font-size: 11px; font-weight: ${activeTab === "details" ? "700" : "600"}; cursor: pointer; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📋 Master</button>
+        </div>
+
+        <!-- Panel body (No double scrollbar: overflow is visible, only panel scrolls) -->
+        <div id="ca-w-panel-body" style="padding: 10px 12px; overflow: visible; flex: 1;">
           ${renderActiveTabBody("", clientName, panStr, idVal, passVal, directors)}
         </div>
       </div>
@@ -994,6 +1152,7 @@
 
     bindWidgetEvents(widget);
     updateActiveFieldBar();
+    setupResizable(widget);
   }
 
   // Active Tab Body Switcher
