@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Link2,
   Copy,
@@ -18,6 +18,9 @@ import {
 import { Client, ClientServiceSetting } from "@/data/crmData";
 import { isGstReturnServiceEnabled } from "./utils";
 import { gstFormApi, GstLinkItem } from "@/services/gstFormApi";
+import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export interface ClientGstLinksCardProps {
   client?: Client;
@@ -32,6 +35,143 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
+
+  const paginatedLinks = useMemo(() => {
+    const start = (historyPage - 1) * historyPageSize;
+    return (links || []).slice(start, start + historyPageSize);
+  }, [links, historyPage, historyPageSize]);
+
+  const historyColumns = useMemo<DataTableColumn<GstLinkItem>[]>(() => [
+    {
+      id: "return_period",
+      header: "Period",
+      accessorKey: "return_period",
+      sortable: true,
+      cell: (item) => (
+        <span className="font-mono font-medium text-gray-900 dark:text-white">
+          {item.return_period}
+        </span>
+      ),
+    },
+    {
+      id: "filing_frequency",
+      header: "Frequency",
+      accessorKey: "filing_frequency",
+      sortable: true,
+      cell: (item) => (
+        <span className="text-gray-600 dark:text-gray-400">
+          {item.filing_frequency}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      sortable: true,
+      cell: (item) => (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            item.status === "ACTIVE"
+              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300"
+              : item.status === "SUBMITTED"
+              ? "bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300"
+              : item.status === "EXPIRED"
+              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300"
+              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          }`}
+        >
+          {item.status}
+        </span>
+      ),
+    },
+    {
+      id: "created_at",
+      header: "Created At",
+      sortable: true,
+      cell: (item) => (
+        <span className="text-gray-500">
+          {new Date(item.created_at).toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      ),
+    },
+    {
+      id: "expiry",
+      header: "Status / Expiry",
+      cell: (item) => {
+        if (item.status === "SUBMITTED" && item.submitted_at) {
+          return (
+            <span className="text-blue-600 dark:text-blue-400">
+              Submitted on{" "}
+              {new Date(item.submitted_at).toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          );
+        }
+        if (item.status === "ACTIVE") {
+          return (
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+              Never Expires
+            </span>
+          );
+        }
+        return <span className="text-gray-400">{item.status}</span>;
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      align: "right",
+      cell: (item) => (
+        <div className="flex items-center justify-end gap-2">
+          {item.status === "ACTIVE" && (
+            <>
+              <a
+                href={getLinkUrl(item)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#31719B] hover:underline font-semibold text-xs"
+              >
+                Open ↗
+              </a>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="rounded-sm text-[#31719B] font-semibold text-xs h-7 px-2"
+                onClick={() => handleCopyLink(item)}
+              >
+                Copy
+              </Button>
+            </>
+          )}
+          {item.status === "SUBMITTED" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-sm text-[#31719B] font-semibold text-xs h-7 px-2 inline-flex items-center gap-1"
+              onClick={() => handleViewSubmission(item)}
+            >
+              <Eye className="w-3 h-3" />
+              <span>View Submission</span>
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], []);
 
   // Generation Form State
   const now = new Date();
@@ -405,12 +545,12 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
               <label className="block font-semibold text-gray-700 dark:text-gray-300 mb-1">
                 Return Period (MMYYYY)
               </label>
-              <input
+              <Input
                 type="text"
                 value={returnPeriod}
                 onChange={(e) => setReturnPeriod(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
                 placeholder="e.g. 102026"
-                className="w-full h-9 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] px-3 font-mono outline-none focus:border-[#31719B]"
+                className="w-full h-9 rounded-sm font-mono"
               />
             </div>
 
@@ -443,141 +583,77 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
             </div>
 
             <div className="flex items-end">
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={handleGenerate}
                 disabled={isGenerating || !returnPeriod || returnPeriod.length < 6}
-                className="w-full h-9 rounded-lg text-xs font-semibold text-white transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                style={{ backgroundColor: "var(--primary, #31719B)" }}
+                loading={isGenerating}
+                className="w-full h-9 rounded-sm text-xs font-semibold"
               >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="w-4 h-4" />
-                    <span>Generate Link</span>
-                  </>
-                )}
-              </button>
+                <Link2 className="w-4 h-4" />
+                <span>Generate Link</span>
+              </Button>
             </div>
           </div>
         </div>
       )}
 
       {/* Historical Links / Submissions Table */}
-      <div>
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
           Link & Submission History ({links?.length || 0})
         </h3>
 
-        {!links || links.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-xs">
-            No GST collection links generated yet for this client.
-          </div>
-        ) : (
-          <div className="overflow-x-auto border border-[#dde2e8] dark:border-[#334155] rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">
-                <tr>
-                  <th className="py-2.5 px-3">Period</th>
-                  <th className="py-2.5 px-3">Frequency</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Created At</th>
-                  <th className="py-2.5 px-3">Status / Expiry</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
-                {(links || []).map((item) => (
-                  <tr key={item._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                    <td className="py-2.5 px-3 font-mono font-medium text-gray-900 dark:text-white">
-                      {item.return_period}
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">
-                      {item.filing_frequency}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300"
-                            : item.status === "SUBMITTED"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300"
-                            : item.status === "EXPIRED"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300"
-                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                        }`}
-                      >
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-500">
-                      {new Date(item.created_at).toLocaleString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-500">
-                      {item.status === "SUBMITTED" && item.submitted_at ? (
-                        <span className="text-blue-600 dark:text-blue-400">
-                          Submitted on{" "}
-                          {new Date(item.submitted_at).toLocaleString("en-IN", {
-                            day: "2-digit",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      ) : item.status === "ACTIVE" ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                          Never Expires
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">{item.status}</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-right space-x-2">
-                      {item.status === "ACTIVE" && (
-                        <>
-                          <a
-                            href={getLinkUrl(item)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#31719B] hover:underline font-semibold"
-                          >
-                            Open ↗
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyLink(item)}
-                            className="text-[#31719B] hover:underline font-semibold"
-                          >
-                            Copy
-                          </button>
-                        </>
-                      )}
-                      {item.status === "SUBMITTED" && (
-                        <button
-                          type="button"
-                          onClick={() => handleViewSubmission(item)}
-                          className="text-[#31719B] hover:underline font-semibold inline-flex items-center gap-1"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>View Submission</span>
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable<GstLinkItem>
+          columns={historyColumns}
+          data={paginatedLinks}
+          loading={isLoading}
+          getRowId={(item) => item._id}
+          emptyMessage="No GST collection links generated yet for this client."
+          pagination={{
+            currentPage: historyPage,
+            pageSize: historyPageSize,
+            totalItems: (links || []).length,
+            onPageChange: setHistoryPage,
+            rowsPerPageOptions: [10, 20, 50],
+            onRowsPerPageChange: (newSize) => {
+              setHistoryPageSize(newSize);
+              setHistoryPage(1);
+            },
+          }}
+          actions={(item) => [
+            ...(item.status === "ACTIVE"
+              ? [
+                  {
+                    label: "Open Form",
+                    onClick: () => window.open(getLinkUrl(item), "_blank"),
+                  },
+                  {
+                    label: "Copy Link",
+                    onClick: () => handleCopyLink(item),
+                  },
+                  {
+                    label: "Regenerate",
+                    onClick: () => handleRegenerate(item._id),
+                  },
+                  {
+                    label: "Revoke",
+                    onClick: () => handleRevoke(item._id),
+                    variant: "danger" as const,
+                  },
+                ]
+              : []),
+            ...(item.status === "SUBMITTED"
+              ? [
+                  {
+                    label: "View Submission",
+                    onClick: () => handleViewSubmission(item),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       {/* Submission Details Modal */}
