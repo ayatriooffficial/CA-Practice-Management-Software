@@ -7,6 +7,7 @@ import {
   upsertComplianceEntry,
   refreshComplianceItems,
   getComplianceCalendar,
+  getComplianceSummary,
 } from './compliance.service';
 import {
   ComplianceGridQueryInput,
@@ -44,5 +45,9 @@ export class ComplianceController {
 
   static getCalendar = asyncHandler(async (req: Request, res: Response) => {
     return ApiResponse.success(res, await getComplianceCalendar(req.query.month as string | undefined), 'Compliance calendar fetched');
+  });
+
+  static getSummary = asyncHandler(async (_req: Request, res: Response) => {
+    return ApiResponse.success(res, await getComplianceSummary(), 'Compliance summary fetched');
   });
 }

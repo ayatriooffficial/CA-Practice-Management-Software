@@ -14,11 +14,11 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
 }) => {
   return (
     <div
-      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
+      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col shadow-xs"
     >
       {/* Header */}
       <div
-        className="border-b border-gray-100 dark:border-[#334155]"
+        className="border-b border-[#dde2e8] dark:border-[#334155]"
         style={{ padding: '16px 20px' }}
       >
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">

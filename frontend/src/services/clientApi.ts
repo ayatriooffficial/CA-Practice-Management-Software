@@ -21,6 +21,10 @@ export interface ClientStats {
   activeClients: number;
   inactiveClients: number;
   totalDeleted: number;
+  newThisWeek?: number;
+  newThisMonth?: number;
+  clientsToConvert?: number;
+  registrationTrend?: Array<{ month: string; count: number }>;
   byType: Array<{ type: string; count: number }>;
   topGroups: Array<{ group: string; count: number }>;
 }

@@ -90,11 +90,11 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
 
   return (
     <div
-      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
+      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col shadow-xs"
     >
       {/* Table Header Controls */}
       <div
-        className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-[#334155]"
+        className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#dde2e8] dark:border-[#334155]"
         style={{
           padding: '16px 20px',
           gap: '16px',

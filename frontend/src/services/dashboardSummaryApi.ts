@@ -22,11 +22,32 @@ export interface TaskGroupItem {
   percentage: number;
 }
 
+export interface UpcomingComplianceItem {
+  id: string;
+  date: string;
+  title: string;
+  portal: string;
+  clientId: string;
+  clientName: string;
+  complianceStatus: string;
+}
+
+export interface ComplianceSummaryResponse {
+  dueThisMonth: number;
+  pending: number;
+  missed: number;
+  filed: number;
+  overdue: number;
+  total: number;
+  upcoming: UpcomingComplianceItem[];
+}
+
 export interface CompactTaskSummaryResponse {
   dueStats: {
     dueToday: number;
     dueTomorrow: number;
     dueIn7Days: number;
+    dueThisMonth: number;
     overdue: number;
     overdueUpTo7Days: number;
     overdueMoreThan7Days: number;
@@ -60,6 +81,14 @@ export const dashboardSummaryApi = {
       method: 'GET',
     });
     if (!res.data) throw new Error(res.message || 'Failed to fetch compact task summary');
+    return res.data;
+  },
+
+  getComplianceSummary: async (): Promise<ComplianceSummaryResponse> => {
+    const res = await request<ComplianceSummaryResponse>('/compliance/summary', {
+      method: 'GET',
+    });
+    if (!res.data) throw new Error(res.message || 'Failed to fetch compliance summary');
     return res.data;
   },
 };

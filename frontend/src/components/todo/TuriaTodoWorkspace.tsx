@@ -67,7 +67,21 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(() => {
+    const act = searchParams?.get("action");
+    const op = searchParams?.get("open");
+    const cr = searchParams?.get("create");
+    return act === "new" || op === "create" || cr === "true";
+  });
+
+  useEffect(() => {
+    const act = searchParams?.get("action");
+    const op = searchParams?.get("open");
+    const cr = searchParams?.get("create");
+    if (act === "new" || op === "create" || cr === "true") {
+      setIsAddModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Data State
   const [rawTasks, setRawTasks] = useState<TeamTaskItem[]>([]);

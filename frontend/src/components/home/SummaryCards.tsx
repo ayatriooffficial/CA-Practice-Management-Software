@@ -75,7 +75,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
               className={`bg-white dark:bg-[#1e293b] rounded-xl transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-2xs ${
                 isSelected
                   ? 'border-2 border-emerald-400 dark:border-emerald-500 ring-1 ring-emerald-400/30'
-                  : 'border border-gray-200 dark:border-[#334155] hover:border-emerald-300 dark:hover:border-emerald-600'
+                  : 'border border-[#dde2e8] dark:border-[#334155] hover:border-emerald-300 dark:hover:border-emerald-600 shadow-xs'
               }`}
               style={{
                 padding: '20px 24px',

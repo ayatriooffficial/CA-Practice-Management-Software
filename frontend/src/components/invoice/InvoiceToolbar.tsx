@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useInvoice } from './InvoiceContext';
+import { usePermission } from '../team/usePermission';
 
 interface InvoiceToolbarProps {
   onAddNew: () => void;
@@ -38,6 +39,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
   onAddNew,
   onOpenColumnMenu,
 }) => {
+  const { canAddEdit } = usePermission();
   const {
     activeTab,
     invoices,

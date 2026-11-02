@@ -12,12 +12,13 @@ import { InvoiceReceiptDetailView } from './InvoiceReceiptDetailView';
 import { AnalyticsView } from './AnalyticsView';
 import { RecurringInvoiceView } from './RecurringInvoiceView';
 import { useAuth } from '../auth/AuthContext';
+import { usePermission } from '../team/usePermission';
 import { AccessDenied } from '../team/AccessDenied';
 
 const InvoiceContent: React.FC = () => {
   const { activeTab, setActiveTab, invoiceLoadError } = useInvoice();
   const { currentUser } = useAuth();
-  const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
+  const { canView } = usePermission();
 
   const [viewMode, setViewMode] = useState<
     'list' | 'add-invoice' | 'add-proforma' | 'add-reimbursement' | 'view-receipt'
@@ -42,8 +43,8 @@ const InvoiceContent: React.FC = () => {
     }
   }, []);
 
-  // Strict guard: employees cannot view invoice portal
-  if (isEmployee) {
+  // Permission guard: view according to admin assigned role permissions
+  if (!canView('invoice')) {
     return <AccessDenied moduleName="Invoice Portal" actionName="view" />;
   }
 

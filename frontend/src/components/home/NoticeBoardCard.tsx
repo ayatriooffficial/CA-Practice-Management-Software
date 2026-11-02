@@ -152,7 +152,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
   return (
     <>
       <div
-        className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-2xs"
+        className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col justify-between shadow-xs"
         style={{
           padding: '20px 24px',
         }}
@@ -182,7 +182,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
         </div>
 
         {/* Notices Slide / Card Container */}
-        <div className="relative flex-1 rounded-xl bg-[#F4F7FB] dark:bg-[#0f172a] border border-[#3D6A9E]/20 dark:border-[#334155]/60 p-3.5 flex flex-col justify-between overflow-hidden">
+        <div className="relative flex-1 rounded-xl bg-[#F4F7FB] dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] p-3.5 flex flex-col justify-between overflow-hidden">
           {/* Main Card Slider with Dual Side Chevrons */}
           <div className="relative flex items-center gap-2.5">
             {/* Left Chevron Button */}
@@ -196,7 +196,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             </button>
 
             {/* Inner Featured Banner Card */}
-            <div className="flex-1 bg-white dark:bg-[#1e293b] rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 transition-all flex flex-col">
+            <div className="flex-1 bg-white dark:bg-[#1e293b] rounded-xl overflow-hidden shadow-sm border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col">
               {/* Top Gradient Header in #3D6A9E palette */}
               <div
                 className="h-9 px-3 flex items-center justify-between"
@@ -213,28 +213,32 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
               </div>
 
               {/* Lower Card Content: Avatar + Member Name + Subtext + Badge */}
-              <div className="p-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#3D6A9E] to-[#60a5fa] p-0.5 shrink-0 shadow-xs">
-                    <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
-                      <span>{currentNotice.initials}</span>
+              <div className="p-3 sm:p-3.5 flex flex-col gap-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#3D6A9E] to-[#60a5fa] p-0.5 shrink-0 shadow-xs">
+                      <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                        <span>{currentNotice.initials}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight truncate">
+                        {currentNotice.memberName}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                      {currentNotice.memberName}
-                    </span>
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                      {currentNotice.body}
-                    </span>
+                  {/* Right Badge */}
+                  <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30 shrink-0">
+                    <span>{currentNotice.tag}</span>
                   </div>
                 </div>
 
-                {/* Right Badge */}
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30 shrink-0">
-                  <span>{currentNotice.tag}</span>
-                </div>
+                {/* Announcement body text spans full width cleanly */}
+                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed break-words whitespace-normal">
+                  {currentNotice.body}
+                </p>
               </div>
             </div>
 
@@ -287,7 +291,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div
-            className="w-full max-w-md bg-white dark:bg-gray-900 rounded-none shadow-xl border border-gray-200 dark:border-gray-800 flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-white dark:bg-gray-900 rounded-none shadow-xl border border-[#dde2e8] dark:border-[#334155] flex flex-col animate-in fade-in zoom-in-95 duration-150"
             style={{ padding: '24px', gap: '16px' }}
           >
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
