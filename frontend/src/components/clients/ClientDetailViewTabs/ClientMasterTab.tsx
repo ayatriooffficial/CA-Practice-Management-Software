@@ -19,8 +19,18 @@ import {
   Upload,
   Building2,
   FileBadge,
+  Repeat,
+  ShieldCheck,
+  CheckCircle2,
+  Calendar,
 } from "lucide-react";
-import { Client, ClientContact, ClientPassword, ClientLicense, ClientServiceSetting } from "@/data/crmData";
+import {
+  Client,
+  ClientContact,
+  ClientPassword,
+  ClientLicense,
+  ClientServiceSetting,
+} from "@/data/crmData";
 import { Pagination } from "@/components/ui/Pagination";
 import { ClientGstLinksCard } from "./ClientGstLinksCard";
 import { ClientMasterSuggestionsCard } from "./ClientMasterSuggestionsCard";
@@ -52,7 +62,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   client,
   allServices,
   onClientUpdated,
-  showToast = () => { },
+  showToast = () => {},
   handleDeleteContact,
   setIsAddNoteOpen,
   handleDeleteNote,
@@ -74,6 +84,8 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
   const [contactsPage, setContactsPage] = useState(1);
   const [revealedMcaPasswords, setRevealedMcaPasswords] = useState<Record<string, boolean>>({});
+  const [revealedPromoterPasswords, setRevealedPromoterPasswords] = useState<Record<string, boolean>>({});
+  const [revealedStatutoryPasswords, setRevealedStatutoryPasswords] = useState<Record<string, boolean>>({});
 
   // Licenses state
   const [showAllLicenses, setShowAllLicenses] = useState(false);
@@ -97,6 +109,11 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     navigator.clipboard.writeText(text);
     showToast(`${label} copied to clipboard`);
   };
+
+  // Promoters List from customerFiles.promoter
+  const promotersList = useMemo(() => {
+    return client.customerFiles?.promoter || [];
+  }, [client.customerFiles?.promoter]);
 
   // Contacts dataset (merges contacts with customerFiles.promoter)
   const contactsList: ClientContact[] = useMemo(() => {
@@ -138,7 +155,6 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     let pwd = contact.mcaPassword || "";
 
     if (!pwd) {
-      // 1. Check client.customerFiles.promoter
       const contactName = (contact.name || "").trim().toLowerCase();
       const matchedPromoter = (client.customerFiles?.promoter || []).find((p: any) => {
         const pName = (p.name || "").trim().toLowerCase();
@@ -154,7 +170,6 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     }
 
     if (!pwd) {
-      // 2. Check client.passwords for an MCA portal entry
       const mcaCred = (passwordsList || []).find((p) => {
         const isMca = p.portal && p.portal.toLowerCase().includes("mca");
         if (!isMca) return false;
@@ -168,7 +183,6 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     }
 
     if (!pwd) {
-      // 3. Check client.customerFiles.statutory
       const statCred = (client.customerFiles?.statutory || []).find(
         (s: any) => s.type && s.type.toLowerCase().includes("mca") && s.password
       );
@@ -179,6 +193,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
     return { id, pwd };
   };
+
   // Paginated contacts dataset (limit 3)
   const totalContactPages = Math.max(1, Math.ceil(contactsList.length / CONTACTS_PER_PAGE));
   const safeContactsPage = Math.min(Math.max(1, contactsPage), totalContactPages);
@@ -187,6 +202,53 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     const start = (safeContactsPage - 1) * CONTACTS_PER_PAGE;
     return contactsList.slice(start, start + CONTACTS_PER_PAGE);
   }, [contactsList, safeContactsPage]);
+
+  // Statutory Details dataset from client.customerFiles?.statutory
+  const statutoryList = useMemo(() => {
+    return client.customerFiles?.statutory || [];
+  }, [client.customerFiles?.statutory]);
+
+  // Recurring Services dataset: merges client.customerFiles.recurring with enabled allServices
+  const recurringServicesList = useMemo(() => {
+    const fromFiles = (client.customerFiles?.recurring || []).map((r, i) => ({
+      id: `rec-${r.key || i + 1}`,
+      name: r.serviceName || r.type || "Recurring Service",
+      periodicity: r.periodicity || "Monthly",
+      amount: r.amount || "-",
+      dueDate: r.dueDate || "15th of month",
+      status: "Active",
+      source: "file",
+    }));
+
+    const fromSettings = (allServices || [])
+      .filter((s) => s.compliance || s.isActive)
+      .map((s) => ({
+        id: `srv-${s.id || s.serviceId}`,
+        name: s.serviceName,
+        periodicity: s.frequency || "Monthly",
+        amount: s.amount ? `₹${s.amount}` : "-",
+        dueDate: s.target || "20th of month",
+        status: "Active",
+        source: "settings",
+      }));
+
+    if (fromFiles.length === 0 && fromSettings.length === 0) {
+      return [];
+    }
+
+    const seenNames = new Set<string>();
+    const combined: any[] = [];
+
+    [...fromFiles, ...fromSettings].forEach((item) => {
+      const key = item.name.toLowerCase().trim();
+      if (!seenNames.has(key)) {
+        seenNames.add(key);
+        combined.push(item);
+      }
+    });
+
+    return combined;
+  }, [client.customerFiles?.recurring, allServices]);
 
   // Passwords dataset (merges passwords with customerFiles.statutory credentials)
   const passwordsList: ClientPassword[] = useMemo(() => {
@@ -224,6 +286,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
     const unlisted = statutoryLics.filter((l) => !existingNames.has(l.name.toLowerCase()));
     return [...existing, ...unlisted];
   }, [client.licenses, client.customerFiles?.statutory]);
+
   const visibleLicenses = useMemo(() => {
     if (showAllLicenses) return licensesList;
     return licensesList.slice(0, 2);
@@ -295,39 +358,52 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
       {/* Main 2-Column Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ======================================================== */}
-        {/* LEFT COLUMN: Entity Details, Contacts, Passwords, Licenses */}
+        {/* LEFT COLUMN: EXACT SECTION FLOW                          */}
+        {/* 1. Entity Master Details(Promoter Details)              */}
+        {/* 2. Contacts & Directors                                  */}
+        {/* 3. Statutory Details                                     */}
+        {/* 4. Recurring Service                                     */}
+        {/* 5. Portal Credentials & Passwords                        */}
+        {/* 6. Licenses & Statutory Registrations                    */}
         {/* ======================================================== */}
         <div className="lg:col-span-8 space-y-6">
-          {/* 1. ENTITY MASTER DETAILS CARD */}
-          <div className=" bg-[var(--premium-blue-dark)]/2 dark:bg-[#1e293b]  border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-5">
+          {/* ========================================================================= */}
+          {/* SECTION 1: ENTITY MASTER DETAILS (PROMOTER DETAILS)                      */}
+          {/* ========================================================================= */}
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-5 rounded-lg"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
                 <div
-                  className="w-8 h-8  flex items-center justify-center text-white"
+                  className="w-8 h-8 rounded-md flex items-center justify-center text-white"
                   style={{ backgroundColor: "var(--premium-blue-dark)" }}
                 >
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                    Entity Master Details
+                    Entity Master Details(Promoter Details)
                   </h2>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Primary registration profile and corporate identity
+                    Primary registration profile, corporate identity and promoter background
                   </p>
                 </div>
               </div>
 
               <span
-                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${client.active !== false
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300"
-                  }`}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                  client.active !== false
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300"
+                }`}
               >
                 {client.active !== false ? "● Active & In Good Standing" : "● Inactive"}
               </span>
             </div>
 
+            {/* Entity Information Fields Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 text-xs">
               <div>
                 <span className="text-gray-500 dark:text-gray-400 block font-medium">
@@ -418,20 +494,109 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 {client.tags.map((t) => (
                   <span
                     key={t}
-                    className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-white/80 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                   >
                     {t}
                   </span>
                 ))}
               </div>
             )}
+
+            {/* Integrated Promoter Details List */}
+            {promotersList.length > 0 && (
+              <div className="border-t border-[#dde2e8] dark:border-[#334155] pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-[#31719B]" />
+                    <span>Promoter Details ({promotersList.length})</span>
+                  </h4>
+                  <span className="text-[10px] text-gray-500">Key owners & stakeholders</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {promotersList.map((promoter: any, idx: number) => {
+                    const pKey = promoter.key || idx;
+                    const isPwdRevealed = Boolean(revealedPromoterPasswords[pKey]);
+                    return (
+                      <div
+                        key={pKey}
+                        className="bg-white/90 dark:bg-gray-800/80 border border-gray-200/90 dark:border-gray-700 rounded-md p-3 text-xs space-y-2 shadow-2xs"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <span className="font-bold text-gray-900 dark:text-white block">
+                              {promoter.name}
+                            </span>
+                            <span className="text-[10px] text-gray-500">
+                              {promoter.designation || "Promoter / Stakeholder"}
+                            </span>
+                          </div>
+                          {promoter.pan && (
+                            <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 font-mono text-[10px] text-gray-700 dark:text-gray-300 font-semibold">
+                              PAN: {promoter.pan}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-gray-100 dark:border-gray-700">
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">MCA ID / DIN</span>
+                            <span className="font-mono font-medium text-gray-800 dark:text-gray-200 truncate block">
+                              {promoter.mcaId || "-"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">MCA Password</span>
+                            {promoter.mcaPassword ? (
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono font-medium text-gray-800 dark:text-gray-200 text-[10px]">
+                                  {isPwdRevealed ? promoter.mcaPassword : "••••••••"}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRevealedPromoterPasswords((prev) => ({
+                                      ...prev,
+                                      [pKey]: !prev[pKey],
+                                    }))
+                                  }
+                                  className="text-gray-400 hover:text-[#31719B] p-0.5"
+                                  title={isPwdRevealed ? "Hide Password" : "Show Password"}
+                                >
+                                  {isPwdRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(promoter.mcaPassword, "Promoter Password")}
+                                  className="text-gray-400 hover:text-gray-600 p-0.5"
+                                  title="Copy Password"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* 2. CONTACTS (DIRECTORS & KEY EXECUTIVES) */}
-          <div className="bg-[var(--premium-blue-dark)]/2 dark:bg-[#1e293b] border  border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4">
+          {/* ========================================================================= */}
+          {/* SECTION 2: CONTACTS & DIRECTORS                                          */}
+          {/* ========================================================================= */}
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8  bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-md bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center shrink-0">
                   <User className="w-4 h-4" />
                 </div>
                 <div>
@@ -469,7 +634,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {contactsList.length === 0 ? (
-              <div className="py-8 text-center bg-gray-50/50 dark:bg-gray-800/30  border border-dashed border-gray-200 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
                 <User className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No directors or contacts registered yet.
@@ -487,7 +652,6 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Paginated list of directors (limit 3) */}
                 {paginatedContacts.map((contact, idx) => {
                   const isPrimary =
                     contact.isPrimary ||
@@ -498,8 +662,8 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                       key={contact.id || idx}
                       className={`border rounded-md p-4 transition-all shadow-2xs ${
                         isPrimary
-                          ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/20"
-                          : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
+                          ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20"
+                          : "border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
                       }`}
                     >
                       <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
@@ -551,9 +715,14 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                 );
                                 if (directorMcaPassword) copyToClipboard(directorMcaPassword, "MCA Password");
 
-                                const hasExt = typeof document !== "undefined" && document.documentElement.dataset.caPracticeExtension;
+                                const hasExt =
+                                  typeof document !== "undefined" &&
+                                  document.documentElement.dataset.caPracticeExtension;
                                 if (!hasExt) {
-                                  window.open("https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html", "_blank");
+                                  window.open(
+                                    "https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html",
+                                    "_blank"
+                                  );
                                   showToast(`Opening MCA login (Password copied to clipboard)`);
                                 } else {
                                   showToast(`MCA login opened with auto-fill for ${contact.name}`);
@@ -598,7 +767,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                         <div>
                           <span className="text-[10px] text-gray-400 block font-medium">MCA ID</span>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="font-semibold text-gray-800 dark:text-gray-200 font-mono truncate" title={directorMcaId || "-"}>
+                            <span
+                              className="font-semibold text-gray-800 dark:text-gray-200 font-mono truncate"
+                              title={directorMcaId || "-"}
+                            >
                               {directorMcaId || "-"}
                             </span>
                             {directorMcaId && (
@@ -679,7 +851,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
                         <div>
                           <span className="text-[10px] text-gray-400 block font-medium">Email</span>
-                          <span className="font-semibold text-gray-800 dark:text-gray-200 truncate block mt-0.5" title={contact.email}>
+                          <span
+                            className="font-semibold text-gray-800 dark:text-gray-200 truncate block mt-0.5"
+                            title={contact.email}
+                          >
                             {contact.email || "-"}
                           </span>
                         </div>
@@ -695,18 +870,271 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                     pageSize={CONTACTS_PER_PAGE}
                     totalItems={contactsList.length}
                     onPageChange={(page) => setContactsPage(page)}
-                    className="rounded-md border border-gray-200 dark:border-gray-700 mt-2 px-4 py-2.5"
+                    className="rounded-md border border-gray-200 dark:border-gray-700 mt-2 px-4 py-2.5 bg-white/70 dark:bg-gray-800/50"
                   />
                 )}
               </div>
             )}
           </div>
 
-          {/* 3. PASSWORDS (SHOW 5 PASSWORDS & VERTICALLY SCROLLABLE) */}
-          <div className="bg-[var(--premium-blue-dark)]/2 dark:bg-[#1e293b]  border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4">
+          {/* ========================================================================= */}
+          {/* SECTION 3: STATUTORY DETAILS                                              */}
+          {/* ========================================================================= */}
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8  bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>Statutory Details</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300">
+                      {statutoryList.length || (client.pan || (client as any).gstin ? 1 : 0)}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Statutory tax IDs, portal registrations and official certifications
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary Statutory Identifiers Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3 bg-white/90 dark:bg-gray-800/80 border border-gray-200/90 dark:border-gray-700 rounded-md text-xs shadow-2xs">
+                <span className="text-[10px] text-gray-400 block font-medium">Income Tax PAN</span>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs">
+                    {client.pan || "-"}
+                  </span>
+                  {client.pan && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(client.pan || "", "PAN")}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                      title="Copy PAN"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-white/90 dark:bg-gray-800/80 border border-gray-200/90 dark:border-gray-700 rounded-md text-xs shadow-2xs">
+                <span className="text-[10px] text-gray-400 block font-medium">GSTIN</span>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs truncate">
+                    {(client as any).gstin || (client as any).gst || "-"}
+                  </span>
+                  {((client as any).gstin || (client as any).gst) && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard((client as any).gstin || (client as any).gst, "GSTIN")}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                      title="Copy GSTIN"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-white/90 dark:bg-gray-800/80 border border-gray-200/90 dark:border-gray-700 rounded-md text-xs shadow-2xs">
+                <span className="text-[10px] text-gray-400 block font-medium">CIN / Corporate Registration</span>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs truncate">
+                    {(client as any).cin || (client as any).regNo || "-"}
+                  </span>
+                  {((client as any).cin || (client as any).regNo) && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard((client as any).cin || (client as any).regNo, "CIN")}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                      title="Copy CIN"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Statutory Registrations from customerFiles.statutory */}
+            {statutoryList.length === 0 ? (
+              <div className="py-6 text-center bg-white/60 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+                <ShieldCheck className="w-7 h-7 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
+                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                  No additional statutory records stored.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {statutoryList.map((stat: any, idx: number) => {
+                  const statKey = stat.key || idx;
+                  const isPwdRevealed = Boolean(revealedStatutoryPasswords[statKey]);
+                  return (
+                    <div
+                      key={statKey}
+                      className="bg-white/90 dark:bg-gray-800/80 border border-gray-200/90 dark:border-gray-700 rounded-md p-3 text-xs shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 dark:text-white text-xs">
+                              {stat.type || "Statutory Registration"}
+                            </span>
+                            {stat.idNo && (
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold">
+                                {stat.idNo}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-500 text-[11px] mt-1">
+                            {stat.userId && (
+                              <span>
+                                User ID: <strong className="font-mono text-gray-700 dark:text-gray-300">{stat.userId}</strong>
+                              </span>
+                            )}
+                            {stat.password && (
+                              <span className="flex items-center gap-1">
+                                Password:{" "}
+                                <strong className="font-mono text-gray-700 dark:text-gray-300">
+                                  {isPwdRevealed ? stat.password : "••••••••"}
+                                </strong>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRevealedStatutoryPasswords((prev) => ({
+                                      ...prev,
+                                      [statKey]: !prev[statKey],
+                                    }))
+                                  }
+                                  className="text-gray-400 hover:text-purple-600 p-0.5"
+                                  title={isPwdRevealed ? "Hide Password" : "Show Password"}
+                                >
+                                  {isPwdRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(stat.password, "Password")}
+                                  className="text-gray-400 hover:text-gray-600 p-0.5"
+                                  title="Copy Password"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                        {stat.attachment && (
+                          <a
+                            href={stat.attachment}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-6 px-2 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-[#31719B] flex items-center gap-1 text-[11px] transition-colors"
+                          >
+                            <FileText className="w-3 h-3 text-purple-600" />
+                            <span>Attachment</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* SECTION 4: RECURRING SERVICE                                              */}
+          {/* ========================================================================= */}
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <Repeat className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>Recurring Service</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                      {recurringServicesList.length}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Active compliance retainer cycles, periodic return filings and recurring services
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {recurringServicesList.length === 0 ? (
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+                <Repeat className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
+                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                  No recurring service engagements configured.
+                </p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Enable retainer services from the Service Settings tab to populate recurring cycles.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {recurringServicesList.map((service, idx) => (
+                  <div
+                    key={service.id || idx}
+                    className="p-3.5 bg-white/90 dark:bg-gray-800/80 border border-gray-200/90 dark:border-gray-700 rounded-md text-xs shadow-2xs space-y-2 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-gray-900 dark:text-white text-xs block leading-snug">
+                          {service.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                          <Calendar className="w-3 h-3 text-indigo-500" />
+                          <span>Frequency: <strong className="text-gray-700 dark:text-gray-300 capitalize">{service.periodicity}</strong></span>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        {service.status}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-[11px] text-gray-500">
+                      <span>Due Cycle: <strong className="text-gray-700 dark:text-gray-300">{service.dueDate}</strong></span>
+                      {service.amount !== "-" && (
+                        <span>Fee: <strong className="text-gray-900 dark:text-white font-mono">{service.amount}</strong></span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* SECTION 5: PORTAL CREDENTIALS & PASSWORDS                                */}
+          {/* ========================================================================= */}
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div>
@@ -736,7 +1164,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {passwordsList.length === 0 ? (
-              <div className="py-8 text-center bg-gray-50/50 dark:bg-gray-800/30  border border-dashed border-gray-200 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
                 <Lock className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No portal credentials stored.
@@ -752,15 +1180,22 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 )}
               </div>
             ) : (
-              /* Vertically scrollable table displaying up to 5 items comfortably */
-              <div className="max-h-64 overflow-y-auto scrollbar-slim border border-[#dde2e8] dark:border-[#334155] ">
+              <div className="max-h-64 overflow-y-auto scrollbar-slim border border-[#dde2e8] dark:border-[#334155] rounded-md bg-white/90 dark:bg-[#1e293b]">
                 <table className="min-w-full text-left text-xs border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-b border-[#dde2e8] dark:border-[#334155]">
                     <tr>
-                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">Portal</th>
-                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">Username</th>
-                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">Password</th>
-                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155] text-right">Actions</th>
+                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">
+                        Portal
+                      </th>
+                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">
+                        Username
+                      </th>
+                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155]">
+                        Password
+                      </th>
+                      <th className="py-2.5 px-3.5 font-semibold border-b border-[#dde2e8] dark:border-[#334155] text-right">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -916,11 +1351,16 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             )}
           </div>
 
-          {/* 4. LICENSES & REGISTRATIONS (SHOW 2 INITIALLY, EXPANDABLE) */}
-          <div className="bg-[var(--premium-blue-dark)]/2 dark:bg-[#1e293b]  border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4">
+          {/* ========================================================================= */}
+          {/* SECTION 6: LICENSES & STATUTORY REGISTRATIONS                             */}
+          {/* ========================================================================= */}
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] p-6 shadow-xs space-y-4 rounded-lg"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8  bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <Award className="w-4 h-4" />
                 </div>
                 <div>
@@ -950,7 +1390,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {licensesList.length === 0 ? (
-              <div className="py-8 text-center bg-gray-50/50 dark:bg-gray-800/30  border border-dashed border-gray-200 dark:border-gray-700">
+              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
                 <Award className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                   No statutory licenses added.
@@ -970,10 +1410,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 {visibleLicenses.map((lic, idx) => (
                   <div
                     key={lic.id || idx}
-                    className=" border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e293b] p-4 hover:border-gray-300 transition-all shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                    className="border border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] p-4 hover:border-gray-300 transition-all shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs rounded-md"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9  bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                      <div className="w-9 h-9 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                         <FileBadge className="w-4 h-4" />
                       </div>
                       <div className="space-y-1">
@@ -1062,7 +1502,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowAllLicenses(!showAllLicenses)}
-                    className="w-full py-2 px-3  border border-dashed border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-gray-800/40 hover:bg-gray-100/80 text-xs font-semibold text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full py-2 px-3 rounded-md border border-dashed border-[#dde2e8] dark:border-[#334155] bg-white/70 dark:bg-gray-800/40 hover:bg-white text-xs font-semibold text-[#31719B] dark:text-[#60a5fa] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     {showAllLicenses ? (
                       <>
@@ -1086,14 +1526,17 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
         </div>
 
         {/* ======================================================== */}
-        {/* RIGHT COLUMN: Notes (Vertically Scrollable Panel)        */}
+        {/* RIGHT COLUMN: Notes & Observations                       */}
         {/* ======================================================== */}
-        <div className="lg:col-span-4 sticky top-4">
-          <div className="bg-[var(--premium-blue-dark)]/5 dark:bg-[#1e293b]    overflow-hidden flex flex-col max-h-[820px]">
+        <div className="lg:col-span-4 sticky top-4 space-y-4">
+          <div
+            style={{ backgroundColor: "var(--orange-havy-light)" }}
+            className="border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-hidden flex flex-col max-h-[820px] shadow-xs"
+          >
             {/* Notes Header */}
             <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7  bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                   <StickyNote className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -1139,7 +1582,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 notesList.map((note) => (
                   <div
                     key={note.id}
-                    className="p-3.5  border border-[#dde2e8] dark:border-[#334155] bg-gray-50/50 dark:bg-gray-800/30 hover:border-gray-300 dark:hover:border-gray-600 transition-colors space-y-2 text-xs"
+                    className="p-3.5 rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white/90 dark:bg-gray-800/60 hover:border-gray-300 dark:hover:border-gray-600 transition-colors space-y-2 text-xs shadow-2xs"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -1149,10 +1592,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                         <span className="text-[10px] text-gray-400 block mt-0.5">
                           {note.createdAt
                             ? new Date(note.createdAt).toLocaleDateString("en-GB", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
                             : "Recent"}
                         </span>
                       </div>
@@ -1185,6 +1628,9 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
               )}
             </div>
           </div>
+
+          {/* Master Suggestions Card */}
+          <ClientMasterSuggestionsCard clientId={client.id || (client as any)._id} />
         </div>
       </div>
 
@@ -1208,14 +1654,9 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
       />
 
       {/* GSTR-1 & GSTR-3B Dynamic Client Data Collection Link Card & Captured Suggestions */}
-      {/* Erased when GSTR-1 & GSTR-3B GST service is turned off in Service Settings; visible when turned on */}
       {isGstEnabled && (
-        <>
-          <ClientGstLinksCard client={client} allServices={allServices} />
-          <ClientMasterSuggestionsCard clientId={client.id || (client as any)._id} />
-        </>
+        <ClientGstLinksCard client={client} allServices={allServices} />
       )}
     </div>
   );
 };
-

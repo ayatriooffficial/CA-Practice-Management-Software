@@ -70,12 +70,8 @@ export type ClientTabType =
 
 export const CLIENT_TABS: ClientTabType[] = [
   "Master",
-  "IT",
-  "Tasks & Assignees",
-  "SLA",
   "Invoices",
   "Ledger",
-  "Recurring",
   "Compliance",
   "DSC",
   "Documents",
