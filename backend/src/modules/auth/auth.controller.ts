@@ -10,7 +10,7 @@ function setRefreshCookie(res: Response, token: string): void {
   res.cookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 60 * 24 * 60 * 60 * 1000, // 60 days
     path: '/',
   });
@@ -20,7 +20,7 @@ function clearRefreshCookie(res: Response): void {
   res.clearCookie(REFRESH_COOKIE_NAME, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
   });
 }
@@ -82,6 +82,7 @@ export class AuthController {
         {
           user: result.user,
           accessToken: result.tokens?.accessToken,
+          refreshToken: result.tokens?.refreshToken,
           expiresIn: result.tokens?.expiresIn,
           deviceCredential: result.deviceCredential,
         },

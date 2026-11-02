@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/authenticate';
+import { authorize } from '../../middlewares/authorize';
 import { validateRequest } from '../../middlewares/validateRequest';
 import { FinancialController } from './financial.controller';
 import {
@@ -10,6 +11,7 @@ import {
 
 const router = Router();
 router.use(authenticate);
+router.get('/invoicing-summary', authorize(['admin']), FinancialController.getInvoicingSummary);
 router.get('/report', validateRequest({ query: reportDateQuerySchema }), FinancialController.getReport);
 router.get('/report/pdf', validateRequest({ query: reportDateQuerySchema }), FinancialController.getReportPdf);
 router.get('/invoices', FinancialController.listInvoices);

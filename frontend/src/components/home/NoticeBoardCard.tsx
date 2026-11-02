@@ -152,10 +152,9 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
   return (
     <>
       <div
-        className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-xs"
+        className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] transition-all flex flex-col justify-between shadow-2xs"
         style={{
           padding: '20px 24px',
-          minHeight: '220px',
         }}
       >
         {/* Header */}
@@ -174,7 +173,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="w-7 h-7 rounded-md border border-[#3D6A9E]/30 dark:border-[#3D6A9E]/50 bg-white dark:bg-[#162032] flex items-center justify-center text-[#3D6A9E] dark:text-[#93c5fd] hover:bg-[#EAF0F6] dark:hover:bg-[#1E3A5F]/40 transition-colors cursor-pointer shadow-2xs"
+              className="w-7 h-7 rounded-full border border-[#3D6A9E]/30 dark:border-[#3D6A9E]/50 bg-white dark:bg-[#162032] flex items-center justify-center text-[#3D6A9E] dark:text-[#93c5fd] hover:bg-[#EAF0F6] dark:hover:bg-[#1E3A5F]/40 transition-colors cursor-pointer shadow-2xs"
               title="Add Notice"
             >
               <Plus size={14} />
@@ -233,7 +232,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
                 </div>
 
                 {/* Right Badge */}
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30 shrink-0">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30 shrink-0">
                   <span>{currentNotice.tag}</span>
                 </div>
               </div>
@@ -255,7 +254,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             <button
               type="button"
               onClick={() => toggleLike(currentNotice.id)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
                 hasLiked[currentNotice.id]
                   ? 'bg-[#EAF0F6] dark:bg-[#1E3A5F]/50 text-[#3D6A9E] dark:text-[#93c5fd] border border-[#3D6A9E]/30'
                   : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-800'
@@ -274,7 +273,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
               <button
                 type="button"
                 onClick={() => handleDeleteNotice(currentNotice.id)}
-                className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-none hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                 title="Delete notice"
               >
                 <Trash2 size={13} />
@@ -288,7 +287,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div
-            className="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-white dark:bg-gray-900 rounded-none shadow-xl border border-gray-200 dark:border-gray-800 flex flex-col animate-in fade-in zoom-in-95 duration-150"
             style={{ padding: '24px', gap: '16px' }}
           >
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -298,14 +297,14 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {error && (
-              <div className="px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs">
+              <div className="px-3 py-2 rounded-none bg-red-50 text-red-600 text-xs">
                 {error}
               </div>
             )}
@@ -321,7 +320,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Office Holiday Notice"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600"
+                  className="w-full px-3 py-2 text-xs rounded-none border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600"
                 />
               </div>
 
@@ -335,7 +334,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder="Enter notice content..."
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600 resize-none"
+                  className="w-full px-3 py-2 text-xs rounded-none border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600 resize-none"
                 />
               </div>
 
@@ -343,14 +342,14 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="px-4 py-2 text-xs rounded-none border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center"
+                  className="px-4 py-2 text-xs font-semibold rounded-none text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center cursor-pointer"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
                   Publish Notice

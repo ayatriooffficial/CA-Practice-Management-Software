@@ -22,7 +22,19 @@ export const AttendanceView: React.FC = () => {
     });
   }, []);
 
-  const employees = teamStore.getEmployees().filter((e) => e.status === 'Active');
+  const employees = teamStore
+    .getEmployees()
+    .filter((e) => e.status === 'Active' && (e.role || '').toLowerCase() !== 'admin');
+
+  const filteredTodayRecords = React.useMemo(() => {
+    const adminEmpIds = new Set(
+      teamStore
+        .getEmployees()
+        .filter((e) => (e.role || '').toLowerCase() === 'admin')
+        .map((e) => e.id)
+    );
+    return todayRecords.filter((r) => !adminEmpIds.has(r.employeeId) && !adminEmpIds.has(r.id));
+  }, [todayRecords]);
 
   const handleApproveReg = (id: string) => {
     teamStore.updateRegularizationStatus(id, 'Approved');
@@ -148,7 +160,7 @@ export const AttendanceView: React.FC = () => {
           {/* Header Controls */}
           <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-              Today Attendance List ({todayRecords.length})
+              Today Attendance List ({filteredTodayRecords.length})
             </h3>
 
             <div className="flex items-center gap-3">
@@ -185,7 +197,7 @@ export const AttendanceView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {todayRecords.map((r) => (
+                {filteredTodayRecords.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors">
                     <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <div className="flex items-center gap-2.5">

@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
+import { Pagination } from "@/components/ui/Pagination";
+import { Select } from "@/components/ui/Select";
 import {
   PenTool,
   Loader2,
@@ -40,6 +43,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Check,
+  RotateCcw,
 } from "lucide-react";
 import {
   documentApi,
@@ -72,6 +76,36 @@ export const DocumentsModule: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+
+  // Master Directory Table State matching Clients and Leads
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [directoryStatusFilter, setDirectoryStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [directoryComplianceFilter, setDirectoryComplianceFilter] = useState<"all" | "pending" | "compliant">("all");
+
+  const filteredPeople = useMemo(() => {
+    return people.filter((p) => {
+      if (directoryStatusFilter === "active" && (p.status || "").toLowerCase() !== "active") return false;
+      if (directoryStatusFilter === "inactive" && (p.status || "").toLowerCase() === "active") return false;
+      const pending = p.pendingCount ?? 0;
+      if (directoryComplianceFilter === "pending" && pending === 0) return false;
+      if (directoryComplianceFilter === "compliant" && pending > 0) return false;
+      return true;
+    });
+  }, [people, directoryStatusFilter, directoryComplianceFilter]);
+
+  const paginatedPeople = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredPeople.slice(start, start + pageSize);
+  }, [filteredPeople, page, pageSize]);
+
+  const handleResetDirectoryFilters = () => {
+    setSearchQuery("");
+    setActiveFilter("all");
+    setDirectoryStatusFilter("all");
+    setDirectoryComplianceFilter("all");
+    setPage(1);
+  };
 
   // Detail View Filters
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState<string>("all");
@@ -359,21 +393,6 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
-  // Helper for avatar colors based on name
-  const getAvatarBg = (name: string) => {
-    const colors = [
-      "bg-blue-600 text-white",
-      "bg-emerald-600 text-white",
-      "bg-purple-600 text-white",
-      "bg-amber-600 text-white",
-      "bg-teal-600 text-white",
-      "bg-indigo-600 text-white",
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
-    return colors[hash % colors.length];
-  };
-
   // Helper to compute initials
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -384,51 +403,25 @@ export const DocumentsModule: React.FC = () => {
 
   return (
     <div className="w-full flex flex-col space-y-4">
-      {/* Top Banner & Title */}
-      <div
-        className="rounded-xl border p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-main)",
-        }}
-      >
-        <div className="flex items-center gap-3.5">
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
-            style={{
-              backgroundColor: "var(--primary-light)",
-              color: "var(--primary)",
-            }}
-          >
-            <Files className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: "var(--text-main)" }}>
-                Document Center
-              </h1>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
-                Database Connected
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Comprehensive per-user document tracking, statutory compliance records, and missing document flags.
-            </p>
-          </div>
+      {/* Top Header Bar matching Clients and Leads */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white py-2">
+            Documents ({filteredPeople.length})
+          </h1>
+          {isLoadingPeople && (
+            <span title="Syncing...">
+              <Loader2 className="w-4 h-4 animate-spin text-[#31719B]" />
+            </span>
+          )}
         </div>
 
-        {/* Global Action controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-3 py-2">
           <button
             type="button"
             onClick={loadPeople}
             disabled={isLoadingPeople}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 disabled:opacity-50"
-            style={{
-              borderColor: "var(--border-main)",
-              color: "var(--text-main)",
-              backgroundColor: "var(--bg-surface)",
-            }}
+            className="flex items-center gap-1.5 h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-gray-400 bg-white dark:bg-[#0f172a] transition-all cursor-pointer disabled:opacity-50"
             title="Refresh directory"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPeople ? "animate-spin" : ""}`} />
@@ -440,79 +433,95 @@ export const DocumentsModule: React.FC = () => {
       {/* VIEW 1: MASTER DIRECTORY (When no person selected) */}
       {!selectedPersonId && (
         <div className="space-y-4">
-          {/* Search Bar & Filter Tabs Row */}
-          <div
-            className="rounded-xl border p-4 transition-colors flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-main)",
-            }}
-          >
-            {/* Search Input Field */}
-            <div className="relative flex-1 max-w-xl">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search person by name, file number, PAN, mobile, or email..."
-                className="w-full pl-10 pr-9 py-2 rounded-lg text-xs sm:text-sm border transition-colors outline-hidden focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
-                style={{
-                  backgroundColor: "var(--bg-subtle)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
+          {/* Filters Bar matching Clients and Leads */}
+          <div className="p-4 bg-white dark:bg-[#1e293b] space-y-3 rounded-t-xl border border-b-0 border-[#dde2e8] dark:border-[#334155]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="documents-search-input"
+                  name="documentsSearch"
+                  aria-label="Search documents by name, file number, PAN, mobile, or email"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search name, PAN, mobile..."
+                  className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs text-[#000000] dark:text-white outline-none focus:border-[#31719B]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Entity Type Filter */}
+              <Select
+                aria-label="Filter by person or client type"
+                value={activeFilter}
+                onChange={(val) => {
+                  setActiveFilter(val as any);
+                  setPage(1);
                 }}
+                options={[
+                  { value: "all", label: "All People & Clients" },
+                  { value: "client", label: "Clients Only" },
+                  { value: "team", label: "Team & Staff Only" },
+                ]}
               />
-              {searchQuery && (
+
+              {/* Compliance Filter */}
+              <Select
+                aria-label="Filter by compliance status"
+                value={directoryComplianceFilter}
+                onChange={(val) => {
+                  setDirectoryComplianceFilter(val as any);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "All Compliance" },
+                  { value: "pending", label: "Action Required (Pending)" },
+                  { value: "compliant", label: "Fully Compliant" },
+                ]}
+              />
+
+              {/* Status Filter */}
+              <Select
+                aria-label="Filter by status"
+                value={directoryStatusFilter}
+                onChange={(val) => {
+                  setDirectoryStatusFilter(val as any);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "All Status" },
+                  { value: "active", label: "Active Only" },
+                  { value: "inactive", label: "Inactive Only" },
+                ]}
+              />
+
+              {/* Reset Filters */}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-                  aria-label="Clear search"
+                  onClick={handleResetDirectoryFilters}
+                  className="flex items-center gap-1.5 h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
                 </button>
-              )}
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-              <button
-                type="button"
-                onClick={() => setActiveFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === "all"
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : "border hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                }`}
-                style={activeFilter !== "all" ? { borderColor: "var(--border-main)" } : undefined}
-              >
-                All People
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFilter("client")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === "client"
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : "border hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                }`}
-                style={activeFilter !== "client" ? { borderColor: "var(--border-main)" } : undefined}
-              >
-                Clients
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFilter("team")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === "team"
-                    ? "bg-[var(--primary)] text-white shadow-xs"
-                    : "border hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                }`}
-                style={activeFilter !== "team" ? { borderColor: "var(--border-main)" } : undefined}
-              >
-                Team & Staff
-              </button>
+              </div>
             </div>
           </div>
 
@@ -531,179 +540,368 @@ export const DocumentsModule: React.FC = () => {
             </div>
           )}
 
-          {/* Loading Skeleton */}
-          {isLoadingPeople && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="rounded-xl border p-4 animate-pulse space-y-3"
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderColor: "var(--border-main)",
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-md w-3/4" />
-                      <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-md w-1/2" />
-                    </div>
-                  </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-md w-full" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Empty State: No search results found */}
-          {!isLoadingPeople && !errorMsg && people.length === 0 && (
-            <div
-              className="rounded-xl border p-12 text-center flex flex-col items-center justify-center space-y-3"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-main)",
-              }}
-            >
-              <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
-                <Search className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold" style={{ color: "var(--text-main)" }}>
-                {searchQuery ? `No matching people found for "${searchQuery}"` : "No people records available"}
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500 max-w-sm">
-                {searchQuery
-                  ? "Try checking for typos or searching by PAN, file number, phone number, or entity name."
-                  : "No client or staff records match your current criteria."}
-              </p>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity mt-2 cursor-pointer"
-                >
-                  Clear Search
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* People Grid View */}
-          {!isLoadingPeople && !errorMsg && people.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-1">
-                Showing {people.length} {people.length === 1 ? "record" : "records"}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {people.map((p) => {
-                  const isClient = p.entityType === "client";
-                  const availableCount = p.availableCount ?? p.documentCount;
-                  const pendingCount = p.pendingCount ?? 0;
-
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => handleSelectPerson(p.id)}
-                      className="group rounded-xl border p-4 transition-all hover:shadow-md hover:border-[var(--primary)] cursor-pointer flex flex-col justify-between"
+          {/* Spreadsheet Table matching Clients and Leads */}
+          <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col rounded-b-xl border border-[#dde2e8] dark:border-[#334155]">
+            <div className="overflow-x-auto scrollbar-slim">
+              <table
+                suppressHydrationWarning
+                className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
+                style={{ width: "max-content" }}
+              >
+                <thead>
+                  <tr
+                    className="text-gray-700 dark:text-gray-300"
+                    style={{ backgroundColor: "var(--orange-havy-light)" }}
+                  >
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-left"
                       style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-main)",
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "250px",
+                        minWidth: "250px",
+                        maxWidth: "250px",
                       }}
                     >
-                      <div>
-                        {/* Header: Avatar, Name, Entity Badge */}
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getAvatarBg(
-                                p.name
-                              )}`}
-                            >
-                              {getInitials(p.name)}
-                            </div>
-                            <div className="min-w-0">
-                              <h3
-                                className="text-sm font-bold truncate group-hover:text-[var(--primary)] transition-colors"
-                                style={{ color: "var(--text-main)" }}
-                                title={p.name}
-                              >
-                                {p.name}
-                              </h3>
-                              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                <span className="font-mono font-semibold">{p.identifier}</span>
-                                {p.pan && <span>• PAN: {p.pan}</span>}
+                      PERSON / CLIENT NAME
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-left"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "140px",
+                        minWidth: "140px",
+                        maxWidth: "140px",
+                      }}
+                    >
+                      IDENTIFIER
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-left"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "130px",
+                        minWidth: "130px",
+                        maxWidth: "130px",
+                      }}
+                    >
+                      TYPE
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-left"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "200px",
+                        minWidth: "200px",
+                        maxWidth: "200px",
+                      }}
+                    >
+                      CONTACT DETAILS
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-center"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "110px",
+                        minWidth: "110px",
+                        maxWidth: "110px",
+                      }}
+                    >
+                      TOTAL REQ.
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-center"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "130px",
+                        minWidth: "130px",
+                        maxWidth: "130px",
+                      }}
+                    >
+                      AVAILABLE
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-center"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "130px",
+                        minWidth: "130px",
+                        maxWidth: "130px",
+                      }}
+                    >
+                      PENDING
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-3 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap text-center"
+                      style={{
+                        backgroundColor: "var(--orange-havy-light)",
+                        width: "140px",
+                        minWidth: "140px",
+                        maxWidth: "140px",
+                      }}
+                    >
+                      COMPLIANCE STATUS
+                    </th>
+                    <th
+                      scope="col"
+                      className="sticky right-0 z-30 w-24 min-w-[96px] max-w-[96px] px-3 py-3 font-semibold text-[#000000] dark:text-white border-l border-b border-[#dde2e8] dark:border-[#334155] text-center"
+                      style={{ backgroundColor: "var(--orange-havy-light)" }}
+                    >
+                      ACTIONS
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingPeople && people.length === 0 ? (
+                    Array.from({ length: 6 }).map((_, rIdx) => (
+                      <tr
+                        key={`doc-shimmer-${rIdx}`}
+                        className={`border-b border-[#dde2e8] dark:border-[#334155] ${
+                          rIdx % 2 === 0
+                            ? "bg-white dark:bg-[#1e293b]"
+                            : "bg-[#fafafa] dark:bg-[#192437]"
+                        }`}
+                      >
+                        <td colSpan={9} className="px-4 py-3.5">
+                          <div className="h-5 bg-gray-200 dark:bg-gray-700/60 rounded animate-shimmer" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : filteredPeople.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-16 text-center text-gray-400 font-medium">
+                        {searchQuery
+                          ? `No matching records found for "${searchQuery}".`
+                          : "No document records match current filters."}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedPeople.map((p) => {
+                      const isClient = p.entityType === "client";
+                      const availableCount = p.availableCount ?? p.documentCount;
+                      const pendingCount = p.pendingCount ?? 0;
+                      const totalReq = availableCount + pendingCount;
+                      const isCompliant = pendingCount === 0;
+
+                      return (
+                        <tr
+                          key={p.id}
+                          onClick={() => handleSelectPerson(p.id)}
+                          className="group transition-colors bg-white hover:bg-[#F6F4F2] dark:bg-[#1e293b] dark:hover:bg-[#162032] cursor-pointer"
+                        >
+                          {/* Name & Avatar */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap overflow-hidden text-ellipsis"
+                            style={{ width: "250px", minWidth: "250px", maxWidth: "250px" }}
+                          >
+                            <div className="flex items-center gap-2.5 text-left truncate max-w-full">
+                              <div className="w-7 h-7 rounded-full bg-[#eef0f3] dark:bg-[#334155] border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 shrink-0 text-xs font-semibold">
+                                {getInitials(p.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectPerson(p.id);
+                                  }}
+                                  className="font-semibold text-[#31719B] hover:underline cursor-pointer text-left truncate block text-xs"
+                                >
+                                  {p.name}
+                                </button>
+                                <div className="text-[11px] text-gray-500 dark:text-gray-400 font-normal truncate">
+                                  {p.pan ? `PAN: ${p.pan}` : p.group || p.department || (isClient ? "Client Entity" : "Staff Member")}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </td>
 
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                              isClient
-                                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                                : "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                            }`}
+                          {/* Identifier */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] font-mono text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis"
+                            style={{ width: "140px", minWidth: "140px", maxWidth: "140px" }}
                           >
-                            {isClient ? "Client" : "Staff"}
-                          </span>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectPerson(p.id);
+                              }}
+                              className="hover:text-[#31719B] hover:underline cursor-pointer"
+                            >
+                              {p.identifier}
+                            </button>
+                          </td>
 
-                        {/* Middle Attributes: Contact details */}
-                        <div
-                          className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 border-t pt-2.5"
-                          style={{ borderColor: "var(--border-main)" }}
-                        >
-                          {p.email && (
-                            <div className="flex items-center gap-2 truncate">
-                              <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="truncate">{p.email}</span>
-                            </div>
-                          )}
-                          {p.mobile && (
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span>{p.mobile}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 truncate">
-                            <Briefcase className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="truncate">
-                              {p.group || p.department || p.type || "General Practice"}
+                          {/* Type */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap overflow-hidden text-ellipsis"
+                            style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
+                          >
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+                                isClient
+                                  ? "bg-[#31719B]/10 text-[#31719B] border-[#31719B]/20"
+                                  : "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                              }`}
+                            >
+                              {isClient ? "Client" : "Staff"}
                             </span>
-                          </div>
-                        </div>
-                      </div>
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                              {p.type || (isClient ? "Entity" : "Employee")}
+                            </div>
+                          </td>
 
-                      {/* Footer: Requirements Count & Action Arrow */}
-                      <div
-                        className="mt-4 pt-2.5 border-t flex items-center justify-between text-xs font-semibold gap-2"
-                        style={{ borderColor: "var(--border-main)" }}
-                      >
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            <Check className="w-3 h-3 stroke-[2.5]" />
-                            <span>{availableCount} Available</span>
-                          </span>
+                          {/* Contact Details */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis"
+                            style={{ width: "200px", minWidth: "200px", maxWidth: "200px" }}
+                          >
+                            {p.email && (
+                              <a
+                                href={`mailto:${p.email}`}
+                                className="flex items-center gap-1.5 hover:text-[#31719B] hover:underline truncate max-w-[190px]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span className="truncate">{p.email}</span>
+                              </a>
+                            )}
+                            {p.mobile && (
+                              <a
+                                href={`tel:${p.mobile}`}
+                                className="flex items-center gap-1.5 hover:text-[#31719B] hover:underline mt-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span>{p.mobile}</span>
+                              </a>
+                            )}
+                            {!p.email && !p.mobile && <span className="text-gray-400">—</span>}
+                          </td>
 
-                          {pendingCount > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              <Clock className="w-3 h-3" />
-                              <span>{pendingCount} Pending</span>
+                          {/* Total Req */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center font-medium text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                            style={{ width: "110px", minWidth: "110px", maxWidth: "110px" }}
+                          >
+                            <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs">
+                              {totalReq} Req
                             </span>
-                          )}
-                        </div>
+                          </td>
 
-                        <span className="flex items-center text-[var(--primary)] text-xs group-hover:translate-x-1 transition-transform shrink-0">
-                          <span>View Details</span>
-                          <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          {/* Available */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center whitespace-nowrap"
+                            style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
+                          >
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <Check className="w-3 h-3 stroke-[2.5]" />
+                              <span>{availableCount} Available</span>
+                            </span>
+                          </td>
+
+                          {/* Pending */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center whitespace-nowrap"
+                            style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
+                          >
+                            {pendingCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                <Clock className="w-3 h-3" />
+                                <span>{pendingCount} Pending</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400 dark:text-gray-500">
+                                0 Pending
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Compliance Status */}
+                          <td
+                            className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center whitespace-nowrap"
+                            style={{ width: "140px", minWidth: "140px", maxWidth: "140px" }}
+                          >
+                            {isCompliant ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Compliant</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                <span>Action Req</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Actions (Sticky Right) */}
+                          <td
+                            className="sticky right-0 z-20 w-24 min-w-[96px] max-w-[96px] px-3 py-2.5 border-l border-b border-[#dde2e8] dark:border-[#334155] text-center bg-white dark:bg-[#1e293b] group-hover:bg-[#F6F4F2] dark:group-hover:bg-[#162032]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectPerson(p.id)}
+                                className="p-1.5 rounded-md text-gray-500 hover:text-[#31719B] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                title="View Documents"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPersonId(p.id);
+                                  handleOpenGeneralUpload();
+                                }}
+                                className="p-1.5 rounded-md text-gray-500 hover:text-[#31719B] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                title="Upload Document"
+                              >
+                                <UploadCloud className="w-4 h-4" />
+                              </button>
+                              {isClient && (
+                                <Link
+                                  href={`/clients?clientId=${p.id}&tab=Master`}
+                                  className="p-1.5 rounded-md text-gray-500 hover:text-[#31719B] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                  title="Open Client Master"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {/* Pagination Bar matching Clients and Leads */}
+            <div className="p-4 border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+              <Pagination
+                currentPage={page}
+                pageSize={pageSize}
+                totalItems={filteredPeople.length}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                showPageSize={true}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -789,11 +987,7 @@ export const DocumentsModule: React.FC = () => {
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div
-                      className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-base shrink-0 shadow-md ${getAvatarBg(
-                        selectedPersonDetail.person.name
-                      )}`}
-                    >
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-base shrink-0 shadow-xs bg-[#eef0f3] dark:bg-[#334155] border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200">
                       {getInitials(selectedPersonDetail.person.name)}
                     </div>
                     <div>

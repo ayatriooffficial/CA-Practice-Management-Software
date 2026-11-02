@@ -55,6 +55,17 @@ async function refreshAccessToken(): Promise<string | null> {
 
   activeRefreshPromise = (async () => {
     try {
+      let storedRefreshToken: string | undefined;
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('turia_current_user');
+          if (stored) {
+            const user = JSON.parse(stored);
+            storedRefreshToken = user.refreshToken;
+          }
+        } catch {}
+      }
+
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: {
@@ -62,6 +73,7 @@ async function refreshAccessToken(): Promise<string | null> {
           Accept: 'application/json',
         },
         credentials: 'include',
+        body: storedRefreshToken ? JSON.stringify({ refreshToken: storedRefreshToken }) : undefined,
       });
 
       if (res.ok) {
@@ -74,6 +86,9 @@ async function refreshAccessToken(): Promise<string | null> {
             if (stored) {
               const user = JSON.parse(stored);
               user.token = newAccessToken;
+              if (json.data?.refreshToken) {
+                user.refreshToken = json.data.refreshToken;
+              }
               localStorage.setItem('turia_current_user', JSON.stringify(user));
             }
           } catch {}

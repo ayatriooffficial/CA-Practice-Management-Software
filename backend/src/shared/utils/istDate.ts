@@ -102,3 +102,28 @@ export function offsetISTDate(dateStr: string, offsetDays: number): string {
   const day = String(temp.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Converts any standard date format to YYYY-MM-DD in Asia/Kolkata timezone.
+ */
+export function parseDateToYMD(dateVal: any): string | null {
+  if (!dateVal || dateVal === '—' || dateVal === '-') return null;
+  if (typeof dateVal === 'string') {
+    const s = dateVal.trim();
+    if (!s) return null;
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // DD/MM/YYYY or DD-MM-YYYY
+    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmy) {
+      const day = dmy[1].padStart(2, '0');
+      const month = dmy[2].padStart(2, '0');
+      const year = dmy[3];
+      return `${year}-${month}-${day}`;
+    }
+  }
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  return toISTDateString(d);
+}
+

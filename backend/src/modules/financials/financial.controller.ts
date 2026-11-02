@@ -38,6 +38,11 @@ export class FinancialController {
     return ApiResponse.success(res, await FinancialService.getProfitabilityReport(from, to, ctx, { clientId, view, search }));
   });
 
+  static getInvoicingSummary = asyncHandler(async (req: Request, res: Response) => {
+    const ctx = getContext(req);
+    return ApiResponse.success(res, await FinancialService.getInvoicingSummary(ctx));
+  });
+
   static getReportPdf = asyncHandler(async (req: Request, res: Response) => {
     const ctx = getContext(req);
     const { from, to, clientId, view, search } = req.query as {

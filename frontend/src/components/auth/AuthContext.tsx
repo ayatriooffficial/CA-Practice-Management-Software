@@ -56,32 +56,34 @@ export interface AuthContextType {
 const STORAGE_KEY = "turia_current_user";
 
 export const DEMO_EMPLOYEE_USER: User = {
-  id: "6ad9f7c459ba9327d3d347ae",
-  orgId: "6ad9e23bf460aa2e6102c0c6",
-  name: "Vikram Singhania",
-  email: "vikram@ayatrio.com",
-  mobile: "8080014896",
+  id: "6adb442c6ceca77f153c0ba5",
+  orgId: "6adb442c6ceca77f153c0ba3",
+  name: "Aniketsingh886909",
+  email: "aniketsingh886909@gmail.com",
+  mobile: "8869090000",
   role: "employee",
   firmName: "Ayatrio Practice",
-  initials: "VS",
+  initials: "AN",
   department: "Audit & Taxation",
   designation: "Staff",
   status: "Active",
   permissions: getPresetPermissions("Employee"),
-  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWQ5ZjdjNDU5YmE5MzI3ZDNkMzQ3YWUiLCJvcmdJZCI6IjZhZDllMjNiZjQ2MGFhMmU2MTAyYzBjNiIsImZpcm1OYW1lIjoiQXlhdHJpbyBQcmFjdGljZSIsImVtYWlsIjoidmlrcmFtQGF5YXRyaW8uY29tIiwicm9sZSI6ImVtcGxveWVlIiwibmFtZSI6IlZpa3JhbSBTaW5naGFuaWEiLCJpbml0aWFscyI6IlZTIiwidG9rZW5WZXJzaW9uIjowLCJpYXQiOjE3OTI3NDI4MzEsImV4cCI6MTc5NTMzNDgzMX0.RuO4e3g-9qFb6e8-jYJLCKDZa_JqYE5nL8h7JTwi0ow",
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWRiNDQyYzZjZWNhNzdmMTUzYzBiYTUiLCJvcmdJZCI6IjZhZGI0NDJjNmNlY2E3N2YxNTNjMGJhMyIsImZpcm1OYW1lIjoiQXlhdHJpbyBQcmFjdGljZSIsImVtYWlsIjoiYW5pa2V0c2luZ2g4ODY5MDlAZ21haWwuY29tIiwicm9sZSI6ImVtcGxveWVlIiwibmFtZSI6IkFuaWtldHNpbmdoODg2OTA5IiwiaW5pdGlhbHMiOiJBTiIsInBlcm1pc3Npb25zIjp7fSwidG9rZW5WZXJzaW9uIjowLCJpYXQiOjE3OTM1NTU2NDQsImV4cCI6MTc5MzY0MjA0NH0.fX61ADHbHjXTdPKVTzuqjxEqXJV4u6NUpE8Pn_jpVSY",
 };
 
 export const DEFAULT_USER: User = {
-  id: "6ad9e23bf460aa2e6102c0c8",
-  orgId: "6ad9e23bf460aa2e6102c0c6",
-  name: "Dipak Sahani",
-  email: "sahanidipak777@gmail.com",
+  id: "6ae086fb665d0e6ed6a61015",
+  orgId: "6adb442c6ceca77f153c0ba3",
+  name: "Ayatrio Admin",
+  email: "info.openstreem@gmail.com",
   mobile: "8080014895",
   firmName: "Ayatrio Practice",
   role: "admin",
-  initials: "DS",
+  initials: "AY",
+  status: "Active",
+  permissions: getPresetPermissions("Admin"),
   createdAt: "2026-01-15T09:00:00Z",
-  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWQ5ZTIzYmY0NjBhYTJlNjEwMmMwYzgiLCJvcmdJZCI6IjZhZDllMjNiZjQ2MGFhMmU2MTAyYzBjNiIsImZpcm1OYW1lIjoiQXlhdHJpbyBQcmFjdGljZSIsImVtYWlsIjoic2FoYW5pZGlwYWs3NzdAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwibmFtZSI6IkRpcGFrIFNhaGFuaSIsImluaXRpYWxzIjoiRFMiLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTc5Mjc0MjgzMSwiZXhwIjoxNzk1MzM0ODMxfQ.AXP25evAjvFRXNoEnv2nAXa_bb7qbrLrOIOPZoozEC0",
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWUwODZmYjY2NWQwZTZlZDZhNjEwMTUiLCJvcmdJZCI6IjZhZGI0NDJjNmNlY2E3N2YxNTNjMGJhMyIsImZpcm1OYW1lIjoiQXlhdHJpbyBQcmFjdGljZSIsImVtYWlsIjoiaW5mby5vcGVuc3RyZWVtQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsIm5hbWUiOiJBeWF0cmlvIEFkbWluIiwiaW5pdGlhbHMiOiJBWSIsInBlcm1pc3Npb25zIjp7fSwidG9rZW5WZXJzaW9uIjowLCJpYXQiOjE3OTM1NTYyMTQsImV4cCI6MTc5MzY0MjYxNH0.7vlfHRKdELIlsts5qqWxPTetYqSaVsi30AZAIOhUpqc",
 };
 
 const AuthContext = createContext<AuthContextType>({
