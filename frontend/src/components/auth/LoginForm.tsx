@@ -6,9 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Mail,
   Lock,
-  Eye,
-  EyeOff,
-  Loader2,
   AlertCircle,
   ArrowRight,
   ArrowLeft,
@@ -16,6 +13,8 @@ import {
   Building2,
   CheckCircle2,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { authService } from "./authService";
 import { useAuth } from "./AuthContext";
 
@@ -35,7 +34,6 @@ export const LoginForm: React.FC = () => {
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -162,35 +160,23 @@ export const LoginForm: React.FC = () => {
               className={`flex flex-col ${errorMessage ? "gap-[16px]" : "gap-[20px]"}`}
             >
               {/* Email Input */}
-              <div className="flex flex-col gap-[7px]">
-                <label
-                  htmlFor="login-email"
-                  className="block text-[14px] font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Work Email Address
-                </label>
-
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <input
-                    id="login-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setErrorMessage(null);
-                      setIsUserNotFound(false);
-                    }}
-                    placeholder="name@firm.com or Gmail"
-                    className="w-full h-[44px] pl-10 pr-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
-                    autoComplete="email"
-                    autoFocus
-                    required
-                  />
-                </div>
-              </div>
+              <Input
+                id="login-email"
+                type="email"
+                label="Work Email Address"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrorMessage(null);
+                  setIsUserNotFound(false);
+                }}
+                placeholder="name@firm.com or Gmail"
+                leftIcon={<Mail className="w-4 h-4" />}
+                autoComplete="email"
+                autoFocus
+                required
+                className="h-[44px] text-[14px] rounded-lg"
+              />
 
               {/* Status helper when session exists */}
               {isWorkdayMatched && (
@@ -212,31 +198,15 @@ export const LoginForm: React.FC = () => {
 
               {/* Action Button: "Log In" if session exists, "Enter Password" if new session */}
               <div className="flex flex-col gap-[12px]">
-                <button
+                <Button
                   type="submit"
                   disabled={!isValidEmail || isLoading}
-                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!isValidEmail || isLoading
-                    ? "bg-[#3D6A9E] cursor-not-allowed"
-                    : "bg-[#3D6A9E] hover:bg-[#3D6A9E] hover:shadow"
-                    }`}
+                  loading={isLoading}
+                  rightIcon={<ArrowRight className="w-4 h-4 ml-0.5" />}
+                  className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E]"
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Logging In...</span>
-                    </>
-                  ) : isWorkdayMatched ? (
-                    <>
-                      <span>Log In</span>
-                      <ArrowRight className="w-4 h-4 ml-0.5" />
-                    </>
-                  ) : (
-                    <>
-                      <span>Enter Password</span>
-                      <ArrowRight className="w-4 h-4 ml-0.5" />
-                    </>
-                  )}
-                </button>
+                  {isWorkdayMatched ? "Log In" : "Enter Password"}
+                </Button>
               </div>
             </form>
           </div>
@@ -280,45 +250,23 @@ export const LoginForm: React.FC = () => {
               className={`flex flex-col ${errorMessage ? "gap-[16px]" : "gap-[20px]"}`}
             >
               {/* Password Input */}
-              <div className="flex flex-col gap-[7px]">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="login-password"
-                    className="block text-[14px] font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Password
-                  </label>
-                </div>
-
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <input
-                    ref={passwordInputRef}
-                    id="login-password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setErrorMessage(null);
-                      setIsUserNotFound(false);
-                    }}
-                    placeholder="Enter your password"
-                    className="w-full h-[44px] pl-10 pr-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:border-[#3D6A9E] focus:ring-2 focus:ring-[#3D6A9E]/20 transition-all shadow-2xs"
-                    autoComplete="current-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer transition-colors"
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
+              <Input
+                ref={passwordInputRef}
+                id="login-password"
+                type="password"
+                label="Password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrorMessage(null);
+                  setIsUserNotFound(false);
+                }}
+                placeholder="Enter your password"
+                leftIcon={<Lock className="w-4 h-4" />}
+                autoComplete="current-password"
+                required
+                className="h-[44px] text-[14px] rounded-lg"
+              />
 
               {/* User Not Found Prompt to Create Org */}
               {isUserNotFound && (
@@ -351,26 +299,15 @@ export const LoginForm: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-[10px]">
-                <button
+                <Button
                   type="submit"
                   disabled={!password.trim() || isLoading}
-                  className={`w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${!password.trim() || isLoading
-                    ? "bg-[#3D6A9E] cursor-not-allowed"
-                    : "bg-[#3D6A9E] hover:bg-[#3D6A9E] hover:shadow"
-                    }`}
+                  loading={isLoading}
+                  rightIcon={<ArrowRight className="w-4 h-4 ml-0.5" />}
+                  className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E]"
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Signing In...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Sign In</span>
-                      <ArrowRight className="w-4 h-4 ml-0.5" />
-                    </>
-                  )}
-                </button>
+                  Sign In
+                </Button>
 
                 <button
                   type="button"
