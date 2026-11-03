@@ -148,7 +148,7 @@ export const HomeDashboard: React.FC = () => {
   }, [fetchSummary, fetchTableData]);
 
   return (
-    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] p-3 sm:p-5 lg:p-7 gap-4 sm:gap-6">
+    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1.5 sm:pt-2.5 pb-6 gap-3.5 sm:gap-5">
       {/* Top Banner: Metrics Strip with Category Tabs */}
       {(isAdmin || showTasks || showInvoicing || showClients || showCompliance || showLeads) && (
         <TopTaskDueStrip />

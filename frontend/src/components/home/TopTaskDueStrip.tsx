@@ -416,18 +416,18 @@ export const TopTaskDueStrip: React.FC = () => {
   const currentFilterLabel = FILTER_OPTIONS.find((f) => f.id === timeRange)?.label || 'Today';
 
   return (
-    <div className="w-full flex flex-col gap-3">
+    <div className="w-full flex flex-col gap-1.5 sm:gap-2">
       {/* Top Filter Bar: Right-aligned Time Range Dropdown & Refresh */}
-      <div className="flex items-center justify-end gap-2 px-0.5">
+      <div className="flex items-center justify-end gap-1.5 px-0.5">
         <button
           type="button"
           onClick={() => fetchAllMetrics(true)}
           title="Refresh counts"
           aria-label="Refresh counts"
-          className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         >
           <RefreshCw
-            size={14}
+            size={13}
             className={isRefreshing ? 'animate-spin text-[#31719B] dark:text-[#93c5fd]' : ''}
           />
         </button>
@@ -436,11 +436,11 @@ export const TopTaskDueStrip: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsDropdownOpen((prev) => !prev)}
-            className="inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-md shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer min-w-[90px]"
+            className="inline-flex items-center justify-between gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-md shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer min-w-[80px]"
           >
             <span>{currentFilterLabel}</span>
             <ChevronDown
-              size={14}
+              size={13}
               className={`text-gray-500 transition-transform duration-150 ${isDropdownOpen ? 'rotate-180' : ''}`}
             />
           </button>
@@ -455,7 +455,7 @@ export const TopTaskDueStrip: React.FC = () => {
                     setTimeRange(opt.id);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-1.5 text-xs sm:text-sm transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3 py-1 text-xs transition-colors cursor-pointer ${
                     timeRange === opt.id
                       ? 'bg-blue-50 dark:bg-slate-800 text-[#31719B] dark:text-[#93c5fd] font-semibold'
                       : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60'
@@ -469,9 +469,9 @@ export const TopTaskDueStrip: React.FC = () => {
         </div>
       </div>
 
-      {/* 5 Distinct Parallel KPI Cards */}
+      {/* 5 Distinct Parallel KPI Cards - Compact & Proportional */}
       <div
-        className={`grid gap-3 sm:gap-4 ${
+        className={`grid gap-2.5 sm:gap-3 ${
           cardItems.length === 5
             ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'
             : cardItems.length === 4
@@ -485,31 +485,31 @@ export const TopTaskDueStrip: React.FC = () => {
           <Link
             key={card.id}
             href={card.link}
-            className="group bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all hover:border-[#31719B]/40 hover:shadow-xs cursor-pointer min-w-0"
+            className="group bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg px-3 py-2 sm:px-3.5 sm:py-2.5 flex flex-col justify-between transition-all hover:border-[#31719B]/40 hover:shadow-2xs cursor-pointer min-w-0"
           >
             {/* Header: Title */}
-            <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 sm:mb-2.5">
+            <div className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 mb-1 leading-tight">
               {card.title}
             </div>
 
-            {/* Row 1: Top Metric (Large number + label) */}
-            <div className="flex items-baseline gap-2 mb-1 sm:mb-1.5 min-w-0">
+            {/* Row 1: Top Metric (Number + label) */}
+            <div className="flex items-baseline gap-1.5 mb-1 min-w-0 leading-none">
               <span
-                className={`text-3xl sm:text-4xl font-extrabold tracking-tight font-sans transition-transform duration-150 group-hover:scale-105 shrink-0 ${card.topColorClass}`}
+                className={`text-xl sm:text-2xl font-bold tracking-tight font-sans transition-transform duration-150 group-hover:scale-105 shrink-0 ${card.topColorClass}`}
               >
                 {isLoading ? '-' : card.topCount}
               </span>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-slate-300 truncate">
+              <span className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-300 truncate">
                 {card.topLabel}
               </span>
             </div>
 
-            {/* Row 2: Bottom Metric (Medium number + label) */}
-            <div className="flex items-baseline gap-2 min-w-0">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-gray-800 dark:text-slate-200 shrink-0">
+            {/* Row 2: Bottom Metric (Number + label) */}
+            <div className="flex items-baseline gap-1.5 min-w-0 leading-none">
+              <span className="text-sm sm:text-base font-semibold tracking-tight text-gray-800 dark:text-slate-200 shrink-0">
                 {isLoading ? '-' : card.bottomCount}
               </span>
-              <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400 truncate">
+              <span className="text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
                 {card.bottomLabel}
               </span>
             </div>
