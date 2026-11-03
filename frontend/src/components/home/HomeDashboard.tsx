@@ -37,6 +37,7 @@ export const HomeDashboard: React.FC = () => {
   }, [currentUser]);
 
   // Section visibility based on role permissions
+  const showLeads = isAdmin || canView('leads');
   const showTasks = isAdmin || canView('task_manager');
   const showInvoicing = isAdmin || canView('invoice');
   const showClients = isAdmin || canView('clients');
@@ -149,7 +150,7 @@ export const HomeDashboard: React.FC = () => {
   return (
     <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] p-3 sm:p-5 lg:p-7 gap-4 sm:gap-6">
       {/* Top Banner: Metrics Strip with Category Tabs */}
-      {(isAdmin || showTasks || showInvoicing || showClients || showCompliance) && (
+      {(isAdmin || showTasks || showInvoicing || showClients || showCompliance || showLeads) && (
         <TopTaskDueStrip />
       )}
 
