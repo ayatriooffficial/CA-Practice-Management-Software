@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Calendar as CalendarIcon, MoreVertical, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
 import { TodayAttendanceRow } from '../../services/attendanceApi';
+import { Pagination } from '@/components/ui/Pagination';
+import { Input } from '@/components/ui/Input';
 
 interface TodayAttendanceTableProps {
   rows: TodayAttendanceRow[];
@@ -107,12 +109,8 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
         {/* Controls on Right */}
         <div className="flex items-center" style={{ gap: '12px' }}>
           {/* Search Box */}
-          <div className="relative flex items-center">
-            <Search
-              size={14}
-              className="absolute left-3 text-gray-400 pointer-events-none"
-            />
-            <input
+          <div className="w-44 sm:w-56">
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => {
@@ -120,7 +118,8 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
                 setPage(1);
               }}
               placeholder="Search"
-              className="text-xs rounded-md pl-8 pr-3 py-1.5 border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white focus:outline-hidden focus:border-[#3D6A9E] focus:ring-1 focus:ring-[#3D6A9E] w-44 sm:w-56 shadow-2xs"
+              leftIcon={<Search size={14} />}
+              size="sm"
             />
           </div>
 
@@ -359,38 +358,13 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
         </table>
       </div>
 
-      {/* Pagination Footer Styled Identically to Leads Table */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-[#1e293b] text-xs text-gray-600 dark:text-gray-400">
-        <div>
-          Showing {totalCount === 0 ? '0-0 of 0' : `${(page - 1) * rowsPerPage + 1}–${Math.min(page * rowsPerPage, totalCount)} of ${totalCount}`}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <span className="font-semibold text-gray-800 dark:text-gray-200">15 ▾</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1.5 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-[#162032] transition-colors cursor-pointer"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-[#162032] transition-colors cursor-pointer"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Pagination Footer */}
+      <Pagination
+        currentPage={page}
+        pageSize={rowsPerPage}
+        totalItems={totalCount}
+        onPageChange={setPage}
+      />
     </div>
   );
 };

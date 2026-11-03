@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, X, Loader2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { attendanceApi, OfficeNoticeItem } from '../../services/attendanceApi';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { DiscardConfirmationModal } from '@/components/ui/DiscardConfirmationModal';
 
 interface NoticeBoardCardProps {
   isAdmin: boolean;
@@ -12,6 +15,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
   const [notices, setNotices] = useState<OfficeNoticeItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [noticeToDelete, setNoticeToDelete] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -276,7 +280,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             {isAdmin && notices.some((n) => n.id === currentNotice.id) && (
               <button
                 type="button"
-                onClick={() => handleDeleteNotice(currentNotice.id)}
+                onClick={() => setNoticeToDelete(currentNotice.id)}
                 className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-none hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                 title="Delete notice"
               >
@@ -286,6 +290,23 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
           </div>
         </div>
       </div>
+
+      {/* Discard Confirmation Modal for Delete Notice */}
+      <DiscardConfirmationModal
+        isOpen={Boolean(noticeToDelete)}
+        title="Delete Notice?"
+        message="Are you sure you want to delete this office notice? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={async () => {
+          if (noticeToDelete) {
+            await handleDeleteNotice(noticeToDelete);
+            setNoticeToDelete(null);
+          }
+        }}
+        onCancel={() => setNoticeToDelete(null)}
+      />
 
       {/* Add Notice Modal */}
       {isModalOpen && (
@@ -314,23 +335,19 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             )}
 
             <form onSubmit={handleCreateNotice} className="flex flex-col" style={{ gap: '14px' }}>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Office Holiday Notice"
-                  className="w-full px-3 py-2 text-xs rounded-none border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600"
-                />
-              </div>
+              <Input
+                label="Title"
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Office Holiday Notice"
+                size="sm"
+              />
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Announcement Details
+                  Announcement Details <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <textarea
                   required
@@ -338,26 +355,27 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder="Enter notice content..."
-                  className="w-full px-3 py-2 text-xs rounded-none border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 focus:outline-hidden focus:border-purple-600 resize-none"
+                  className="w-full px-3 py-2 text-xs rounded-sm border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-hidden focus:border-[#31719B] resize-none"
                 />
               </div>
 
               <div className="flex items-center justify-end" style={{ gap: '10px' }}>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs rounded-none border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-xs font-semibold rounded-none text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                  variant="primary"
+                  size="sm"
+                  loading={isSubmitting}
                 >
-                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
                   Publish Notice
-                </button>
+                </Button>
               </div>
             </form>
           </div>

@@ -13,6 +13,7 @@ import {
   Tag,
   RefreshCw,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { todoApi, TeamTaskItem, AdminTaskItem, TodoItem } from '../../services/todoApi';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -533,20 +534,24 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
             onChange={(e) => setNewDueDate(e.target.value)}
             className="text-[11px] px-2 py-0.5 rounded-none border border-gray-200 dark:border-[#334155] bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-300 outline-none"
           />
-          <button
+          <Button
             type="submit"
+            size="sm"
             disabled={isSubmitting || !newTitle.trim()}
-            className="px-2.5 py-0.5 text-xs font-semibold rounded-none bg-[#31719B] text-white hover:bg-[#285d80] disabled:opacity-50 transition-all cursor-pointer"
+            loading={isSubmitting}
+            className="h-7 px-2.5 text-xs rounded-none bg-[#31719B] hover:bg-[#285d80]"
           >
             Add
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => setIsAdding(false)}
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 px-1 cursor-pointer"
+            className="h-7 px-2 text-xs"
           >
             Cancel
-          </button>
+          </Button>
         </form>
       )}
 

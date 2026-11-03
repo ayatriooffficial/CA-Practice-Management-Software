@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { LogIn, LogOut, Loader2 } from 'lucide-react';
+import { LogIn, LogOut } from 'lucide-react';
 import { attendanceApi, LiveStatusResponse } from '../../services/attendanceApi';
+import { Button } from '@/components/ui/Button';
 
 interface PunchCardProps {
   userName: string;
@@ -228,37 +229,29 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
           {/* Action Button: Punch In or Punch Out */}
           <div>
             {!isSessionOpen ? (
-              <button
+              <Button
                 type="button"
+                variant="success"
+                size="sm"
                 disabled={isSubmitting || liveStatus?.hasPunchedOut}
+                loading={isSubmitting}
                 onClick={handlePunchIn}
-                className="w-full sm:w-auto sm:min-w-[170px] py-2 px-4 rounded-none text-xs font-semibold text-white transition-all shadow-xs active:scale-95 flex items-center justify-center disabled:opacity-50 cursor-pointer"
-                style={{
-                  backgroundColor: '#22c55e',
-                }}
+                className="w-full sm:w-auto sm:min-w-[170px] rounded-none text-xs font-semibold"
               >
-                {isSubmitting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : (
-                  'Punch In'
-                )}
-              </button>
+                Punch In
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 disabled={isSubmitting}
+                loading={isSubmitting}
                 onClick={handlePunchOut}
-                className="w-full sm:w-auto sm:min-w-[170px] py-2 px-4 rounded-none text-xs font-semibold text-white transition-all shadow-xs active:scale-95 flex items-center justify-center disabled:opacity-50 cursor-pointer"
-                style={{
-                  backgroundColor: '#ef4444',
-                }}
+                className="w-full sm:w-auto sm:min-w-[170px] rounded-none text-xs font-semibold"
               >
-                {isSubmitting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : (
-                  'Punch Out'
-                )}
-              </button>
+                Punch Out
+              </Button>
             )}
           </div>
 
