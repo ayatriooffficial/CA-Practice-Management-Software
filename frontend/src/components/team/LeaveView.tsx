@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Button } from '../ui/Button';
 import { LeaveApplication, LeaveSummaryRecord, LeaveType } from './types';
 import { teamStore } from './teamStore';
 
@@ -94,16 +95,20 @@ export const LeaveView: React.FC = () => {
             </h3>
 
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
                 onClick={() => setIsAssignModalOpen(true)}
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                icon={
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                }
+                className="h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Assign Leave</span>
-              </button>
+                Assign Leave
+              </Button>
             </div>
           </div>
 
@@ -316,19 +321,22 @@ export const LeaveView: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-[#334155]">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setIsAssignModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#162032] rounded-lg hover:bg-gray-200 dark:hover:bg-[#334155] cursor-pointer"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#3D6A9E] hover:bg-[#315782] rounded-lg shadow-sm cursor-pointer"
+                variant="primary"
+                size="sm"
+                className="bg-[#3D6A9E] hover:bg-[#315782]"
               >
                 Submit Application
-              </button>
+              </Button>
             </div>
           </form>
         </div>

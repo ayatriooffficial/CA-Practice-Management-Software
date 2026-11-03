@@ -14,6 +14,7 @@ import {
   handlePermissionToggle,
 } from './permissionsConfig';
 import { teamStore } from './teamStore';
+import { Button } from '../ui/Button';
 
 interface AddEmployeeWizardProps {
   isOpen: boolean;
@@ -1121,41 +1122,46 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
 
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032] flex items-center justify-between">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#475569] rounded-lg hover:bg-gray-100 dark:hover:bg-[#1e293b] transition-colors shadow-2xs cursor-pointer"
           >
             Cancel
-          </button>
+          </Button>
 
           <div className="flex items-center gap-2">
             {currentStep > 1 && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={handleBack}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#475569] rounded-lg hover:bg-gray-100 dark:hover:bg-[#1e293b] transition-colors shadow-2xs cursor-pointer"
               >
                 Back
-              </button>
+              </Button>
             )}
 
             {currentStep < 4 ? (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={handleNext}
-                className="px-5 py-2 text-xs font-semibold text-white bg-[#31719B] rounded-lg hover:bg-[#27597b] transition-colors shadow-sm shadow-[#31719B]/20 cursor-pointer"
+                className="bg-[#31719B] hover:bg-[#27597b]"
               >
                 Next
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="success"
+                size="sm"
                 onClick={handleSave}
-                className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-colors shadow-sm shadow-emerald-600/20 cursor-pointer"
               >
                 {isEdit ? 'Save Changes' : 'Save Employee'}
-              </button>
+              </Button>
             )}
           </div>
         </div>
