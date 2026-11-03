@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Loader2, KeyRound, Calendar, Building2, MapPin, Usb } from "lucide-react";
+import { X, Loader2, KeyRound, Calendar, Building2, MapPin, Usb, Download } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
 import { ConnectorStatusBadge } from "@/components/ui/ConnectorStatusBadge";
@@ -195,10 +195,25 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
           )}
 
           {/* Local DSC Connector Status Badge & Read from USB Action */}
-          <div className="space-y-2 pb-1">
-            <div className="flex items-center justify-between">
+          <div className="p-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-50/70 dark:bg-gray-800/40 space-y-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <ConnectorStatusBadge />
+              <a
+                href="/downloads/DSC-Connector-Windows.zip"
+                download="DSC-Connector-Windows.zip"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-[#31719B]/10 hover:bg-[#31719B]/20 text-[#31719B] dark:text-blue-300 transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Connector (.zip)</span>
+              </a>
             </div>
+
+            <div className="text-[11px] text-gray-600 dark:text-gray-300 space-y-0.5 border-t border-gray-200/60 dark:border-gray-700/60 pt-2">
+              <p>1. Download and extract the ZIP file.</p>
+              <p>2. Open the extracted folder and run DSC-Connector.exe (leave the window open).</p>
+              <p>3. Plug in your USB token and click Read from USB.</p>
+            </div>
+
             <div>
               <button
                 type="button"
@@ -215,7 +230,7 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
                 ) : (
                   <>
                     <Usb className="w-3.5 h-3.5" />
-                    <span>Read from USB Token</span>
+                    <span>Read from USB</span>
                   </>
                 )}
               </button>

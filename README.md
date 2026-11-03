@@ -646,21 +646,65 @@ npm run build
 
 ## Local DSC USB Connector (Auto-Fill)
 
-The CA Practice Management Software integrates with a lightweight local PKCS#11 microservice bridging physical Indian Digital Signature Certificate (DSC) USB tokens with the browser frontend.
+The CA Practice Management Software integrates with a high-performance local PKCS#11 microservice bridging physical Indian Digital Signature Certificate (DSC) USB tokens with the browser frontend for instant, zero-friction client certificate registration.
 
-### Architecture
-- **Web App**: The Next.js frontend polls `http://127.0.0.1:8081/ping` every 3 seconds to monitor hardware readiness and displays a real-time status badge in the **Add DSC** modal.
-- **Hardware Communication**: When clicking **"Read from USB Token"**, the frontend issues a `GET http://127.0.0.1:8081/read-dsc` request. The local service opens an active PKCS#11 hardware session, extracts the X.509 DER certificate, parses attributes using `node-forge`, automatically releases the session lock, and returns the signatory name, token serial number, issuer, and validity dates for instant form auto-fill.
-- **Standalone Binary**: Packaged as a portable Windows binary (`DSC-Connector.exe`) compiled with Node 18 runtime and available for direct download at `/downloads/DSC-Connector.exe`.
+### 1. Architecture & Chrome PNA Bypass
+- **Cloud-to-Local Bridge**: The Next.js frontend (hosted securely on Vercel over HTTPS) polls and communicates directly with the local Express microservice running on the user's workstation at `http://127.0.0.1:8081`.
+- **Chrome Private Network Access (PNA) Bypass**: Modern Chromium-based browsers (Chrome, Edge, Brave) enforce Private Network Access specifications that block public HTTPS web applications from requesting resources on local private network IP addresses (`127.0.0.1` / `localhost`). The local connector implements custom preflight handling that responds to `OPTIONS` requests with:
+  ```http
+  Access-Control-Allow-Private-Network: true
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, *
+  ```
+  This, paired with standard CORS configuration, completely bypasses mixed-content and private network restrictions without requiring self-signed SSL certificates or insecure browser flags.
+- **Hardware Communication & Lifecycle**: When the user clicks **"Read from USB"**, the frontend sends `GET http://127.0.0.1:8081/read-dsc`. The connector opens an active PKCS#11 hardware session via native bindings, locates the X.509 DER certificate object, parses signatory identity and validity attributes using `node-forge`, releases session and token locks in a `finally` block, and returns structured JSON (`name`, `issuer`, `serialNumber`, `issuedDate`, `expiryDate`) for instant form auto-fill.
 
-### Prerequisites for CA Staff
-1. **OS**: Requires a 64-bit Windows operating system (Windows 10 / Windows 11 / Windows Server).
-2. **Drivers**: Physical USB Token vendor drivers (e.g., ePass2003, Watchdata PROXKey, VSign, mToken, Shuttle 3003) **MUST be installed** on the Windows machine so the native PKCS#11 `.dll` library files are present in `C:\Windows\System32\`:
-   - `C:\Windows\System32\eps2003csp11.dll`
-   - `C:\Windows\System32\ShuttleCsp11_3003.dll`
-   - `C:\Windows\System32\proxpkcs11.dll`
-   - `C:\Windows\System32\Watchdata PROXKey\SignatureP11.dll`
-3. **Execution**: CA staff must download `DSC-Connector.exe` directly from the link provided in the CRM modal (`/downloads/DSC-Connector.exe`) and double-click to run it. Keep the connector window or background process active on port `8081` while inserting tokens and registering certificates in client profiles.
+### 2. Supported Hardware & 32-bit WOW64 Requirement
+- **Supported Indian CA Tokens**: Compatible with all major licensed Indian Certifying Authorities (eMudhra, Capricorn, VSign, Sify/SafeScrypt, IDSign, Pantasign) across standard cryptographic token hardware:
+  - **HyperPKI (HYP2003)**: `hyp2003pkcs11.dll`, `hyp2003csp11.dll`
+  - **Feitian (ePass2003)**: `eps2003csp11.dll`, `eps2003csp11_v2.dll`
+  - **Watchdata (PROXKey / ICP)**: `Watchdata PROXKey\SignatureP11.dll`, `proxpkcs11.dll`, `wdpkcs.dll`, `wdpkcs_icp.dll`
+  - **Longmai (mToken / CryptoID)**: `mTokenPKCS11.dll`, `mtoken_pkcs11.dll`, `mTokenCryptoID11.dll`, `cryptoID_pkcs11.dll`
+  - **Shuttle (3003)**: `ShuttleCsp11_3003.dll`
+  - **SafeNet / Aladdin / Thales (eToken)**: `eToken.dll`, `eTPKCS11.dll`
+  - **A.E.T. Europe / SafeSign**: `aetpkss1.dll`
+  - **G&D StarSign / Akisp**: `akisp11.dll`
+- **32-bit WOW64 Architecture Requirement**:
+  The connector executable **MUST be compiled as a 32-bit binary (`node18-win-x86`)**. The majority of Indian CA hardware token vendors provide legacy 32-bit `.dll` drivers. Compiling as a 32-bit process leverages Windows WOW64 (Windows 32-bit on Windows 64-bit) file redirection:
+  - On 64-bit Windows, a 32-bit application accessing `C:\Windows\System32` is automatically and transparently redirected to `C:\Windows\SysWOW64`.
+  - This architecture ensures the 32-bit Node process can natively `LoadLibrary` vendor 32-bit DLLs from both `System32` and `SysWOW64` without triggering `0xc000007b` (Bad Image / architecture mismatch) errors across all Windows operating systems.
+
+### 3. Build & Packaging Instructions (For Developers)
+To compile and package the standalone binary for production:
+1. Navigate to the connector directory:
+   ```bash
+   cd dsc-connector-local
+   ```
+2. Compile the 32-bit production binary using `pkg`:
+   ```bash
+   npx pkg index.js --targets node18-win-x86 --output DSC-Connector.exe
+   ```
+3. Bundle the binary and native dependency:
+   The compiled `DSC-Connector.exe` depends on the native C++ engine `pkcs11.node`. Both files **must be bundled together** into a single `DSC-Connector-Windows.zip` archive to prevent runtime missing-dependency crashes:
+   ```powershell
+   Compress-Archive -Path DSC-Connector.exe, pkcs11.node -DestinationPath DSC-Connector-Windows.zip -Force
+   ```
+4. Stage the ZIP in the Next.js public downloads directory:
+   ```bash
+   mv DSC-Connector-Windows.zip ../frontend/public/downloads/DSC-Connector-Windows.zip
+   ```
+   *Ensure raw uncompressed `.exe` and `.node` files are removed from `/public/downloads/` so end-users always download the self-contained `.zip` package.*
+
+### 4. Client Setup Instructions (For CA Staff)
+End-users (CA staff and accountants) only need to follow these 3 steps to use the hardware connector:
+
+- **Step 1**: Download and extract the `DSC-Connector-Windows.zip` file directly from the link in the **Add DSC** modal (ensure `DSC-Connector.exe` and `pkcs11.node` remain together in the extracted folder).
+- **Step 2**: Double-click `DSC-Connector.exe` to launch it. Leave the terminal window open and running in the background (it will display `DSC Connector server is running on http://127.0.0.1:8081`).
+- **Step 3**: Plug in your physical USB token into the computer and click **"Read from USB"** on the web platform to auto-fill client DSC credentials.
+
+> [!NOTE]
+> **First-Time Token Troubleshooting**: If plugging in a brand new token for the very first time on a Windows PC, open **"This PC"** in Windows File Explorer. The token will mount a virtual CD/drive containing the vendor installer (e.g., `ePass2003-Setup.exe` or `ProxKey_Custom_Installer.exe`). Run and complete the setup once to register the hardware drivers in Windows before the web platform can interface with it.
 
 ---
 
