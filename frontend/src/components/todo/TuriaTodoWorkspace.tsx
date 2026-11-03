@@ -51,6 +51,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
   // Layout State
   const [activeSection, setActiveSection] = useState<TuriaNavSection>("my-todo");
+  const [isMobileNavDrawerOpen, setIsMobileNavDrawerOpen] = useState(false);
   const [adminScope, setAdminScope] = useState<"my_work" | "team_work" | "all_work">("my_work");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isCalendarView, setIsCalendarView] = useState(
@@ -499,43 +500,99 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         </div>
       ) : (
         <>
-          {/* 1. Left Secondary Navigation Panel (Turia To-Do Sidebar) */}
-          <TuriaTodoSidebar
-        activeSection={activeSection}
-        onSelectSection={(sec) => {
-          setActiveSection(sec);
-          setIsCalendarView(false);
-        }}
-        counts={sidebarCounts}
-        selectedTag={selectedTag}
-        onSelectTag={(tag) => {
-          setSelectedTag(tag);
-          setIsCalendarView(false);
-        }}
-        onAddTagClick={() => setIsAddModalOpen(true)}
-      />
-
-      {/* 2. Center Main To-Do Workspace */}
-      <main className="flex-1 min-w-0 flex flex-col h-full bg-[#FAFAFC] dark:bg-background/80 overflow-y-auto">
-        {/* Top Header Row */}
-        <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-4">
-          {/* Left Title with Square Checkbox Icon */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40 shadow-2xs">
-              <CheckSquare className="w-4 h-4 stroke-[2.2]" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-                <span>To-Do Manager</span>
-                {isRefreshing && (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-gray-400" />
-                )}
-              </h1>
-            </div>
+          {/* 1. Left Secondary Navigation Panel (Turia To-Do Sidebar) - Desktop */}
+          <div className="hidden md:flex shrink-0">
+            <TuriaTodoSidebar
+              activeSection={activeSection}
+              onSelectSection={(sec) => {
+                setActiveSection(sec);
+                setIsCalendarView(false);
+              }}
+              counts={sidebarCounts}
+              selectedTag={selectedTag}
+              onSelectTag={(tag) => {
+                setSelectedTag(tag);
+                setIsCalendarView(false);
+              }}
+              onAddTagClick={() => setIsAddModalOpen(true)}
+            />
           </div>
 
+          {/* Mobile Slide-Over Drawer for Sidebar */}
+          {isMobileNavDrawerOpen && (
+            <div className="fixed inset-0 z-50 flex md:hidden bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+              <div className="relative w-72 max-w-[85vw] h-full bg-white dark:bg-card shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
+                <div className="p-4 border-b border-gray-100 dark:border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-indigo-600" />
+                    <span className="font-bold text-sm text-gray-900 dark:text-white">To-Do Menu</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileNavDrawerOpen(false)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  <TuriaTodoSidebar
+                    activeSection={activeSection}
+                    onSelectSection={(sec) => {
+                      setActiveSection(sec);
+                      setIsCalendarView(false);
+                      setIsMobileNavDrawerOpen(false);
+                    }}
+                    counts={sidebarCounts}
+                    selectedTag={selectedTag}
+                    onSelectTag={(tag) => {
+                      setSelectedTag(tag);
+                      setIsCalendarView(false);
+                      setIsMobileNavDrawerOpen(false);
+                    }}
+                    onAddTagClick={() => {
+                      setIsAddModalOpen(true);
+                      setIsMobileNavDrawerOpen(false);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1" onClick={() => setIsMobileNavDrawerOpen(false)} />
+            </div>
+          )}
+
+          {/* 2. Center Main To-Do Workspace */}
+          <main className="flex-1 min-w-0 flex flex-col h-full bg-[#FAFAFC] dark:bg-background/80 overflow-y-auto">
+            {/* Top Header Row */}
+            <div className="px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-3 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+              {/* Left Title with Square Checkbox Icon + Mobile Nav Button */}
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40 shadow-2xs">
+                  <CheckSquare className="w-4 h-4 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <span>To-Do Manager</span>
+                    {isRefreshing && (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                    )}
+                  </h1>
+                </div>
+
+                {/* Mobile Section Drawer Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsMobileNavDrawerOpen(true)}
+                  className="md:hidden ml-1 flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-gray-200 dark:border-border text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Open sections menu"
+                >
+                  <Filter className="w-3 h-3 text-indigo-600" />
+                  <span className="capitalize">{activeSection.replace("-", " ")}</span>
+                </button>
+              </div>
+
           {/* Right Toolbar: Filter by due date + Add To-Do */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             {/* Filter by due date button / popover */}
             <div className="relative">
               <button
@@ -623,16 +680,16 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         </div>
 
         {/* Second Line: Compact Filter Toolbar matching Turia */}
-        <div className="px-6 pb-4 flex items-center gap-3 flex-wrap">
+        <div className="px-3 sm:px-6 pb-3 sm:pb-4 flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Search Box */}
-          <div className="relative">
+          <div className="relative w-full sm:w-80">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search to-dos..."
-              className="w-64 sm:w-80 h-9 px-3 pl-9 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+              className="w-full h-9 px-3 pl-9 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
             />
             {searchQuery && (
               <button
@@ -734,7 +791,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         </div>
 
         {/* 3. Main Content Container matching Turia reference */}
-        <div className="mx-6 mb-6 rounded-2xl border border-gray-200/90 dark:border-border bg-white dark:bg-card shadow-xs flex-1 flex flex-col p-6 min-h-[500px] overflow-hidden">
+        <div className="mx-2 sm:mx-6 mb-3 sm:mb-6 rounded-xl sm:rounded-2xl border border-gray-200/90 dark:border-border bg-white dark:bg-card shadow-xs flex-1 flex flex-col p-2.5 sm:p-6 min-h-[450px] overflow-hidden">
           {isLoading ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400 text-xs">
               <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />

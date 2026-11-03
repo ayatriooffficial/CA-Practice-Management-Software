@@ -249,14 +249,14 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div
         className="w-full max-w-lg bg-white dark:bg-card rounded-2xl shadow-2xl border border-gray-100 dark:border-border overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
         {/* Soft Lavender Header matching Turia reference */}
-        <div className="bg-[#EEF2FD] dark:bg-indigo-950/40 px-6 py-4 flex items-center justify-between border-b border-indigo-100/60 dark:border-indigo-900/40 shrink-0">
+        <div className="bg-[#EEF2FD] dark:bg-indigo-950/40 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between border-b border-indigo-100/60 dark:border-indigo-900/40 shrink-0">
           <div>
             <h2 className="text-base font-bold text-[#1E293B] dark:text-white tracking-tight">
               New To-Do
@@ -276,7 +276,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
         </div>
 
         {/* Modal Body Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-4">
           {errorMessage && (
             <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -300,7 +300,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
           </div>
 
           {/* 2. Due Date & Priority Row */}
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Due Date
@@ -369,7 +369,7 @@ export const TuriaAddTodoModal: React.FC<TuriaAddTodoModalProps> = ({
           </div>
 
           {/* 4. Tag & Client Selectors */}
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Tag

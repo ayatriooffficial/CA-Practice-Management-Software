@@ -606,7 +606,7 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     <div className="flex flex-col w-full flex-1 min-h-[calc(100vh-120px)] bg-white dark:bg-card">
       {/* 1. Filter and Control Bar matching NoticeCalendarView exactly */}
       <div
-        className="px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 border-b text-xs"
+        className="px-3 sm:px-6 py-2 sm:py-2.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 border-b text-xs"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-main)",

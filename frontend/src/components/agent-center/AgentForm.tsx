@@ -1389,9 +1389,210 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           backgroundSize: '24px 24px',
         }}
       >
-        {/* Zoom Transform Wrapper */}
+        {/* Mobile Workflow Chain (< lg) */}
+        <div className="block lg:hidden w-full max-w-sm mx-auto py-3 space-y-4">
+          <div className="text-center mb-1">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Workflow Stages (Tap stage to configure)
+            </span>
+          </div>
+
+          {STEPS.map((step, index) => {
+            const isActive = activeStep === step.key && activePanelOpen;
+            const isConfirmed = isStepConfirmed(step.key);
+            const isUnlocked = isWorkflowStageUnlocked(step.key, confirmedSteps);
+
+            const borderColor =
+              step.key === 'event'
+                ? isConfirmed || isActive
+                  ? 'border-[#F97316]'
+                  : 'border-orange-300'
+                : step.key === 'recipient'
+                  ? isConfirmed || isActive
+                    ? 'border-[#8B5CF6]'
+                    : 'border-purple-300'
+                  : step.key === 'channel'
+                    ? isConfirmed || isActive
+                      ? 'border-[#10B981]'
+                      : 'border-emerald-300'
+                    : isConfirmed || isActive
+                      ? 'border-[#06B6D4]'
+                      : 'border-cyan-300';
+
+            const badgeStyle =
+              step.key === 'event'
+                ? 'bg-orange-50 text-orange-600 border-orange-200'
+                : step.key === 'recipient'
+                  ? 'bg-purple-50 text-purple-600 border-purple-200'
+                  : step.key === 'channel'
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                    : 'bg-cyan-50 text-cyan-600 border-cyan-200';
+
+            let title = step.defaultTitle;
+            let subtitle = step.defaultSubtitle;
+
+            if (step.key === 'event' && trigger) {
+              title = trigger.value;
+              subtitle = `When: ${trigger.value}`;
+            } else if (step.key === 'recipient' && selectedRecipients.length > 0) {
+              title = formatRecipientsDisplay(selectedRecipients);
+              subtitle = 'Notification targets';
+            } else if (step.key === 'channel' && selectedChannel) {
+              title = selectedChannel;
+              subtitle =
+                selectedChannel === 'Email'
+                  ? emailConfigured
+                    ? 'Connected'
+                    : 'Kindly integrate email'
+                  : selectedChannel === 'WhatsApp'
+                    ? whatsAppConfigured
+                      ? 'Connected'
+                      : 'Kindly integrate WhatsApp'
+                    : 'In-app notification';
+            } else if (step.key === 'action' && (isConfirmed || (actionStepValid && selectedAction))) {
+              title = selectedAction || 'Action Configured';
+              subtitle = 'Immediate delivery';
+            }
+
+            return (
+              <React.Fragment key={`mob_step_${step.key}`}>
+                <div
+                  onClick={() => {
+                    if (isUnlocked) handleCardClick(step.key);
+                  }}
+                  className={`relative w-full bg-white rounded-xl border-2 p-3.5 shadow-xs transition-all flex flex-col justify-between ${
+                    isUnlocked
+                      ? 'cursor-pointer hover:shadow-md active:scale-[0.99]'
+                      : 'opacity-40 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50/50 shadow-none'
+                  } ${isUnlocked && (isActive || isConfirmed) ? borderColor : 'border-slate-200'} ${
+                    isActive ? 'ring-2 ring-purple-300 ring-offset-2 shadow-md' : ''
+                  }`}
+                >
+                  {isConfirmed && (
+                    <span
+                      className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs border-2 border-white z-20"
+                      title="Stage completed"
+                    >
+                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    </span>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
+                        isUnlocked ? badgeStyle : 'bg-slate-100 text-slate-400 border-slate-200'
+                      }`}
+                    >
+                      {step.icon}
+                      {step.label}
+                    </span>
+                    {!isUnlocked ? (
+                      <span className="text-slate-400" title="Locked stage">
+                        <Lock className="h-3.5 w-3.5" />
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-[#7C3AED]">Configure →</span>
+                    )}
+                  </div>
+
+                  <div className="mt-2">
+                    <h3
+                      className={`text-sm font-bold truncate leading-snug ${
+                        isUnlocked ? 'text-slate-800' : 'text-slate-400'
+                      }`}
+                      title={title}
+                    >
+                      {title}
+                    </h3>
+                    <p
+                      className={`text-xs truncate leading-tight mt-0.5 ${
+                        isUnlocked ? 'text-slate-500' : 'text-slate-400'
+                      }`}
+                      title={subtitle}
+                    >
+                      {subtitle}
+                    </p>
+                  </div>
+                </div>
+
+                {index < STEPS.length - 1 && (
+                  <div className="flex justify-center py-0.5">
+                    <div className="w-0 h-5 border-l-2 border-dashed border-[#CBD5E1]" />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+
+          {/* Mobile Recipient Result Previews */}
+          {showRecipientResultCards && (
+            <div className="pt-4 space-y-3">
+              <div className="text-center">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Generated Recipient Previews
+                </span>
+              </div>
+              {((selectedRecipients.length > 0 ? selectedRecipients : ['Assigned user']) as AgentRecipient[]).map((recipient) => {
+                const roleLabel = formatRecipientLabel(recipient);
+                const channelLabel = selectedChannel || 'EMAIL';
+                const renderedSubject = previewText(
+                  subject || selectedAction || 'Notification',
+                  module,
+                  recipient,
+                  selectedPreviewTask
+                );
+                const renderedBody = previewText(
+                  message ||
+                    (module === 'DSC'
+                      ? 'DSC Expiry Notification'
+                      : module === 'License'
+                        ? 'License Renewal Reminder'
+                        : 'Task Due Reminder'),
+                  module,
+                  recipient,
+                  selectedPreviewTask
+                );
+
+                return (
+                  <div key={`mob_preview_${recipient}`} className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-4 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 rounded bg-purple-50 text-purple-600">
+                        {channelLabel.toUpperCase() === 'WHATSAPP' ? (
+                          <Send className="h-3.5 w-3.5" />
+                        ) : (
+                          <Mail className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-purple-700">
+                        {roleLabel.toUpperCase()} · {channelLabel.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {channelLabel.toUpperCase() === 'EMAIL' && renderedSubject && (
+                      <div className="mt-2.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">SUBJECT</span>
+                        <h4 className="text-xs font-bold text-slate-800 mt-0.5 leading-snug">{renderedSubject}</h4>
+                      </div>
+                    )}
+
+                    <div className="mt-2.5 text-xs text-slate-600 whitespace-pre-wrap leading-relaxed max-h-[160px] overflow-y-auto">
+                      {renderedBody}
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                      <span>Preview · Not sent</span>
+                      <span>{module} Agent</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Canvas (>= lg) */}
         <div
-          className="min-w-[1150px] mx-auto transition-transform duration-150 origin-top flex flex-col items-center"
+          className="hidden lg:flex min-w-[1150px] mx-auto transition-transform duration-150 origin-top flex-col items-center"
           style={{ transform: `scale(${zoom})` }}
         >
           {/* A. FOUR HORIZONTALLY CONNECTED WORKFLOW CARDS */}
@@ -1669,12 +1870,12 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           })()}
         </div>
 
-        {/* 3. BOTTOM-LEFT ZOOM & CANVAS CONTROLS */}
-        <div className="fixed bottom-6 left-20 z-40 bg-white rounded-xl border border-slate-200 shadow-md flex flex-col p-1">
+        {/* 3. BOTTOM-LEFT ZOOM & CANVAS CONTROLS (Desktop Only) */}
+        <div className="hidden lg:flex fixed bottom-6 left-20 z-40 bg-white rounded-xl border border-slate-200 shadow-md flex-col p-1">
           <button
             type="button"
             onClick={() => setZoom((z) => Math.min(z + 0.1, 1.3))}
-            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer"
             title="Zoom in"
           >
             <Plus className="h-4 w-4" />
@@ -1683,7 +1884,7 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(z - 0.1, 0.7))}
-            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer"
             title="Zoom out"
           >
             <Minus className="h-4 w-4" />
@@ -1692,15 +1893,15 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           <button
             type="button"
             onClick={() => setZoom(1.0)}
-            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer"
             title="Fit to screen / Reset zoom"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
         </div>
 
-        {/* 4. BOTTOM-RIGHT MINIMAP THUMBNAIL */}
-        <div className="fixed bottom-6 right-6 z-40 w-44 h-28 bg-white rounded-lg border-2 border-slate-800 shadow-md p-2 flex flex-col justify-between overflow-hidden pointer-events-none">
+        {/* 4. BOTTOM-RIGHT MINIMAP THUMBNAIL (Desktop Only) */}
+        <div className="hidden lg:flex fixed bottom-6 right-6 z-40 w-44 h-28 bg-white rounded-lg border-2 border-slate-800 shadow-md p-2 flex-col justify-between overflow-hidden pointer-events-none">
           <div className="w-full flex items-center justify-between gap-1 pt-2">
             <div className={`h-4 w-7 rounded-xs border ${confirmedSteps.event || activeStep === 'event' ? 'border-orange-500 bg-orange-50' : 'border-slate-300 bg-slate-100'}`} />
             <div className="w-2 h-0 border-t border-dashed border-slate-400" />
@@ -1715,6 +1916,15 @@ export default function AgentForm({ initialModule = 'Task', agentId }: Props) {
           )}
           <div className="absolute right-1 bottom-1 border border-slate-400/40 bg-slate-200/30 w-16 h-12 rounded-xs" />
         </div>
+
+        {/* 5. MOBILE CENTERED CONFIGURATION DIALOG (< lg) */}
+        {activePanelOpen && (
+          <div className="fixed inset-0 z-50 flex lg:hidden items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="w-full max-w-sm sm:max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-150">
+              {renderPanelContent(activeStep)}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

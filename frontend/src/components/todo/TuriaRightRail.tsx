@@ -30,7 +30,7 @@ export const TuriaRightRail: React.FC<TuriaRightRailProps> = ({
 
   return (
     <aside
-      className="w-12 shrink-0 border-l border-gray-200 dark:border-border bg-white dark:bg-card flex flex-col items-center justify-between py-4 select-none transition-colors"
+      className="w-12 shrink-0 border-l border-gray-200 dark:border-border bg-white dark:bg-card hidden lg:flex flex-col items-center justify-between py-4 select-none transition-colors"
       aria-label="Right Utility Rail"
     >
       {/* Top Utility Icons */}
