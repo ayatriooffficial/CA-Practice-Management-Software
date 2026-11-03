@@ -39,6 +39,7 @@ import { Service } from '@/data/serviceData';
 import { organizationApi, OrganizationDetails } from '@/services/organizationApi';
 import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from '@/components/onboarding/tabs/InvoiceLivePreview';
 import { getDirectFilePreviewUrl } from '@/utils/filePreview';
+import { Button } from '@/components/ui/Button';
 
 interface AddInvoiceFormProps {
   type: 'invoice' | 'proforma';
@@ -1817,22 +1818,27 @@ tax:'18%',
               {/* Section 7: Footer Actions (28px padding below buttons) */}
               <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-gray-100 dark:border-gray-800 pb-7">
                 {saveError && <p role="alert" className="mr-auto text-xs text-red-600">{saveError}</p>}
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="md"
                   onClick={onBack}
-                  className="px-6 py-2.5 rounded-lg border border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10 text-xs font-semibold cursor-pointer transition-colors"
+                  className="px-6 py-2.5 rounded-lg border-[#3D6A9E] text-[#3D6A9E] hover:bg-[#3D6A9E]/10"
                 >
                   {isView ? 'Close' : 'Cancel'}
-                </button>
+                </Button>
                 {!isView && (
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="md"
                     onClick={() => void handleSave()}
                     disabled={isSaving}
-                    className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884] text-white text-xs font-semibold shadow-xs cursor-pointer transition-all active:scale-98"
+                    loading={isSaving}
+                    className="px-7 py-2.5 rounded-lg bg-[#3D6A9E] hover:bg-[#325884]"
                   >
-                    {isSaving ? 'Saving…' : isEdit ? 'Update' : 'Save'}
-                  </button>
+                    {isEdit ? 'Update' : 'Save'}
+                  </Button>
                 )}
               </div>
             </div>
