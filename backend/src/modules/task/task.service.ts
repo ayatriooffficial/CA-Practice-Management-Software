@@ -67,9 +67,10 @@ export class TaskService {
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
 
-    // Org data isolation filter
-    if (orgId) {
+    // Org data isolation filter (employees isolated to org; admins see all practice tasks)
+    if (orgId && !isAdminRole) {
       const orgConditions: any[] = [
         { orgId },
         { orgId: String(orgId) },
@@ -357,9 +358,10 @@ export class TaskService {
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
 
-    if (orgId) {
+    if (orgId && !isAdminRole) {
       matchFilter.$or = [
         { orgId },
         { orgId: String(orgId) },
@@ -443,10 +445,11 @@ export class TaskService {
     const orgId = userCtx?.orgId;
     const userRole = (userCtx?.role || '').toLowerCase();
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
 
     const andClauses: any[] = [{ isDeleted: false }];
 
-    if (orgId) {
+    if (orgId && !isAdminRole) {
       andClauses.push({ $or: [{ orgId }, { orgId: String(orgId) }] });
     }
 
@@ -615,9 +618,10 @@ export class TaskService {
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
 
-    if (orgId) {
+    if (orgId && !isAdminRole) {
       matchFilter.$or = [
         { orgId },
         { orgId: String(orgId) },

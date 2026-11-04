@@ -15,29 +15,29 @@ import {
   dashboardSummaryApi,
   InvoicingSummaryResponse,
 } from '../../services/dashboardSummaryApi';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchDashboardRequest } from '@/store/features/dashboard/dashboardSlice';
+import {
+  selectDashboardInvoicingSummary,
+  selectDashboardLoading,
+} from '@/store/features/dashboard/dashboardSelectors';
 
 export const PendingInvoicingCard: React.FC = () => {
-  const [data, setData] = useState<InvoicingSummaryResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const reduxInvoicingData = useAppSelector(selectDashboardInvoicingSummary);
+  const isReduxLoading = useAppSelector(selectDashboardLoading);
+
+  const [fallbackData, setFallbackData] = useState<InvoicingSummaryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const data = reduxInvoicingData || fallbackData;
+  const isLoading = isReduxLoading && !data;
+
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const res = await dashboardSummaryApi.getInvoicingSummary();
-        if (isMounted) setData(res);
-      } catch (err: any) {
-        if (isMounted) setError(err?.message || 'Failed to load invoicing metrics');
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!reduxInvoicingData) {
+      dispatch(fetchDashboardRequest());
+    }
+  }, [dispatch, reduxInvoicingData]);
 
   const formatCurrency = (amt?: number) => {
     if (amt === undefined || amt === null) return '';

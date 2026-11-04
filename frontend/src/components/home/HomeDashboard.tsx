@@ -26,14 +26,15 @@ import {
   UpcomingLeaveItem,
 } from '../../services/attendanceApi';
 import { usePermission } from '../team/usePermission';
+import { isRoleAdmin } from '@/store/permissions/roleSelectors';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
-  const { canView } = usePermission();
+  const { canView, isAdmin: isPermAdmin } = usePermission();
 
   // Mode resolution: Admin gets admin view, all others get employee view
   const isAdmin = useMemo(() => {
-    return (currentUser?.role || '').toLowerCase() === 'admin';
+    return isPermAdmin || isRoleAdmin(currentUser?.role);
   }, [currentUser]);
 
   // Section visibility based on role permissions
@@ -148,7 +149,7 @@ export const HomeDashboard: React.FC = () => {
   }, [fetchSummary, fetchTableData]);
 
   return (
-    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1.5 sm:pt-2.5 pb-6 gap-3.5 sm:gap-5">
+    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1 sm:pt-1.5 pb-6 gap-3 sm:gap-4">
       {/* Top Banner: Metrics Strip with Category Tabs */}
       {(isAdmin || showTasks || showInvoicing || showClients || showCompliance || showLeads) && (
         <TopTaskDueStrip />

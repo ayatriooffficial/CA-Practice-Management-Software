@@ -1,4 +1,6 @@
 import { combineReducers } from '@reduxjs/toolkit';
+import { authSlice } from './features/auth/authSlice';
+import { dashboardSlice } from './features/dashboard/dashboardSlice';
 import clientReducer from './features/clients/clientSlice';
 import invoiceReducer from './features/invoices/invoiceSlice';
 import leadReducer from './features/leads/leadSlice';
@@ -9,6 +11,8 @@ import uiReducer from './features/ui/uiSlice';
 import workdoneReducer from './features/workdone/workdoneSlice';
 
 export const rootReducer = combineReducers({
+  auth: authSlice.reducer,
+  dashboard: dashboardSlice.reducer,
   clients: clientReducer,
   invoices: invoiceReducer,
   leads: leadReducer,

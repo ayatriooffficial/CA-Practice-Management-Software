@@ -210,7 +210,10 @@ export class FinancialService {
   }
 
   static async listInvoices(ctx: FinancialUserContext) {
-    return FinancialInvoice.find({ orgId: ctx.orgId }).sort({ createdAt: -1 }).lean();
+    const userRole = (ctx.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'partner' || userRole === 'owner';
+    const query = isAdmin ? {} : { orgId: ctx.orgId };
+    return FinancialInvoice.find(query).sort({ createdAt: -1 }).lean();
   }
 
   static async voidInvoice(id: string, reason: string, ctx: FinancialUserContext) {
@@ -834,36 +837,43 @@ export class FinancialService {
   static async getInvoicingSummary(ctx: FinancialUserContext) {
     const orgObjId = new mongoose.Types.ObjectId(ctx.orgId);
     const orgStr = String(ctx.orgId);
+    const userRole = (ctx.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'partner' || userRole === 'owner';
+    const orgCondition = isAdmin ? {} : { $or: [{ orgId: orgStr }, { orgId: orgObjId }] };
 
     // 1. Unbilled Tasks: billable tasks not marked as 'Billed'
     const unbilledTasksCount = await Task.countDocuments({
-      $or: [{ orgId: orgStr }, { orgId: orgObjId }],
+      ...orgCondition,
       isDeleted: false,
       billingType: 'Billable',
       billingStatus: { $ne: 'Billed' },
     });
 
     // 2. Pending Retainer Invoices: recurring retainer tasks pending billing or active clients with recurring agreements
+    const retainerConditions: any[] = [
+      {
+        $or: [
+          { category: /retainer/i },
+          { serviceName: /retainer/i },
+          { taskType: 'Recurring Task' },
+        ],
+      },
+    ];
+    if (!isAdmin) {
+      retainerConditions.push({ $or: [{ orgId: orgStr }, { orgId: orgObjId }] });
+    }
+
     const pendingRetainerTasks = await Task.countDocuments({
       isDeleted: false,
       billingType: 'Billable',
       billingStatus: { $ne: 'Billed' },
-      $and: [
-        { $or: [{ orgId: orgStr }, { orgId: orgObjId }] },
-        {
-          $or: [
-            { category: /retainer/i },
-            { serviceName: /retainer/i },
-            { taskType: 'Recurring Task' },
-          ],
-        },
-      ],
+      $and: retainerConditions,
     });
 
     let recurringClientsCount = 0;
     try {
       recurringClientsCount = await Client.countDocuments({
-        $or: [{ orgId: orgStr }, { orgId: orgObjId }],
+        ...orgCondition,
         isDeleted: false,
         status: { $in: ['Active', 'active'] },
         'customerFiles.recurring.0': { $exists: true },
@@ -878,11 +888,15 @@ export class FinancialService {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
 
-    const issuedInvoices = await FinancialInvoice.find({
-      orgId: orgObjId,
+    const invoiceQuery: any = {
       kind: 'invoice',
       state: 'issued',
-    }).lean();
+    };
+    if (!isAdmin) {
+      invoiceQuery.orgId = orgObjId;
+    }
+
+    const issuedInvoices = await FinancialInvoice.find(invoiceQuery).lean();
 
     let overdueCount = 0;
     let overdueAmount = 0;
@@ -902,10 +916,9 @@ export class FinancialService {
     }
 
     // 4. Draft Invoices
-    const draftInvoices = await FinancialInvoice.find({
-      orgId: orgObjId,
-      state: 'draft',
-    }).lean();
+    const draftQuery: any = { state: 'draft' };
+    if (!isAdmin) draftQuery.orgId = orgObjId;
+    const draftInvoices = await FinancialInvoice.find(draftQuery).lean();
 
     const draftCount = draftInvoices.length;
     const draftAmount = draftInvoices.reduce((acc, inv) => acc + (Number(inv.details?.totalPayable) || 0), 0);

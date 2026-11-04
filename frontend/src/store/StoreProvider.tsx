@@ -2,7 +2,8 @@
 
 import React, { useRef } from 'react';
 import { Provider } from 'react-redux';
-import { getStore, AppStore } from './index';
+import { PersistGate } from 'redux-persist/integration/react';
+import { getStore, getPersistor, AppStore } from './index';
 import { useAppDispatch, useAppSelector } from './hooks';
 import { hideToast } from './features/ui/uiSlice';
 import { ToastNotification } from '@/components/ui/ToastNotification';
@@ -22,14 +23,19 @@ function GlobalToast() {
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const storeRef = useRef<AppStore | null>(null);
+  const persistorRef = useRef<ReturnType<typeof getPersistor> | null>(null);
+
   if (!storeRef.current) {
     storeRef.current = getStore();
+    persistorRef.current = getPersistor();
   }
 
   return (
     <Provider store={storeRef.current}>
-      {children}
-      <GlobalToast />
+      <PersistGate loading={null} persistor={persistorRef.current!}>
+        {children}
+        <GlobalToast />
+      </PersistGate>
     </Provider>
   );
 }

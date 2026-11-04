@@ -1,18 +1,56 @@
 import { configureStore } from '@reduxjs/toolkit';
 import createSagaMiddleware from 'redux-saga';
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
+import createWebStorage from 'redux-persist/lib/storage/createWebStorage';
 import { rootReducer, RootState } from './rootReducer';
 import { rootSaga } from './rootSaga';
+
+const createNoopStorage = () => {
+  return {
+    getItem(_key: string) {
+      return Promise.resolve(null);
+    },
+    setItem(_key: string, value: any) {
+      return Promise.resolve(value);
+    },
+    removeItem(_key: string) {
+      return Promise.resolve();
+    },
+  };
+};
+
+const storage =
+  typeof window !== 'undefined'
+    ? createWebStorage('session')
+    : createNoopStorage();
+
+const persistConfig = {
+  key: 'ayatrio_practice_session',
+  storage,
+  whitelist: ['auth', 'dashboard'], // Whitelist only safe non-sensitive slices
+};
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const makeStore = () => {
   const sagaMiddleware = createSagaMiddleware();
 
   const store = configureStore({
-    reducer: rootReducer,
+    reducer: persistedReducer,
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         thunk: false,
         serializableCheck: {
-          // Ignore action payloads that include callbacks (e.g. onSuccess)
+          ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
           ignoredActionPaths: ['payload.onSuccess'],
         },
       }).concat(sagaMiddleware),
@@ -35,8 +73,8 @@ export const makeStore = () => {
   return store;
 };
 
-// Single client-side store instance ensuring React and Redux DevTools extension share the exact same store
 let clientStoreInstance: ReturnType<typeof makeStore> | null = null;
+let clientPersistorInstance: ReturnType<typeof persistStore> | null = null;
 
 export const getStore = () => {
   if (typeof window === 'undefined') {
@@ -46,6 +84,13 @@ export const getStore = () => {
     clientStoreInstance = makeStore();
   }
   return clientStoreInstance;
+};
+
+export const getPersistor = () => {
+  if (!clientPersistorInstance) {
+    clientPersistorInstance = persistStore(getStore());
+  }
+  return clientPersistorInstance;
 };
 
 export type AppStore = ReturnType<typeof makeStore>;

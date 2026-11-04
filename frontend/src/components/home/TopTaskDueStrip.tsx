@@ -3,17 +3,25 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronDown, RefreshCw } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
-  dashboardSummaryApi,
-  CompactTaskSummaryResponse,
-  InvoicingSummaryResponse,
-  ComplianceSummaryResponse,
-} from '../../services/dashboardSummaryApi';
-import { clientApi, ClientStats } from '../../services/clientApi';
-import { leadApi, LeadStats } from '../../services/leadApi';
+  fetchDashboardRequest,
+} from '@/store/features/dashboard/dashboardSlice';
+import {
+  selectDashboardTaskSummary,
+  selectDashboardInvoicingSummary,
+  selectDashboardComplianceSummary,
+  selectDashboardClientStats,
+  selectDashboardLeadStats,
+  selectDashboardLoading,
+  selectDashboardRefreshing,
+} from '@/store/features/dashboard/dashboardSelectors';
+import { leadApi } from '../../services/leadApi';
+import { clientApi } from '../../services/clientApi';
 import { financialApi, FinancialInvoiceRecord } from '../../services/financialApi';
 import { Lead, Client } from '@/data/crmData';
 import { usePermission } from '../team/usePermission';
+import { isRoleAdmin } from '@/store/permissions/roleSelectors';
 import { useAuth } from '../auth/AuthContext';
 
 export type TimeRangeFilter = 'today' | 'week' | 'month' | 'all';
@@ -31,32 +39,70 @@ const FILTER_OPTIONS: FilterOption[] = [
 ];
 
 export const TopTaskDueStrip: React.FC = () => {
+  const dispatch = useAppDispatch();
   const { currentUser } = useAuth();
-  const { canView } = usePermission();
-  const canViewRef = useRef(canView);
-  canViewRef.current = canView;
+  const { canView, isAdmin: isPermAdmin } = usePermission();
 
   const isAdmin = useMemo(() => {
-    return (currentUser?.role || '').toLowerCase() === 'admin';
-  }, [currentUser]);
+    return isPermAdmin || isRoleAdmin(currentUser?.role);
+  }, [currentUser, isPermAdmin]);
+
+  // Redux state selectors
+  const taskData = useAppSelector(selectDashboardTaskSummary);
+  const invoicingData = useAppSelector(selectDashboardInvoicingSummary);
+  const complianceData = useAppSelector(selectDashboardComplianceSummary);
+  const clientData = useAppSelector(selectDashboardClientStats);
+  const leadStats = useAppSelector(selectDashboardLeadStats);
+  const isReduxLoading = useAppSelector(selectDashboardLoading);
+  const isRefreshing = useAppSelector(selectDashboardRefreshing);
 
   // Time filter state
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('today');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Raw data states from DB / APIs
-  const [taskData, setTaskData] = useState<CompactTaskSummaryResponse | null>(null);
-  const [invoicingData, setInvoicingData] = useState<InvoicingSummaryResponse | null>(null);
+  // Supplemental list data for fine-grained date filtering
   const [invoicesList, setInvoicesList] = useState<FinancialInvoiceRecord[]>([]);
-  const [clientData, setClientData] = useState<ClientStats | null>(null);
   const [clientsList, setClientsList] = useState<Client[]>([]);
-  const [complianceData, setComplianceData] = useState<ComplianceSummaryResponse | null>(null);
-  const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
   const [leadsList, setLeadsList] = useState<Lead[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // Dispatch Redux fetch on mount (cached if within 5-min TTL)
+  useEffect(() => {
+    dispatch(fetchDashboardRequest());
+  }, [dispatch]);
+
+  // Fetch detailed list records for granular time-window filtering
+  useEffect(() => {
+    let isMounted = true;
+
+    if (isAdmin || canView('leads')) {
+      leadApi.getLeads({ limit: 100 })
+        .then((res) => {
+          if (isMounted && res?.data) setLeadsList(res.data);
+        })
+        .catch(() => {});
+    }
+
+    if (isAdmin || canView('clients')) {
+      clientApi.getClients({ limit: 100 })
+        .then((res) => {
+          if (isMounted && res?.data) setClientsList(res.data);
+        })
+        .catch(() => {});
+    }
+
+    if (isAdmin || canView('invoice')) {
+      financialApi.listInvoices()
+        .then((res) => {
+          if (isMounted && Array.isArray(res)) setInvoicesList(res);
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin, canView]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -72,96 +118,6 @@ export const TopTaskDueStrip: React.FC = () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, [isDropdownOpen]);
-
-  // Fetch all metrics dynamically from APIs
-  const fetchAllMetrics = useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) setIsRefreshing(true);
-      else setIsLoading(true);
-
-      const cv = canViewRef.current;
-      const promises: Promise<any>[] = [];
-
-      // 1. Leads
-      if (isAdmin || cv('leads')) {
-        promises.push(
-          leadApi.getLeadStats()
-            .then((res) => {
-              if (res?.data) setLeadStats(res.data);
-            })
-            .catch(() => {})
-        );
-        promises.push(
-          leadApi.getLeads({ limit: 100 })
-            .then((res) => {
-              if (res?.data) setLeadsList(res.data);
-            })
-            .catch(() => {})
-        );
-      }
-
-      // 2. Clients
-      if (isAdmin || cv('clients')) {
-        promises.push(
-          clientApi.getClientStats()
-            .then((res) => {
-              if (res?.data) setClientData(res.data);
-            })
-            .catch(() => {})
-        );
-        promises.push(
-          clientApi.getClients({ limit: 100 })
-            .then((res) => {
-              if (res?.data) setClientsList(res.data);
-            })
-            .catch(() => {})
-        );
-      }
-
-      // 3. Compliance
-      if (isAdmin || cv('compliance_tracker')) {
-        promises.push(
-          dashboardSummaryApi.getComplianceSummary()
-            .then(setComplianceData)
-            .catch(() => {})
-        );
-      }
-
-      // 4. Tasks
-      if (isAdmin || cv('task_manager')) {
-        promises.push(
-          dashboardSummaryApi.getCompactTaskSummary()
-            .then(setTaskData)
-            .catch(() => {})
-        );
-      }
-
-      // 5. Invoicing
-      if (isAdmin || cv('invoice')) {
-        promises.push(
-          dashboardSummaryApi.getInvoicingSummary()
-            .then(setInvoicingData)
-            .catch(() => {})
-        );
-        promises.push(
-          financialApi.listInvoices()
-            .then(setInvoicesList)
-            .catch(() => {})
-        );
-      }
-
-      await Promise.allSettled(promises);
-    } catch (err) {
-      console.error('Failed to load top dashboard metrics', err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [isAdmin]);
-
-  useEffect(() => {
-    fetchAllMetrics();
-  }, [fetchAllMetrics]);
 
   // Date helper functions
   const isCreatedToday = (dateStr?: string | null): boolean => {
@@ -339,7 +295,7 @@ export const TopTaskDueStrip: React.FC = () => {
     };
   }, [invoicingData, invoicesList, timeRange]);
 
-  // Determine which cards should be displayed according to permissions
+  // Determine displayed cards based on role/permissions
   const cardItems = useMemo(() => {
     const list = [
       {
@@ -416,19 +372,19 @@ export const TopTaskDueStrip: React.FC = () => {
   const currentFilterLabel = FILTER_OPTIONS.find((f) => f.id === timeRange)?.label || 'Today';
 
   return (
-    <div className="w-full flex flex-col gap-1.5 sm:gap-2">
-      {/* Top Filter Bar: Right-aligned Time Range Dropdown & Refresh */}
-      <div className="flex items-center justify-end gap-1.5 px-0.5">
+    <div className="w-full flex flex-col">
+      {/* Top Filter Bar: Right-aligned Filter Dropdown placed closely above cards */}
+      <div className="flex items-center justify-end gap-1.5 mb-1.5">
         <button
           type="button"
-          onClick={() => fetchAllMetrics(true)}
+          onClick={() => dispatch(fetchDashboardRequest({ force: true }))}
           title="Refresh counts"
           aria-label="Refresh counts"
           className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         >
           <RefreshCw
-            size={13}
-            className={isRefreshing ? 'animate-spin text-[#31719B] dark:text-[#93c5fd]' : ''}
+            size={12}
+            className={isRefreshing ? 'animate-spin text-[#31719B]' : ''}
           />
         </button>
 
@@ -436,17 +392,17 @@ export const TopTaskDueStrip: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsDropdownOpen((prev) => !prev)}
-            className="inline-flex items-center justify-between gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-md shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer min-w-[80px]"
+            className="inline-flex items-center justify-between gap-1.5 px-2.5 py-1 text-xs font-normal text-gray-700 dark:text-slate-200 bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer min-w-[76px]"
           >
             <span>{currentFilterLabel}</span>
             <ChevronDown
-              size={13}
+              size={12}
               className={`text-gray-500 transition-transform duration-150 ${isDropdownOpen ? 'rotate-180' : ''}`}
             />
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-1 w-32 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-md shadow-lg py-1 z-30">
+            <div className="absolute right-0 mt-1 w-32 bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] rounded-md shadow-md py-1 z-30">
               {FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
@@ -469,7 +425,7 @@ export const TopTaskDueStrip: React.FC = () => {
         </div>
       </div>
 
-      {/* 5 Distinct Parallel KPI Cards - Compact & Proportional */}
+      {/* 5 Distinct Sleek & Proportional KPI Cards */}
       <div
         className={`grid gap-2.5 sm:gap-3 ${
           cardItems.length === 5
@@ -485,31 +441,31 @@ export const TopTaskDueStrip: React.FC = () => {
           <Link
             key={card.id}
             href={card.link}
-            className="group bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg px-3 py-2 sm:px-3.5 sm:py-2.5 flex flex-col justify-between transition-all hover:border-[#31719B]/40 hover:shadow-2xs cursor-pointer min-w-0"
+            className="group bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] rounded-md px-3 py-2 sm:px-3.5 sm:py-2 flex flex-col justify-between transition-all hover:border-[#31719B]/40 hover:shadow-2xs cursor-pointer min-w-0"
           >
-            {/* Header: Title */}
-            <div className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 mb-1 leading-tight">
+            {/* Header: Category Title */}
+            <div className="text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 mb-1 leading-tight">
               {card.title}
             </div>
 
-            {/* Row 1: Top Metric (Number + label) */}
-            <div className="flex items-baseline gap-1.5 mb-1 min-w-0 leading-none">
+            {/* Row 1: Primary Large Metric */}
+            <div className="flex items-baseline gap-2 mb-1 min-w-0 leading-none">
               <span
-                className={`text-xl sm:text-2xl font-bold tracking-tight font-sans transition-transform duration-150 group-hover:scale-105 shrink-0 ${card.topColorClass}`}
+                className={`text-2xl sm:text-[26px] font-bold tracking-tight font-sans transition-transform duration-150 group-hover:scale-105 shrink-0 ${card.topColorClass}`}
               >
-                {isLoading ? '-' : card.topCount}
+                {isReduxLoading ? '-' : card.topCount}
               </span>
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-300 truncate">
+              <span className="text-[11px] sm:text-xs font-normal text-gray-600 dark:text-slate-300 truncate self-end pb-0.5">
                 {card.topLabel}
               </span>
             </div>
 
-            {/* Row 2: Bottom Metric (Number + label) */}
-            <div className="flex items-baseline gap-1.5 min-w-0 leading-none">
+            {/* Row 2: Secondary Metric */}
+            <div className="flex items-baseline gap-2 min-w-0 leading-none">
               <span className="text-sm sm:text-base font-semibold tracking-tight text-gray-800 dark:text-slate-200 shrink-0">
-                {isLoading ? '-' : card.bottomCount}
+                {isReduxLoading ? '-' : card.bottomCount}
               </span>
-              <span className="text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
+              <span className="text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate self-end pb-0.5">
                 {card.bottomLabel}
               </span>
             </div>

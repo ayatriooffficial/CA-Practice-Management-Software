@@ -4,31 +4,29 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Users, ArrowUpRight, Loader2, TrendingUp, UserPlus, CheckCircle2 } from 'lucide-react';
 import { clientApi, ClientStats } from '../../services/clientApi';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchDashboardRequest } from '@/store/features/dashboard/dashboardSlice';
+import {
+  selectDashboardClientStats,
+  selectDashboardLoading,
+} from '@/store/features/dashboard/dashboardSelectors';
 
 export const ClientsCard: React.FC = () => {
-  const [stats, setStats] = useState<ClientStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const reduxClientStats = useAppSelector(selectDashboardClientStats);
+  const isReduxLoading = useAppSelector(selectDashboardLoading);
+
+  const [fallbackStats, setFallbackStats] = useState<ClientStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const stats = reduxClientStats || fallbackStats;
+  const isLoading = isReduxLoading && !stats;
+
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const res = await clientApi.getClientStats();
-        if (isMounted && res?.data) {
-          setStats(res.data);
-        }
-      } catch (err: any) {
-        if (isMounted) setError(err?.message || 'Failed to load client statistics');
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!reduxClientStats) {
+      dispatch(fetchDashboardRequest());
+    }
+  }, [dispatch, reduxClientStats]);
 
   // 7-month trend data
   const trend = useMemo(() => {
