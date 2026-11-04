@@ -134,11 +134,11 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
         </div>
 
         {/* Workflow Segmented Pill */}
-        <div className="inline-flex items-center rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a] shrink-0">
+        <div className="w-full sm:w-auto inline-flex items-center rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a] shrink-0">
           <button
             type="button"
             onClick={() => setWorkflowMode('sign')}
-            className={`flex items-center gap-1.5 h-7 px-3 rounded-none text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-7 px-3 rounded-none text-xs font-semibold transition-all cursor-pointer ${
               workflowMode === 'sign'
                 ? 'bg-[#31719B] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -151,7 +151,7 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
           <button
             type="button"
             onClick={() => setWorkflowMode('verify')}
-            className={`flex items-center gap-1.5 h-7 px-3 rounded-none text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-7 px-3 rounded-none text-xs font-semibold transition-all cursor-pointer ${
               workflowMode === 'verify'
                 ? 'bg-[#31719B] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'

@@ -15,6 +15,8 @@ import { AdminWelcomeTodoCard } from './AdminWelcomeTodoCard';
 import { PendingInvoicingCard } from './PendingInvoicingCard';
 import { CompactTaskCard } from './CompactTaskCard';
 import { TopTaskDueStrip } from './TopTaskDueStrip';
+import { ClientsCard } from './ClientsCard';
+import { ComplianceCard } from './ComplianceCard';
 import {
   attendanceApi,
   SummaryCardData,
@@ -23,14 +25,25 @@ import {
   UpcomingHolidayItem,
   UpcomingLeaveItem,
 } from '../../services/attendanceApi';
+import { usePermission } from '../team/usePermission';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
+  const { canView } = usePermission();
 
   // Mode resolution: Admin gets admin view, all others get employee view
   const isAdmin = useMemo(() => {
     return (currentUser?.role || '').toLowerCase() === 'admin';
   }, [currentUser]);
+
+  // Section visibility based on role permissions
+  const showLeads = isAdmin || canView('leads');
+  const showTasks = isAdmin || canView('task_manager');
+  const showInvoicing = isAdmin || canView('invoice');
+  const showClients = isAdmin || canView('clients');
+  const showCompliance = isAdmin || canView('compliance_tracker');
+  const showTodo = isAdmin || canView('todo');
+  const showNotice = isAdmin || canView('notice_management');
 
   // Active sub-tab (Attendance is active per task scope)
   const [activeTab, setActiveTab] = useState('attendance');
@@ -135,45 +148,94 @@ export const HomeDashboard: React.FC = () => {
   }, [fetchSummary, fetchTableData]);
 
   return (
-    <div
-      className="w-full flex flex-col transition-colors min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc]"
-      style={{
-        padding: '24px 32px 48px 32px',
-        gap: '24px',
-      }}
-    >
-      {/* 1. If NOT admin, show top tab strip. If admin, NO tab strip (Continuous dashboard) */}
-      {!isAdmin && (
-        <HomeTabs
-          activeTab={activeTab}
-          onTabChange={(tab) => setActiveTab(tab)}
-        />
+    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1.5 sm:pt-2.5 pb-6 gap-3.5 sm:gap-5">
+      {/* Top Banner: Metrics Strip with Category Tabs */}
+      {(isAdmin || showTasks || showInvoicing || showClients || showCompliance || showLeads) && (
+        <TopTaskDueStrip />
       )}
 
-      {/* Top Task Due Metrics Strip (Admin Only) */}
-      {isAdmin && <TopTaskDueStrip />}
+      {/* For EMPLOYEE: Punch In (40%) & Notice Board (60%) right below Count Panel */}
+      {!isAdmin && (
+        <div
+          className="w-full grid grid-cols-1 lg:grid-cols-12 items-stretch"
+          style={{ gap: '20px' }}
+        >
+          <div className={showNotice ? "lg:col-span-5 flex flex-col" : "lg:col-span-12 flex flex-col"}>
+            <PunchCard
+              userName={currentUser?.name || 'User'}
+              onPunchChange={handlePunchChange}
+            />
+          </div>
+          {showNotice && (
+            <div className="lg:col-span-7 flex flex-col">
+              <NoticeBoardCard isAdmin={false} />
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Row 1: Welcome & Notice Board */}
-      {isAdmin ? (
+      {/* Row: Task and Invoice (Appointed tasks only for employee) */}
+      {(showTasks || showInvoicing) && (
+        <div
+          className={`w-full grid items-stretch ${
+            showTasks && showInvoicing ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+          }`}
+          style={{ gap: '20px' }}
+        >
+          {showTasks && (
+            <div className="flex flex-col">
+              <CompactTaskCard />
+            </div>
+          )}
+          {showInvoicing && (
+            <div className="flex flex-col">
+              <PendingInvoicingCard />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Row: Client and Compliance Elements */}
+      {(showClients || showCompliance) && (
+        <div
+          className={`w-full grid items-stretch ${
+            showClients && showCompliance ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+          }`}
+          style={{ gap: '20px' }}
+        >
+          {showClients && (
+            <div className="flex flex-col">
+              <ClientsCard />
+            </div>
+          )}
+          {showCompliance && (
+            <div className="flex flex-col">
+              <ComplianceCard />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* For ADMIN: To-Do (40%) + Notice Board (60%) */}
+      {isAdmin && (
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-stretch" style={{ gap: '20px' }}>
-          <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
+          <div className="lg:col-span-5 flex flex-col">
             <AdminWelcomeTodoCard userName={currentUser?.name || 'Admin'} />
           </div>
-          <div className="lg:col-span-5 xl:col-span-4 flex flex-col">
+          <div className="lg:col-span-7 flex flex-col">
             <NoticeBoardCard isAdmin={true} />
           </div>
         </div>
-      ) : (
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2" style={{ gap: '20px' }}>
-          <PunchCard
-            userName={currentUser?.name || 'User'}
-            onPunchChange={handlePunchChange}
-          />
-          <NoticeBoardCard isAdmin={false} />
+      )}
+
+      {/* For EMPLOYEE: To-Do List (Full Width) */}
+      {!isAdmin && showTodo && (
+        <div className="w-full flex flex-col">
+          <AdminWelcomeTodoCard userName={currentUser?.name || 'User'} />
         </div>
       )}
 
-      {/* Row 2: Attendance Stat Cards (For Admin: covers non-admin staff only; For Employee: own stats) */}
+      {/* Row: Attendance Stat Cards (For Admin: covers non-admin staff only; For Employee: own stats) */}
       <SummaryCards
         cards={summaryCards}
         mode={isAdmin ? 'admin' : 'employee'}
@@ -182,19 +244,7 @@ export const HomeDashboard: React.FC = () => {
         isLoading={isSummaryLoading}
       />
 
-      {/* Row 3 (Admin Only): Compact Tasks & Pending Invoicing Widgets */}
-      {isAdmin && (
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ gap: '20px' }}>
-          <div className="flex flex-col">
-            <CompactTaskCard />
-          </div>
-          <div className="flex flex-col">
-            <PendingInvoicingCard />
-          </div>
-        </div>
-      )}
-
-      {/* Row 4: Main Attendance Table (Today's Attendance for Admin, Past 5 Days & Today for Employee) */}
+      {/* Row: Main Attendance Table (Today's Attendance for Admin, Past 5 Days & Today for Employee) */}
       {isAdmin ? (
         <TodayAttendanceTable
           rows={todayRows}
@@ -209,7 +259,7 @@ export const HomeDashboard: React.FC = () => {
         />
       )}
 
-      {/* Row 5: Side-by-side Tables: Upcoming Holidays and Upcoming Leaves */}
+      {/* Row: Side-by-side Tables: Upcoming Holidays and Upcoming Leaves */}
       <div
         className={`w-full grid ${
           isAdmin ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'

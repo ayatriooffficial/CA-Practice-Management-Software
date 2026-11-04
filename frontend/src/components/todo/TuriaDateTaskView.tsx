@@ -132,11 +132,11 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100 dark:border-border/60">
         {/* Date Agenda Tabs */}
         {onTabChange && (
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink-0 w-full max-w-full min-w-0">
             <button
               type="button"
               onClick={() => onTabChange("all")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
                 activeFilterTab === "all"
                   ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
@@ -147,7 +147,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("today")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
                 activeFilterTab === "today"
                   ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
@@ -168,7 +168,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("tomorrow")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
                 activeFilterTab === "tomorrow"
                   ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
@@ -189,7 +189,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("upcoming")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
                 activeFilterTab === "upcoming"
                   ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
@@ -210,7 +210,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("overdue")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
                 activeFilterTab === "overdue"
                   ? "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 font-semibold shadow-2xs"
                   : "text-rose-600/80 dark:text-rose-400/80 hover:bg-rose-50/50 dark:hover:bg-rose-950/20"
@@ -233,11 +233,11 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
 
         {/* Admin Scope Switcher: My Work | Team Work | All Work */}
         {isAdmin && onScopeChange && (
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg shrink-0 self-start sm:self-auto">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg shrink-0 self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full">
             <button
               type="button"
               onClick={() => onScopeChange("my_work")}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer shrink-0 ${
                 adminScope === "my_work"
                   ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
@@ -248,7 +248,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onScopeChange("team_work")}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer shrink-0 ${
                 adminScope === "team_work"
                   ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
@@ -259,7 +259,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onScopeChange("all_work")}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer shrink-0 ${
                 adminScope === "all_work"
                   ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
@@ -271,9 +271,11 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
         )}
       </div>
 
-      {/* Main Table Structure Matching Turia Reference */}
+      {/* Main Container Matching Turia Reference */}
       <div className="rounded-xl border border-gray-200/80 dark:border-border overflow-hidden bg-white dark:bg-card shadow-2xs">
-        {/* Table Header Row */}
+        {/* Desktop Table View (>= md) */}
+        <div className="hidden md:block">
+          {/* Table Header Row */}
         <div className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-gray-200/80 dark:border-border/80 px-4 py-2.5 flex items-center text-[11px] font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase select-none">
           <div className="w-16 shrink-0 flex items-center" />
           <div className="flex-1 min-w-[200px] pr-4">TITLE</div>
@@ -559,6 +561,215 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Mobile Task Cards View (< md) */}
+      <div className="block md:hidden divide-y divide-gray-100 dark:divide-border/60">
+        {filteredTasks.length === 0 ? (
+          <div className="py-12 text-center text-xs text-gray-400">
+            No tasks found for this view.
+          </div>
+        ) : (
+          filteredTasks.map((task) => {
+            const isCompleted = (task.status || "").toLowerCase() === "completed";
+            const isStarred = Boolean(starredTaskIds[task.id]);
+            const isExpanded = Boolean(expandedTaskIds[task.id]);
+            const dueInfo = formatTuriaDueDate(task.targetDueDate);
+
+            const initials =
+              task.assigneeInitials ||
+              (task.assigneeName
+                ? task.assigneeName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()
+                : "AS");
+
+            const checklistTotal = task.checklist?.length || 0;
+            const checklistDone =
+              task.checklist?.filter((c) => c.completed).length || 0;
+
+            return (
+              <div
+                key={`mob_${task.id}`}
+                className="p-3.5 space-y-2.5 transition-colors hover:bg-gray-50/60 dark:hover:bg-slate-800/40"
+              >
+                {/* Top row: Checkbox, Star, Title, Due badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => onToggleCompleteTask(task)}
+                      className="mt-0.5 cursor-pointer text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors shrink-0"
+                      title={isCompleted ? "Mark incomplete" : "Mark complete"}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-50 dark:fill-emerald-950/40" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-gray-300 dark:border-slate-600 hover:border-indigo-500 transition-colors" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleStarToggle(task.id)}
+                      className={`mt-0.5 cursor-pointer transition-colors shrink-0 ${
+                        isStarred
+                          ? "text-amber-400 fill-amber-400"
+                          : "text-gray-300 dark:text-slate-600 hover:text-amber-400"
+                      }`}
+                      title="Star task"
+                    >
+                      <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400" : ""}`} />
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <p
+                        onClick={() => toggleExpand(task.id)}
+                        className={`text-xs font-semibold break-words cursor-pointer leading-snug ${
+                          isCompleted
+                            ? "line-through text-gray-400 dark:text-gray-500"
+                            : "text-gray-900 dark:text-white"
+                        }`}
+                      >
+                        {task.taskName}
+                      </p>
+                      {task.description && (
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 line-clamp-2 mt-0.5">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Due badge */}
+                  <div className="shrink-0">
+                    {dueInfo.isWarning ? (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/30 text-[#D97706] font-semibold text-[11px]">
+                        <AlertTriangle className="w-3 h-3 text-[#D97706]" />
+                        <span>{dueInfo.text}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400 text-[11px] font-medium">
+                        {dueInfo.text}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Middle row: Client, Tag, Priority */}
+                <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {task.clientName && task.clientName !== "General Client" && (
+                      <span className="text-gray-600 dark:text-gray-300 font-medium truncate max-w-[150px]">
+                        {task.clientName}
+                      </span>
+                    )}
+                    {task.category && (
+                      <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-[10px] font-medium">
+                        {task.category}
+                      </span>
+                    )}
+                    <div>{getPriorityBadge(task.priority)}</div>
+                  </div>
+
+                  {/* Right: Who avatar & menu */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div
+                      className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold flex items-center justify-center border border-slate-300 dark:border-slate-600 shadow-2xs"
+                      title={task.assigneeName || "Ayatrio Team"}
+                    >
+                      {initials}
+                    </div>
+
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuTaskId((prev) => (prev === `mob_${task.id}` ? null : `mob_${task.id}`));
+                        }}
+                        className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer"
+                      >
+                        <MoreVertical className="w-3.5 h-3.5" />
+                      </button>
+
+                      {activeMenuTaskId === `mob_${task.id}` && (
+                        <div
+                          className="absolute right-0 top-full mt-1 w-44 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl z-30 p-1.5 text-xs animate-in fade-in zoom-in-95 duration-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onToggleCompleteTask(task);
+                              setActiveMenuTaskId(null);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer"
+                          >
+                            <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{isCompleted ? "Mark Incomplete" : "Mark Completed"}</span>
+                          </button>
+                          {onDeleteTask && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onDeleteTask(task.id);
+                                setActiveMenuTaskId(null);
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 flex items-center gap-2 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete To-Do</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Checklist progress and expandable subtasks */}
+                {checklistTotal > 0 && (
+                  <div className="pt-1 border-t border-gray-100 dark:border-border/40">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(task.id)}
+                      className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline cursor-pointer"
+                    >
+                      <span>Subtasks ({checklistDone}/{checklistTotal})</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="mt-2 space-y-1.5 pl-2 border-l-2 border-indigo-200 dark:border-indigo-800">
+                        {task.checklist?.map((chk) => (
+                          <div
+                            key={chk.id}
+                            onClick={() => onToggleChecklist(task.id, chk.id, chk.completed)}
+                            className="flex items-center gap-2 text-xs cursor-pointer text-gray-700 dark:text-gray-300 py-0.5"
+                          >
+                            {chk.completed ? (
+                              <CheckSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            ) : (
+                              <Square className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            )}
+                            <span className={chk.completed ? "line-through text-gray-400" : ""}>
+                              {chk.title}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
     </div>
   );
 };

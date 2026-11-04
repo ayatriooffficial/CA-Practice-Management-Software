@@ -44,14 +44,14 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
       </div>
 
       {/* Right 50% Form Panel */}
-      <div className="w-full lg:w-1/2 min-h-[calc(100vh-64px)] lg:min-h-screen flex items-center justify-center p-6 lg:p-0 lg:py-8 bg-white dark:bg-[#0f172a]">
+      <div className="w-full lg:w-1/2 min-h-[calc(100vh-64px)] lg:min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-white dark:bg-[#0f172a]">
         <div className="w-full flex flex-col justify-center max-w-[560px] my-auto">
-          {/* Header Typography: exact 30px, weight 500, 12px gap to subtitle, 30px gap to form */}
-          <div className="mb-[30px] flex flex-col gap-[12px]">
-            <h1 className="text-[30px] font-medium tracking-tight text-[#1e293b] dark:text-white leading-[1.2]">
+          {/* Header Typography */}
+          <div className="mb-6 sm:mb-[30px] flex flex-col gap-2 sm:gap-[12px]">
+            <h1 className="text-2xl sm:text-[30px] font-medium tracking-tight text-[#1e293b] dark:text-white leading-[1.2]">
               Welcome to Afaq CA Practice!
             </h1>
-            <p className="text-[15.5px] sm:text-[16px] text-[#64748b] dark:text-gray-400 leading-[1.45] whitespace-nowrap">
+            <p className="text-sm sm:text-[16px] text-[#64748b] dark:text-gray-400 leading-relaxed">
               Access your practice dashboard to manage clients, filings, and compliance.
             </p>
           </div>

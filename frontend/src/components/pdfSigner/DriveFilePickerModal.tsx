@@ -12,6 +12,8 @@ import {
   AlertCircle,
   Building,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import {
   driveApi,
   IDocumentItem,
@@ -285,14 +287,14 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
 
         {/* Toolbar: Search & Category Filter */}
         <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row gap-3 bg-white dark:bg-[#1e293b]">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
+          <div className="flex-1">
+            <Input
               type="text"
               placeholder="Search by file name or client..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-1.5 text-xs rounded-none border border-[#dde2e8] dark:border-[#334155] bg-gray-50 dark:bg-[#0f172a] text-gray-900 dark:text-white outline-none focus:border-[#31719B]"
+              leftIcon={<Search className="w-4 h-4" />}
+              size="sm"
             />
           </div>
 
@@ -431,33 +433,29 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
           </span>
 
           <div className="flex items-center gap-2.5">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
               disabled={isStaging}
-              className="px-4 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-800 rounded-none border border-[#dde2e8] dark:border-[#334155] transition cursor-pointer"
+              className="rounded-none border-[#dde2e8] dark:border-[#334155]"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={handleConfirmStage}
               disabled={isStaging || selectedDocIds.length === 0}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-[#31719B] hover:bg-[#25587a] disabled:opacity-50 disabled:cursor-not-allowed rounded-none flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+              loading={isStaging}
+              icon={!isStaging ? <Check className="w-3.5 h-3.5" /> : undefined}
+              className="rounded-none bg-[#31719B] hover:bg-[#25587a]"
             >
-              {isStaging ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Importing...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Import & Stage Selected ({selectedDocIds.length})</span>
-                </>
-              )}
-            </button>
+              Import & Stage Selected ({selectedDocIds.length})
+            </Button>
           </div>
         </div>
       </div>

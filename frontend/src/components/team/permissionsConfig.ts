@@ -19,7 +19,8 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   { key: 'invoice', label: 'Invoice', canView: true, canAddEdit: true, canDelete: true, canImport: true, canExport: true },
   { key: 'payments', label: 'Payments', canView: true, canAddEdit: true, canDelete: true, canImport: true, canExport: true },
   { key: 'udin', label: 'UDIN', canView: true, canAddEdit: true, canDelete: true, canImport: true, canExport: true },
-  { key: 'digital_signature', label: 'Digital Signature', canView: true, canAddEdit: true, canDelete: true, canImport: false, canExport: false },
+  { key: 'digital_signature', label: 'Digital Signature (DSC)', canView: true, canAddEdit: true, canDelete: true, canImport: false, canExport: false },
+  { key: 'pdf_signer', label: 'PDF Signer', canView: true, canAddEdit: true, canDelete: true, canImport: false, canExport: false },
   { key: 'licenses', label: 'Licenses', canView: true, canAddEdit: true, canDelete: true, canImport: true, canExport: true },
   { key: 'password', label: 'Password', canView: true, canAddEdit: true, canDelete: true, canImport: true, canExport: false },
   { key: 'team', label: 'Team', canView: true, canAddEdit: true, canDelete: true, canImport: false, canExport: false },
@@ -154,15 +155,21 @@ export function getPresetPermissions(role: TeamRole): RolePermissionsMap {
     map[k] = { view: true, addEdit: true, delete: false, import: false, export: false };
   });
 
-  // View only on Groups, Payments, Notice Management, Team
-  ['groups', 'payments', 'notice_management', 'team'].forEach((k) => {
-    map[k] = { view: true, addEdit: false, delete: false, import: false, export: false };
+  // View only on Groups, Payments, Notice Management, Team, Invoice, Billing, Proposals
+  ['groups', 'payments', 'notice_management', 'team', 'invoice', 'billing', 'proposals', 'recurring', 'settings', 'sprint_planner', 'email', 'whatsapp_business', 'sales_dashboard'].forEach((k) => {
+    if (!map[k]) {
+      map[k] = { view: true, addEdit: false, delete: false, import: false, export: false };
+    }
   });
 
-  // Invoice, Billing, and Proposals strictly inaccessible to employees
-  map['invoice'] = { view: false, addEdit: false, delete: false, import: false, export: false };
-  map['billing'] = { view: false, addEdit: false, delete: false, import: false, export: false };
-  map['proposals'] = { view: false, addEdit: false, delete: false, import: false, export: false };
+  // Ensure every module in MODULE_CONFIGS has at least view: true for employees by default
+  MODULE_CONFIGS.forEach((mod) => {
+    if (!map[mod.key]) {
+      map[mod.key] = { view: true, addEdit: false, delete: false, import: false, export: false };
+    } else {
+      map[mod.key].view = true;
+    }
+  });
 
   return map;
 }
@@ -194,11 +201,19 @@ export function handlePermissionToggle(
     [moduleKey]: updatedMod,
   };
 
-  // Sync alias keys if updating task manager
+  // Sync alias keys if updating task manager or dsc / pdf signer
   if (moduleKey === 'task_manager' || moduleKey === 'tasks' || moduleKey === 'task') {
     result['task_manager'] = updatedMod;
     result['tasks'] = updatedMod;
     result['task'] = updatedMod;
+  }
+  if (moduleKey === 'digital_signature' || moduleKey === 'dsc') {
+    result['digital_signature'] = updatedMod;
+    result['dsc'] = updatedMod;
+  }
+  if (moduleKey === 'pdf_signer' || moduleKey === 'pdf-signer') {
+    result['pdf_signer'] = updatedMod;
+    result['pdf-signer'] = updatedMod;
   }
 
   return result;

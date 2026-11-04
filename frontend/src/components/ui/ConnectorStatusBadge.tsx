@@ -67,8 +67,8 @@ export const ConnectorStatusBadge: React.FC<ConnectorStatusBadgeProps> = ({
         <span>
           Connector not running.{" "}
           <a
-            href="/downloads/DSC-Connector.exe"
-            download
+            href="/downloads/DSC-Connector-Windows.zip"
+            download="DSC-Connector-Windows.zip"
             className="font-semibold underline hover:no-underline text-amber-800 dark:text-amber-200"
           >
             [Download Local Connector]

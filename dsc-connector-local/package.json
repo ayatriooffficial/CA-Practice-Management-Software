@@ -2,8 +2,10 @@
   "name": "dsc-connector-local",
   "version": "1.0.0",
   "main": "index.js",
+  "bin": "index.js",
   "scripts": {
     "start": "node index.js",
+    "build": "pkg index.js --targets node18-win-x64 --output ../frontend/public/downloads/DSC-Connector.exe",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -73,12 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
   const isItemVisible = (id: string) => {
     if (id === "home") return true;
-    if (id === "invoice") return !isEmployee && canView("invoice");
-    if (id === "proposal") return !isEmployee && canView("proposals");
-    if (id === "dsc") return !isEmployee;
-    if (id === "pdf-signer") return !isEmployee;
-    if (id === "reports") return true;
-    if (id === "documents") return true;
+    if (id === "invoice") return canView("invoice");
+    if (id === "proposal") return canView("proposals");
+    if (id === "dsc") return canView("digital_signature");
+    if (id === "pdf-signer") return canView("pdf_signer") || canView("digital_signature");
+    if (id === "reports") return canView("reports");
+    if (id === "documents") return canView("document_in_out") || canView("file_manager");
     if (id === "task") return canView("task_manager");
     if (id === "client") return canView("clients");
     if (id === "leads") return canView("leads");

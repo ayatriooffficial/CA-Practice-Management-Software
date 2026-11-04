@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { SignedDocItem } from "@/services/pdfSignerApi";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export interface SignedDocumentsTableProps {
   documents: SignedDocItem[];
@@ -163,25 +165,23 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Download selected ZIP button */}
           {selectedIds.size > 0 && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={handleDownloadZipClick}
               disabled={downloadingZip}
-              className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-none text-xs font-semibold bg-[#31719B] text-white hover:bg-[#275a7c] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer shadow-sm"
+              loading={downloadingZip}
+              icon={!downloadingZip ? <Archive className="w-3.5 h-3.5" /> : undefined}
+              className="rounded-none bg-[#31719B] hover:bg-[#275a7c] h-9"
             >
-              {downloadingZip ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Archive className="w-3.5 h-3.5" />
-              )}
-              <span>Download selected ({selectedIds.size}) ZIP</span>
-            </button>
+              Download selected ({selectedIds.size}) ZIP
+            </Button>
           )}
 
           {/* Search bar */}
-          <div className="relative min-w-[220px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
+          <div className="min-w-[220px]">
+            <Input
               type="text"
               placeholder="Search documents or clients..."
               value={search}
@@ -189,7 +189,8 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-10 pl-9 pr-3 text-xs rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#31719B]"
+              leftIcon={<Search className="w-4 h-4" />}
+              size="sm"
             />
           </div>
 

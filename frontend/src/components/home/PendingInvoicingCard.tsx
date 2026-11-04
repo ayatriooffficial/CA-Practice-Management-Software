@@ -54,9 +54,9 @@ export const PendingInvoicingCard: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
+    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-xs transition-all">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
+      <div className="flex items-center justify-between pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[#31719B]" />
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -89,7 +89,7 @@ export const PendingInvoicingCard: React.FC = () => {
             {/* Metric 1: Unbilled Tasks */}
             <Link
               href={data?.unbilledTasks?.link || '/task'}
-              className="group p-3 rounded-none border border-gray-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 bg-gray-50/50 dark:bg-[#0f172a]/60 hover:bg-blue-50/30 dark:hover:bg-[#131f38] transition-all flex items-center justify-between"
+              className="group p-3 rounded-none border border-[#dde2e8] dark:border-[#334155] hover:border-[#31719B] dark:hover:border-blue-900/60 bg-[#f8fafc] dark:bg-[#0f172a] hover:bg-blue-50/30 dark:hover:bg-[#131f38] transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-none flex items-center justify-center bg-blue-50 dark:bg-blue-950/60 text-[#31719B] dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 shrink-0">

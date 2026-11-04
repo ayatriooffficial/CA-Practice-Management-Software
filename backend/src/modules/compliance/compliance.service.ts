@@ -270,6 +270,96 @@ export async function getComplianceCalendar(month?: string) {
   });
 }
 
+export async function getComplianceSummary() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const startOfMonth = `${year}-${month}-01`;
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  const endOfMonth = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+  const today = getTodayDateString();
+
+  const [allEntries, categories, items, clients] = await Promise.all([
+    ComplianceEntryModel.find({ isDeleted: false }).lean(),
+    ComplianceCategoryModel.find({ isDeleted: false }).lean(),
+    ComplianceItemModel.find({ isDeleted: false }).lean(),
+    Client.find({ isDeleted: false }).lean(),
+  ]);
+
+  const catMap = new Map(categories.map((c) => [c.categoryId, c]));
+  const itemMap = new Map(items.map((i) => [String(i._id), i]));
+  const clientMap = new Map(clients.map((c) => [String(c._id), c]));
+
+  let dueThisMonth = 0;
+  let pending = 0;
+  let missed = 0;
+  let filed = 0;
+  let overdue = 0;
+
+  const upcomingList: Array<{
+    id: string;
+    date: string;
+    title: string;
+    portal: string;
+    clientId: string;
+    clientName: string;
+    complianceStatus: string;
+  }> = [];
+
+  for (const entry of allEntries) {
+    const item = itemMap.get(String(entry.itemId));
+    const cat = item ? catMap.get(item.categoryId) : undefined;
+    const client = item ? clientMap.get(String(item.clientId)) : undefined;
+
+    const status = deriveEntryStatus({
+      dueDate: entry.dueDate,
+      filedOn: entry.filedOn ?? null,
+      statusOverride: entry.statusOverride ?? null,
+      categoryMode: cat?.mode ?? 'manual',
+      referenceDateStr: today,
+    });
+
+    if (status === 'filed') {
+      filed++;
+    } else if (status === 'missed') {
+      missed++;
+      overdue++;
+    } else {
+      pending++;
+      if (entry.dueDate < today) overdue++;
+    }
+
+    if (entry.dueDate >= startOfMonth && entry.dueDate <= endOfMonth) {
+      dueThisMonth++;
+    }
+
+    if (status !== 'filed') {
+      upcomingList.push({
+        id: String(entry._id),
+        date: entry.dueDate,
+        title: `${cat?.name ?? 'Compliance'} - ${item?.label || item?.formCode || 'Filing'}`,
+        portal: cat?.portal || 'GST',
+        clientId: client ? String(client._id) : '',
+        clientName: client?.name || 'Client',
+        complianceStatus: status.toUpperCase(),
+      });
+    }
+  }
+
+  // Sort upcoming by closest dueDate
+  upcomingList.sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    dueThisMonth,
+    pending,
+    missed,
+    filed,
+    overdue,
+    total: allEntries.length,
+    upcoming: upcomingList.slice(0, 5),
+  };
+}
+
 function generateColumns(
   _fy: string,
   frequency: string

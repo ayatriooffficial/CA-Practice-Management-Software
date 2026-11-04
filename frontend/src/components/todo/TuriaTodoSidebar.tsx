@@ -97,7 +97,7 @@ export const TuriaTodoSidebar: React.FC<TuriaTodoSidebarProps> = ({
 
   return (
     <aside
-      className="w-56 shrink-0 border-r border-gray-200 dark:border-border bg-white dark:bg-card flex flex-col justify-between py-4 px-3 select-none transition-colors"
+      className="w-full md:w-56 shrink-0 md:border-r border-gray-200 dark:border-border bg-white dark:bg-card flex flex-col justify-between py-4 px-3 select-none transition-colors"
       aria-label="To-Do Navigation"
     >
       <div className="space-y-6">

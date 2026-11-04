@@ -37,11 +37,11 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
 
   return (
     <div
-      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] transition-all flex flex-col shadow-2xs"
+      className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col shadow-xs"
     >
       {/* Table Header */}
       <div
-        className="flex items-center justify-between border-b border-gray-100 dark:border-[#334155]"
+        className="flex items-center justify-between border-b border-[#dde2e8] dark:border-[#334155]"
         style={{
           padding: '16px 20px',
         }}
@@ -63,9 +63,9 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
       >
         <table className="w-full border-collapse text-left whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-[#334155] bg-gray-50/50 dark:bg-[#162032]">
+            <tr className="border-b border-[#dde2e8] dark:border-[#334155] bg-[#f8fafc] dark:bg-[#162032]">
               <th
-                className="sticky left-0 z-10 bg-gray-50/95 dark:bg-[#162032]/95 backdrop-blur-xs text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-gray-100 dark:border-[#334155]"
+                className="sticky left-0 z-10 bg-[#f8fafc]/95 dark:bg-[#162032]/95 backdrop-blur-xs text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-[#dde2e8] dark:border-[#334155]"
                 style={{ padding: '12px 20px' }}
               >
                 Date
@@ -120,7 +120,7 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
                   >
                     {/* Sticky Date */}
                     <td
-                      className="sticky left-0 z-10 bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xs text-xs font-medium text-gray-900 dark:text-white border-r border-gray-100 dark:border-[#334155]"
+                      className="sticky left-0 z-10 bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xs text-xs font-medium text-gray-900 dark:text-white border-r border-[#dde2e8] dark:border-[#334155]"
                       style={{ padding: '12px 20px' }}
                     >
                       {r.date}

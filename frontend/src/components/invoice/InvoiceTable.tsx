@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { InvoiceRecord, ReceiptRecord } from './types';
 import { useInvoice } from './InvoiceContext';
 import { useAuth } from '../auth/AuthContext';
+import { usePermission } from '../team/usePermission';
 import { pdfSignerApi } from '@/services/pdfSignerApi';
 import { TaskAllocationInput } from '@/services/financialApi';
 import { Pagination } from '../ui/Pagination';
@@ -31,6 +32,8 @@ import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
 import { DropdownActionItem } from '@/components/ui/TableActionDropdown';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu';
+import { DiscardConfirmationModal } from '@/components/ui/DiscardConfirmationModal';
 
 interface ColumnDef {
   key: string;
@@ -63,6 +66,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
   } = useInvoice();
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { canAddEdit, canDelete } = usePermission();
   const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
   const [signingInvoiceId, setSigningInvoiceId] = useState<string | null>(null);
   const [creditNoteTarget, setCreditNoteTarget] = useState<InvoiceRecord | null>(null);
@@ -152,6 +156,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<InvoiceRecord | ReceiptRecord | null>(null);
 
   // Pagination
   const [pageSize, setPageSize] = useState<number>(10);
@@ -371,7 +376,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
       },
     ];
 
-    if (!isEmployee) {
+    if (canAddEdit("invoice")) {
       actions.push({
         label: "Edit",
         icon: Pencil,
@@ -379,7 +384,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
       });
     }
 
-    if (!isEmployee && (activeTab === "invoice" || activeTab === "proforma") && row.status !== "Cancelled") {
+    if (canAddEdit("invoice") && (activeTab === "invoice" || activeTab === "proforma") && row.status !== "Cancelled") {
       actions.push({
         label: "Sign with DSC",
         icon: PenTool,
@@ -395,7 +400,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
       });
     }
 
-    if (activeTab === "invoice" && row.type === "invoice" && row.status !== "Cancelled") {
+    if (canAddEdit("invoice") && activeTab === "invoice" && row.type === "invoice" && row.status !== "Cancelled") {
       if (row.taskAllocations?.length > 0) {
         actions.push({
           label: "Issue Credit Note",
@@ -421,22 +426,24 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
       });
     }
 
-    actions.push({
-      label: "Delete",
-      icon: Trash2,
-      variant: "danger",
-      onClick: () => {
-        if (window.confirm("Are you sure you want to delete this record?")) {
-          if (activeTab === "receipts") {
-            const res = deleteReceipt(row.id);
-            if (!res.success && res.message) alert(res.message);
-          } else {
-            const res = deleteInvoice(row.id);
-            if (!res.success && res.message) alert(res.message);
+    if (canDelete("invoice")) {
+      actions.push({
+        label: "Delete",
+        icon: Trash2,
+        variant: "danger",
+        onClick: () => {
+          if (window.confirm("Are you sure you want to delete this record?")) {
+            if (activeTab === "receipts") {
+              const res = deleteReceipt(row.id);
+              if (!res.success && res.message) alert(res.message);
+            } else {
+              const res = deleteInvoice(row.id);
+              if (!res.success && res.message) alert(res.message);
+            }
           }
-        }
-      },
-    });
+        },
+      });
+    }
 
     return actions;
   };
@@ -548,57 +555,17 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
                         )}
                       </span>
 
-                      {/* Three-dot menu button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveHeaderMenu(isMenuOpen ? null : col.key);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-opacity cursor-pointer"
-                      >
-                        <MoreVertical className="w-3 h-3 text-gray-400" />
-                      </button>
+                      <ColumnHeaderMenu
+                        columnId={col.key}
+                        columnHeader={col.label}
+                        isSortedAsc={isSorted && sortOrder === 'asc'}
+                        isSortedDesc={isSorted && sortOrder === 'desc'}
+                        onSortAsc={() => handleSort(col.key, 'asc')}
+                        onSortDesc={() => handleSort(col.key, 'desc')}
+                        onHideColumn={() => handleHideColumn(col.key)}
+                        onClearAll={handleClearAll}
+                      />
                     </div>
-
-                    {/* Column Dropdown Menu */}
-                    {isMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 w-44 rounded-md shadow-lg bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] py-1 z-40 normal-case font-normal text-xs animate-in fade-in duration-100">
-                        <button
-                          type="button"
-                          onClick={() => handleSort(col.key, 'asc')}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-[#334155] text-gray-700 dark:text-gray-200 cursor-pointer"
-                        >
-                          <ArrowUp className="w-3 h-3 text-gray-500" />
-                          <span>Sort Ascending</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSort(col.key, 'desc')}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-[#334155] text-gray-700 dark:text-gray-200 cursor-pointer"
-                        >
-                          <ArrowDown className="w-3 h-3 text-gray-500" />
-                          <span>Sort Descending</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleHideColumn(col.key)}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-[#334155] text-gray-700 dark:text-gray-200 cursor-pointer"
-                        >
-                          <EyeOff className="w-3 h-3 text-gray-500" />
-                          <span>Hide Column</span>
-                        </button>
-                        <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-                        <button
-                          type="button"
-                          onClick={handleClearAll}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-[#334155] text-red-600 dark:text-red-400 cursor-pointer"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>Clear All</span>
-                        </button>
-                      </div>
-                    )}
                   </th>
                 );
               })}
@@ -698,17 +665,19 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => onEdit?.(row)}
-                          className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        {canAddEdit('invoice') && (
+                          <button
+                            type="button"
+                            onClick={() => onEdit?.(row)}
+                            className="p-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[#31719B] transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* Quick Record Payment on Invoice */}
-                        {activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Paid' && row.status !== 'Cancelled' && (
+                        {canAddEdit('invoice') && activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Paid' && row.status !== 'Cancelled' && (
                           <button
                             type="button"
                             onClick={() => onRecordPayment?.(row)}
@@ -720,7 +689,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
                         )}
 
                         {/* Sign Invoice with DSC */}
-                        {!isEmployee &&
+                        {canAddEdit('invoice') && !isEmployee &&
                           (activeTab === 'invoice' || activeTab === 'proforma') &&
                           row.status !== 'Cancelled' && (
                             <button
@@ -737,7 +706,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
                               )}
                             </button>
                           )}
-                        {activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Cancelled' && (
+                        {canAddEdit('invoice') && activeTab === 'invoice' && row.type === 'invoice' && row.status !== 'Cancelled' && (
                           <>
                             {row.taskAllocations?.length > 0 && (
                               <button
@@ -770,24 +739,16 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
                             </button>
                           </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to delete this record?')) {
-                              if (activeTab === 'receipts') {
-                                const res = deleteReceipt(row.id);
-                                if (!res.success && res.message) alert(res.message);
-                              } else {
-                                const res = deleteInvoice(row.id);
-                                if (!res.success && res.message) alert(res.message);
-                              }
-                            }
-                          }}
-                          className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canDelete('invoice') && (
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete(row)}
+                            className="p-1 rounded text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -820,6 +781,28 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
         showPageSize={true}
         onPageSizeChange={setPageSize}
         pageSizeOptions={[15, 25, 50, 100]}
+      />
+
+      {/* Delete Record Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={Boolean(itemToDelete)}
+        title="Delete Record"
+        message="Are you sure you want to delete this record? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (!itemToDelete) return;
+          if (activeTab === 'receipts') {
+            const res = deleteReceipt(itemToDelete.id);
+            if (!res.success && res.message) alert(res.message);
+          } else {
+            const res = deleteInvoice(itemToDelete.id);
+            if (!res.success && res.message) alert(res.message);
+          }
+          setItemToDelete(null);
+        }}
+        onCancel={() => setItemToDelete(null)}
       />
     </div>
   );

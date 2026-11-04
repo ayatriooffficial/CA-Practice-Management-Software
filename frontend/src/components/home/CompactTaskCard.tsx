@@ -79,9 +79,9 @@ export const CompactTaskCard: React.FC = () => {
   }, [data]);
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-gray-200 dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-2xs transition-all">
+    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] p-5 sm:p-6 flex flex-col justify-between shadow-xs transition-all">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
+      <div className="flex items-center justify-between pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[#31719B]" />
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -142,11 +142,11 @@ export const CompactTaskCard: React.FC = () => {
       </div>
 
       {/* Segmented Control for Status Tabs */}
-      <div className="flex items-center p-1 rounded-full bg-gray-100/80 dark:bg-[#0f172a] mt-3">
+      <div className="flex items-center p-1 rounded-full bg-[#f8fafc] dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] mt-3 overflow-x-auto no-scrollbar gap-0.5">
         <button
           type="button"
           onClick={() => setActiveTab('pending')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+          className={`flex-1 py-1 px-2 text-[10px] sm:text-[11px] whitespace-nowrap font-semibold rounded-full transition-all cursor-pointer ${
             activeTab === 'pending'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -158,7 +158,7 @@ export const CompactTaskCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('hold')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+          className={`flex-1 py-1 px-2 text-[10px] sm:text-[11px] whitespace-nowrap font-semibold rounded-full transition-all cursor-pointer ${
             activeTab === 'hold'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -170,7 +170,7 @@ export const CompactTaskCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('inProgress')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+          className={`flex-1 py-1 px-2 text-[10px] sm:text-[11px] whitespace-nowrap font-semibold rounded-full transition-all cursor-pointer ${
             activeTab === 'inProgress'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
@@ -182,7 +182,7 @@ export const CompactTaskCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('completed')}
-          className={`flex-1 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+          className={`flex-1 py-1 px-2 text-[10px] sm:text-[11px] whitespace-nowrap font-semibold rounded-full transition-all cursor-pointer ${
             activeTab === 'completed'
               ? 'bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#93c5fd] shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'

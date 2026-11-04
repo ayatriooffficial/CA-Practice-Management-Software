@@ -1,3 +1,4 @@
+import React, { useMemo, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { teamStore } from './teamStore';
 import { getPresetPermissions } from './permissionsConfig';
@@ -5,11 +6,30 @@ import { RolePermissionsMap, TeamRole } from './types';
 
 export type PermissionAction = 'view' | 'addEdit' | 'delete' | 'import' | 'export';
 
+const normalizeKey = (key: string): string => {
+  const k = key.toLowerCase().trim();
+  if (k === 'task' || k === 'tasks') return 'task_manager';
+  if (k === 'client') return 'clients';
+  if (k === 'lead') return 'leads';
+  if (k === 'group') return 'groups';
+  if (k === 'service') return 'services';
+  if (k === 'dsc' || k === 'digital-signature') return 'digital_signature';
+  if (k === 'pdf-signer' || k === 'pdfsigner') return 'pdf_signer';
+  if (k === 'documents' || k === 'document') return 'document_in_out';
+  if (k === 'drive') return 'file_manager';
+  if (k === 'compliance') return 'compliance_tracker';
+  if (k === 'notices' || k === 'notice') return 'notice_management';
+  if (k === 'attendance') return 'attendance_leave';
+  if (k === 'to-do') return 'todo';
+  if (k === 'whatsapp') return 'whatsapp_business';
+  return k;
+};
+
 export function usePermission() {
   const { currentUser } = useAuth();
   const user = currentUser;
 
-  const getEffectivePermissions = (): RolePermissionsMap | null => {
+  const permissions = useMemo((): RolePermissionsMap | null => {
     if (!user) return null;
 
     // 1. If user object has permissions directly
@@ -37,56 +57,52 @@ export function usePermission() {
     else if (rawRole === 'manager') teamRole = 'Manager';
 
     return getPresetPermissions(teamRole);
-  };
+  }, [user]);
 
-  const permissions = getEffectivePermissions();
-
-  const can = (moduleKey: string, action: PermissionAction = 'view'): boolean => {
+  const can = useCallback((moduleKey: string, action: PermissionAction = 'view'): boolean => {
     if (!user) return true;
     const roleLower = (user.role || '').toLowerCase();
 
-    // Big roles can see and do everything
+    // Full administrative access
     if (roleLower === 'admin' || roleLower === 'partner' || roleLower === 'manager' || roleLower === 'owner') {
       return true;
     }
 
-    // Role-based rule for Employees:
-    if (roleLower === 'employee') {
-      // 1. Invoice, billing, proposals, dsc, and pdf-signer are completely hidden/blocked for employees
-      if (
-        moduleKey === 'invoice' ||
-        moduleKey === 'billing' ||
-        moduleKey === 'proposals' ||
-        moduleKey === 'dsc' ||
-        moduleKey === 'digital_signature' ||
-        moduleKey === 'pdf-signer' ||
-        moduleKey === 'pdf_signer'
-      ) {
-        return false;
-      }
-      // 2. Delete is strictly disallowed across all sections for employees
-      if (action === 'delete') {
-        return false;
-      }
+    if (!permissions) return false;
+
+    const normKey = normalizeKey(moduleKey);
+    let mod = permissions[normKey] || permissions[moduleKey];
+
+    // Fallback: if checking pdf_signer and not explicitly set, check digital_signature
+    if (!mod && normKey === 'pdf_signer' && permissions['digital_signature']) {
+      mod = permissions['digital_signature'];
     }
 
-    if (!permissions) return false;
-    const normalizedKey =
-      moduleKey === 'task' || moduleKey === 'tasks' ? 'task_manager' : moduleKey;
-    const mod = permissions[normalizedKey] || permissions[moduleKey];
     if (!mod) return false;
 
-    return Boolean(mod[action]);
-  };
+    // View is allowed if 'view' is checked OR if any operational capability is checked
+    if (action === 'view') {
+      return Boolean(mod.view || mod.addEdit || mod.delete || mod.import || mod.export);
+    }
 
-  return {
+    // Specific action is permitted strictly according to the tick mark set by admin
+    return Boolean(mod[action]);
+  }, [user, permissions]);
+
+  const canView = useCallback((modKey: string) => can(modKey, 'view'), [can]);
+  const canAddEdit = useCallback((modKey: string) => can(modKey, 'addEdit'), [can]);
+  const canDelete = useCallback((modKey: string) => can(modKey, 'delete'), [can]);
+  const canImport = useCallback((modKey: string) => can(modKey, 'import'), [can]);
+  const canExport = useCallback((modKey: string) => can(modKey, 'export'), [can]);
+
+  return useMemo(() => ({
     user,
     permissions,
     can,
-    canView: (modKey: string) => can(modKey, 'view'),
-    canAddEdit: (modKey: string) => can(modKey, 'addEdit'),
-    canDelete: (modKey: string) => can(modKey, 'delete'),
-    canImport: (modKey: string) => can(modKey, 'import'),
-    canExport: (modKey: string) => can(modKey, 'export'),
-  };
+    canView,
+    canAddEdit,
+    canDelete,
+    canImport,
+    canExport,
+  }), [user, permissions, can, canView, canAddEdit, canDelete, canImport, canExport]);
 }

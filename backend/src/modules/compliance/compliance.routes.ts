@@ -13,6 +13,7 @@ const router = Router();
 /** GET /compliance/categories */
 router.get('/categories', ComplianceController.getCategories);
 router.get('/calendar', ComplianceController.getCalendar);
+router.get('/summary', ComplianceController.getSummary);
 
 /** GET /compliance/grid?categoryId=...&fy=...&frequency=... */
 router.get(

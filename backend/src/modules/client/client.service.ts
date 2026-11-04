@@ -9,6 +9,7 @@ import { DriveService } from '../drive/drive.service';
 import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
 import { AgentExecutionService } from '../agentCenter/execution.service';
+import { Lead } from '../lead/lead.model';
 
 export class ClientService {
   /**
@@ -937,30 +938,78 @@ export class ClientService {
       deletedMatch.$or = orClauses;
     }
 
-    const [totalClients, activeClients, inactiveClients, totalDeleted, typeBreakdown, groupBreakdown] =
-      await Promise.all([
-        Client.countDocuments(baseMatch),
-        Client.countDocuments({ ...baseMatch, active: true }),
-        Client.countDocuments({ ...baseMatch, active: false }),
-        Client.countDocuments(deletedMatch).setOptions({ includeDeleted: true }),
-        Client.aggregate([
-          { $match: baseMatch },
-          { $group: { _id: '$type', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-        ]),
-        Client.aggregate([
-          { $match: baseMatch },
-          { $group: { _id: '$group', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-          { $limit: 10 },
-        ]),
-      ]);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const trendBuckets: Array<{ month: string; start: Date; end: Date }> = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(currentYear, currentMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const nextD = new Date(y, m + 1, 1);
+      trendBuckets.push({
+        month: monthNames[m],
+        start: d,
+        end: nextD,
+      });
+    }
+
+    const [
+      totalClients,
+      activeClients,
+      inactiveClients,
+      totalDeleted,
+      newThisWeek,
+      newThisMonth,
+      clientsToConvertCount,
+      typeBreakdown,
+      groupBreakdown,
+      ...trendCounts
+    ] = await Promise.all([
+      Client.countDocuments(baseMatch),
+      Client.countDocuments({ ...baseMatch, active: true }),
+      Client.countDocuments({ ...baseMatch, active: false }),
+      Client.countDocuments(deletedMatch).setOptions({ includeDeleted: true }),
+      Client.countDocuments({ ...baseMatch, createdAt: { $gte: sevenDaysAgo } }),
+      Client.countDocuments({ ...baseMatch, createdAt: { $gte: startOfMonth } }),
+      Lead.countDocuments({ ...baseMatch, status: { $in: ['new', 'contacted', 'qualified'] } }).catch(() => 0),
+      Client.aggregate([
+        { $match: baseMatch },
+        { $group: { _id: '$type', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      Client.aggregate([
+        { $match: baseMatch },
+        { $group: { _id: '$group', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      ...trendBuckets.map((b) =>
+        Client.countDocuments({
+          ...baseMatch,
+          createdAt: { $gte: b.start, $lt: b.end },
+        })
+      ),
+    ]);
+
+    const registrationTrend = trendBuckets.map((b, idx) => ({
+      month: b.month,
+      count: trendCounts[idx] || 0,
+    }));
 
     return {
       totalClients,
       activeClients,
       inactiveClients,
       totalDeleted,
+      newThisWeek,
+      newThisMonth: Math.max(newThisMonth, newThisWeek),
+      clientsToConvert: clientsToConvertCount || inactiveClients,
+      registrationTrend,
       byType: typeBreakdown.map((t) => ({ type: t._id, count: t.count })),
       topGroups: groupBreakdown.map((g) => ({ group: g._id, count: g.count })),
     };

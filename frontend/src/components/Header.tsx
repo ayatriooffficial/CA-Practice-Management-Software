@@ -9,10 +9,7 @@ import {
   PhoneCall,
   Mail,
   Zap,
-  MessageSquare,
   Layers,
-  Send,
-  Calendar,
   CheckSquare,
   Search,
   Moon,
@@ -182,6 +179,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           {HEADER_NAV_ITEMS.map((item) => {
             if (
               (item.id === "notices" && !canView("notice_management")) ||
+              (item.id === "compliance" && !canView("compliance_tracker")) ||
+              (item.id === "whatsapp" && !canView("whatsapp_business")) ||
+              (item.id === "email" && !canView("email")) ||
+              (item.id === "agents" && !canView("agents")) ||
+              (item.id === "workdone" && !canView("task_manager")) ||
               (item.id === "chat" && !canView("chat")) ||
               (item.id === "sprints" && !canView("sprint_planner")) ||
               (item.id === "action-center" && !canView("action_center")) ||

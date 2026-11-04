@@ -436,16 +436,51 @@ export class TaskService {
    * Aggregates due counts, status breakdown, and top groups per status
    */
   static async getCompactDashboardSummary(
-    userCtx?: { userId: string | null; orgId?: string | null; role?: string } | null
+    userCtx?: { userId: string | null; orgId?: string | null; role?: string; name?: string; email?: string } | null
   ) {
     await this.seedInitialTasksIfNeeded();
 
     const orgId = userCtx?.orgId;
-    const matchFilter: Record<string, any> = { isDeleted: false };
+    const userRole = (userCtx?.role || '').toLowerCase();
+    const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
+
+    const andClauses: any[] = [{ isDeleted: false }];
+
     if (orgId) {
-      matchFilter.$or = [{ orgId }, { orgId: String(orgId) }];
+      andClauses.push({ $or: [{ orgId }, { orgId: String(orgId) }] });
     }
 
+    // Filter strictly to appointed tasks for employees
+    if (isEmployeeRole && userCtx) {
+      const assignedConditions: any[] = [];
+      if (userCtx.userId) {
+        assignedConditions.push(
+          { assigneeId: userCtx.userId },
+          { assigneeId: String(userCtx.userId) },
+          { reviewerId: userCtx.userId },
+          { reviewerId: String(userCtx.userId) }
+        );
+      }
+      if (userCtx.name && userCtx.name.trim()) {
+        const escaped = userCtx.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        assignedConditions.push(
+          { assigneeName: new RegExp(`^${escaped}$`, 'i') },
+          { reviewerName: new RegExp(`^${escaped}$`, 'i') }
+        );
+      }
+      if (userCtx.email && userCtx.email.trim()) {
+        const escapedEmail = userCtx.email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        assignedConditions.push(
+          { assigneeName: new RegExp(`^${escapedEmail}$`, 'i') },
+          { assigneeId: userCtx.email.trim().toLowerCase() }
+        );
+      }
+      if (assignedConditions.length) {
+        andClauses.push({ $or: assignedConditions });
+      }
+    }
+
+    const matchFilter: Record<string, any> = andClauses.length > 1 ? { $and: andClauses } : andClauses[0];
     const tasks = await Task.find(matchFilter).lean();
 
     let pendingCount = 0;
@@ -459,9 +494,15 @@ export class TaskService {
     const next7DaysStr = offsetISTDate(todayStr, 7);
     const overdue7DaysAgoStr = offsetISTDate(todayStr, -7);
 
+    // End of current month in IST
+    const [currY, currM] = todayStr.split('-').map(Number);
+    const lastDayOfMonth = new Date(Date.UTC(currY, currM, 0)).getUTCDate();
+    const endOfMonthStr = `${currY}-${String(currM).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
     let dueToday = 0;
     let dueTomorrow = 0;
     let dueIn7Days = 0;
+    let dueThisMonth = 0;
     let overdue = 0;
     let overdueUpTo7Days = 0;
     let overdueMoreThan7Days = 0;
@@ -513,6 +554,10 @@ export class TaskService {
           } else if (dueStr <= next7DaysStr) {
             dueIn7Days++;
           }
+
+          if (dueStr >= todayStr && dueStr <= endOfMonthStr) {
+            dueThisMonth++;
+          }
         }
       }
     }
@@ -532,6 +577,7 @@ export class TaskService {
         dueToday,
         dueTomorrow,
         dueIn7Days,
+        dueThisMonth,
         overdue,
         overdueUpTo7Days,
         overdueMoreThan7Days,
