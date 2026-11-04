@@ -222,7 +222,7 @@ export const ComplianceShell: React.FC = () => {
     >
       {/* 1. Category Chips & Credits Section */}
       <div
-        className="px-6 pt-3 pb-2.5 border-b flex flex-col gap-2"
+        className="px-4 sm:px-6 pt-3 pb-2.5 border-b flex flex-col gap-2"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-main)",
@@ -230,7 +230,7 @@ export const ComplianceShell: React.FC = () => {
       >
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           {/* Chips list wrapping into 2-3 lines */}
-          <div className="flex flex-wrap items-end gap-x-2 gap-y-1 flex-1">
+          <div className="flex overflow-x-auto items-end gap-x-2 gap-y-1 flex-1 pb-1 w-full hide-scrollbar snap-x">
             {categories.map((cat) => {
               const isActive = activeCategoryId === cat.id || activeCategory?.name.toLowerCase() === cat.name.toLowerCase();
               const hasAutoBadge =
@@ -239,7 +239,7 @@ export const ComplianceShell: React.FC = () => {
                 AUTO_CATEGORY_IDS.has(cat.name.toLowerCase());
 
               return (
-                <div key={cat.id} className="flex flex-col items-center justify-end">
+                <div key={cat.id} className="flex flex-col items-center justify-end shrink-0 snap-start">
                   {hasAutoBadge ? (
                     <span
                       className="text-[9px] font-bold px-1.5 py-0.2 rounded uppercase leading-tight tracking-wider mb-0.5"
@@ -282,7 +282,7 @@ export const ComplianceShell: React.FC = () => {
             })}
 
             {/* Settings Gear Button at end */}
-            <div className="flex flex-col items-center justify-end">
+            <div className="flex flex-col items-center justify-end shrink-0 snap-start">
               <span className="text-[9px] leading-tight mb-0.5 opacity-0 pointer-events-none select-none">
                 AUTO
               </span>
@@ -335,14 +335,14 @@ export const ComplianceShell: React.FC = () => {
         <>
           {/* 2. Toolbar Section */}
           <div
-            className="px-6 py-2.5 border-b flex flex-wrap items-center justify-between gap-3"
+            className="px-4 sm:px-6 py-2.5 border-b flex flex-col md:flex-row items-start md:items-center justify-between gap-3"
             style={{
               backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-main)",
             }}
           >
             {/* Left side: Search input */}
-            <div className="relative flex-1 min-w-[260px] max-w-sm">
+            <div className="relative w-full md:flex-1 md:min-w-[260px] max-w-sm">
               <Search
                 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
                 style={{ color: "var(--text-subtle)" }}
@@ -362,7 +362,7 @@ export const ComplianceShell: React.FC = () => {
             </div>
 
             {/* Action Controls & Filters */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex overflow-x-auto w-full md:w-auto items-center gap-2.5 pb-1 hide-scrollbar">
               {/* Download Utility */}
               <button
                 type="button"
@@ -507,7 +507,7 @@ export const ComplianceShell: React.FC = () => {
           </div>
 
           {/* 3. Compliance Grid Section */}
-          <div className="flex-1 p-6 flex flex-col">
+          <div className="flex-1 p-4 sm:p-6 flex flex-col min-w-0">
             <ComplianceGrid
               categoryId={activeCategoryId}
               fy={fyLabel}

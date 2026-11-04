@@ -394,12 +394,69 @@ body {
 }
 
 /* Hide scrollbar for Chrome, Safari, Edge and Opera */
-.no-scrollbar::-webkit-scrollbar {
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 /* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
+.no-scrollbar,
+.hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
+}
+
+
+/* ==========================================================================
+   COMPLIANCE GRID RESPONSIVE STICKY RULES
+   On mobile (< 768px), disable horizontal sticky pinning for Clients & Form
+   columns so user can scroll horizontally to see all period status columns.
+   On desktop (>= 768px), freeze Clients and Form columns on the left.
+   ========================================================================== */
+@media (max-width: 767px) {
+  .compliance-sticky-client-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    z-index: 20 !important;
+  }
+  .compliance-sticky-form-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    z-index: 20 !important;
+  }
+  .compliance-sticky-client-cell {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+  }
+  .compliance-sticky-form-cell {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .compliance-sticky-client-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 30;
+  }
+  .compliance-sticky-form-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .compliance-sticky-client-cell {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+  }
+  .compliance-sticky-form-cell {
+    position: sticky;
+    z-index: 10;
+  }
+}

@@ -495,18 +495,19 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
 
   return (
     <div
-      className="w-full flex-1 overflow-auto border rounded-lg max-h-[calc(100vh-210px)] shadow-2xs"
+      className="w-full flex-1 overflow-x-auto overflow-y-auto border rounded-lg max-h-[calc(100vh-210px)] shadow-2xs touch-pan-x"
       style={{
         backgroundColor: "var(--bg-surface)",
         borderColor: "var(--border-main)",
+        WebkitOverflowScrolling: "touch",
       }}
     >
-      <table className="w-full text-left border-collapse border-spacing-0">
+      <table className="w-full min-w-max text-left border-collapse border-spacing-0">
         <thead>
           <tr>
             <th
               rowSpan={2}
-              className="sticky left-0 top-0 z-30 px-4 py-2.5 text-xs font-semibold border-b border-r select-none"
+              className="compliance-sticky-client-header px-4 py-2.5 text-xs font-semibold border-b border-r select-none"
               style={{
                 width: clientsWidth,
                 minWidth: clientsWidth,
@@ -541,7 +542,7 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
 
             <th
               rowSpan={2}
-              className="sticky top-0 z-30 px-4 py-2.5 text-xs font-semibold border-b border-r select-none"
+              className="compliance-sticky-form-header px-4 py-2.5 text-xs font-semibold border-b border-r select-none min-w-[150px] md:min-w-[180px]"
               style={{
                 left: clientsWidth,
                 width: secondColWidth,
@@ -627,7 +628,7 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                   {isFirstRow && (
                     <td
                       rowSpan={totalGroupRows}
-                      className="sticky left-0 z-10 px-4 py-3 align-top border-b border-r"
+                      className="compliance-sticky-client-cell px-4 py-3 align-top border-b border-r"
                       style={{
                         width: clientsWidth,
                         minWidth: clientsWidth,
@@ -677,7 +678,7 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                   )}
 
                   <td
-                    className="sticky z-10 px-4 py-2.5 border-b border-r align-middle"
+                    className="compliance-sticky-form-cell px-4 py-2.5 border-b border-r align-middle min-w-[150px] md:min-w-[180px]"
                     style={{
                       left: clientsWidth,
                       width: secondColWidth,
