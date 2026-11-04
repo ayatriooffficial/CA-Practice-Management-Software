@@ -8,40 +8,19 @@ import type {
   WorkDoneFrequency,
   WorkDonePeriod,
 } from "./types";
+import {
+  getCurrentFinancialYearStart,
+  getFinancialYearStructure,
+  getPeriodsForFrequency,
+  getPeriodReceipts,
+  getAvailableFinancialYears,
+} from "./workdoneDateUtils";
+import { Button } from "@/components/ui/Button";
 
 interface Props {
   client: Client;
   onBack: () => void;
 }
-
-const FY_START = 2026;
-
-const months = [
-  { name: "Apr", year: FY_START, key: "04" },
-  { name: "May", year: FY_START, key: "05" },
-  { name: "Jun", year: FY_START, key: "06" },
-  { name: "Jul", year: FY_START, key: "07" },
-  { name: "Aug", year: FY_START, key: "08" },
-  { name: "Sep", year: FY_START, key: "09" },
-  { name: "Oct", year: FY_START, key: "10" },
-  { name: "Nov", year: FY_START, key: "11" },
-  { name: "Dec", year: FY_START, key: "12" },
-  { name: "Jan", year: FY_START + 1, key: "01" },
-  { name: "Feb", year: FY_START + 1, key: "02" },
-  { name: "Mar", year: FY_START + 1, key: "03" },
-];
-
-const quarters = [
-  { name: "Q1", start: 0, span: 3, label: "Apr – Jun" },
-  { name: "Q2", start: 3, span: 3, label: "Jul – Sep" },
-  { name: "Q3", start: 6, span: 3, label: "Oct – Dec" },
-  { name: "Q4", start: 9, span: 3, label: "Jan – Mar" },
-];
-
-const halves = [
-  { name: "H1", start: 0, span: 6, label: "Apr – Sep" },
-  { name: "H2", start: 6, span: 6, label: "Oct – Mar" },
-];
 
 const frequencyColors: Record<string, React.CSSProperties> = {
   MONTHLY: {
@@ -84,60 +63,32 @@ function normalizeFrequency(value: string): WorkDoneFrequency {
   return "ONE_TIME";
 }
 
-function getMonthKey(date?: string | Date) {
-  if (!date) return "";
-
-  const parsed = new Date(date);
-
-  if (isNaN(parsed.getTime())) return "";
-
-  return `${parsed.getUTCFullYear()}-${String(
-    parsed.getUTCMonth() + 1,
-  ).padStart(2, "0")}`;
-}
-function getPeriods(frequency: WorkDoneFrequency): WorkDonePeriod[] {
-  if (frequency === "QUARTERLY") {
-    return quarters.map((period) => ({
-      ...period,
-      label: period.name,
-    }));
-  }
-
-  if (frequency === "HALF_YEARLY") {
-    return halves.map((period) => ({
-      ...period,
-      label: period.name,
-    }));
-  }
-
-  if (frequency === "YEARLY") {
-    return [
-      {
-        name: "FY",
-        label: "Financial Year",
-        start: 0,
-        span: 12,
-      },
-    ];
-  }
-
-  return months.map((month, index) => ({
-    name: `${month.name} ${month.year}`,
-    label: `${month.name} ${month.year}`,
-    start: index,
-    span: 1,
-  }));
-}
-
 export default function WorkDoneServices({ client, onBack }: Props) {
   const [selectedPeriod, setSelectedPeriod] = useState<SelectedPeriod | null>(
     null,
   );
 
+  // Dynamic Financial Year calculation based on current date
+  const currentFyStart = useMemo(() => getCurrentFinancialYearStart(), []);
+
+  // Detect available years from client services with current year guaranteed
+  const availableYears = useMemo(
+    () => getAvailableFinancialYears(client.services, currentFyStart),
+    [client.services, currentFyStart]
+  );
+
+  const [selectedFyStart, setSelectedFyStart] = useState<number>(currentFyStart);
+
+  // Centralized configuration containing months, quarters, halves, and labels for the active FY
+  const fyConfig = useMemo(
+    () => getFinancialYearStructure(selectedFyStart),
+    [selectedFyStart]
+  );
+
   const groupedServices = useMemo(() => {
     const groups = new Map<string, Service[]>();
 
-    client.services.forEach((service) => {
+    (client.services || []).forEach((service) => {
       const key = `${service.serviceName}__${service.frequency}`;
       const existing = groups.get(key) || [];
 
@@ -147,21 +98,10 @@ export default function WorkDoneServices({ client, onBack }: Props) {
     return Array.from(groups.entries());
   }, [client.services]);
 
-  const getPeriodReceipts = (services: Service[], period: WorkDonePeriod) => {
-    const keys = Array.from({ length: period.span }, (_, index) => {
-      const month = months[period.start + index];
-      return `${month.year}-${month.key}`;
-    });
-
-    return services.filter((service) =>
-      keys.includes(getMonthKey(service.paymentDate)),
-    );
-  };
-
   const calculateTotals = (receipts: Service[]) => ({
-    cost: receipts.reduce((total, item) => total + item.cost, 0),
-    paid: receipts.reduce((total, item) => total + item.paid, 0),
-    due: receipts.reduce((total, item) => total + item.cost - item.paid, 0),
+    cost: receipts.reduce((total, item) => total + (item.cost || 0), 0),
+    paid: receipts.reduce((total, item) => total + (item.paid || 0), 0),
+    due: receipts.reduce((total, item) => total + ((item.cost || 0) - (item.paid || 0)), 0),
   });
 
   const formatDate = (date?: string | Date) => {
@@ -186,9 +126,6 @@ export default function WorkDoneServices({ client, onBack }: Props) {
     receipts: Service[],
   ) => {
     if (!receipts.length) return;
-
-    // console.log(receipts);
-    
 
     const firstReceipt = receipts[0];
 
@@ -219,51 +156,77 @@ export default function WorkDoneServices({ client, onBack }: Props) {
   return (
     <div className="w-full space-y-5" style={{ color: "var(--text-main)" }}>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={onBack}
-            className="mb-3 text-sm font-semibold"
-            style={{ color: "var(--primary)" }}
+            className="-ml-2 mb-2 rounded-sm text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/10"
           >
             ← Back to Clients
-          </button>
+          </Button>
 
           <h2 className="text-xl font-bold">{client.businessName}</h2>
 
           <p className="mt-1 text-xs" style={{ color: "var(--text-subtle)" }}>
-            Payment and service history · FY {FY_START}-{FY_START + 1}
+            Payment and service history · {fyConfig.label}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-4">
-          <div>
-            <p className="text-xs text-gray-500">Total Cost </p>
-            <p className="text-sm font-bold">{currency(client.totalCost)}</p>
-          </div>
-
-          <div>
-            <p className="text-xs text-gray-500">Total Paid</p>
-            <p
-              className="text-sm font-bold"
-              style={{ color: "var(--badge-new-text)" }}
+        <div className="flex flex-wrap items-center gap-6">
+          {/* Dynamic Financial Year Selector */}
+          <div className="flex items-center gap-2 rounded-sm border border-[var(--border-main)] bg-[var(--bg-surface)] px-3 py-1.5 shadow-2xs">
+            <span className="text-xs font-medium text-[var(--text-muted)]">
+              Financial Year:
+            </span>
+            <select
+              value={selectedFyStart}
+              onChange={(e) => setSelectedFyStart(Number(e.target.value))}
+              className="bg-transparent text-xs font-semibold text-[var(--primary)] outline-none cursor-pointer"
             >
-              {currency(client.totalPaid)}
-            </p>
+              {availableYears.map((year) => (
+                <option
+                  key={year}
+                  value={year}
+                  className="bg-[var(--bg-surface)] text-[var(--text-main)]"
+                >
+                  FY {year}-{year + 1} {year === currentFyStart ? "(Current)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div>
-            <p className="text-xs text-gray-500">Outstanding</p>
-            <p className="text-sm font-bold text-red-600">
-              {currency(client.totalCost - client.totalPaid)}
-            </p>
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <p className="text-xs text-gray-500">Total Cost</p>
+              <p className="text-sm font-bold">{currency(client.totalCost)}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500">Total Paid</p>
+              <p
+                className="text-sm font-bold"
+                style={{ color: "var(--badge-new-text)" }}
+              >
+                {currency(client.totalPaid)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500">Outstanding</p>
+              <p className="text-sm font-bold text-red-600">
+                {currency(client.totalCost - client.totalPaid)}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Legend */}
       <div
-        className="flex flex-wrap gap-4 rounded-lg border p-3"
+        className="flex flex-wrap gap-4 rounded-sm border p-3"
         style={{
           background: "var(--bg-surface)",
           borderColor: "var(--border-main)",
@@ -290,13 +253,13 @@ export default function WorkDoneServices({ client, onBack }: Props) {
 
       {/* Payment Grid */}
       <div
-        className="w-full overflow-auto "
+        className="w-full overflow-auto"
         style={{
           borderColor: "var(--border-main)",
           background: "var(--bg-surface)",
         }}
       >
-        <table className="w-full min-w-[1500px]  text-left">
+        <table className="w-full min-w-[1500px] text-left">
           <thead>
             <tr style={{ background: "var(--orange-havy-light)" }}>
               <th
@@ -318,7 +281,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                 Frequency
               </th>
 
-              {quarters.map((quarter) => (
+              {fyConfig.quarters.map((quarter) => (
                 <th
                   key={quarter.name}
                   colSpan={3}
@@ -340,7 +303,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
             </tr>
 
             <tr style={{ background: "var(--bg-muted)" }}>
-              {months.map((month) => (
+              {fyConfig.months.map((month) => (
                 <th
                   key={`${month.year}-${month.key}`}
                   className="min-w-[130px] border-b border-r px-3 py-3 text-center text-xs font-semibold"
@@ -359,7 +322,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
             {groupedServices.map(([groupKey, services]) => {
               const frequency = normalizeFrequency(services[0].frequency);
 
-              const periods = getPeriods(frequency);
+              const periods = getPeriodsForFrequency(frequency, fyConfig);
               const color = frequencyColors[frequency];
 
               return (
@@ -374,13 +337,6 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                     <p className="text-xs font-semibold">
                       {services[0].serviceName}
                     </p>
-
-                    {/* <p
-                      className="mt-1 text-[10px]"
-                      style={{ color: "var(--text-subtle)" }}
-                    >
-                      {services.length} receipt(s)
-                    </p> */}
                   </td>
 
                   <td
@@ -388,7 +344,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                     style={{ borderColor: "var(--border-main)" }}
                   >
                     <span
-                      className="rounded-md border px-2 py-1 text-[10px] font-semibold"
+                      className="rounded-sm border px-2 py-1 text-[10px] font-semibold"
                       style={{
                         ...color,
                         color: "var(--text-main)",
@@ -399,7 +355,11 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                   </td>
 
                   {periods.map((period) => {
-                    const receipts = getPeriodReceipts(services, period);
+                    const receipts = getPeriodReceipts(
+                      services,
+                      period,
+                      fyConfig.months
+                    );
 
                     const totals = calculateTotals(receipts);
 
@@ -424,7 +384,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                               receipts,
                             )
                           }
-                          className="w-full rounded-lg border p-3 text-left transition"
+                          className="w-full rounded-sm border p-3 text-left transition"
                           style={{
                             background: "rgba(255,255,255,0.7)",
                             borderColor: "rgba(49,113,155,0.15)",
@@ -505,7 +465,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="receipt-title"
-            className="w-full max-w-4xl overflow-hidden rounded-xl shadow-2xl"
+            className="w-full max-w-4xl overflow-hidden rounded-sm shadow-2xl"
             style={{ background: "var(--bg-surface)" }}
           >
             {/* Modal Header */}
@@ -531,13 +491,12 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                 >
                   {selectedPeriod.periodLabel} · {selectedPeriod.frequency}
                 </p>
-
-                
               </div>
 
               <button
+                type="button"
                 onClick={() => setSelectedPeriod(null)}
-                className="rounded-lg px-3 py-1 text-xl hover:bg-gray-100"
+                className="rounded-sm px-3 py-1 text-xl hover:bg-gray-100 dark:hover:bg-gray-800"
                 aria-label="Close modal"
               >
                 ×
@@ -558,59 +517,59 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                 ["Outstanding", modalTotals.due, "#dc2626"],
               ].map(([label, value, color]) => (
                 <div
-  key={String(label)}
-  className={`rounded-lg border p-3 ${
-    label === "Total Cost" ? "flex flex-col" : ""
-  }`}
-  style={{
-    background: "var(--bg-surface)",
-    borderColor: "var(--border-main)",
-  }}
->
-  <p
-    className="text-[10px]"
-    style={{ color: "var(--text-subtle)" }}
-  >
-    {label}
-  </p>
+                  key={String(label)}
+                  className={`rounded-sm border p-3 ${
+                    label === "Total Cost" ? "flex flex-col" : ""
+                  }`}
+                  style={{
+                    background: "var(--bg-surface)",
+                    borderColor: "var(--border-main)",
+                  }}
+                >
+                  <p
+                    className="text-[10px]"
+                    style={{ color: "var(--text-subtle)" }}
+                  >
+                    {label}
+                  </p>
 
-  {label === "Total Cost" && (
-    <div
-      className="mt-2 mb-1 space-y-1 text-[11px]"
-      style={{ color: "var(--text-muted)" }}
-    >
-      <div className="flex justify-between gap-2">
-        <span>Government Fee</span>
-        <span>{currency(selectedPeriod.governmentFee)}</span>
-      </div>
+                  {label === "Total Cost" && (
+                    <div
+                      className="mt-2 mb-1 space-y-1 text-[11px]"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <div className="flex justify-between gap-2">
+                        <span>Government Fee</span>
+                        <span>{currency(selectedPeriod.governmentFee)}</span>
+                      </div>
 
-      <div className="flex justify-between gap-2">
-        <span>Professional Fee</span>
-        <span>{currency(selectedPeriod.professionalFee)}</span>
-      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Professional Fee</span>
+                        <span>{currency(selectedPeriod.professionalFee)}</span>
+                      </div>
 
-      <div className="flex justify-between gap-2">
-        <span>GST ({selectedPeriod.tax})</span>
-        <span>{currency(selectedPeriod.gstAmount)}</span>
-      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>GST ({selectedPeriod.tax})</span>
+                        <span>{currency(selectedPeriod.gstAmount)}</span>
+                      </div>
 
-      <div
-        className="flex justify-between gap-2 border-t pt-1 font-semibold"
-        style={{ borderColor: "var(--border-main)" }}
-      >
-        <span>Total</span>
-        <span>{currency(Number(value))}</span>
-      </div>
-    </div>
-  )}
+                      <div
+                        className="flex justify-between gap-2 border-t pt-1 font-semibold"
+                        style={{ borderColor: "var(--border-main)" }}
+                      >
+                        <span>Total</span>
+                        <span>{currency(Number(value))}</span>
+                      </div>
+                    </div>
+                  )}
 
-  <p
-    className="mt-1 text-base font-bold"
-    style={{ color: String(color) }}
-  >
-    {currency(Number(value))}
-  </p>
-</div>
+                  <p
+                    className="mt-1 text-base font-bold"
+                    style={{ color: String(color) }}
+                  >
+                    {currency(Number(value))}
+                  </p>
+                </div>
               ))}
             </div>
 
@@ -689,16 +648,15 @@ export default function WorkDoneServices({ client, onBack }: Props) {
                 {selectedPeriod.receipts.length} receipt(s)
               </span>
 
-              <button
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
                 onClick={() => setSelectedPeriod(null)}
-                className="rounded-lg px-5 py-2 text-sm font-semibold"
-                style={{
-                  color: "var(--text-inverse)",
-                  background: "var(--primary)",
-                }}
+                className="rounded-sm px-5 py-2 text-sm font-semibold"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>
