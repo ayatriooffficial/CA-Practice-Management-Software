@@ -2,6 +2,8 @@
  * Base API Client for Ayatrio CRM
  */
 
+import { navigationProgress } from './navigationProgress';
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
@@ -186,14 +188,24 @@ export async function request<T>(
     ...authHeaders,
   };
 
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('app:loading:start'));
+  const method = (options.method || 'GET').toUpperCase();
+  const isNavRequest =
+    method === 'GET' &&
+    typeof window !== 'undefined' &&
+    navigationProgress.isNavigationActive();
+
+  if (isNavRequest) {
+    navigationProgress.incrementRequests();
   }
+
+  const signal = options.signal || (isNavRequest ? navigationProgress.getAbortSignal() || undefined : undefined);
+
   try {
     let response: Response;
     try {
       response = await fetch(url, {
         ...options,
+        signal,
         credentials: 'include',
         headers: {
           ...defaultHeaders,
@@ -201,6 +213,9 @@ export async function request<T>(
         },
       });
     } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        throw err;
+      }
       throw new ApiError(
         err?.message || 'Network error: Unable to connect to backend server',
         0
@@ -264,8 +279,8 @@ export async function request<T>(
 
     return jsonResult;
   } finally {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('app:loading:done'));
+    if (isNavRequest) {
+      navigationProgress.decrementRequests();
     }
   }
 }
