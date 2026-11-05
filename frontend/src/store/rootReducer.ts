@@ -9,10 +9,12 @@ import taskReducer from './features/tasks/taskSlice';
 import teamReducer from './features/team/teamSlice';
 import uiReducer from './features/ui/uiSlice';
 import workdoneReducer from './features/workdone/workdoneSlice';
+import groupReducer from './features/groups/groupSlice';
 
 export const rootReducer = combineReducers({
   auth: authSlice.reducer,
   dashboard: dashboardSlice.reducer,
+  groups: groupReducer,
   clients: clientReducer,
   invoices: invoiceReducer,
   leads: leadReducer,

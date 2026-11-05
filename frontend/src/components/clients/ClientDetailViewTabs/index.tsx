@@ -19,6 +19,7 @@ import { ClientInvoicesTab } from "./ClientInvoicesTab";
 import { ClientLedgerTab } from "./ClientLedgerTab";
 import { ClientAssigneeTab } from "./ClientAssigneeTab";
 import { ClientAssigneeTasksTab } from "./ClientAssigneeTasksTab";
+import { ClientGroupTab } from "./ClientGroupTab";
 
 export {
   ClientServiceSettingsTab,
@@ -33,6 +34,7 @@ export {
   ClientInvoicesTab,
   ClientLedgerTab,
   ClientAssigneeTab,
+  ClientGroupTab,
   ClientAssigneeTasksTab,
 };
 
@@ -264,6 +266,9 @@ return (
 
     case "Ledger":
       return <ClientLedgerTab client={client} showToast={showToast} />;
+
+    case "Group":
+      return <ClientGroupTab client={client} />;
 
 
     default:

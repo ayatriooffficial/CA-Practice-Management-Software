@@ -130,17 +130,14 @@ export const HomeDashboard: React.FC = () => {
     }
   }, [isAdmin]);
 
+  // Parallel concurrent fetching (multithreading-like concurrent requests)
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
-
-  useEffect(() => {
-    fetchTableData();
-  }, [fetchTableData]);
-
-  useEffect(() => {
-    fetchBottomData();
-  }, [fetchBottomData]);
+    Promise.allSettled([
+      fetchSummary(),
+      fetchTableData(),
+      fetchBottomData(),
+    ]);
+  }, [fetchSummary, fetchTableData, fetchBottomData]);
 
   // Punch Action Callback: Refresh summary & tables immediately
   const handlePunchChange = useCallback(() => {

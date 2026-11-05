@@ -11,7 +11,9 @@ import Link from "next/link";
 function ClientDetailPageContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params?.id as string;
+  const tabParam = (searchParams?.get("tab") as ClientTabType) || "Master";
 
   const [client, setClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,9 +82,6 @@ function ClientDetailPageContent() {
       </div>
     );
   }
-
-  const searchParams = useSearchParams();
-  const tabParam = (searchParams?.get("tab") as ClientTabType) || "Master";
 
   return (
     <div className="w-full min-h-[calc(100vh-var(--header-height))] p-2 bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] transition-colors">

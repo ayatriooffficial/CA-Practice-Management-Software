@@ -658,7 +658,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   const { id: directorMcaId, pwd: directorMcaPassword } = getDirectorMcaCredentials(contact);
                   return (
                     <div
-                      key={contact.id || idx}
+                      key={String(contact.id || "c") + "-" + String(idx)}
                       className={`border rounded-md p-4 transition-all shadow-2xs ${isPrimary
                           ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20"
                           : "border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"

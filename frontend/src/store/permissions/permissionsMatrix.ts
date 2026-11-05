@@ -133,6 +133,11 @@ export function getPermissionsForRole(role: string): RolePermissionsMap {
     'notice_management',
     'attendance_leave',
     'chat',
+    'whatsapp_business',
+    'email',
+    'action_center',
+    'sprint_planner',
+    'calendar',
   ];
 
   employeeOperationalModules.forEach((key) => {

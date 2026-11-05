@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Header } from "./Header";
+import { TopLoadingBar } from "./ui/TopLoadingBar";
 import { Sidebar } from "./Sidebar";
+import { useSectionNavigation } from "../hooks/useSectionNavigation";
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 
@@ -14,6 +16,7 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, isLoading } = useAuth();
+  useSectionNavigation();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isPublicForm = pathname?.startsWith("/gst-form");
   const isPublicPage = isAuthPage || isPublicForm;
@@ -48,7 +51,9 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
     (currentUser?.status || "").toLowerCase() === "pending";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-app)] text-[var(--text-main)]">
+    <>
+      <TopLoadingBar />
+      <div className="min-h-screen flex flex-col bg-[var(--bg-app)] text-[var(--text-main)]">
       {/* Persistent Top Header */}
       <Header onOpenMobileMenu={() => setIsMobileNavOpen(true)} />
 
@@ -71,6 +76,7 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </main>
       </div>
     </div>
+    </>
   );
 };
 

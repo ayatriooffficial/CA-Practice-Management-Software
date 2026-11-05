@@ -369,5 +369,24 @@ export class ClientController {
     const client = await ClientService.deleteContact(id, subId);
     return ApiResponse.success(res, client, 'Client contact removed successfully');
   });
-}
 
+  /**
+   * Get all contacts of a client
+   * GET /api/v1/clients/:id/contacts
+   */
+  static getContacts = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const client = await ClientService.getClientById(id);
+    return ApiResponse.success(res, client.contacts || [], 'Client contacts fetched successfully');
+  });
+
+  /**
+   * Get existing contacts directory for autofill
+   * GET /api/v1/clients/contacts/directory
+   */
+  static getDirectoryContacts = asyncHandler(async (req: Request, res: Response) => {
+    const search = (req.query.search as string) || '';
+    const contacts = await ClientService.getExistingContactsDirectory(search);
+    return ApiResponse.success(res, contacts, 'Contacts directory fetched successfully');
+  });
+}

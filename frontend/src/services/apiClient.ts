@@ -186,6 +186,9 @@ export async function request<T>(
     ...authHeaders,
   };
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('app:loading:start'));
+  }
   let response: Response;
   try {
     response = await fetch(url, {

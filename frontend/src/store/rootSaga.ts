@@ -1,6 +1,7 @@
 import { all, fork } from 'redux-saga/effects';
 import { authSaga } from './features/auth/authSaga';
 import { dashboardSaga } from './features/dashboard/dashboardSaga';
+import { groupSaga } from './features/groups/groupSaga';
 import { clientSaga } from './features/clients/clientSaga';
 import { invoiceSaga } from './features/invoices/invoiceSaga';
 import { leadSaga } from './features/leads/leadSaga';
@@ -13,6 +14,7 @@ export function* rootSaga() {
   yield all([
     fork(authSaga),
     fork(dashboardSaga),
+    fork(groupSaga),
     fork(clientSaga),
     fork(invoiceSaga),
     fork(leadSaga),

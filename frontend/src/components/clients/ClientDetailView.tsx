@@ -70,6 +70,7 @@ export type ClientTabType =
 
 export const CLIENT_TABS: ClientTabType[] = [
   "Master",
+  "Contacts",
   "Invoices",
   "Ledger",
   "Compliance",
@@ -82,6 +83,7 @@ export const CLIENT_TABS: ClientTabType[] = [
 interface ClientDetailViewProps {
   client: Client;
   initialTab?: ClientTabType;
+  onTabChange?: (tab: ClientTabType) => void;
   onClose: () => void;
   onEdit: (client: Client) => void;
   onClientUpdated?: (client: Client) => void;
@@ -90,12 +92,22 @@ interface ClientDetailViewProps {
 export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   client: initialClient,
   initialTab = "Master",
+  onTabChange,
   onClose,
   onEdit,
   onClientUpdated,
 }) => {
   const { canView, canAddEdit, canDelete } = usePermission();
   const [client, setClient] = useState<Client>(initialClient);
+
+  useEffect(() => {
+    setClient(initialClient);
+  }, [initialClient]);
+
+  const handleClientUpdated = (updated: Client) => {
+    setClient(updated);
+    onClientUpdated?.(updated);
+  };
 
   // Synchronize active client with MCA Auto-Fill Extension
   useEffect(() => {
@@ -110,6 +122,19 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     }
   }, [client]);
   const [activeTab, setActiveTab] = useState<ClientTabType>(initialTab);
+
+  useEffect(() => {
+    if (initialTab && initialTab !== activeTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleTabClick = (tab: ClientTabType) => {
+    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -531,24 +556,18 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     );
   };
 
-  // Delete Contact
+  // Delete Contact (Directly executes without duplicate confirmation modal)
   const handleDeleteContact = async (contactId: string, name: string) => {
-    promptConfirm(
-      "Delete Contact",
-      `Are you sure you want to delete contact "${name}"?`,
-      async () => {
-        try {
-          const res = await clientApi.deleteContact(client.id, contactId);
-          if (res.data) {
-            setClient(res.data);
-            onClientUpdated?.(res.data);
-          }
-          showToast(`Contact "${name}" deleted.`);
-        } catch (err: any) {
-          showToast(err.message || "Failed to delete contact.");
-        }
+    try {
+      const res = await clientApi.deleteContact(client.id, contactId);
+      if (res.data) {
+        setClient(res.data);
+        onClientUpdated?.(res.data);
       }
-    );
+      showToast(`Contact "${name}" deleted.`);
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete contact.");
+    }
   };
 
   // Delete Password
@@ -740,7 +759,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                   type="button"
                   onClick={() => {
                     setIsAddMenuOpen(false);
-                    setActiveTab("Master");
+                    handleTabClick("Master");
                   }}
                   className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
                 >
@@ -810,7 +829,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
               <button
                 key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabClick(tab)}
                 className={`py-3 text-xs whitespace-nowrap transition-all border-b-2 font-medium cursor-pointer ${isActive
                   ? "border-[#31719B] text-[#31719B] dark:text-[#60a5fa] font-bold"
                   : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
@@ -880,7 +899,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             setIsAddNoteOpen={setIsAddNoteOpen}
             handleDeleteNote={handleDeleteNote}
             handleDeleteContact={handleDeleteContact}
-            onClientUpdated={onClientUpdated || ((c) => setClient(c))}
+            onClientUpdated={handleClientUpdated}
             getAvatarBadge={getAvatarBadge}
           />
         )}

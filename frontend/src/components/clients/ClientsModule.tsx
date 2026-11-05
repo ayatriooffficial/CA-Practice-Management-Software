@@ -15,6 +15,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   Client,
   CLIENT_TYPES,
@@ -198,17 +199,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
 
   // Synchronize client selection from Redux store or URL params
   useEffect(() => {
-    // 1. If Redux already has selectedClient matching URL param (or if no URL param given)
-    if (reduxSelectedClient) {
-      const rId = reduxSelectedClient.id || (reduxSelectedClient as any)._id;
-      if (!paramClientId || paramClientId === rId) {
-        setViewingClient(reduxSelectedClient);
-        setViewMode("detail");
-        return;
-      }
-    }
-
-    // 2. If paramClientId is given in URL
+    // 1. If paramClientId is given in URL
     if (paramClientId) {
       const foundInList = clients.find(
         (c) => c.id === paramClientId || (c as any)._id === paramClientId
@@ -241,7 +232,35 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         isMounted = false;
       };
     }
+
+    // 2. If Redux already has selectedClient
+    if (reduxSelectedClient) {
+      const rId = reduxSelectedClient.id || (reduxSelectedClient as any)._id;
+      if (!paramClientId || paramClientId === rId) {
+        setViewingClient(reduxSelectedClient);
+        setViewMode("detail");
+        return;
+      }
+    } else if (!paramClientId) {
+      // If no selected client in Redux and no param in URL, return to list view
+      setViewingClient(null);
+      setViewMode("list");
+    }
   }, [paramClientId, reduxSelectedClient, clients, dispatch]);
+
+  // Handle fresh reload when clicking sidebar Client item
+  useEffect(() => {
+    const handleReset = () => {
+      setViewingClient(null);
+      setViewMode("list");
+      dispatch(setSelectedClient(null));
+      setActiveDetailTab("Master");
+    };
+    window.addEventListener("app:reset-view:client", handleReset);
+    return () => {
+      window.removeEventListener("app:reset-view:client", handleReset);
+    };
+  }, [dispatch]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -425,6 +444,29 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
     setPage(1);
   }, []);
 
+  const handleSelectClient = useCallback(
+    (client: Client, tab: ClientTabType = "Master") => {
+      const cId = client.id || (client as any)._id;
+      setViewingClient(client);
+      dispatch(setSelectedClient(client));
+      setActiveDetailTab(tab);
+      setViewMode("detail");
+      router.push(`/client?clientId=${encodeURIComponent(cId)}&tab=${encodeURIComponent(tab)}`);
+    },
+    [dispatch, router]
+  );
+
+  const handleTabChange = useCallback(
+    (tab: ClientTabType) => {
+      setActiveDetailTab(tab);
+      if (viewingClient) {
+        const cId = viewingClient.id || (viewingClient as any)._id;
+        router.push(`/client?clientId=${encodeURIComponent(cId)}&tab=${encodeURIComponent(tab)}`);
+      }
+    },
+    [router, viewingClient]
+  );
+
   // DataTable columns adapter for Clients
   const clientDataTableColumns = useMemo<DataTableColumn<Client>[]>(() => {
     return [
@@ -456,12 +498,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         cell: (client: Client) => (
           <button
             type="button"
-            onClick={() => {
-              setViewingClient(client);
-              dispatch(setSelectedClient(client));
-              setActiveDetailTab("Master");
-              setViewMode("detail");
-            }}
+            onClick={() => handleSelectClient(client, "Master")}
             className="hover:text-[#31719B] hover:underline cursor-pointer truncate max-w-full font-mono text-xs text-gray-600 dark:text-gray-400"
           >
             {client.fileNo}
@@ -650,6 +687,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
       <ClientDetailView
         client={viewingClient}
         initialTab={activeDetailTab}
+        onTabChange={handleTabChange}
         onClose={() => {
           setViewMode("list");
           setViewingClient(null);
@@ -865,12 +903,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
               ? "Trash is empty."
               : "No clients found. Click '+ Add Client' to register a new client."
           }
-          onRowClick={(client) => {
-            setViewingClient(client);
-            dispatch(setSelectedClient(client));
-            setActiveDetailTab("Master");
-            setViewMode("detail");
-          }}
+          onRowClick={(client) => handleSelectClient(client, "Master")}
           pagination={{
             currentPage: page,
             totalItems: pagination?.totalDocs || clients.length,

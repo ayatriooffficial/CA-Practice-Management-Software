@@ -361,13 +361,11 @@ export class GstFormService {
       throw { statusCode: 404, message: 'This link is invalid or does not exist.' };
     }
 
-    // Check expiry (links never expire unless explicitly revoked or submitted)
-    if (link.status === 'EXPIRED') {
-      return {
-        isAccessible: false,
-        state: 'EXPIRED',
-        message: 'This link has expired. Please contact your CA.',
-      };
+    // Links never expire per user specification
+    if (link.status === 'EXPIRED' && !link.submitted_at && !link.revoked_at) {
+      link.status = 'ACTIVE';
+      link.expires_at = null as any;
+      await link.save().catch(() => {});
     }
 
     // Check submission

@@ -151,6 +151,8 @@ export function getPresetPermissions(role: TeamRole): RolePermissionsMap {
     'password',
     'document_in_out',
     'compliance_tracker',
+    'email',
+    'whatsapp_business',
   ].forEach((k) => {
     map[k] = { view: true, addEdit: true, delete: false, import: false, export: false };
   });

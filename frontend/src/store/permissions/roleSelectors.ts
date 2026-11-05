@@ -41,6 +41,15 @@ export function canAccess(
   if (!permissions) return false;
 
   const normKey = normalizeModuleKey(moduleKey);
+
+  // Employees have guaranteed default access to communication sections (WhatsApp & Email)
+  if (normKey === 'whatsapp_business' || normKey === 'email') {
+    if (action === 'view' || action === 'addEdit') {
+      if (!permissions || !permissions[normKey]) return true;
+      return permissions[normKey].view !== false;
+    }
+  }
+
   let mod = permissions[normKey] || permissions[moduleKey];
 
   // Fallback: pdf_signer falls back to digital_signature if unassigned
