@@ -77,8 +77,13 @@ export const envSchema = z.object({
   // Automatic Expiry Reminders (DSC & License)
   AUTOMATIC_EXPIRY_REMINDERS_ENABLED: strictBoolean(false),
   AUTOMATIC_REMINDERS_REAL_SEND: strictBoolean(false),
+  AUTOMATIC_EXPIRY_MILESTONES: z.string().default('15,10'),
   AGENT_SCHEDULER_INTERVAL_MS: z.coerce.number().default(60000),
   ENABLE_BACKGROUND_SCHEDULER: strictBoolean(true),
+  // WhatsApp Cloud API
+  WHATSAPP_API_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().default('ayatrio_practice_whatsapp_verify_token'),
   // PDF Signer
   PDF_SIGNER_PROVIDER: z.enum(['software', 'token']).default('software'),
   PDF_SIGNER_PFX_PATH: z.string().default('./certs/dev-signer.pfx'),
@@ -96,3 +101,25 @@ if (!parsedEnv.success) {
 
 export const env = parsedEnv.data;
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Safely parses comma-separated milestone days (e.g. "30,15,10,7" or "15,10").
+ * Filters for positive integers, deduplicates, and sorts descending.
+ * Returns [15, 10] if configuration is missing or malformed.
+ */
+export function parseExpiryMilestones(raw?: string | null): number[] {
+  const fallback = [15, 10];
+  if (!raw || typeof raw !== 'string') return fallback;
+  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+  const parsed = parts
+    .map((p) => Number(p))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  if (!parsed.length) return fallback;
+  const unique = [...new Set(parsed)].sort((a, b) => b - a);
+  return unique.length ? unique : fallback;
+}
+
+export function getConfiguredExpiryMilestones(): number[] {
+  const raw = process.env.AUTOMATIC_EXPIRY_MILESTONES ?? env.AUTOMATIC_EXPIRY_MILESTONES;
+  return parseExpiryMilestones(raw);
+}

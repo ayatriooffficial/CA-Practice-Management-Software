@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import { logger } from '../../config/logger';
-import { env } from '../../config/env';
+import { env, getConfiguredExpiryMilestones } from '../../config/env';
 import { Agent } from './agent.model';
 import { AgentRun } from './agentRun.model';
 import { SchedulerLock } from './schedulerLock.model';
@@ -9,6 +9,7 @@ import { AgentConfig, IAgentDocument } from './agent.interface';
 import { AgentExecutionService, isEmailConfigured } from './execution.service';
 import { Task as TaskModel } from '../task/task.model';
 import { Client as ClientModel } from '../client/client.model';
+import { MailService } from '../../shared/utils/mailService';
 
 export interface SchedulerTickResult {
   ran: boolean;
@@ -162,6 +163,20 @@ export function isAutomaticExpiryRemindersEnabled(): boolean {
   return process.env.NODE_ENV === 'production';
 }
 
+export async function isAutomaticRemindersRealSendEnabledAsync(): Promise<boolean> {
+  if (process.env.AUTOMATIC_REMINDERS_REAL_SEND !== undefined) {
+    const raw = process.env.AUTOMATIC_REMINDERS_REAL_SEND.trim().toLowerCase();
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+  }
+  if (env.AUTOMATIC_REMINDERS_REAL_SEND === true) return true;
+  if (process.env.NODE_ENV === 'production') {
+    const mailStatus = await MailService.getStatus();
+    return mailStatus.authorized;
+  }
+  return false;
+}
+
 export function isAutomaticRemindersRealSendEnabled(): boolean {
   if (process.env.AUTOMATIC_REMINDERS_REAL_SEND !== undefined) {
     const raw = process.env.AUTOMATIC_REMINDERS_REAL_SEND.trim().toLowerCase();
@@ -177,6 +192,7 @@ export function isAutomaticRemindersRealSendEnabled(): boolean {
 
 export class AgentSchedulerService {
   private static timer: NodeJS.Timeout | null = null;
+  private static initialTimer: NodeJS.Timeout | null = null;
   private static isRunning = false;
   private static instanceId = randomUUID();
 
@@ -225,6 +241,36 @@ export class AgentSchedulerService {
     }
   }
 
+  /**
+   * Heartbeat to extend the leader lease during active execution.
+   */
+  static async renewLeaderLock(leaseDurationMs = 60000): Promise<boolean> {
+    if (mongoose.connection.readyState !== 1) return false;
+    const now = new Date();
+    const leaseExpiresAt = new Date(now.getTime() + leaseDurationMs);
+
+    try {
+      const lock = await SchedulerLock.findOneAndUpdate(
+        {
+          _id: 'agent-center-scheduler-leader',
+          instanceId: this.instanceId,
+        },
+        {
+          $set: {
+            leaseExpiresAt,
+            updatedAt: now,
+          },
+        },
+        { new: true }
+      ).exec();
+
+      return lock?.instanceId === this.instanceId;
+    } catch (err: any) {
+      logger.warn('Error renewing scheduler leader lock heartbeat:', err?.message || err);
+      return false;
+    }
+  }
+
   static async releaseLeaderLock(): Promise<void> {
     if (mongoose.connection.readyState !== 1) return;
     try {
@@ -243,7 +289,8 @@ export class AgentSchedulerService {
       void this.tick().catch((err) => logger.error('Agent scheduler error during tick:', err));
     }, intervalMs);
     // Initial run after short startup delay
-    setTimeout(() => {
+    this.initialTimer = setTimeout(() => {
+      this.initialTimer = null;
       void this.tick().catch((err) => logger.error('Agent scheduler initial tick error:', err));
     }, 5000);
     logger.info(`⏰ Agent background scheduler started (polling every ${intervalMs}ms)`);
@@ -253,9 +300,13 @@ export class AgentSchedulerService {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
-      void this.releaseLeaderLock();
-      logger.info('🛑 Agent background scheduler stopped');
     }
+    if (this.initialTimer) {
+      clearTimeout(this.initialTimer);
+      this.initialTimer = null;
+    }
+    void this.releaseLeaderLock();
+    logger.info('🛑 Agent background scheduler stopped');
   }
 
   /**
@@ -319,8 +370,12 @@ export class AgentSchedulerService {
   ): Promise<ExpiryReminderBatchResult> {
     const todayKolkataYMD = getKolkataYMD(nowDate);
     const isEnabled = options?.forceEnable !== undefined ? options.forceEnable : isAutomaticExpiryRemindersEnabled();
-    const isRealSend = options?.forceRealSend !== undefined ? options.forceRealSend : isAutomaticRemindersRealSendEnabled();
-    const milestones = options?.milestones && options.milestones.length ? options.milestones : [15, 10];
+    const isRealSend = options?.forceRealSend !== undefined
+      ? options.forceRealSend
+      : await isAutomaticRemindersRealSendEnabledAsync();
+    const milestones = options?.milestones && options.milestones.length
+      ? options.milestones
+      : getConfiguredExpiryMilestones();
     const maxMilestone = Math.max(...milestones);
 
     const result: ExpiryReminderBatchResult = {
@@ -589,6 +644,21 @@ export class AgentSchedulerService {
     const errors: string[] = [];
     let dispatchedRuns = 0;
     let evaluatedAgents = 0;
+    let heartbeatTimer: NodeJS.Timeout | null = null;
+    let lockOwnershipLost = false;
+
+    if (!options?.skipLock) {
+      heartbeatTimer = setInterval(() => {
+        void this.renewLeaderLock().then((renewed) => {
+          if (!renewed) {
+            lockOwnershipLost = true;
+            logger.warn('Scheduler leader lock lease lost during execution tick.');
+          }
+        }).catch(() => {
+          lockOwnershipLost = true;
+        });
+      }, 20000);
+    }
 
     try {
       const todayKolkataYMD = getKolkataYMD(nowDate);
@@ -605,6 +675,12 @@ export class AgentSchedulerService {
       evaluatedAgents = publishedAgents.length;
 
       for (const agent of publishedAgents) {
+        if (lockOwnershipLost) {
+          const errStr = 'Halted tick execution: scheduler leader lock ownership was lost.';
+          logger.warn(errStr);
+          errors.push(errStr);
+          break;
+        }
         if (agent.isSystem) continue; // Dedicated system agents are handled in Part 1
         const orgId = String(agent.orgId);
         const config = agent.config as AgentConfig;
@@ -945,6 +1021,9 @@ export class AgentSchedulerService {
         errors,
       };
     } finally {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+      }
       this.isRunning = false;
     }
   }

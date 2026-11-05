@@ -51,7 +51,17 @@ export function resolveRecipientWithFallback(
     };
   }
 
-  // Priority 3 & 4: Fallback to demo recipient if real email absent
+  // Priority 3 & 4: Fallback to demo recipient if real email absent ONLY when fallbackToDemo is true
+  if (!fallbackToDemo) {
+    return {
+      name: dbRecord?.name || role,
+      email: isValidDbEmail && dbEmail ? dbEmail : '',
+      mobile: dbRecord?.mobile || '',
+      id: dbRecord?.id || '',
+      isRealEmail: isValidDbEmail,
+    };
+  }
+
   const demo = DEMO_RECIPIENTS[role] || {
     name: role,
     email: 'demo@example.test',
@@ -61,7 +71,7 @@ export function resolveRecipientWithFallback(
 
   return {
     name: dbRecord?.name || demo.name || role,
-    email: fallbackToDemo ? (demo.email || '') : (dbEmail || ''),
+    email: demo.email || '',
     mobile: dbRecord?.mobile || demo.mobile || '',
     id: dbRecord?.id || demo.id || '',
     isRealEmail: false,
@@ -158,7 +168,7 @@ export async function runGraph(
 export interface ProviderExecutionOutput {
   provider: string;
   mode: 'mock' | 'real';
-  status: 'failed' | 'simulated' | 'delivered';
+  status: 'failed' | 'simulated' | 'delivered' | 'accepted' | 'read';
   simulated: boolean;
   error?: string;
   timestamp: string;
@@ -347,7 +357,7 @@ export async function executeProvider(
     return {
       provider: 'whatsapp',
       mode: 'real',
-      status: 'delivered',
+      status: 'accepted',
       simulated: false,
       executionId: waResult.messageId || executionId,
       timestamp: new Date().toISOString(),
@@ -382,12 +392,17 @@ async function resolveActualRecipients(orgId: string, event: Record<string, unkn
   for (const role of new Set(recipients)) {
     if (role === 'Client') {
       const clientId = typeof event.clientId === 'string' ? event.clientId : '';
-      const lookup = buildTaskClientLookup(orgId, clientId);
-      if (lookup) {
-        const client = await Client.findOne(lookup).select('name email mobile').lean().exec();
-        if (client) {
-          resolved[role] = { name: client.name, email: client.email || '', mobile: client.mobile || '', id: String(client._id) };
-          continue;
+      if (clientId && Types.ObjectId.isValid(clientId)) {
+        const lookup = buildTaskClientLookup(orgId, clientId);
+        if (lookup) {
+          const client = await Client.findOne(lookup).select('name email mobile').lean().exec();
+          if (client) {
+            resolved[role] = { name: client.name, email: client.email || '', mobile: client.mobile || '', id: String(client._id) };
+            continue;
+          } else {
+            // Client ID was provided but does not exist in this tenant's organization
+            continue;
+          }
         }
       }
       if (event.clientName || event.clientEmail) {
@@ -583,7 +598,29 @@ export class AgentExecutionService {
     const triggerData: Record<string, unknown> = context.event
       ? { simulated: false, event: config.trigger, ...context.event }
       : { simulated: true, ...trigger.sampleEvent(config.conditions) };
-    const event = (triggerData['task'] || triggerData['dsc'] || triggerData['license'] || context.event || {}) as Record<string, unknown>;
+
+    const rawContextEvent = (context.event || {}) as Record<string, unknown>;
+    const nestedTask = (rawContextEvent.task || triggerData['task'] || {}) as Record<string, unknown>;
+    const nestedDsc = (rawContextEvent.dsc || triggerData['dsc'] || {}) as Record<string, unknown>;
+    const nestedLicense = (rawContextEvent.license || triggerData['license'] || {}) as Record<string, unknown>;
+
+    // Preserve the complete event envelope:
+    // Retain top-level clientId, clientName, clientEmail, clientMobile, daysLeft, milestone, etc.
+    const event: Record<string, unknown> = {
+      ...(agent.module === 'Task' ? nestedTask : agent.module === 'DSC' ? nestedDsc : nestedLicense),
+      ...rawContextEvent,
+      task: nestedTask,
+      dsc: nestedDsc,
+      license: nestedLicense,
+      clientId: rawContextEvent.clientId || triggerData.clientId || nestedTask.clientId || nestedDsc.clientId || nestedLicense.clientId,
+      clientName: rawContextEvent.clientName || triggerData.clientName || nestedTask.clientName || nestedDsc.clientName || nestedLicense.clientName,
+      clientEmail: rawContextEvent.clientEmail || triggerData.clientEmail || nestedTask.clientEmail || nestedDsc.clientEmail || nestedLicense.clientEmail,
+      clientMobile: rawContextEvent.clientMobile || triggerData.clientMobile || nestedTask.clientMobile || nestedDsc.clientMobile || nestedLicense.clientMobile,
+      daysLeft: rawContextEvent.daysLeft !== undefined ? rawContextEvent.daysLeft : triggerData.daysLeft,
+      daysToExpiry: rawContextEvent.daysToExpiry !== undefined ? rawContextEvent.daysToExpiry : triggerData.daysToExpiry,
+      milestone: rawContextEvent.milestone || triggerData.milestone,
+    };
+
     const graph = config.workflowGraph as WorkflowGraph | undefined;
     const recipients = (Array.isArray(config.recipient) ? config.recipient : [config.recipient])
       .filter((recipient): recipient is string => typeof recipient === 'string');
@@ -591,17 +628,31 @@ export class AgentExecutionService {
     const resolvedRecipients = context.event
       ? await resolveActualRecipients(context.orgId, event, [...recipients, ...graphRecipients])
       : undefined;
-    const clientRecord = resolvedRecipients?.Client || {
-      name: String(event.clientName || triggerData.clientName || 'Sample Company'),
-      email: String(event.clientEmail || triggerData.clientEmail || 'sample.client@example.test'),
-      mobile: String(event.clientMobile || triggerData.clientMobile || '+91 98765 43210'),
-    };
+
     const isTestEmailSend = Boolean(context.testRecipientEmail);
     const isRealRun = Boolean(
       (context.event && context.runType === 'actual') ||
       isTestEmailSend ||
       context.runType === 'actual'
     );
+
+    const resolvedClient = resolvedRecipients?.Client;
+    const clientRecord = (resolvedClient && resolvedClient.email)
+      ? resolvedClient
+      : (isRealRun
+        ? {
+            name: resolvedClient?.name || String(event.clientName || 'Client'),
+            email: resolvedClient?.email || (typeof event.clientEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(event.clientEmail) ? event.clientEmail : ''),
+            mobile: resolvedClient?.mobile || String(event.clientMobile || ''),
+            id: resolvedClient?.id || String(event.clientId || ''),
+          }
+        : {
+            name: String(event.clientName || triggerData.clientName || 'Sample Company'),
+            email: String(event.clientEmail || triggerData.clientEmail || 'sample.client@example.test'),
+            mobile: String(event.clientMobile || triggerData.clientMobile || '+91 98765 43210'),
+            id: String(event.clientId || 'sample-client'),
+          });
+
     const taskContext = (triggerData['task'] || (agent.module === 'Task' ? event : undefined)) as Record<string, unknown> | undefined;
     const dscContext = (triggerData['dsc'] || (agent.module === 'DSC' ? event : undefined)) as Record<string, unknown> | undefined;
     const licenseContext = (triggerData['license'] || (agent.module === 'License' ? event : undefined)) as Record<string, unknown> | undefined;
@@ -932,5 +983,43 @@ export class AgentExecutionService {
     return [...runItems, ...activities]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, safeLimit);
+  }
+
+  /**
+   * Idempotently updates the delivery status of an AgentRun matching the provider message ID.
+   * Supports 'delivered', 'read', and 'failed' status transitions from Meta WhatsApp webhooks.
+   */
+  static async updateWhatsAppDeliveryStatus(messageId: string, status: string, errors?: any[]): Promise<boolean> {
+    if (!messageId) return false;
+    const run = await AgentRun.findOne({ 'result.results.executionId': messageId }).exec();
+    if (!run || !run.result || !Array.isArray(run.result.results)) return false;
+
+    let modified = false;
+    for (const r of run.result.results as any[]) {
+      if (r.executionId === messageId) {
+        if (status === 'delivered') {
+          r.status = 'delivered';
+          modified = true;
+        } else if (status === 'read') {
+          r.status = 'read';
+          modified = true;
+        } else if (status === 'failed') {
+          r.status = 'failed';
+          r.error = errors?.[0]?.message || 'WhatsApp message delivery failed.';
+          modified = true;
+        }
+      }
+    }
+
+    if (modified) {
+      run.markModified('result');
+      const anyFailed = (run.result.results as any[]).some((r: any) => r.status === 'failed');
+      if (anyFailed) {
+        run.status = (run.result.results as any[]).every((r: any) => r.status === 'failed') ? 'failed' : 'partial-failed';
+      }
+      await run.save();
+      return true;
+    }
+    return false;
   }
 }

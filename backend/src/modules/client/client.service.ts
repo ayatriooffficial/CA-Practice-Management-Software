@@ -1092,15 +1092,20 @@ export class ClientService {
       );
 
       if (isRenewed) {
+        const prevExpiry = oldLicense?.expiryDate || 'none';
+        const newExpiry = updatedLicense.expiryDate || 'none';
         void AgentExecutionService.dispatchLicenseEvent(
           String(saved.orgId),
           'License Renewed',
           {
             clientId: String(saved._id),
             clientName: saved.name,
+            clientEmail: saved.email || '',
+            clientMobile: saved.mobile || '',
             license: updatedLicense,
+            previousExpiryDate: prevExpiry,
           },
-          `lic-renewed:${String(saved._id)}:${updatedLicense.id || licenseId}:${Date.now()}`
+          `lic-renewed:${String(saved._id)}:${updatedLicense.id || licenseId}:${prevExpiry}->${newExpiry}`
         ).catch(() => []);
       }
     }
@@ -1114,9 +1119,25 @@ export class ClientService {
   static async deleteLicense(id: string, licenseId: string): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
-    client.licenses = (client.licenses || []).filter((l: any) => l.id !== licenseId && l._id?.toString() !== licenseId);
+    const deletedLicense = (client.licenses || []).find((l: any) => l.id === licenseId || l._id?.toString() === licenseId || l.licenseNo === licenseId);
+    client.licenses = (client.licenses || []).filter((l: any) => l.id !== licenseId && l._id?.toString() !== licenseId && l.licenseNo !== licenseId);
     client.markModified('licenses');
-    return await client.save();
+    const saved = await client.save();
+    if (saved.orgId && deletedLicense) {
+      void AgentExecutionService.dispatchLicenseEvent(
+        String(saved.orgId),
+        'License Deleted',
+        {
+          clientId: String(saved._id),
+          clientName: saved.name,
+          clientEmail: saved.email || '',
+          clientMobile: saved.mobile || '',
+          license: deletedLicense,
+        },
+        `lic-deleted:${String(saved._id)}:${deletedLicense.id || licenseId}`
+      ).catch(() => []);
+    }
+    return saved;
   }
 
   /**
@@ -1195,15 +1216,20 @@ export class ClientService {
       );
 
       if (isRenewed) {
+        const prevExpiry = oldDsc?.expiryDate || 'none';
+        const newExpiry = updatedDsc.expiryDate || 'none';
         void AgentExecutionService.dispatchDscEvent(
           String(saved.orgId),
           'DSC Renewed',
           {
             clientId: String(saved._id),
             clientName: saved.name,
+            clientEmail: saved.email || '',
+            clientMobile: saved.mobile || '',
             dsc: updatedDsc,
+            previousExpiryDate: prevExpiry,
           },
-          `dsc-renewed:${String(saved._id)}:${updatedDsc.id || dscId}:${Date.now()}`
+          `dsc-renewed:${String(saved._id)}:${updatedDsc.id || dscId}:${prevExpiry}->${newExpiry}`
         ).catch(() => []);
       }
     }
@@ -1217,9 +1243,25 @@ export class ClientService {
   static async deleteDsc(id: string, dscId: string): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
-    client.dscs = (client.dscs || []).filter((d: any) => d.id !== dscId && d._id?.toString() !== dscId);
+    const deletedDsc = (client.dscs || []).find((d: any) => d.id === dscId || d._id?.toString() === dscId || d.dscId === dscId);
+    client.dscs = (client.dscs || []).filter((d: any) => d.id !== dscId && d._id?.toString() !== dscId && d.dscId !== dscId);
     client.markModified('dscs');
-    return await client.save();
+    const saved = await client.save();
+    if (saved.orgId && deletedDsc) {
+      void AgentExecutionService.dispatchDscEvent(
+        String(saved.orgId),
+        'DSC Deleted',
+        {
+          clientId: String(saved._id),
+          clientName: saved.name,
+          clientEmail: saved.email || '',
+          clientMobile: saved.mobile || '',
+          dsc: deletedDsc,
+        },
+        `dsc-deleted:${String(saved._id)}:${deletedDsc.id || dscId}`
+      ).catch(() => []);
+    }
+    return saved;
   }
 
   /**

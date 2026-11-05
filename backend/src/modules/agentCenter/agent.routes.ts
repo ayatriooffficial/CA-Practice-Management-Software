@@ -18,6 +18,8 @@ const router = Router();
 router.get('/definitions', AgentCenterController.definitions);
 router.get('/integrations/status', AgentCenterController.integrationsStatus);
 router.post('/scheduler/tick', AgentCenterController.schedulerTick);
+router.get('/whatsapp/webhook', AgentCenterController.verifyWhatsAppWebhook);
+router.post('/whatsapp/webhook', AgentCenterController.handleWhatsAppWebhook);
 
 // Tenant-scoped endpoints require an organization context:
 router.use((req, _res, next) => req.user?.orgId ? next() : next(AppError.unauthorized('Sign in to access Agent Center.')));

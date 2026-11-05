@@ -11,8 +11,10 @@ import { Agent } from './agent.model';
 import { SchedulerLock } from './schedulerLock.model';
 import { ClientService } from '../client/client.service';
 import { Client } from '../client/client.model';
-import { AgentExecutionService, executeProvider } from './execution.service';
+import { AgentExecutionService, executeProvider, resolveRecipientWithFallback } from './execution.service';
 import { WhatsAppService } from '../../shared/utils/whatsAppService';
+import { parseExpiryMilestones } from '../../config/env';
+import { AgentRun } from './agentRun.model';
 
 describe('Agent Center Automation Audit & Repair Verification', () => {
   const originalEnv = { ...process.env };
@@ -357,6 +359,215 @@ describe('Agent Center Automation Audit & Repair Verification', () => {
       assert.equal(res.success, false);
       assert.equal(res.status, 'failed');
       assert.ok(res.error?.includes('WHATSAPP_API_TOKEN'));
+    });
+  });
+
+  describe('7. DSC & License Client Recipient Resolution & Tenant Safety', () => {
+    it('resolves real DB email and marks isRealEmail: true when valid', () => {
+      const res = resolveRecipientWithFallback(
+        'Client',
+        { id: 'c1', name: 'Tata Motors', email: 'director@tatamotors.com', mobile: '+919876543210' },
+        true
+      );
+      assert.equal(res.name, 'Tata Motors');
+      assert.equal(res.email, 'director@tatamotors.com');
+      assert.equal(res.isRealEmail, true);
+    });
+
+    it('suppresses demo email and sets empty string when fallbackToDemo is false in live send mode', () => {
+      const res = resolveRecipientWithFallback(
+        'Client',
+        { id: 'c2', name: 'No Email Corp', email: '', mobile: '+919876543210' },
+        false
+      );
+      assert.equal(res.name, 'No Email Corp');
+      assert.equal(res.email, '');
+      assert.equal(res.isRealEmail, false);
+    });
+  });
+
+  describe('8. Configurable Milestones Environment Parser', () => {
+    it('parses descending deduplicated positive integers from AUTOMATIC_EXPIRY_MILESTONES', () => {
+      const milestones = parseExpiryMilestones('30, 15, 10, 7, 15, 30');
+      assert.deepEqual(milestones, [30, 15, 10, 7]);
+    });
+
+    it('gracefully falls back to [15, 10] on invalid input or empty string', () => {
+      assert.deepEqual(parseExpiryMilestones(''), [15, 10]);
+      assert.deepEqual(parseExpiryMilestones('invalid, -5, 0'), [15, 10]);
+    });
+  });
+
+  describe('9. DSC & License Deletion Event Hooks', () => {
+    it('dispatches DSC Deleted trigger with deterministic key on deleteDsc', async () => {
+      let dispatchedEvent: any = null;
+      const origDispatch = AgentExecutionService.dispatchDscEvent;
+      AgentExecutionService.dispatchDscEvent = (async (orgId: string, trigger: string, payload: any, eventId: string) => {
+        dispatchedEvent = { orgId, trigger, payload, eventId };
+        return [];
+      }) as any;
+
+      const mockClient = {
+        _id: '507f191e810c4f7290344444',
+        name: 'Infosys Ltd',
+        orgId: 'org_test_ca',
+        email: 'compliance@infosys.com',
+        dscs: [
+          {
+            id: 'dsc_del_1',
+            dscId: 'DSC-1099',
+            name: 'Salil Parekh',
+            expiryDate: '2026-12-31',
+            status: 'Active',
+          },
+        ],
+        markModified: () => {},
+        save: async function () { return this; },
+      };
+
+      const origFindById = Client.findById;
+      Client.findById = (() => Promise.resolve(mockClient)) as any;
+
+      try {
+        await ClientService.deleteDsc('507f191e810c4f7290344444', 'dsc_del_1');
+
+        assert.ok(dispatchedEvent, 'AgentExecutionService.dispatchDscEvent should have been called');
+        assert.equal(dispatchedEvent.trigger, 'DSC Deleted');
+        assert.equal(dispatchedEvent.orgId, 'org_test_ca');
+        assert.equal(dispatchedEvent.payload.dsc.id, 'dsc_del_1');
+        assert.equal(dispatchedEvent.eventId, 'dsc-deleted:507f191e810c4f7290344444:dsc_del_1');
+      } finally {
+        AgentExecutionService.dispatchDscEvent = origDispatch;
+        Client.findById = origFindById;
+      }
+    });
+
+    it('dispatches License Deleted trigger with deterministic key on deleteLicense', async () => {
+      let dispatchedEvent: any = null;
+      const origDispatch = AgentExecutionService.dispatchLicenseEvent;
+      AgentExecutionService.dispatchLicenseEvent = (async (orgId: string, trigger: string, payload: any, eventId: string) => {
+        dispatchedEvent = { orgId, trigger, payload, eventId };
+        return [];
+      }) as any;
+
+      const mockClient = {
+        _id: '507f191e810c4f7290345555',
+        name: 'Wipro Ltd',
+        orgId: 'org_test_ca',
+        email: 'legal@wipro.com',
+        licenses: [
+          {
+            id: 'lic_del_1',
+            licenseNo: 'LIC-7788',
+            name: 'Trade License',
+            expiryDate: '2026-08-31',
+            status: 'Active',
+          },
+        ],
+        markModified: () => {},
+        save: async function () { return this; },
+      };
+
+      const origFindById = Client.findById;
+      Client.findById = (() => Promise.resolve(mockClient)) as any;
+
+      try {
+        await ClientService.deleteLicense('507f191e810c4f7290345555', 'lic_del_1');
+
+        assert.ok(dispatchedEvent, 'AgentExecutionService.dispatchLicenseEvent should have been called');
+        assert.equal(dispatchedEvent.trigger, 'License Deleted');
+        assert.equal(dispatchedEvent.orgId, 'org_test_ca');
+        assert.equal(dispatchedEvent.payload.license.id, 'lic_del_1');
+        assert.equal(dispatchedEvent.eventId, 'lic-deleted:507f191e810c4f7290345555:lic_del_1');
+      } finally {
+        AgentExecutionService.dispatchLicenseEvent = origDispatch;
+        Client.findById = origFindById;
+      }
+    });
+  });
+
+  describe('10. WhatsApp Webhook Delivery Status Updates', () => {
+    it('updates AgentRun status to delivered on webhook status callback', async () => {
+      const mockRun = {
+        _id: 'run_123',
+        status: 'success',
+        result: {
+          results: [
+            {
+              recipient: 'Director',
+              status: 'accepted',
+              executionId: 'wamid.HBgLMTEyMjMz',
+            },
+          ],
+        },
+        markModified: () => {},
+        save: async function () { return this; },
+      };
+
+      const origFindOne = AgentRun.findOne;
+      AgentRun.findOne = (() => ({
+        exec: async () => mockRun,
+      })) as any;
+
+      try {
+        const updated = await AgentExecutionService.updateWhatsAppDeliveryStatus('wamid.HBgLMTEyMjMz', 'delivered');
+        assert.equal(updated, true);
+        assert.equal(mockRun.result.results[0].status, 'delivered');
+      } finally {
+        AgentRun.findOne = origFindOne;
+      }
+    });
+
+    it('updates AgentRun status to failed on webhook failure callback', async () => {
+      const mockRun = {
+        _id: 'run_124',
+        status: 'success',
+        result: {
+          results: [
+            {
+              recipient: 'Director',
+              status: 'accepted',
+              executionId: 'wamid.HBgLMTEyMjM0',
+            },
+          ],
+        },
+        markModified: () => {},
+        save: async function () { return this; },
+      };
+
+      const origFindOne = AgentRun.findOne;
+      AgentRun.findOne = (() => ({
+        exec: async () => mockRun,
+      })) as any;
+
+      try {
+        const updated = await AgentExecutionService.updateWhatsAppDeliveryStatus(
+          'wamid.HBgLMTEyMjM0',
+          'failed',
+          [{ message: '131026: Message undeliverable' }]
+        );
+        assert.equal(updated, true);
+        assert.equal(mockRun.result.results[0].status, 'failed');
+        assert.equal(mockRun.status, 'failed');
+      } finally {
+        AgentRun.findOne = origFindOne;
+      }
+    });
+  });
+
+  describe('11. Scheduler Leader Heartbeat & Shutdown Cleanup', () => {
+    it('stop clears both timer and initialTimer gracefully', () => {
+      const origDelete = SchedulerLock.deleteOne;
+      SchedulerLock.deleteOne = (() => ({ exec: async () => ({}) })) as any;
+
+      try {
+        AgentSchedulerService.start(60000);
+        assert.equal(AgentSchedulerService.isSchedulerActive(), true);
+        AgentSchedulerService.stop();
+        assert.equal(AgentSchedulerService.isSchedulerActive(), false);
+      } finally {
+        SchedulerLock.deleteOne = origDelete;
+      }
     });
   });
 });
