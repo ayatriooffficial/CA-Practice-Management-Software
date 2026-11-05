@@ -92,7 +92,7 @@ export const TopLoadingBar: React.FC = () => {
       className="fixed top-0 left-0 right-0 z-[99999] pointer-events-none h-[2.5px] bg-transparent"
     >
       <div
-        className="h-full bg-gradient-to-r from-[#31719B] via-[#4f46e5] to-[#9333ea] shadow-[0_0_10px_rgba(79,70,229,0.8)] transition-all duration-200 ease-out"
+        className="h-full bg-gradient-to-r from-[#31719B] via-[#4f46e5] to-[#9333ea] transition-all duration-200 ease-out"
         style={{
           width: `${progress}%`,
           opacity: isVisible ? 1 : 0,

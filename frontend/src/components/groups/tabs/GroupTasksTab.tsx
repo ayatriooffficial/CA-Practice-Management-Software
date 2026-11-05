@@ -6,6 +6,7 @@ import { Search, Loader2, CheckCircle2, Clock, AlertTriangle, ExternalLink } fro
 import { GroupRecord } from "@/services/groupApi";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
+import { Input } from "@/components/ui/Input";
 
 interface GroupTasksTabProps {
   group: GroupRecord;
@@ -102,14 +103,14 @@ export const GroupTasksTab: React.FC<GroupTasksTabProps> = ({ group }) => {
           ))}
         </div>
 
-        <div className="relative min-w-[200px] sm:min-w-[240px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
+        <div className="min-w-[200px] sm:min-w-[260px]">
+          <Input
+            inputSize="sm"
             placeholder="Search group tasks..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md shadow-2xs outline-hidden focus:border-[#31719B] transition-colors"
+            onClear={() => setSearch("")}
+            leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
           />
         </div>
       </div>

@@ -203,7 +203,7 @@ export const LoginForm: React.FC = () => {
                   disabled={!isValidEmail || isLoading}
                   loading={isLoading}
                   rightIcon={<ArrowRight className="w-4 h-4 ml-0.5" />}
-                  className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E]"
+                  className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E] justify-center text-center"
                 >
                   {isWorkdayMatched ? "Log In" : "Enter Password"}
                 </Button>
@@ -304,7 +304,7 @@ export const LoginForm: React.FC = () => {
                   disabled={!password.trim() || isLoading}
                   loading={isLoading}
                   rightIcon={<ArrowRight className="w-4 h-4 ml-0.5" />}
-                  className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E]"
+                  className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E] justify-center text-center"
                 >
                   Sign In
                 </Button>

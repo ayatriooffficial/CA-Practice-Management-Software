@@ -563,7 +563,7 @@ export const PdfSignerPage: React.FC = () => {
               fetchStatus();
               fetchDocuments();
             }}
-            className="flex items-center gap-1.5 h-10 px-3 rounded-none text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
             title="Refresh documents and signer status"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -572,7 +572,7 @@ export const PdfSignerPage: React.FC = () => {
 
           <Link
             href="/dsc"
-            className="flex items-center gap-1.5 h-10 px-4 rounded-none text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             style={{ backgroundColor: "var(--premium-blue-dark)" }}
           >
             <KeyRound className="w-4 h-4" />

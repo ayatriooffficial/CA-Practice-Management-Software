@@ -134,11 +134,11 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
         </div>
 
         {/* Workflow Segmented Pill */}
-        <div className="w-full sm:w-auto inline-flex items-center rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a] shrink-0">
+        <div className="w-full sm:w-auto inline-flex items-center rounded-lg border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a] shrink-0">
           <button
             type="button"
             onClick={() => setWorkflowMode('sign')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-7 px-3 rounded-none text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
               workflowMode === 'sign'
                 ? 'bg-[#31719B] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -151,7 +151,7 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
           <button
             type="button"
             onClick={() => setWorkflowMode('verify')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-7 px-3 rounded-none text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
               workflowMode === 'verify'
                 ? 'bg-[#31719B] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -385,7 +385,7 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
                             <button
                               type="button"
                               onClick={() => onVerifyStaged(doc.id || (doc as any)._id)}
-                              className="p-1 rounded-none text-[#31719B] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              className="p-1 rounded-md text-[#31719B] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
                               title="Verify this file's signature & transfer to verified table"
                               aria-label="Verify signature"
                             >
@@ -397,7 +397,7 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
                             <button
                               type="button"
                               onClick={() => onRemoveDocument(doc.id || (doc as any)._id)}
-                              className="p-1 rounded-none text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                              className="p-1 rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                               title="Remove document from staging"
                               aria-label="Remove document"
                             >

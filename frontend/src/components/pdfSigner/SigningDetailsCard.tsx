@@ -248,7 +248,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
           <label className="font-semibold text-gray-700 dark:text-gray-300">
             Signature on pages
           </label>
-          <div className="grid grid-cols-4 rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
+          <div className="grid grid-cols-4 rounded-lg border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
             {(['First', 'Last', 'All', 'Custom'] as const).map((mode) => {
               const isAll = mode === 'All';
               const isSelected = state.page === mode;
@@ -268,7 +268,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
                       ? 'In PAdES signatures, a single digital signature validates the entire document. Multi-page widget duplication triggers Adobe Reader validation warnings.'
                       : undefined
                   }
-                  className={`py-1.5 text-xs font-semibold rounded-none transition-all ${
+                  className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
                     isAll
                       ? 'opacity-40 cursor-not-allowed text-gray-400'
                       : isSelected
@@ -377,7 +377,7 @@ export const SigningDetailsCard: React.FC<SigningDetailsCardProps> = ({
             type="button"
             disabled={!canSign}
             onClick={onSignBatch}
-            className={`w-full h-10 rounded-none text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all ${
+            className={`w-full h-10 rounded-md text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all ${
               canSign
                 ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]'
                 : 'opacity-50 cursor-not-allowed bg-gray-400'

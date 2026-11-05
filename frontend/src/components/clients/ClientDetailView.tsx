@@ -35,6 +35,7 @@ import { serviceApi } from "@/services/serviceApi";
 import { Service } from "@/data/serviceData";
 import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
 import { clientApi } from "@/services/clientApi";
+import { groupApi } from "@/services/groupApi";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
 import { ClientDetailViewTabs } from "./ClientDetailViewTabs";
@@ -70,7 +71,6 @@ export type ClientTabType =
 
 export const CLIENT_TABS: ClientTabType[] = [
   "Master",
-  "Contacts",
   "Invoices",
   "Ledger",
   "Compliance",
@@ -142,9 +142,63 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-  // Filter tabs dynamically based on user role and granular permissions
+  // Group membership state for dynamic conditional Group tab
+  const [hasGroupMembership, setHasGroupMembership] = useState<boolean>(false);
+
+  useEffect(() => {
+    const clientId = client.id || (client as any)._id?.toString();
+    if (!clientId) {
+      setHasGroupMembership(false);
+      return;
+    }
+    let isMounted = true;
+    groupApi
+      .listGroups({ limit: 100 })
+      .then((res) => {
+        if (!isMounted) return;
+        const groups = res?.data || [];
+        const isMatch = groups.some((g) => {
+          const pocId =
+            typeof g.pocClientId === "string"
+              ? g.pocClientId
+              : (g.pocClientId as any)?.id || (g.pocClientId as any)?._id;
+          if (pocId && String(pocId) === String(clientId)) return true;
+
+          const isMember = (g.clientIds || []).some((c: any) => {
+            const cid = typeof c === "string" ? c : c.id || c._id?.toString();
+            return String(cid) === String(clientId);
+          });
+          if (isMember) return true;
+
+          const isEntity = (g.entities || []).some((e: any) => {
+            const eid = typeof e === "string" ? e : e.id || e._id?.toString();
+            return String(eid) === String(clientId);
+          });
+          return isEntity;
+        });
+        setHasGroupMembership(isMatch);
+      })
+      .catch((err) => {
+        console.error("Failed to check group membership for client:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [client.id, (client as any)._id]);
+
+  // Fallback to Master if activeTab is Contacts or if Group tab is no longer permitted
+  useEffect(() => {
+    if (activeTab === "Contacts" || (activeTab === "Group" && !hasGroupMembership)) {
+      setActiveTab("Master");
+    }
+  }, [activeTab, hasGroupMembership]);
+
+  // Filter tabs dynamically based on user role, group membership, and granular permissions
   const visibleTabs = useMemo(() => {
     return CLIENT_TABS.filter((tab) => {
+      if (tab === "Contacts") return false;
+      if (tab === "Group") return hasGroupMembership && canView("groups");
       if (tab === "Invoices") return canView("invoice");
       if (tab === "Passwords") return canView("password");
       if (tab === "Licenses") return canView("licenses");
@@ -156,7 +210,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       if (tab === "Tasks" || tab === "Assignee" || tab === "Tasks & Assignees") return canView("task_manager");
       return true;
     });
-  }, [canView]);
+  }, [canView, hasGroupMembership]);
 
   // Modals
   const [isAddLicenseOpen, setIsAddLicenseOpen] = useState(false);

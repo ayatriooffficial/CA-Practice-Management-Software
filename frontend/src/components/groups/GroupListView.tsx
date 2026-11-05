@@ -40,6 +40,11 @@ import { GroupRecord, GroupEntity } from "@/services/groupApi";
 import { AddEditGroupModal } from "./AddEditGroupModal";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { usePermission } from "@/components/team/usePermission";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
+import { TableActionDropdown } from "@/components/ui/TableActionDropdown";
+import { BulkActionBar } from "@/components/ui/BulkActionBar";
 
 const getInitials = (name?: string) => {
   if (!name) return "GP";
@@ -82,13 +87,11 @@ export const GroupListView: React.FC = () => {
   });
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
 
-  // Active action menu
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-
   // Modals state
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupRecord | null>(null);
   const [groupToDelete, setGroupToDelete] = useState<GroupRecord | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
 
   // Fetch groups on mount & on filter change
   useEffect(() => {
@@ -205,6 +208,18 @@ export const GroupListView: React.FC = () => {
     setGroupToDelete(null);
   };
 
+  // Bulk Delete confirm handler
+  const handleConfirmBulkDelete = () => {
+    selectedGroupIds.forEach((id) => {
+      dispatch(deleteGroupRequest({ id }));
+    });
+    setSelectedGroupIds(new Set());
+    setIsBulkDeleteConfirmOpen(false);
+    setTimeout(() => {
+      dispatch(fetchGroupsRequest({ force: true }));
+    }, 400);
+  };
+
   // Export to CSV
   const handleExportCSV = () => {
     if (groups.length === 0) return;
@@ -247,6 +262,17 @@ export const GroupListView: React.FC = () => {
   return (
     <div className="w-full flex flex-col gap-3 min-h-[calc(100vh-var(--header-height))] bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] p-2.5 sm:p-4">
 
+      {/* Bulk Action Bar when items selected */}
+      {selectedGroupIds.size > 0 && (
+        <BulkActionBar
+          selectedCount={selectedGroupIds.size}
+          onClearSelection={() => setSelectedGroupIds(new Set())}
+          onDelete={() => setIsBulkDeleteConfirmOpen(true)}
+          itemLabel="groups"
+          deleteLabel="Delete Selected"
+        />
+      )}
+
       {/* Toolbar (Image 1 Right-aligned items) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
         <div className="flex items-center gap-2">
@@ -257,44 +283,44 @@ export const GroupListView: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2.5 justify-end">
           {/* Search Box */}
-          <div className="relative min-w-[220px] sm:min-w-[280px]">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
+          <div className="min-w-[220px] sm:min-w-[280px]">
+            <Input
+              inputSize="sm"
               placeholder="Search group, entity, POC…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md shadow-2xs outline-hidden focus:border-[#31719B] transition-colors"
+              onClear={() => setSearchInput("")}
+              leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
             />
           </div>
 
           {/* Expand All Toggle */}
-          <button
+          <Button
             type="button"
+            variant={isAllExpanded ? "outline" : "secondary"}
+            size="sm"
             onClick={toggleExpandAll}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border shadow-2xs transition-colors cursor-pointer ${
-              isAllExpanded
-                ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800"
-                : "bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-200 border-[#d1d5db] dark:border-[#334155] hover:bg-gray-50 dark:hover:bg-slate-800"
-            }`}
+            icon={
+              <ChevronRight
+                size={13}
+                className={`transition-transform duration-150 ${isAllExpanded ? "rotate-90" : ""}`}
+              />
+            }
           >
-            <ChevronRight
-              size={13}
-              className={`transition-transform duration-150 ${isAllExpanded ? "rotate-90" : ""}`}
-            />
-            <span>{isAllExpanded ? "Collapse all" : "Expand all"}</span>
-          </button>
+            {isAllExpanded ? "Collapse all" : "Expand all"}
+          </Button>
 
           {/* Columns Selector */}
           <div className="relative">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setIsColumnPickerOpen((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              icon={<Columns size={13} className="text-gray-500" />}
             >
-              <Columns size={13} className="text-gray-500" />
-              <span>Columns</span>
-            </button>
+              Columns
+            </Button>
 
             {isColumnPickerOpen && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg shadow-xl p-2 z-30 space-y-1">
@@ -323,29 +349,29 @@ export const GroupListView: React.FC = () => {
 
           {/* + Add Primary Button */}
           {canAddEdit("clients") && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
+              icon={<Plus size={14} />}
               onClick={() => {
                 setEditingGroup(null);
                 setIsAddEditModalOpen(true);
               }}
-              style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
-              className="inline-flex items-center gap-1 px-3.5 py-1.5 text-xs font-semibold text-white rounded-md shadow-2xs transition-all hover:opacity-95 cursor-pointer"
             >
-              <Plus size={14} />
-              <span>Add</span>
-            </button>
+              Add
+            </Button>
           )}
 
           {/* Export Button */}
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="icon"
             onClick={handleExportCSV}
             title="Export to CSV"
-            className="p-1.5 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 border border-[#d1d5db] dark:border-[#334155] bg-white dark:bg-[#1e293b] rounded-md shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <Download size={14} />
-          </button>
+            icon={<Download size={14} />}
+          />
         </div>
       </div>
 
@@ -398,7 +424,6 @@ export const GroupListView: React.FC = () => {
               groups.map((grp) => {
                 const isExpanded = expandedGroupIds.has(grp.id);
                 const isSelected = selectedGroupIds.has(grp.id);
-                const isMenuOpen = openMenuId === grp.id;
 
                 return (
                   <React.Fragment key={grp.id}>
@@ -531,66 +556,44 @@ export const GroupListView: React.FC = () => {
                       )}
 
                       {/* Actions Menu */}
-                      <td className="py-2.5 px-3 text-center relative">
-                        <button
-                          type="button"
-                          onClick={() => setOpenMenuId(isMenuOpen ? null : grp.id)}
-                          className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <MoreVertical size={15} />
-                        </button>
-
-                        {isMenuOpen && (
-                          <div
-                            className="absolute right-3 top-full mt-1 w-44 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg shadow-xl py-1 z-30 animate-in fade-in zoom-in-95 duration-100"
-                            onMouseLeave={() => setOpenMenuId(null)}
-                          >
-                            <Link
-                              href={`/groups/${grp.id}`}
-                              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
-                            >
-                              <Eye size={12} className="text-gray-400" />
-                              <span>View Cockpit</span>
-                            </Link>
-
-                            {canAddEdit("clients") && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingGroup(grp);
-                                  setIsAddEditModalOpen(true);
-                                  setOpenMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                              >
-                                <Pencil size={12} className="text-gray-400" />
-                                <span>Edit Group</span>
-                              </button>
-                            )}
-
-                            <Link
-                              href={`/invoice?groupId=${grp.id}`}
-                              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
-                            >
-                              <FileText size={12} className="text-gray-400" />
-                              <span>Generate Invoice</span>
-                            </Link>
-
-                            {canDelete("clients") && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setGroupToDelete(grp);
-                                  setOpenMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 cursor-pointer"
-                              >
-                                <Trash2 size={12} />
-                                <span>Delete Group</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
+                      <td className="py-2.5 px-3 text-center">
+                        <TableActionDropdown
+                          align="right"
+                          actions={[
+                            {
+                              label: "View Cockpit",
+                              icon: Eye,
+                              onClick: () => router.push(`/groups/${grp.id}`),
+                            },
+                            ...(canAddEdit("clients")
+                              ? [
+                                  {
+                                    label: "Edit Group",
+                                    icon: Pencil,
+                                    onClick: () => {
+                                      setEditingGroup(grp);
+                                      setIsAddEditModalOpen(true);
+                                    },
+                                  },
+                                ]
+                              : []),
+                            {
+                              label: "Generate Invoice",
+                              icon: FileText,
+                              onClick: () => router.push(`/invoice?groupId=${grp.id}`),
+                            },
+                            ...(canDelete("clients")
+                              ? [
+                                  {
+                                    label: "Delete Group",
+                                    icon: Trash2,
+                                    variant: "danger" as const,
+                                    onClick: () => setGroupToDelete(grp),
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
                       </td>
                     </tr>
 
@@ -681,50 +684,16 @@ export const GroupListView: React.FC = () => {
       </div>
 
       {/* Footer Pagination Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-1">
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          <span>Rows per page</span>
-          <select
-            value={pagination.limit}
-            onChange={(e) => handleLimitChange(Number(e.target.value))}
-            className="px-2 py-1 bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md text-xs cursor-pointer outline-hidden"
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
-          <span>
-            {pagination.totalDocs === 0
-              ? "0 of 0"
-              : `${(pagination.page - 1) * pagination.limit + 1}–${Math.min(
-                  pagination.page * pagination.limit,
-                  pagination.totalDocs
-                )} of ${pagination.totalDocs}`}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={pagination.page <= 1}
-              onClick={() => handlePageChange(pagination.page - 1)}
-              className="p-1 rounded border border-[#d1d5db] dark:border-[#334155] hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              &lt;
-            </button>
-            <button
-              type="button"
-              disabled={pagination.page >= pagination.totalPages}
-              onClick={() => handlePageChange(pagination.page + 1)}
-              className="p-1 rounded border border-[#d1d5db] dark:border-[#334155] hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              &gt;
-            </button>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        currentPage={pagination.page}
+        pageSize={pagination.limit}
+        totalItems={pagination.totalDocs}
+        onPageChange={handlePageChange}
+        showPageSize
+        pageSizeOptions={[10, 25, 50, 100]}
+        onPageSizeChange={handleLimitChange}
+        className="rounded-lg border border-[#dde2e8] dark:border-[#334155]"
+      />
 
       {/* Add / Edit Group Modal */}
       {isAddEditModalOpen && (
@@ -749,6 +718,20 @@ export const GroupListView: React.FC = () => {
           title="Delete Group"
           message={`Are you sure you want to delete group "${groupToDelete.name}"? Clients will be unlinked but will remain safe in your client directory.`}
           confirmText="Delete Group"
+        />
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteConfirmOpen && (
+        <DiscardConfirmationModal
+          isOpen={isBulkDeleteConfirmOpen}
+          onCancel={() => setIsBulkDeleteConfirmOpen(false)}
+          onConfirm={handleConfirmBulkDelete}
+          title="Delete Selected Groups"
+          message={`Are you sure you want to delete ${selectedGroupIds.size} selected group${
+            selectedGroupIds.size > 1 ? "s" : ""
+          }? Clients will be unlinked but will remain safe in your client directory.`}
+          confirmText="Delete Selected"
         />
       )}
     </div>
