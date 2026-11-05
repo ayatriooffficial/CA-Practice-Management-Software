@@ -1,10 +1,12 @@
+import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import { logger } from '../../config/logger';
 import { env } from '../../config/env';
 import { Agent } from './agent.model';
 import { AgentRun } from './agentRun.model';
+import { SchedulerLock } from './schedulerLock.model';
 import { AgentConfig, IAgentDocument } from './agent.interface';
-import { AgentExecutionService } from './execution.service';
+import { AgentExecutionService, isEmailConfigured } from './execution.service';
 import { Task as TaskModel } from '../task/task.model';
 import { Client as ClientModel } from '../client/client.model';
 
@@ -117,13 +119,47 @@ export function diffInDays(target: Date, base: Date): number {
   return Math.round((utcTarget - utcBase) / msPerDay);
 }
 
+/**
+ * Resolves milestone string (e.g. '15d', '10d', '30d', '7d') for a given daysLeft.
+ * Defaults to [15, 10] if not specified:
+ * - 15-day milestone: 11 <= daysLeft <= 15
+ * - 10-day milestone: 0 <= daysLeft <= 10
+ * For custom milestones e.g. [30, 15, 10, 7]:
+ * - 30d: 16 <= daysLeft <= 30
+ * - 15d: 11 <= daysLeft <= 15
+ * - 10d: 8 <= daysLeft <= 10
+ * - 7d: 0 <= daysLeft <= 7
+ */
+export function resolveExpiryMilestone(
+  daysLeft: number,
+  milestones: number[] = [15, 10]
+): string | null {
+  if (daysLeft < 0) return null;
+  const sorted = [...new Set(milestones)].sort((a, b) => b - a);
+  for (let i = 0; i < sorted.length; i++) {
+    const high = sorted[i];
+    const low = i < sorted.length - 1 ? sorted[i + 1] : 0;
+    if (i === sorted.length - 1) {
+      if (daysLeft >= 0 && daysLeft <= high) {
+        return `${high}d`;
+      }
+    } else {
+      if (daysLeft > low && daysLeft <= high) {
+        return `${high}d`;
+      }
+    }
+  }
+  return null;
+}
+
 export function isAutomaticExpiryRemindersEnabled(): boolean {
   if (process.env.AUTOMATIC_EXPIRY_REMINDERS_ENABLED !== undefined) {
     const raw = process.env.AUTOMATIC_EXPIRY_REMINDERS_ENABLED.trim().toLowerCase();
     if (raw === 'true') return true;
     if (raw === 'false') return false;
   }
-  return env.AUTOMATIC_EXPIRY_REMINDERS_ENABLED === true;
+  if (env.AUTOMATIC_EXPIRY_REMINDERS_ENABLED === true) return true;
+  return process.env.NODE_ENV === 'production';
 }
 
 export function isAutomaticRemindersRealSendEnabled(): boolean {
@@ -132,15 +168,73 @@ export function isAutomaticRemindersRealSendEnabled(): boolean {
     if (raw === 'true') return true;
     if (raw === 'false') return false;
   }
-  return env.AUTOMATIC_REMINDERS_REAL_SEND === true;
+  if (env.AUTOMATIC_REMINDERS_REAL_SEND === true) return true;
+  if (process.env.NODE_ENV === 'production') {
+    return isEmailConfigured();
+  }
+  return false;
 }
 
 export class AgentSchedulerService {
   private static timer: NodeJS.Timeout | null = null;
   private static isRunning = false;
+  private static instanceId = randomUUID();
+
+  static getInstanceId(): string {
+    return this.instanceId;
+  }
 
   static isSchedulerActive(): boolean {
     return this.timer !== null;
+  }
+
+  /**
+   * Distributed single-owner leader lock between API server and background workers.
+   */
+  static async acquireLeaderLock(leaseDurationMs = 60000): Promise<boolean> {
+    if (mongoose.connection.readyState !== 1) return false;
+    const now = new Date();
+    const leaseExpiresAt = new Date(now.getTime() + leaseDurationMs);
+
+    try {
+      const lock = await SchedulerLock.findOneAndUpdate(
+        {
+          _id: 'agent-center-scheduler-leader',
+          $or: [
+            { leaseExpiresAt: { $lt: now } },
+            { instanceId: this.instanceId },
+          ],
+        },
+        {
+          $set: {
+            instanceId: this.instanceId,
+            leaseExpiresAt,
+            updatedAt: now,
+          },
+        },
+        { upsert: true, new: true }
+      ).exec();
+
+      return lock?.instanceId === this.instanceId;
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        return false;
+      }
+      logger.warn('Error acquiring scheduler leader lock:', err?.message || err);
+      return false;
+    }
+  }
+
+  static async releaseLeaderLock(): Promise<void> {
+    if (mongoose.connection.readyState !== 1) return;
+    try {
+      await SchedulerLock.deleteOne({
+        _id: 'agent-center-scheduler-leader',
+        instanceId: this.instanceId,
+      }).exec();
+    } catch {
+      // Ignore release errors on shutdown
+    }
   }
 
   static start(intervalMs = Number(process.env.AGENT_SCHEDULER_INTERVAL_MS) || 60000): void {
@@ -159,64 +253,75 @@ export class AgentSchedulerService {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+      void this.releaseLeaderLock();
       logger.info('🛑 Agent background scheduler stopped');
     }
   }
 
   /**
-   * Retrieves an existing published agent for the module or creates a standard system reminder agent.
+   * Retrieves or creates a dedicated system reminder agent.
+   * STRICT ISOLATION: System agents are tagged with isSystem: true and a unique systemKey.
+   * User-created agents are never selected or hijacked.
    */
   static async getOrCreateSystemAgent(orgId: string, module: 'DSC' | 'License'): Promise<IAgentDocument> {
-    const existing = await Agent.findOne({ orgId, module, status: 'published' }).sort({ createdAt: 1 }).exec();
+    const systemKey = `system:${module.toLowerCase()}:expiry-reminder`;
+    const existing = await Agent.findOne({ orgId, isSystem: true, systemKey }).exec();
     if (existing) return existing;
 
     const name = `Automatic ${module} Expiry Reminders`;
-    let systemAgent = await Agent.findOne({ orgId, module, name }).exec();
-    if (!systemAgent) {
-      systemAgent = await Agent.create({
-        orgId,
-        name,
-        module,
-        status: 'published',
-        description: `Automated daily ${module} expiry reminder agent (dispatches at 15 and 10 calendar days before expiry).`,
-        config: module === 'DSC' ? {
-          trigger: 'DSC Expiry Approaching',
-          conditions: { daysBeforeExpiry: 15 },
-          recipient: ['Client'],
-          channel: 'Email',
-          action: 'Send expiry reminder',
-          templateId: 'custom',
-          subject: 'Expiry Reminder: Digital Signature for {{dsc.holder}} expires in {{daysLeft}} days',
-          message: 'Dear {{client.name}},\n\nThis is an automated reminder that your Digital Signature Certificate (DSC ID: {{dsc.dscId}}, Holder: {{dsc.holder}}) will expire on {{dsc.expiryDate}} ({{daysLeft}} days remaining).\n\nPlease contact our office to initiate the renewal process.\n\nRegards,\nCA Practice Management',
-        } : {
-          trigger: 'License Expiry Approaching',
-          conditions: { daysBeforeExpiry: 15 },
-          recipient: ['Client'],
-          channel: 'Email',
-          action: 'Send renewal reminder',
-          templateId: 'custom',
-          subject: 'Expiry Reminder: License {{license.name}} expires in {{daysLeft}} days',
-          message: 'Dear {{client.name}},\n\nThis is an automated reminder that your license {{license.name}} (No: {{license.licenseNo}}) will expire on {{license.expiryDate}} ({{daysLeft}} days remaining).\n\nPlease arrange for timely renewal to avoid compliance penalties.\n\nRegards,\nCA Practice Management',
-        },
-      });
+    const legacy = await Agent.findOne({ orgId, module, name }).exec();
+    if (legacy) {
+      legacy.isSystem = true;
+      legacy.systemKey = systemKey;
+      return await legacy.save();
     }
-    return systemAgent;
+
+    return await Agent.create({
+      orgId,
+      name,
+      module,
+      status: 'published',
+      isSystem: true,
+      systemKey,
+      description: `Automated daily ${module} expiry reminder agent (dispatches configurable milestones before expiry).`,
+      config: module === 'DSC' ? {
+        trigger: 'DSC Expiry Approaching',
+        conditions: { daysBeforeExpiry: 15 },
+        recipient: ['Client'],
+        channel: 'Email',
+        action: 'Send expiry reminder',
+        templateId: 'custom',
+        subject: 'Expiry Reminder: Digital Signature for {{dsc.holder}} expires in {{daysLeft}} days',
+        message: 'Dear {{client.name}},\n\nThis is an automated reminder that your Digital Signature Certificate (DSC ID: {{dsc.dscId}}, Holder: {{dsc.holder}}) will expire on {{dsc.expiryDate}} ({{daysLeft}} days remaining).\n\nPlease contact our office to initiate the renewal process.\n\nRegards,\nCA Practice Management',
+      } : {
+        trigger: 'License Expiry Approaching',
+        conditions: { daysBeforeExpiry: 15 },
+        recipient: ['Client'],
+        channel: 'Email',
+        action: 'Send renewal reminder',
+        templateId: 'custom',
+        subject: 'Expiry Reminder: License {{license.name}} expires in {{daysLeft}} days',
+        message: 'Dear {{client.name}},\n\nThis is an automated reminder that your license {{license.name}} (No: {{license.licenseNo}}) will expire on {{license.expiryDate}} ({{daysLeft}} days remaining).\n\nPlease arrange for timely renewal to avoid compliance penalties.\n\nRegards,\nCA Practice Management',
+      },
+    });
   }
 
   /**
    * Processes automatic DSC and License expiry reminders against real MongoDB Client records.
    * - Timezone: Asia/Kolkata
-   * - Milestones: Exactly 15 and 10 calendar days before expiry
+   * - Milestones: Configurable milestones (defaults to 15 and 10 calendar days)
    * - Missed run handling without burst of duplicates
-   * - Idempotent persistent runKey tracking
+   * - Idempotent persistent runKey tracking with atomic CAS claims
    */
   static async processAutomaticExpiryReminders(
     nowDate: Date = new Date(),
-    options?: { forceEnable?: boolean; forceRealSend?: boolean }
+    options?: { forceEnable?: boolean; forceRealSend?: boolean; milestones?: number[] }
   ): Promise<ExpiryReminderBatchResult> {
     const todayKolkataYMD = getKolkataYMD(nowDate);
     const isEnabled = options?.forceEnable !== undefined ? options.forceEnable : isAutomaticExpiryRemindersEnabled();
     const isRealSend = options?.forceRealSend !== undefined ? options.forceRealSend : isAutomaticRemindersRealSendEnabled();
+    const milestones = options?.milestones && options.milestones.length ? options.milestones : [15, 10];
+    const maxMilestone = Math.max(...milestones);
 
     const result: ExpiryReminderBatchResult = {
       ran: false,
@@ -281,22 +386,12 @@ export class AgentSchedulerService {
             continue;
           }
 
-          // Skip if more than 15 calendar days away
-          if (daysLeft > 15) {
+          // Skip if beyond the maximum reminder window
+          if (daysLeft > maxMilestone) {
             continue;
           }
 
-          // Deterministic milestone selection:
-          // - 15-day milestone: 11 <= daysLeft <= 15
-          // - 10-day milestone: 0 <= daysLeft <= 10
-          // If a run was missed and daysLeft is <= 10, fire ONLY 10d (do not send a duplicate burst with 15d)
-          let milestone: '15d' | '10d' | null = null;
-          if (daysLeft > 10 && daysLeft <= 15) {
-            milestone = '15d';
-          } else if (daysLeft >= 0 && daysLeft <= 10) {
-            milestone = '10d';
-          }
-
+          const milestone = resolveExpiryMilestone(daysLeft, milestones);
           if (!milestone) continue;
 
           const dscKey = String(dsc.dscId || dsc.id || dsc.name || 'default').trim();
@@ -312,7 +407,6 @@ export class AgentSchedulerService {
             const agent = await AgentSchedulerService.getOrCreateSystemAgent(clientOrgId, 'DSC');
 
             // ATOMIC COMPARE-AND-SWAP CLAIM:
-            // Prevents concurrent worker races on new records, failed retries, and stale in-progress reclaims
             const claimResult = await AgentExecutionService.acquireAtomicClaim({
               orgId: clientOrgId,
               agentId: agent._id,
@@ -378,18 +472,12 @@ export class AgentSchedulerService {
             continue;
           }
 
-          // Skip if more than 15 calendar days away
-          if (daysLeft > 15) {
+          // Skip if beyond the maximum reminder window
+          if (daysLeft > maxMilestone) {
             continue;
           }
 
-          let milestone: '15d' | '10d' | null = null;
-          if (daysLeft > 10 && daysLeft <= 15) {
-            milestone = '15d';
-          } else if (daysLeft >= 0 && daysLeft <= 10) {
-            milestone = '10d';
-          }
-
+          const milestone = resolveExpiryMilestone(daysLeft, milestones);
           if (!milestone) continue;
 
           const licKey = String(lic.licenseNo || lic.id || lic.name || 'default').trim();
@@ -405,7 +493,6 @@ export class AgentSchedulerService {
             const agent = await AgentSchedulerService.getOrCreateSystemAgent(clientOrgId, 'License');
 
             // ATOMIC COMPARE-AND-SWAP CLAIM:
-            // Prevents concurrent worker races on new records, failed retries, and stale in-progress reclaims
             const claimResult = await AgentExecutionService.acquireAtomicClaim({
               orgId: clientOrgId,
               agentId: agent._id,
@@ -462,8 +549,9 @@ export class AgentSchedulerService {
   /**
    * Main scheduler execution tick.
    * Accepts a deterministic `now` Date for unit and integration testing.
+   * Uses leader lock to ensure only one worker processes ticks across distributed nodes.
    */
-  static async tick(nowDate: Date = new Date()): Promise<SchedulerTickResult> {
+  static async tick(nowDate: Date = new Date(), options?: { skipLock?: boolean }): Promise<SchedulerTickResult> {
     if (mongoose.connection.readyState !== 1) {
       return {
         ran: false,
@@ -484,6 +572,19 @@ export class AgentSchedulerService {
       };
     }
 
+    if (!options?.skipLock) {
+      const isLeader = await this.acquireLeaderLock();
+      if (!isLeader) {
+        return {
+          ran: false,
+          timestamp: nowDate.toISOString(),
+          evaluatedAgents: 0,
+          dispatchedRuns: 0,
+          errors: ['Scheduler tick skipped: another instance holds leader lock.'],
+        };
+      }
+    }
+
     this.isRunning = true;
     const errors: string[] = [];
     let dispatchedRuns = 0;
@@ -499,17 +600,19 @@ export class AgentSchedulerService {
         errors.push(...autoRemindersResult.errors);
       }
 
-      // Part 2: Load all published user agents across tenant organizations for user-defined task triggers
+      // Part 2: Load all published user agents across tenant organizations for user-defined task/dsc/license triggers
       const publishedAgents = await Agent.find({ status: 'published' }).exec();
       evaluatedAgents = publishedAgents.length;
 
       for (const agent of publishedAgents) {
+        if (agent.isSystem) continue; // Dedicated system agents are handled in Part 1
         const orgId = String(agent.orgId);
         const config = agent.config as AgentConfig;
         const trigger = (config?.trigger || '').trim();
         const normTrigger = trigger.toLowerCase();
 
         try {
+          // --- TASK MODULE TRIGGERS ---
           if (agent.module === 'Task') {
             // Task: Due Date Approaching / Task due soon
             if (normTrigger === 'due date approaching' || normTrigger === 'task due soon') {
@@ -528,8 +631,17 @@ export class AgentSchedulerService {
 
                 if (daysLeft >= 0 && daysLeft <= daysBeforeDue) {
                   const runKey = `sched:task-due:${String(agent._id)}:${String(task._id)}:${task.targetDueDate}:${todayKolkataYMD}`;
-                  const existing = await AgentRun.findOne({ orgId, runKey }).select('_id').lean().exec();
-                  if (!existing) {
+                  const claimResult = await AgentExecutionService.acquireAtomicClaim({
+                    orgId,
+                    agentId: agent._id,
+                    agentName: agent.name,
+                    agentModule: 'Task',
+                    runKey,
+                    isRealSend: true,
+                    triggerData: { targetYMD, daysLeft, taskId: task.taskId },
+                  });
+
+                  if (claimResult.acquired) {
                     await AgentExecutionService.run(String(agent._id), {
                       orgId,
                       event: {
@@ -547,6 +659,7 @@ export class AgentSchedulerService {
                       },
                       runType: 'actual',
                       idempotencyKey: runKey,
+                      claimedRun: claimResult.run,
                     });
                     dispatchedRuns++;
                   }
@@ -570,8 +683,17 @@ export class AgentSchedulerService {
 
                 if (daysLeft < 0) {
                   const runKey = `sched:task-overdue:${String(agent._id)}:${String(task._id)}:${todayKolkataYMD}`;
-                  const existing = await AgentRun.findOne({ orgId, runKey }).select('_id').lean().exec();
-                  if (!existing) {
+                  const claimResult = await AgentExecutionService.acquireAtomicClaim({
+                    orgId,
+                    agentId: agent._id,
+                    agentName: agent.name,
+                    agentModule: 'Task',
+                    runKey,
+                    isRealSend: true,
+                    triggerData: { targetYMD, daysLeft, taskId: task.taskId },
+                  });
+
+                  if (claimResult.acquired) {
                     await AgentExecutionService.run(String(agent._id), {
                       orgId,
                       event: {
@@ -589,6 +711,7 @@ export class AgentSchedulerService {
                       },
                       runType: 'actual',
                       idempotencyKey: runKey,
+                      claimedRun: claimResult.run,
                     });
                     dispatchedRuns++;
                   }
@@ -611,19 +734,28 @@ export class AgentSchedulerService {
                 if (!pendingDocs.length) continue;
 
                 const runKey = `sched:task-doc-repeat:${String(agent._id)}:${String(task._id)}:${todayKolkataYMD}`;
-                const existing = await AgentRun.findOne({ orgId, runKey }).select('_id').lean().exec();
-                if (!existing) {
-                  const lastRun = await AgentRun.findOne({
-                    orgId,
-                    agentId: agent._id,
-                    runKey: new RegExp(`^sched:task-doc-repeat:${String(agent._id)}:${String(task._id)}:`),
-                  }).sort({ createdAt: -1 }).select('createdAt').lean().exec();
+                const lastRun = await AgentRun.findOne({
+                  orgId,
+                  agentId: agent._id,
+                  runKey: new RegExp(`^sched:task-doc-repeat:${String(agent._id)}:${String(task._id)}:`),
+                }).sort({ createdAt: -1 }).select('createdAt').lean().exec();
 
-                  if (lastRun) {
-                    const daysSinceLast = diffInCalendarDays(todayKolkataYMD, getKolkataYMD(new Date(lastRun.createdAt)));
-                    if (daysSinceLast < repeatDays) continue;
-                  }
+                if (lastRun) {
+                  const daysSinceLast = diffInCalendarDays(todayKolkataYMD, getKolkataYMD(new Date(lastRun.createdAt)));
+                  if (daysSinceLast < repeatDays) continue;
+                }
 
+                const claimResult = await AgentExecutionService.acquireAtomicClaim({
+                  orgId,
+                  agentId: agent._id,
+                  agentName: agent.name,
+                  agentModule: 'Task',
+                  runKey,
+                  isRealSend: true,
+                  triggerData: { pendingDocsCount: pendingDocs.length },
+                });
+
+                if (claimResult.acquired) {
                   await AgentExecutionService.run(String(agent._id), {
                     orgId,
                     event: {
@@ -640,8 +772,159 @@ export class AgentSchedulerService {
                     },
                     runType: 'actual',
                     idempotencyKey: runKey,
+                    claimedRun: claimResult.run,
                   });
                   dispatchedRuns++;
+                }
+              }
+            }
+          }
+
+          // --- DSC MODULE USER AGENT TRIGGERS ---
+          if (agent.module === 'DSC') {
+            const isApproaching = normTrigger === 'dsc expiry approaching' || normTrigger === 'renewal required';
+            const isExpired = normTrigger === 'dsc expired';
+
+            if (isApproaching || isExpired) {
+              const thresholdDays = config.conditions?.daysBeforeExpiry ?? 30;
+              const clients = await ClientModel.find({
+                orgId,
+                isDeleted: false,
+                'dscs.0': { $exists: true },
+              }).lean().exec();
+
+              for (const client of clients) {
+                const clientEmail = (client.email || '').trim().toLowerCase();
+                for (const dsc of client.dscs || []) {
+                  if (dsc.status && String(dsc.status).toLowerCase() !== 'active') continue;
+                  const expYMD = parseDateToYMD(dsc.expiryDate);
+                  if (!expYMD) continue;
+                  const daysLeft = diffInCalendarDays(expYMD, todayKolkataYMD);
+                  const dscKey = String(dsc.dscId || dsc.id || dsc.name || 'default').trim();
+
+                  let shouldTrigger = false;
+                  let runKey = '';
+
+                  if (isApproaching && daysLeft >= 0 && daysLeft <= thresholdDays) {
+                    shouldTrigger = true;
+                    runKey = `sched:user-dsc-due:${String(agent._id)}:${String(client._id)}:${dscKey}:${expYMD}:${todayKolkataYMD}`;
+                  } else if (isExpired && daysLeft < 0 && daysLeft >= -7) {
+                    shouldTrigger = true;
+                    runKey = `sched:user-dsc-exp:${String(agent._id)}:${String(client._id)}:${dscKey}:${expYMD}`;
+                  }
+
+                  if (shouldTrigger && runKey) {
+                    const claimResult = await AgentExecutionService.acquireAtomicClaim({
+                      orgId,
+                      agentId: agent._id,
+                      agentName: agent.name,
+                      agentModule: 'DSC',
+                      runKey,
+                      isRealSend: true,
+                      triggerData: { daysLeft, expYMD, dscKey },
+                    });
+
+                    if (claimResult.acquired) {
+                      await AgentExecutionService.run(String(agent._id), {
+                        orgId,
+                        event: {
+                          clientId: String(client._id),
+                          clientName: client.name,
+                          clientEmail,
+                          dsc: {
+                            id: dsc.id,
+                            dscId: dsc.dscId || '—',
+                            holder: dsc.name,
+                            name: dsc.name,
+                            expiryDate: dsc.expiryDate,
+                            vendor: dsc.vendor || '—',
+                            certificateClass: dsc.class || 'Class 3',
+                            location: dsc.location || 'CA Office',
+                          },
+                          daysLeft,
+                          daysToExpiry: daysLeft,
+                          expired: daysLeft < 0,
+                        },
+                        runType: 'actual',
+                        idempotencyKey: runKey,
+                        claimedRun: claimResult.run,
+                      });
+                      dispatchedRuns++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // --- LICENSE MODULE USER AGENT TRIGGERS ---
+          if (agent.module === 'License') {
+            const isApproaching = normTrigger === 'license expiry approaching' || normTrigger === 'renewal required';
+            const isExpired = normTrigger === 'license expired';
+
+            if (isApproaching || isExpired) {
+              const thresholdDays = config.conditions?.daysBeforeExpiry ?? 30;
+              const clients = await ClientModel.find({
+                orgId,
+                isDeleted: false,
+                'licenses.0': { $exists: true },
+              }).lean().exec();
+
+              for (const client of clients) {
+                const clientEmail = (client.email || '').trim().toLowerCase();
+                for (const lic of client.licenses || []) {
+                  const expYMD = parseDateToYMD(lic.expiryDate);
+                  if (!expYMD) continue;
+                  const daysLeft = diffInCalendarDays(expYMD, todayKolkataYMD);
+                  const licKey = String(lic.licenseNo || lic.id || lic.name || 'default').trim();
+
+                  let shouldTrigger = false;
+                  let runKey = '';
+
+                  if (isApproaching && daysLeft >= 0 && daysLeft <= thresholdDays) {
+                    shouldTrigger = true;
+                    runKey = `sched:user-lic-due:${String(agent._id)}:${String(client._id)}:${licKey}:${expYMD}:${todayKolkataYMD}`;
+                  } else if (isExpired && daysLeft < 0 && daysLeft >= -7) {
+                    shouldTrigger = true;
+                    runKey = `sched:user-lic-exp:${String(agent._id)}:${String(client._id)}:${licKey}:${expYMD}`;
+                  }
+
+                  if (shouldTrigger && runKey) {
+                    const claimResult = await AgentExecutionService.acquireAtomicClaim({
+                      orgId,
+                      agentId: agent._id,
+                      agentName: agent.name,
+                      agentModule: 'License',
+                      runKey,
+                      isRealSend: true,
+                      triggerData: { daysLeft, expYMD, licKey },
+                    });
+
+                    if (claimResult.acquired) {
+                      await AgentExecutionService.run(String(agent._id), {
+                        orgId,
+                        event: {
+                          clientId: String(client._id),
+                          clientName: client.name,
+                          clientEmail,
+                          license: {
+                            id: lic.id,
+                            licenseNo: lic.licenseNo || '—',
+                            name: lic.name,
+                            owner: client.name,
+                            expiryDate: lic.expiryDate,
+                          },
+                          daysLeft,
+                          daysToExpiry: daysLeft,
+                          expired: daysLeft < 0,
+                        },
+                        runType: 'actual',
+                        idempotencyKey: runKey,
+                        claimedRun: claimResult.run,
+                      });
+                      dispatchedRuns++;
+                    }
+                  }
                 }
               }
             }

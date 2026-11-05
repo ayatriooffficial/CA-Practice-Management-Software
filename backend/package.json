@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "rimraf dist && tsc",
+    "test": "npx tsx --test src/modules/agentCenter/*.test.ts",
     "start": "node dist/server.js",
     "worker": "tsx src/worker.ts",
     "type-check": "tsc --noEmit",

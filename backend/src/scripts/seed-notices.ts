@@ -1,9 +1,7 @@
-import { Types } from 'mongoose';
 import { connectDatabase, disconnectDatabase } from '../config/database';
 import { Client as ClientModel } from '../modules/client/client.model';
 import { NoticeModel } from '../modules/notice/notice.model';
 import {
-  ComplianceCategoryModel,
   ComplianceItemModel,
   ComplianceEntryModel,
 } from '../modules/compliance/compliance.model';

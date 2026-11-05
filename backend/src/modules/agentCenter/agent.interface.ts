@@ -55,6 +55,8 @@ export interface IAgent {
   description: string;
   status: AgentStatus;
   config: AgentConfig;
+  isSystem?: boolean;
+  systemKey?: string;
   createdAt: Date;
   updatedAt: Date;
   publishedAt?: Date | null;

@@ -222,6 +222,17 @@ export class ClientController {
   });
 
   /**
+   * Update a DSC for client
+   * PATCH /api/v1/clients/:id/dscs/:subId
+   */
+  static updateDsc = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const subId = req.params.subId as string;
+    const client = await ClientService.updateDsc(id, subId, req.body);
+    return ApiResponse.success(res, client, 'Digital Signature updated successfully');
+  });
+
+  /**
    * Delete a DSC from client
    * DELETE /api/v1/clients/:id/dscs/:subId
    */

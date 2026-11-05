@@ -1059,20 +1059,53 @@ export class ClientService {
   static async updateLicense(id: string, licenseId: string, data: any): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    let updatedLicense: any = null;
+    let oldLicense: any = null;
+
     client.licenses = (client.licenses || []).map((l: any) => {
-      if (l.id === licenseId || l._id?.toString() === licenseId) {
-        return {
+      if (l.id === licenseId || l._id?.toString() === licenseId || l.licenseNo === licenseId) {
+        oldLicense = { ...l };
+        updatedLicense = {
           ...l,
           ...data,
           fileUrl: data.fileUrl !== undefined ? data.fileUrl : l.fileUrl,
           driveFileId: data.driveFileId !== undefined ? data.driveFileId : l.driveFileId,
           id: l.id || licenseId,
         };
+        return updatedLicense;
       }
       return l;
     });
+
+    if (!updatedLicense) {
+      throw AppError.notFound('License record not found');
+    }
+
     client.markModified('licenses');
-    return await client.save();
+    const saved = await client.save();
+
+    if (saved.orgId && updatedLicense) {
+      const isRenewed = Boolean(
+        (data.expiryDate && data.expiryDate !== oldLicense?.expiryDate) ||
+        (data.status && String(data.status).toLowerCase() === 'active' && String(oldLicense?.status).toLowerCase() !== 'active') ||
+        data.isRenewal
+      );
+
+      if (isRenewed) {
+        void AgentExecutionService.dispatchLicenseEvent(
+          String(saved.orgId),
+          'License Renewed',
+          {
+            clientId: String(saved._id),
+            clientName: saved.name,
+            license: updatedLicense,
+          },
+          `lic-renewed:${String(saved._id)}:${updatedLicense.id || licenseId}:${Date.now()}`
+        ).catch(() => []);
+      }
+    }
+
+    return saved;
   }
 
   /**
@@ -1121,6 +1154,60 @@ export class ClientService {
         `dsc-created:${String(saved._id)}:${newDsc.id}`
       ).catch(() => []);
     }
+    return saved;
+  }
+
+  /**
+   * Update a DSC for Client
+   */
+  static async updateDsc(id: string, dscId: string, data: any): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+
+    let updatedDsc: any = null;
+    let oldDsc: any = null;
+
+    client.dscs = (client.dscs || []).map((d: any) => {
+      if (d.id === dscId || d._id?.toString() === dscId || d.dscId === dscId) {
+        oldDsc = { ...d };
+        updatedDsc = {
+          ...d,
+          ...data,
+          id: d.id || dscId,
+        };
+        return updatedDsc;
+      }
+      return d;
+    });
+
+    if (!updatedDsc) {
+      throw AppError.notFound('DSC record not found');
+    }
+
+    client.markModified('dscs');
+    const saved = await client.save();
+
+    if (saved.orgId && updatedDsc) {
+      const isRenewed = Boolean(
+        (data.expiryDate && data.expiryDate !== oldDsc?.expiryDate) ||
+        (data.status && String(data.status).toLowerCase() === 'active' && String(oldDsc?.status).toLowerCase() !== 'active') ||
+        data.isRenewal
+      );
+
+      if (isRenewed) {
+        void AgentExecutionService.dispatchDscEvent(
+          String(saved.orgId),
+          'DSC Renewed',
+          {
+            clientId: String(saved._id),
+            clientName: saved.name,
+            dsc: updatedDsc,
+          },
+          `dsc-renewed:${String(saved._id)}:${updatedDsc.id || dscId}:${Date.now()}`
+        ).catch(() => []);
+      }
+    }
+
     return saved;
   }
 

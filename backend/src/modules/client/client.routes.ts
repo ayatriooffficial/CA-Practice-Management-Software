@@ -143,6 +143,8 @@ router.delete('/:id/licenses/:subId', ClientController.deleteLicense);
 
 // Digital Signatures (DSC)
 router.post('/:id/dscs', ClientController.addDsc);
+router.patch('/:id/dscs/:subId', ClientController.updateDsc);
+router.put('/:id/dscs/:subId', ClientController.updateDsc);
 router.delete('/:id/dscs/:subId', ClientController.deleteDsc);
 
 // Document Movement (In - Out)
