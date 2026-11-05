@@ -64,3 +64,6 @@ credentials/
 certs/
 */certs/
 
+
+dsc-connector-local/*.exe
+

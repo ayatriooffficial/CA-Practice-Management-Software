@@ -138,6 +138,7 @@ export interface GetNoticesParams {
   sortBy?: string;
   page?: number;
   pageSize?: number;
+  limit?: number;
 }
 
 export interface GetNoticesResponse {

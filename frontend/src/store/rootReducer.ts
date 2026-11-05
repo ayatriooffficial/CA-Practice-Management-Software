@@ -10,6 +10,8 @@ import teamReducer from './features/team/teamSlice';
 import uiReducer from './features/ui/uiSlice';
 import workdoneReducer from './features/workdone/workdoneSlice';
 import groupReducer from './features/groups/groupSlice';
+import noticeReducer from './features/notices/noticeSlice';
+import complianceReducer from './features/compliance/complianceSlice';
 
 export const rootReducer = combineReducers({
   auth: authSlice.reducer,
@@ -23,6 +25,8 @@ export const rootReducer = combineReducers({
   team: teamReducer,
   ui: uiReducer,
   workdone: workdoneReducer,
+  notices: noticeReducer,
+  compliance: complianceReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

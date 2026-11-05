@@ -2,20 +2,24 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Filter, Paperclip, FileText, PenTool, Loader2 } from "lucide-react";
+import { Filter, Paperclip, FileText, PenTool } from "lucide-react";
 import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import type {
   ComplianceGridRow,
+  ComplianceGridColumn,
   ComplianceCellStatus,
   ComplianceEntry,
   Frequency,
 } from "@/types/compliance";
 import type { Client } from "@/types/notices";
-import { getComplianceGrid, setEntryStatus } from "@/services/complianceApi";
+import { setEntryStatus } from "@/services/complianceApi";
 import { getClients } from "@/services/noticeApi";
 import { isOverdue } from "@/lib/dates";
+import { Button } from "@/components/ui/Button";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { updateComplianceCell } from "@/store/features/compliance/complianceSlice";
 
 export interface ComplianceGridProps {
   categoryId?: string;
@@ -25,6 +29,9 @@ export interface ComplianceGridProps {
   portal?: string;
   isAuto?: boolean;
   clientId?: string;
+  rows?: ComplianceGridRow[];
+  columns?: ComplianceGridColumn[];
+  loading?: boolean;
 }
 
 interface ClientGroup {
@@ -66,10 +73,20 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
   portal,
   isAuto = true,
   clientId,
+  rows: propRows,
+  columns: propColumns,
+  loading: propLoading,
 }) => {
-  const [rows, setRows] = useState<ComplianceGridRow[]>([]);
+  const dispatch = useAppDispatch();
+  const reduxCompliance = useAppSelector((state) => state.compliance);
+  const rawRows = propRows ?? reduxCompliance.rows;
+  const loading = propLoading ?? reduxCompliance.loading;
+
+  const rows = useMemo(() => {
+    return clientId ? rawRows.filter((r) => r.clientId === clientId) : rawRows;
+  }, [rawRows, clientId]);
+
   const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(
     new Set()
@@ -123,34 +140,21 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    Promise.all([
-      getComplianceGrid({
-        categoryId,
-        fy: normalizedFy,
-        frequency: apiFrequency,
-        search: search.trim() || undefined,
-      }),
-      getClients(),
-    ])
-      .then(([gridRes, clientsRes]) => {
+    getClients()
+      .then((clientsRes) => {
         if (!mounted) return;
-        const fetchedRows = gridRes.rows || [];
-        setRows(clientId ? fetchedRows.filter((r) => r.clientId === clientId) : fetchedRows);
         setClients(clientsRes.data || []);
-        setLoading(false);
       })
       .catch((err: unknown) => {
         if (mounted) {
           setError(err instanceof Error ? err : new Error(String(err)));
-          setLoading(false);
         }
       });
 
     return () => {
       mounted = false;
     };
-  }, [categoryId, normalizedFy, apiFrequency, search, clientId]);
+  }, []);
 
   const clientMap = useMemo(() => {
     return new Map(clients.map((c) => [c.id, c]));
@@ -433,21 +437,12 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
     const updatedEntry = await setEntryStatus(targetId, nextStatus, `FY ${startYear}-${endYear}`);
 
     if (updatedEntry) {
-      setRows((prev) =>
-        prev.map((r) => {
-          if (r.item.id === rowItem.id) {
-            return {
-              ...r,
-              cells: {
-                ...r.cells,
-                [colKey]: {
-                  status: nextStatus,
-                  entry: updatedEntry,
-                },
-              },
-            };
-          }
-          return r;
+      dispatch(
+        updateComplianceCell({
+          itemId: rowItem.id,
+          colKey,
+          status: nextStatus,
+          entry: updatedEntry,
         })
       );
     }
@@ -762,22 +757,17 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                                   className="w-3.5 h-3.5 shrink-0"
                                   style={{ color: "var(--text-subtle)" }}
                                 />
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  icon={<PenTool className="w-3.5 h-3.5" />}
+                                  loading={stagingComplianceKey === `${group.clientName}-${col.key}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleSignComplianceDoc(group.clientName, group.clientId, r.item, col.key, cellData?.entry);
                                   }}
-                                  disabled={stagingComplianceKey === `${group.clientName}-${col.key}`}
-                                  className="p-0.5 rounded-none text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
                                   title="Sign with DSC (PAdES)"
-                                >
-                                  {stagingComplianceKey === `${group.clientName}-${col.key}` ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
-                                  ) : (
-                                    <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
-                                  )}
-                                </button>
+                                />
                               </div>
                             )}
                           </div>

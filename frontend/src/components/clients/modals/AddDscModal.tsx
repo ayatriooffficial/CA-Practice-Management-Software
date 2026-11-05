@@ -81,6 +81,10 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
         setVendor("Capricorn");
       } else if (issuerLower.includes("vsign")) {
         setVendor("Vsign");
+      } else if (issuerLower.includes("pantasign")) {
+        setVendor("Pantasign");
+      } else if (issuerLower.includes("idsign")) {
+        setVendor("IDSign");
       } else {
         setVendor("Other");
       }
@@ -154,11 +158,11 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg rounded-xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-[#111827] dark:text-[#f8fafc] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-2xl my-auto rounded-xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-[#111827] dark:text-[#f8fafc] max-h-[90vh] md:max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155]"
+          className="px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155] flex-shrink-0 flex items-center justify-between"
           style={{ backgroundColor: "var(--orange-havy-light)" }}
         >
           <div className="flex items-center gap-2.5">
@@ -187,7 +191,9 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Scrollable Fields Container */}
+          <div className="overflow-y-auto p-6 flex-1 hover:scroll-smooth border-b border-[#dde2e8] dark:border-[#334155] space-y-4">
           {errorMessage && (
             <div className="p-3 text-xs rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
               {errorMessage}
@@ -387,8 +393,10 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
             />
           </div>
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#dde2e8] dark:border-[#334155]">
+          </div>
+
+          {/* Sticky Footer Actions */}
+          <div className="px-6 py-4 flex items-center justify-end gap-3 flex-shrink-0 bg-white dark:bg-[#1e293b]">
             <button
               type="button"
               onClick={onClose}

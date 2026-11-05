@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Coins,
@@ -13,7 +13,11 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import type { ComplianceCategory } from "@/types/compliance";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchComplianceRequest } from "@/store/features/compliance/complianceSlice";
 import {
   useComplianceCategories,
   useSyncEntitlementData,
@@ -124,6 +128,17 @@ export const ComplianceShell: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const dispatch = useAppDispatch();
+  const { rows, columns, loading, isLoaded } = useAppSelector(
+    (state) => state.compliance
+  );
+
+  useEffect(() => {
+    if (!isLoaded) {
+      dispatch(fetchComplianceRequest({}));
+    }
+  }, [dispatch, isLoaded]);
 
   const { categories: fetchedCategories } = useComplianceCategories();
   const { isCooldown, daysRemaining } = useSyncEntitlementData();
@@ -342,60 +357,34 @@ export const ComplianceShell: React.FC = () => {
             }}
           >
             {/* Left side: Search input */}
-            <div className="relative w-full md:flex-1 md:min-w-[260px] max-w-sm">
-              <Search
-                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "var(--text-subtle)" }}
-              />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={handleSearchChange}
-                placeholder={searchPlaceholder}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border focus:outline-none transition-colors"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
-                }}
-              />
-            </div>
+            <Input
+              leftIcon={<Search className="w-4 h-4" />}
+              inputSize="sm"
+              placeholder={searchPlaceholder}
+              value={searchInput}
+              onChange={handleSearchChange}
+              containerClassName="w-full md:flex-1 md:min-w-[260px] max-w-sm"
+            />
 
             {/* Action Controls & Filters */}
             <div className="flex overflow-x-auto w-full md:w-auto items-center gap-2.5 pb-1 hide-scrollbar">
               {/* Download Utility */}
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
-                }}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Download className="w-3.5 h-3.5" />}
               >
-                <Download
-                  className="w-3.5 h-3.5"
-                  style={{ color: "var(--text-subtle)" }}
-                />
-                <span>Download Utility</span>
-              </button>
+                Download Utility
+              </Button>
 
               {/* XLS */}
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
-                }}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<FileSpreadsheet className="w-3.5 h-3.5" />}
               >
-                <FileSpreadsheet
-                  className="w-3.5 h-3.5"
-                  style={{ color: "var(--text-subtle)" }}
-                />
-                <span>XLS</span>
-              </button>
+                XLS
+              </Button>
 
               {/* Frequency Segmented Control */}
               <div
@@ -431,71 +420,55 @@ export const ComplianceShell: React.FC = () => {
 
               {/* FY Selector */}
               <div
-                className="flex items-center gap-1 px-2 py-1 rounded-md border shrink-0"
+                className="flex items-center gap-1 px-1 py-0.5 rounded-md border shrink-0"
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderColor: "var(--border-main)",
                   color: "var(--text-main)",
                 }}
               >
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   aria-label="Previous Financial Year"
                   onClick={handlePrevFy}
-                  className="p-0.5 rounded hover:opacity-80 transition-opacity cursor-pointer"
-                  style={{ color: "var(--text-subtle)" }}
                 >
                   <ChevronLeft className="w-4 h-4" />
-                </button>
+                </Button>
                 <span className="text-xs font-semibold px-1 whitespace-nowrap">
                   {fyLabel}
                 </span>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   aria-label="Next Financial Year"
                   onClick={handleNextFy}
-                  className="p-0.5 rounded hover:opacity-80 transition-opacity cursor-pointer"
-                  style={{ color: "var(--text-subtle)" }}
                 >
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
 
               {/* Sync Status Button */}
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw className="w-3.5 h-3.5" />}
                 onClick={() => setIsSyncDrawerOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--primary)",
-                  color: "var(--primary)",
-                }}
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Sync Status</span>
-              </button>
+                Sync Status
+              </Button>
 
               {/* Free Sync Button */}
               <div className="flex flex-col items-center shrink-0">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Zap className="w-3.5 h-3.5" />}
                   disabled={isCooldown}
                   onClick={() => setIsSyncDrawerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                    isCooldown
-                      ? "opacity-50 cursor-not-allowed"
-                      : "cursor-pointer"
-                  }`}
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderColor: "var(--primary)",
-                    color: "var(--primary)",
-                  }}
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Free Sync</span>
-                </button>
+                  Free Sync
+                </Button>
                 <span
                   className="text-[10px] mt-0.5 tracking-tight whitespace-nowrap font-medium"
                   style={{ color: "var(--status-online)" }}
@@ -515,6 +488,9 @@ export const ComplianceShell: React.FC = () => {
               search={searchInput}
               portal={activeCategory?.portal}
               isAuto={activeCategory?.mode === "auto"}
+              rows={rows}
+              columns={columns}
+              loading={loading}
             />
           </div>
         </>

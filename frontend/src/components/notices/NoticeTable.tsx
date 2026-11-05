@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Search,
@@ -11,12 +11,16 @@ import {
   Filter,
 } from "lucide-react";
 import type { Notice, Client, Portal, NoticeStatus } from "@/types/notices";
-import { useNotices } from "@/hooks/useNotices";
 import { SummaryCards, type SummaryCardItem } from "@/components/common/SummaryCards";
 import { isNoticeClosed } from "@/lib/statusConfig";
 import { ColumnResizer } from "@/components/ui/ColumnResizer";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ToastNotification } from "@/components/ui/ToastNotification";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchNoticesRequest } from "@/store/features/notices/noticeSlice";
+import { noticeApi } from "@/services/noticeApi";
 
 export interface ColumnDef {
   id: string;
@@ -34,6 +38,8 @@ export interface NoticeTableProps {
   columns: ColumnDef[];
   searchPlaceholder?: string;
   defaultGroupBy?: "client" | "none";
+  notices?: Notice[];
+  loading?: boolean;
 }
 
 export function getClientIdentifier(client?: Client, portal: Portal = "GST"): string {
@@ -64,8 +70,65 @@ export const NoticeTable: React.FC<NoticeTableProps> = ({
   columns,
   searchPlaceholder = "Search by client, notice number, description...",
   defaultGroupBy = "client",
+  notices: propNotices,
+  loading: propLoading,
 }) => {
-  const { notices, clients, summary, loading, error, refetch, changeStatus } = useNotices({ portal });
+  const dispatch = useAppDispatch();
+  const {
+    items: reduxNotices,
+    loading: reduxLoading,
+    isLoaded,
+    summary: reduxSummary,
+  } = useAppSelector((state) => state.notices);
+
+  useEffect(() => {
+    if (!isLoaded) {
+      dispatch(fetchNoticesRequest({ page: 1, limit: 50 }));
+    }
+  }, [dispatch, isLoaded]);
+
+  const [clients, setClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    noticeApi
+      .getClients()
+      .then((res) => {
+        if (!mounted) return;
+        setClients(res.data?.data || []);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const notices = useMemo(() => {
+    if (propNotices) return propNotices;
+    return reduxNotices.filter((n) => n.portal === portal);
+  }, [propNotices, reduxNotices, portal]);
+
+  const loading = propLoading ?? reduxLoading;
+
+  const summary = useMemo(() => {
+    if (reduxSummary) return reduxSummary;
+    return {
+      total: notices.length,
+      new: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "new").length,
+      response_preparing: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "response_preparing").length,
+      response_filed: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "response_filed").length,
+      under_dept_review: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "under_dept_review").length,
+      hearing_scheduled: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "hearing_scheduled").length,
+      appeal_filed: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "appeal_filed").length,
+      closed: notices.filter((n) => (n.portal === "GST" ? n.status : n.manualStatus) === "closed").length,
+      no_status: notices.filter((n) => !(n.portal === "GST" ? n.status : n.manualStatus) || (n.portal === "GST" ? n.status : n.manualStatus) === "no_status").length,
+    };
+  }, [reduxSummary, notices]);
+
+  const changeStatus = async (id: string, status: NoticeStatus) => {
+    await noticeApi.updateStatus(id, status);
+    dispatch(fetchNoticesRequest({ page: 1, limit: 50 }));
+  };
 
   const initialWidths = useMemo(() => {
     const widths: Record<string, number> = {};
@@ -318,39 +381,24 @@ export const NoticeTable: React.FC<NoticeTableProps> = ({
           borderColor: "var(--border-main)",
         }}
       >
-        <div className="relative flex-1 max-w-lg">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-            style={{ color: "var(--text-subtle)" }}
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-md border outline-none transition-colors"
-            style={{
-              backgroundColor: "var(--bg-app)",
-              borderColor: "var(--border-main)",
-              color: "var(--text-main)",
-            }}
-          />
-        </div>
+        <Input
+          leftIcon={<Search className="w-4 h-4" />}
+          inputSize="sm"
+          placeholder={searchPlaceholder}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          containerClassName="flex-1 max-w-lg"
+        />
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5" />}
             onClick={() => triggerToast("Download utility initiated")}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors cursor-pointer"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-main)",
-              color: "var(--text-main)",
-            }}
           >
-            <Download className="w-3.5 h-3.5" style={{ color: "var(--text-subtle)" }} />
-            <span>Download Utility</span>
-          </button>
+            Download Utility
+          </Button>
 
           <div className="relative inline-block text-xs">
             <select
@@ -398,19 +446,14 @@ export const NoticeTable: React.FC<NoticeTableProps> = ({
             />
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5" />}
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors cursor-pointer"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-main)",
-              color: "var(--text-main)",
-            }}
           >
-            <Download className="w-3.5 h-3.5" style={{ color: "var(--text-subtle)" }} />
-            <span>XLS</span>
-          </button>
+            XLS
+          </Button>
         </div>
       </div>
 

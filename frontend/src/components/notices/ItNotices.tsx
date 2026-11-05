@@ -8,7 +8,12 @@ import type { Notice, Client } from "@/types/notices";
 import { NoticeTable, type ColumnDef, formatNoticeDate, getClientIdentifier } from "./NoticeTable";
 import { StatusPill } from "@/components/common/StatusPill";
 
-export const ItNotices: React.FC = () => {
+export interface ItNoticesProps {
+  notices?: Notice[];
+  loading?: boolean;
+}
+
+export const ItNotices: React.FC<ItNoticesProps> = ({ notices, loading }) => {
   const router = useRouter();
   const [stagingNoticeId, setStagingNoticeId] = useState<string | null>(null);
 
@@ -227,6 +232,8 @@ export const ItNotices: React.FC = () => {
       columns={columns}
       searchPlaceholder="Search by client, category, status..."
       defaultGroupBy="client"
+      notices={notices}
+      loading={loading}
     />
   );
 };

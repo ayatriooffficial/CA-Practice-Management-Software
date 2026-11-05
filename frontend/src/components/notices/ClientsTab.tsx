@@ -1,24 +1,19 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
   RotateCw,
   ChevronDown,
-  ChevronUp,
-  FileText,
-  AlertCircle,
-  Building,
-  Check,
-  X,
-  FileCheck,
 } from "lucide-react";
 import type { Client } from "@/types/notices";
 import { useNoticeClients, type ClientWithStats } from "@/hooks/useNoticeClients";
 import { SyncDrawer } from "./SyncDrawer";
-import { ColumnResizer } from "@/components/ui/ColumnResizer";
-import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { BulkActionBar } from "@/components/ui/BulkActionBar";
 
 export interface ClientsTabProps {
   onSync?: (clientIds: string[]) => void;
@@ -52,16 +47,6 @@ function getIdentifier(client: Client): string {
   );
 }
 
-const CLIENT_COLUMNS = [
-  { id: "client", label: "Client Name", defaultWidth: 260 },
-  { id: "identifiers", label: "GSTIN / PAN / TAN", defaultWidth: 180 },
-  { id: "portals", label: "Connected Portals", defaultWidth: 180 },
-  { id: "syncStatus", label: "Sync Status", defaultWidth: 150 },
-  { id: "notices", label: "Active Notices", defaultWidth: 130 },
-  { id: "lastSync", label: "Last Sync", defaultWidth: 140 },
-  { id: "actions", label: "Actions", defaultWidth: 110 },
-];
-
 export const ClientsTab: React.FC<ClientsTabProps> = ({
   onSync,
   onSelectionChange,
@@ -69,26 +54,6 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 }) => {
   const router = useRouter();
   const { clients, counts, loading } = useNoticeClients();
-
-  const initialWidths = useMemo(() => {
-    const widths: Record<string, number> = {};
-    CLIENT_COLUMNS.forEach((col) => {
-      widths[col.id] = col.defaultWidth;
-    });
-    return widths;
-  }, []);
-
-  const {
-    getColumnWidth,
-    handleResizeStart,
-    resizingKey,
-    resetColumnWidth,
-  } = useResizableColumns({
-    storageKey: "notice_clients_tab_cols",
-    initialWidths,
-    minWidth: 80,
-    maxWidth: 500,
-  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeChip, setActiveChip] = useState<ChipFilter>("all");
@@ -101,31 +66,10 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
   const [isSyncDrawerOpen, setIsSyncDrawerOpen] = useState(false);
   const [syncTargetIds, setSyncTargetIds] = useState<string[]>([]);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     onSelectionChange?.(Array.from(selectedIds));
   }, [selectedIds, onSelectionChange]);
-
-  const toggleSelectAll = (filteredClients: ClientWithStats[]) => {
-    if (selectedIds.size === filteredClients.length && filteredClients.length > 0) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredClients.map((c) => c.id)));
-    }
-  };
-
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   const filteredClients = useMemo(() => {
     let result = [...clients];
@@ -152,38 +96,22 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
       });
     }
 
-    result.sort((a, b) => {
-      if (sortBy === "client_asc") return a.name.localeCompare(b.name);
-      if (sortBy === "client_desc") return b.name.localeCompare(a.name);
-      if (sortBy === "notices_desc") return (b.totalNotices ?? 0) - (a.totalNotices ?? 0);
-      if (sortBy === "overdue_desc") return (b.overdueNotices ?? 0) - (a.overdueNotices ?? 0);
-      return 0;
-    });
+    if (groupBy === "state") {
+      result.sort((a, b) => (a.state || "").localeCompare(b.state || ""));
+    } else if (groupBy === "status") {
+      result.sort((a, b) => (a.sync.status || "").localeCompare(b.sync.status || ""));
+    } else {
+      result.sort((a, b) => {
+        if (sortBy === "client_asc") return a.name.localeCompare(b.name);
+        if (sortBy === "client_desc") return b.name.localeCompare(a.name);
+        if (sortBy === "notices_desc") return (b.totalNotices ?? 0) - (a.totalNotices ?? 0);
+        if (sortBy === "overdue_desc") return (b.overdueNotices ?? 0) - (a.overdueNotices ?? 0);
+        return 0;
+      });
+    }
 
     return result;
-  }, [clients, activeChip, portalFilter, searchQuery, sortBy]);
-
-  const clientGroups = useMemo(() => {
-    if (groupBy === "none") {
-      return [{ key: "all", label: "All Clients", clients: filteredClients }];
-    }
-
-    const groups: Record<string, ClientWithStats[]> = {};
-    for (const c of filteredClients) {
-      const key =
-        groupBy === "state"
-          ? c.state || "Unknown State"
-          : c.sync.status || "never_synced";
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(c);
-    }
-
-    return Object.entries(groups).map(([key, list]) => ({
-      key,
-      label: key.charAt(0).toUpperCase() + key.slice(1).replace("_", " "),
-      clients: list,
-    }));
-  }, [filteredClients, groupBy]);
+  }, [clients, activeChip, portalFilter, searchQuery, sortBy, groupBy]);
 
   const handleOpenSync = (ids: string[]) => {
     setSyncTargetIds(ids);
@@ -191,8 +119,133 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
     onSync?.(ids);
   };
 
-  const isAllSelected =
-    filteredClients.length > 0 && selectedIds.size === filteredClients.length;
+  const columns: DataTableColumn<ClientWithStats>[] = useMemo(
+    () => [
+      {
+        id: "client",
+        header: "Client Name",
+        width: 260,
+        sortable: true,
+        cell: (client) => (
+          <div className="flex flex-col min-w-0">
+            <span
+              className="font-bold truncate max-w-[240px]"
+              style={{ color: "var(--text-main)" }}
+              title={client.name}
+            >
+              {client.name}
+            </span>
+            {client.state && (
+              <span className="text-[10px]" style={{ color: "var(--text-subtle)" }}>
+                {client.state}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "identifiers",
+        header: "GSTIN / PAN / TAN",
+        width: 180,
+        cell: (client) => (
+          <span
+            className="font-mono font-medium text-xs"
+            style={{ color: "var(--text-main)" }}
+          >
+            {getIdentifier(client)}
+          </span>
+        ),
+      },
+      {
+        id: "portals",
+        header: "Connected Portals",
+        width: 180,
+        cell: (client) => (
+          <div className="flex items-center gap-1 flex-wrap">
+            {client.portals.map((p) => (
+              <span
+                key={p}
+                className="px-1.5 py-0.5 rounded text-[10px] font-semibold border"
+                style={{
+                  backgroundColor: "var(--bg-subtle)",
+                  borderColor: "var(--border-main)",
+                  color: "var(--text-main)",
+                }}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+        ),
+      },
+      {
+        id: "syncStatus",
+        header: "Sync Status",
+        width: 150,
+        cell: (client) => (
+          <span
+            className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
+            style={{
+              backgroundColor:
+                client.sync.status === "ready"
+                  ? "var(--badge-new-bg)"
+                  : client.sync.status === "error"
+                  ? "var(--credits-bg)"
+                  : "var(--bg-subtle)",
+              color:
+                client.sync.status === "ready"
+                  ? "var(--badge-new-text)"
+                  : client.sync.status === "error"
+                  ? "var(--danger)"
+                  : "var(--text-muted)",
+            }}
+          >
+            {client.sync.status.replace("_", " ")}
+          </span>
+        ),
+      },
+      {
+        id: "notices",
+        header: "Active Notices",
+        width: 130,
+        sortable: true,
+        cell: (client) => (
+          <span
+            className="font-semibold text-xs"
+            style={{ color: "var(--text-main)" }}
+          >
+            {client.totalNotices ?? 0}
+          </span>
+        ),
+      },
+      {
+        id: "lastSync",
+        header: "Last Sync",
+        width: 140,
+        cell: (client) => (
+          <span className="text-xs" style={{ color: "var(--text-subtle)" }}>
+            {formatLastSyncDate(client.sync.lastSyncAt)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        width: 110,
+        cell: (client) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<RotateCw className="w-3 h-3" />}
+            onClick={() => handleOpenSync([client.id])}
+          >
+            Sync
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="flex flex-col gap-4 p-6 w-full flex-1" style={{ backgroundColor: "var(--bg-app)" }}>
@@ -255,24 +308,14 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
           borderColor: "var(--border-main)",
         }}
       >
-        <div className="relative flex-1 max-w-md">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-            style={{ color: "var(--text-subtle)" }}
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by client name, GSTIN, PAN..."
-            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-md border outline-none transition-colors"
-            style={{
-              backgroundColor: "var(--bg-app)",
-              borderColor: "var(--border-main)",
-              color: "var(--text-main)",
-            }}
-          />
-        </div>
+        <Input
+          leftIcon={<Search className="w-4 h-4" />}
+          inputSize="sm"
+          placeholder="Search by client name, GSTIN, PAN..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          containerClassName="flex-1 max-w-md"
+        />
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Portal Selector */}
@@ -335,24 +378,27 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
           </div>
 
           {/* Primary Action Button: Sync Selected or All */}
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<RotateCw className="w-3.5 h-3.5" />}
             onClick={() => handleOpenSync(Array.from(selectedIds))}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shadow-xs"
-            style={{
-              backgroundColor: "var(--primary)",
-              color: "var(--text-inverse)",
-            }}
           >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>
-              {selectedIds.size > 0
-                ? `Sync Selected (${selectedIds.size})`
-                : "Sync All Clients"}
-            </span>
-          </button>
+            {selectedIds.size > 0
+              ? `Sync Selected (${selectedIds.size})`
+              : "Sync All Clients"}
+          </Button>
         </div>
       </div>
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        itemLabel="clients"
+        deleteLabel="Sync Selected"
+        onClearSelection={() => setSelectedIds(new Set())}
+        onDelete={() => handleOpenSync(Array.from(selectedIds))}
+      />
 
       {/* 3. Clients Data Table */}
       <div
@@ -362,193 +408,16 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
           borderColor: "var(--border-main)",
         }}
       >
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr
-                className="border-b text-[11px] font-semibold tracking-wider select-none uppercase"
-                style={{
-                  backgroundColor: "var(--bg-subtle)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <th className="px-4 py-3 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={() => toggleSelectAll(filteredClients)}
-                    className="rounded cursor-pointer"
-                  />
-                </th>
-                {CLIENT_COLUMNS.map((col) => {
-                  const width = getColumnWidth(col.id);
-                  return (
-                    <th
-                      key={col.id}
-                      className="relative px-4 py-3 whitespace-nowrap"
-                      style={{ width, minWidth: width }}
-                    >
-                      <span className="pr-3">{col.label}</span>
-                      <ColumnResizer
-                        onMouseDown={(e) => handleResizeStart(col.id, e)}
-                        onDoubleClick={() => resetColumnWidth(col.id)}
-                        isResizing={resizingKey === col.id}
-                      />
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading && filteredClients.length === 0 ? (
-                <tr>
-                  <td colSpan={CLIENT_COLUMNS.length + 1} className="px-6 py-12 text-center text-xs" style={{ color: "var(--text-subtle)" }}>
-                    Loading clients…
-                  </td>
-                </tr>
-              ) : filteredClients.length === 0 ? (
-                <tr>
-                  <td colSpan={CLIENT_COLUMNS.length + 1} className="px-6 py-12 text-center text-xs" style={{ color: "var(--text-subtle)" }}>
-                    No clients match the selected criteria.
-                  </td>
-                </tr>
-              ) : (
-                clientGroups.map((group) => {
-                  const isExpanded = expandedGroups[group.key] ?? true;
-                  return (
-                    <React.Fragment key={group.key}>
-                      {groupBy !== "none" && (
-                        <tr
-                          onClick={() =>
-                            setExpandedGroups((prev) => ({
-                              ...prev,
-                              [group.key]: !prev[group.key],
-                            }))
-                          }
-                          className="cursor-pointer border-b transition-colors select-none"
-                          style={{
-                            backgroundColor: "var(--bg-subtle)",
-                            borderColor: "var(--border-main)",
-                          }}
-                        >
-                          <td colSpan={CLIENT_COLUMNS.length + 1} className="px-4 py-2.5">
-                            <div className="flex items-center gap-2">
-                              <span style={{ color: "var(--text-subtle)" }}>
-                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                              </span>
-                              <span className="font-bold text-xs" style={{ color: "var(--text-main)" }}>
-                                {group.label}
-                              </span>
-                              <span className="text-[11px] font-medium" style={{ color: "var(--text-subtle)" }}>
-                                ({group.clients.length} {group.clients.length === 1 ? "client" : "clients"})
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-
-                      {isExpanded &&
-                        group.clients.map((client) => {
-                          const isSelected = selectedIds.has(client.id);
-                          return (
-                            <tr
-                              key={client.id}
-                              className="border-b transition-colors"
-                              style={{
-                                borderColor: "var(--border-main)",
-                                backgroundColor: isSelected ? "var(--bg-active)" : "var(--bg-surface)",
-                              }}
-                            >
-                              <td className="px-4 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleSelectOne(client.id)}
-                                  className="rounded cursor-pointer"
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-xs">
-                                <div className="flex flex-col min-w-0">
-                                  <span className="font-bold truncate max-w-[240px]" style={{ color: "var(--text-main)" }}>
-                                    {client.name}
-                                  </span>
-                                  {client.state && (
-                                    <span className="text-[10px]" style={{ color: "var(--text-subtle)" }}>
-                                      {client.state}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-xs font-mono font-medium" style={{ color: "var(--text-main)" }}>
-                                {getIdentifier(client)}
-                              </td>
-                              <td className="px-4 py-3 text-xs">
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  {client.portals.map((p) => (
-                                    <span
-                                      key={p}
-                                      className="px-1.5 py-0.5 rounded text-[10px] font-semibold border"
-                                      style={{
-                                        backgroundColor: "var(--bg-subtle)",
-                                        borderColor: "var(--border-main)",
-                                        color: "var(--text-main)",
-                                      }}
-                                    >
-                                      {p}
-                                    </span>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-xs">
-                                <span
-                                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
-                                  style={{
-                                    backgroundColor:
-                                      client.sync.status === "ready"
-                                        ? "var(--badge-new-bg)"
-                                        : client.sync.status === "error"
-                                        ? "var(--credits-bg)"
-                                        : "var(--bg-subtle)",
-                                    color:
-                                      client.sync.status === "ready"
-                                        ? "var(--badge-new-text)"
-                                        : client.sync.status === "error"
-                                        ? "var(--danger)"
-                                        : "var(--text-muted)",
-                                  }}
-                                >
-                                  {client.sync.status.replace("_", " ")}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-xs font-semibold" style={{ color: "var(--text-main)" }}>
-                                {client.totalNotices ?? 0}
-                              </td>
-                              <td className="px-4 py-3 text-xs" style={{ color: "var(--text-subtle)" }}>
-                                {formatLastSyncDate(client.sync.lastSyncAt)}
-                              </td>
-                              <td className="px-4 py-3 text-xs">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenSync([client.id])}
-                                  className="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1"
-                                  style={{ color: "var(--primary)" }}
-                                >
-                                  <RotateCw className="w-3 h-3" />
-                                  <span>Sync</span>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={filteredClients}
+          getRowId={(client) => client.id}
+          selectable={true}
+          selectedIds={Array.from(selectedIds)}
+          onSelectionChange={(ids) => setSelectedIds(new Set(ids))}
+          loading={loading && filteredClients.length === 0}
+          emptyMessage="No clients match the selected criteria."
+        />
       </div>
 
       {/* Sync Drawer Modal */}
