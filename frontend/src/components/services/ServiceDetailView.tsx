@@ -58,6 +58,24 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     "Overview" | "SOP" | "Sub Tasks" | "Checklist" | "Document Request" | "Clients"
   >("Overview");
 
+  // On-demand service details loader: fetches full sub-tasks, checklists, document requests, and SOP
+  useEffect(() => {
+    const sId = initialService.id || (initialService as any)._id || (initialService as any).serviceId;
+    if (!sId) return;
+    let isMounted = true;
+    serviceApi.getServiceById(sId).then((res) => {
+      if (isMounted && res && res.data) {
+        setService((prev) => ({ ...prev, ...res.data }));
+        if (onServiceUpdated) onServiceUpdated(res.data);
+      }
+    }).catch((err) => {
+      console.warn("Failed to fetch full service details on demand:", err);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [initialService.id, (initialService as any)._id, (initialService as any).serviceId, onServiceUpdated]);
+
   // Toggle Client Service Mutation
   const toggleClientServiceMutation = useToggleClientServiceMutation();
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);

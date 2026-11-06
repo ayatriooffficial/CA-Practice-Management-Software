@@ -396,6 +396,28 @@ export class ServiceService {
       }
     }
 
+    // Lightweight table projection: only fetch fields required for table view.
+    const defaultServiceTableFields = [
+      'serviceId',
+      'name',
+      'category',
+      'isRecurring',
+      'frequency',
+      'professionalFee',
+      'difficulty',
+      'status',
+      'sop',
+      'subTasks.id',
+      'createdAt',
+      'updatedAt',
+      'isDeleted',
+      'orgId',
+      'userId',
+    ];
+    if (!parsedQuery.projection) {
+      parsedQuery.projection = defaultServiceTableFields.join(' ');
+    }
+
     return await QueryBuilder.paginate<IServiceDocument>(Service, parsedQuery);
   }
 

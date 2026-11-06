@@ -156,8 +156,10 @@ export const PdfSignerPage: React.FC = () => {
         );
         setHistoryDocs(history);
 
-        // Staged items are Ready or Password protected
-        const staged = all.filter((d) => d.status === 'Ready' || d.status === 'Password protected');
+        // Staged items are Ready or Password protected (sorted newest first)
+        const staged = all
+          .filter((d) => d.status === 'Ready' || d.status === 'Password protected')
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         setStagedDocs(staged);
 
         // Direct staging support: check query parameter for stagedId
@@ -169,11 +171,13 @@ export const PdfSignerPage: React.FC = () => {
           if (matched) {
             setActiveDocId(matched.id);
             setSelectedStagedIds([matched.id]);
-          } else if (staged.length > 0 && !activeDocId) {
+          } else if (staged.length > 0) {
             setActiveDocId(staged[0].id);
+            setSelectedStagedIds([staged[0].id]);
           }
         } else if (staged.length > 0 && !activeDocId) {
           setActiveDocId(staged[0].id);
+          setSelectedStagedIds([staged[0].id]);
         }
       }
     } catch (err: any) {
@@ -194,13 +198,8 @@ export const PdfSignerPage: React.FC = () => {
     if (activeDocId && !stagedFilesMap[activeDocId]) {
       const activeDoc = stagedDocs.find((d) => d.id === activeDocId);
       if (activeDoc && activeDoc.status !== 'Password protected') {
-        const downloadUrl = pdfSignerApi.getDownloadUrl(activeDocId);
-        fetch(downloadUrl, { credentials: 'include' })
-          .then((res) => {
-            if (res.ok) return res.blob();
-            throw new Error('Failed to load active PDF bytes');
-          })
-          .then((blob) => {
+        pdfSignerApi.downloadDocument(activeDocId)
+          .then(({ blob }) => {
             const file = new File([blob], activeDoc.fileName, { type: 'application/pdf' });
             setStagedFilesMap((prev) => ({ ...prev, [activeDocId]: file }));
           })
@@ -474,15 +473,22 @@ export const PdfSignerPage: React.FC = () => {
     }
   };
 
-  // Single file download
-  const handleDownloadDoc = (doc: SignedDocItem) => {
-    const url = pdfSignerApi.getDownloadUrl(doc.id);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Signed_${doc.fileName}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Single file download (using Blob to support cross-origin downloads reliably)
+  const handleDownloadDoc = async (doc: SignedDocItem) => {
+    try {
+      const { blob, fileName } = await pdfSignerApi.downloadDocument(doc.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || (doc.fileName.startsWith('Signed_') ? doc.fileName : `Signed_${doc.fileName}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast(`Downloaded "${doc.fileName}" successfully`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to download document', 'error');
+    }
   };
 
   // Download ZIP archive of selected documents
@@ -507,6 +513,39 @@ export const PdfSignerPage: React.FC = () => {
       showToast(err.message || 'Failed to download ZIP archive.', 'error');
     } finally {
       setDownloadingZip(false);
+    }
+  };
+
+  // Delete single history/signed document
+  const handleDeleteHistoryDoc = async (id: string) => {
+    try {
+      await pdfSignerApi.deleteDocument(id);
+      setHistoryDocs((prev) => prev.filter((d) => d.id !== id && (d as any)._id !== id));
+      showToast('Document deleted successfully.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete document.', 'error');
+    }
+  };
+
+  // Delete multiple selected history/signed documents
+  const handleDeleteSelectedHistoryDocs = async (selectedIds: string[]) => {
+    if (selectedIds.length === 0) return;
+    try {
+      let deletedCount = 0;
+      for (const id of selectedIds) {
+        try {
+          await pdfSignerApi.deleteDocument(id);
+          deletedCount++;
+        } catch (e) {
+          console.error(`Failed to delete document ${id}:`, e);
+        }
+      }
+      setHistoryDocs((prev) =>
+        prev.filter((d) => !selectedIds.includes(d.id) && !selectedIds.includes((d as any)._id))
+      );
+      showToast(`Deleted ${deletedCount} document(s) successfully.`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete selected documents.', 'error');
     }
   };
 
@@ -563,7 +602,7 @@ export const PdfSignerPage: React.FC = () => {
               fetchStatus();
               fetchDocuments();
             }}
-            className="flex items-center gap-1.5 h-10 px-3 rounded-none text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
             title="Refresh documents and signer status"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -572,7 +611,7 @@ export const PdfSignerPage: React.FC = () => {
 
           <Link
             href="/dsc"
-            className="flex items-center gap-1.5 h-10 px-4 rounded-none text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             style={{ backgroundColor: "var(--premium-blue-dark)" }}
           >
             <KeyRound className="w-4 h-4" />
@@ -591,7 +630,10 @@ export const PdfSignerPage: React.FC = () => {
             selectedIds={selectedStagedIds}
             activeDocumentId={activeDocId}
             isUploading={isUploading}
-            onSelectDocument={(id) => setActiveDocId(id)}
+            onSelectDocument={(id) => {
+              setActiveDocId(id);
+              setSelectedStagedIds([id]);
+            }}
             onToggleSelect={handleToggleSelectStaged}
             onToggleSelectAll={handleToggleSelectAllStaged}
             onUploadFiles={handleUploadFiles}
@@ -631,6 +673,8 @@ export const PdfSignerPage: React.FC = () => {
           onDownload={handleDownloadDoc}
           onRetry={handleRetryDocument}
           onDownloadZip={handleDownloadZip}
+          onDeleteDocument={handleDeleteHistoryDoc}
+          onDeleteSelected={handleDeleteSelectedHistoryDocs}
           retryingId={retryingId}
           downloadingZip={downloadingZip}
         />

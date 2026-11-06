@@ -67,6 +67,8 @@ export interface ILead {
   createdBy?: string | null;
   convertedToClientId?: Types.ObjectId | null;
   convertedAt?: Date | null;
+  associatedClientIds?: (Types.ObjectId | string)[];
+  companies?: any[];
   createdAt?: Date;
   updatedAt?: Date;
 }

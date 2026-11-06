@@ -27,6 +27,9 @@ import {
 } from '../../services/attendanceApi';
 import { usePermission } from '../team/usePermission';
 import { isRoleAdmin } from '@/store/permissions/roleSelectors';
+import { useAppSelector } from '@/store/hooks';
+import { selectDashboardLoading } from '@/store/features/dashboard/dashboardSelectors';
+import { navigationProgress } from '@/services/navigationProgress';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
@@ -138,6 +141,22 @@ export const HomeDashboard: React.FC = () => {
       fetchBottomData(),
     ]);
   }, [fetchSummary, fetchTableData, fetchBottomData]);
+
+  // Ensure global progress bar stays trickling and does NOT reach 100% until ALL home data has loaded
+  const isDashboardLoading = useAppSelector(selectDashboardLoading);
+  const isAnyHomeLoading =
+    isSummaryLoading ||
+    isBottomLoading ||
+    isTodayLoading ||
+    isEmployeeRecordsLoading ||
+    isDashboardLoading;
+
+  useEffect(() => {
+    navigationProgress.setLoading('home_dashboard', isAnyHomeLoading);
+    return () => {
+      navigationProgress.setLoading('home_dashboard', false);
+    };
+  }, [isAnyHomeLoading]);
 
   // Punch Action Callback: Refresh summary & tables immediately
   const handlePunchChange = useCallback(() => {

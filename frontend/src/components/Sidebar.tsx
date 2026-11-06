@@ -121,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <Link
                 key={item.id}
                 href={item.href}
-                prefetch={true}
+prefetch={false}
                 replace={true}
                 onClick={(e) => {
                   e.preventDefault();

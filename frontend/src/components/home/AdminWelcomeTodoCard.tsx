@@ -447,7 +447,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
         <div className="flex items-center gap-2">
           <Link
             href="/to-do?action=new"
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-none bg-[#31719B] text-white hover:bg-[#285d80] active:scale-95 transition-all shadow-2xs cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full bg-[#31719B] text-white hover:bg-[#285d80] active:scale-95 transition-all shadow-2xs cursor-pointer"
           >
             <Plus size={13} />
             <span>Add Task</span>

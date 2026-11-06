@@ -111,7 +111,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-8 w-8 flex items-center justify-center rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+              className="h-8 w-8 flex items-center justify-center rounded-md border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -461,7 +461,7 @@ export const VerifyDrawer: React.FC<VerifyDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-9 px-4 rounded-none text-xs font-semibold bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 transition-colors cursor-pointer"
+              className="h-9 px-4 rounded-md text-xs font-semibold bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 transition-colors cursor-pointer"
             >
               Close
             </button>

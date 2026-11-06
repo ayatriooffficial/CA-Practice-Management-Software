@@ -322,6 +322,7 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
                 lead={activeLead}
                 onOpenAddTask={() => setTaskModalState({ open: true })}
                 onEditTask={(task) => setTaskModalState({ open: true, taskToEdit: task })}
+                onRegisterCompany={() => onConvertLead(activeLead)}
               />
             )}
 

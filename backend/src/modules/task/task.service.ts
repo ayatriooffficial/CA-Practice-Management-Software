@@ -259,8 +259,43 @@ export class TaskService {
     const sortField = queryOptions.sortBy || 'createdAt';
     const sortDirection = queryOptions.sortOrder === 'asc' ? 1 : -1;
 
+    // Lightweight table projection: only fetch fields required for table view.
+    const defaultTaskTableFields = [
+      'taskId',
+      'taskName',
+      'clientName',
+      'clientFileNo',
+      'clientPan',
+      'legalName',
+      'clientId',
+      'category',
+      'serviceName',
+      'priority',
+      'startDate',
+      'targetDate',
+      'dueDate',
+      'endDate',
+      'status',
+      'assigneeName',
+      'assigneeId',
+      'reviewerName',
+      'reviewerId',
+      'period',
+      'financialYear',
+      'department',
+      'totalHours',
+      'timeSpent',
+      'reimbursements',
+      'isDeleted',
+      'orgId',
+      'userId',
+      'createdAt',
+      'updatedAt',
+    ];
+
     const [items, totalItems] = await Promise.all([
       Task.find(filter)
+        .select(defaultTaskTableFields.join(' '))
         .sort({ [sortField]: sortDirection })
         .skip(skip)
         .limit(limit)

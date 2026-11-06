@@ -143,7 +143,7 @@ export const LeadDetailsHeader = memo(
             style={{ backgroundColor: "var(--premium-blue-dark)" }}
           >
             <UserCheck className="w-3.5 h-3.5" />
-            <span>Convert to Client</span>
+            <span>Register Company</span>
           </button>
 
           {/* Edit Lead Button */}

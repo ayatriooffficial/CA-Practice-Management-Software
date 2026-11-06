@@ -123,7 +123,7 @@ export const SignupForm: React.FC = () => {
           onClick={() => {
             router.push(`/login?email=${encodeURIComponent(confirmationData.email)}`);
           }}
-          className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#3D6A9E] hover:bg-[#3D6A9E] transition-all shadow-sm hover:shadow"
+          className="w-full h-11 rounded-lg text-sm font-semibold text-white bg-[#3D6A9E] hover:bg-[#3D6A9E] transition-all shadow-sm hover:shadow justify-center text-center"
         >
           Go to Sign In
         </Button>
@@ -211,7 +211,7 @@ export const SignupForm: React.FC = () => {
         type="submit"
         disabled={!isFormComplete || isSubmitting}
         loading={isSubmitting}
-        className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E]"
+        className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E] justify-center text-center"
       >
         Request Employment
       </Button>

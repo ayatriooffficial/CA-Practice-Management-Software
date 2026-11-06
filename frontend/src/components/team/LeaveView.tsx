@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
+import { Pagination } from '../ui/Pagination';
 import { LeaveApplication, LeaveSummaryRecord, LeaveType } from './types';
 import { teamStore } from './teamStore';
+import { attendanceApi } from '../../services/attendanceApi';
 
 export const LeaveView: React.FC = () => {
   const [subTab, setSubTab] = useState<'applications' | 'summary'>('applications');
@@ -11,6 +13,12 @@ export const LeaveView: React.FC = () => {
   const [summaryList] = useState<LeaveSummaryRecord[]>(() => teamStore.getLeaveSummary());
   const [selectedYear, setSelectedYear] = useState('2026-2027');
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+
+  // Pagination states
+  const [appPage, setAppPage] = useState(1);
+  const [appPageSize, setAppPageSize] = useState(10);
+  const [summaryPage, setSummaryPage] = useState(1);
+  const [summaryPageSize, setSummaryPageSize] = useState(10);
 
   // New leave modal fields
   const [assignee, setAssignee] = useState('');
@@ -21,18 +29,72 @@ export const LeaveView: React.FC = () => {
 
   const employees = teamStore.getEmployees().filter((e) => e.status === 'Active');
 
-  const handleApprove = (id: string) => {
+  // Sync with MongoDB Attendance Leaves API
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncLeaves() {
+      try {
+        const remoteLeaves = await attendanceApi.getAllLeaves();
+        const localLeaves = teamStore.getLeaveApplications();
+
+        // If local has offline-created leaves not yet in MongoDB, sync them up
+        if (localLeaves.length > 0) {
+          for (const localApp of localLeaves) {
+            const existsRemote = remoteLeaves.some(
+              (r) =>
+                r.applicant === localApp.applicant &&
+                r.dateOfLeave === localApp.dateOfLeave &&
+                r.leaveType === localApp.leaveType
+            );
+            if (!existsRemote) {
+              await attendanceApi
+                .createLeaveApplication({
+                  applicant: localApp.applicant,
+                  employeeId: localApp.employeeId,
+                  leaveType: localApp.leaveType,
+                  dateOfLeave: localApp.dateOfLeave,
+                  daysApplied: localApp.daysApplied,
+                  reason: localApp.reason,
+                  status: localApp.status,
+                })
+                .catch(() => {});
+            }
+          }
+        }
+
+        // Fetch refreshed list from MongoDB
+        const updatedRemote = await attendanceApi.getAllLeaves();
+        if (isMounted && updatedRemote.length > 0) {
+          setApplications(updatedRemote);
+          teamStore.saveLeaveApplications(updatedRemote);
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+
+    syncLeaves();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleApprove = async (id: string) => {
     teamStore.updateLeaveStatus(id, 'Approved');
+    await attendanceApi.updateLeaveStatus(id, 'Approved').catch(() => {});
     setApplications(teamStore.getLeaveApplications());
   };
 
-  const handleReject = (id: string) => {
+  const handleReject = async (id: string) => {
     const remark = prompt('Enter rejection reason:') || 'Leave request not approved';
     teamStore.updateLeaveStatus(id, 'Rejected', remark);
+    await attendanceApi.updateLeaveStatus(id, 'Rejected', remark).catch(() => {});
     setApplications(teamStore.getLeaveApplications());
   };
 
-  const handleSaveLeave = (e: React.FormEvent) => {
+  const handleSaveLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dateOfLeave.trim() || !leaveReason.trim()) {
       alert('Please fill out the date and reason.');
@@ -41,7 +103,7 @@ export const LeaveView: React.FC = () => {
 
     const newApp: LeaveApplication = {
       id: `lv_${Date.now()}`,
-      applicant: assignee,
+      applicant: assignee || (employees[0]?.name || 'Employee'),
       employeeId: employees.find((em) => em.name === assignee)?.id || 'emp_001',
       leaveType,
       dateOfApplication: new Date().toISOString().split('T')[0],
@@ -53,6 +115,21 @@ export const LeaveView: React.FC = () => {
       status: 'Approved',
       lastUpdated: new Date().toISOString().slice(0, 16).replace('T', ' '),
     };
+
+    try {
+      const created = await attendanceApi.createLeaveApplication({
+        applicant: newApp.applicant,
+        employeeId: newApp.employeeId,
+        leaveType: newApp.leaveType,
+        dateOfLeave: newApp.dateOfLeave,
+        daysApplied: newApp.daysApplied,
+        reason: newApp.reason,
+        status: newApp.status,
+      });
+      if (created?.id) newApp.id = created.id;
+    } catch {
+      // Local fallback
+    }
 
     const updated = [newApp, ...applications];
     teamStore.saveLeaveApplications(updated);
@@ -133,7 +210,9 @@ export const LeaveView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {applications.map((app) => (
+                {applications
+                  .slice((appPage - 1) * appPageSize, appPage * appPageSize)
+                  .map((app) => (
                   <tr key={app.id} className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors">
                     <td className="px-3 py-2.5 text-center border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <input type="checkbox" className="w-4 h-4 rounded text-[#31719B] accent-[#31719B] cursor-pointer" />
@@ -194,6 +273,20 @@ export const LeaveView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Applications Pagination */}
+          <Pagination
+            currentPage={appPage}
+            pageSize={appPageSize}
+            totalItems={applications.length}
+            onPageChange={setAppPage}
+            onPageSizeChange={(newSize) => {
+              setAppPageSize(newSize);
+              setAppPage(1);
+            }}
+            showPageSize={true}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
 
@@ -226,7 +319,9 @@ export const LeaveView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]/60">
-                {summaryList.map((s) => (
+                {summaryList
+                  .slice((summaryPage - 1) * summaryPageSize, summaryPage * summaryPageSize)
+                  .map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50/60 dark:hover:bg-[#131d30] transition-colors">
                     <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white border-r border-[#dde2e8] dark:border-[#334155]">{s.applicant}</td>
                     <td className="py-3 px-4 text-gray-700 dark:text-gray-300 border-r border-[#dde2e8] dark:border-[#334155]">{s.leaveType}</td>
@@ -238,6 +333,20 @@ export const LeaveView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Summary Pagination */}
+          <Pagination
+            currentPage={summaryPage}
+            pageSize={summaryPageSize}
+            totalItems={summaryList.length}
+            onPageChange={setSummaryPage}
+            onPageSizeChange={(newSize) => {
+              setSummaryPageSize(newSize);
+              setSummaryPage(1);
+            }}
+            showPageSize={true}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
         </div>
       )}
 

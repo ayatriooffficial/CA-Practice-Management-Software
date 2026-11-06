@@ -18,6 +18,7 @@ import {
   CheckSquare,
   Square,
   MinusSquare,
+  Trash2,
 } from "lucide-react";
 import { SignedDocItem } from "@/services/pdfSignerApi";
 import { Pagination } from "@/components/ui/Pagination";
@@ -31,6 +32,8 @@ export interface SignedDocumentsTableProps {
   onDownload: (doc: SignedDocItem) => void;
   onRetry: (doc: SignedDocItem) => Promise<void>;
   onDownloadZip: (selectedIds: string[]) => Promise<void>;
+  onDeleteDocument?: (id: string) => Promise<void>;
+  onDeleteSelected?: (selectedIds: string[]) => Promise<void>;
   retryingId?: string | null;
   downloadingZip?: boolean;
 }
@@ -69,6 +72,8 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
   onDownload,
   onRetry,
   onDownloadZip,
+  onDeleteDocument,
+  onDeleteSelected,
   retryingId,
   downloadingZip = false,
 }) => {
@@ -76,7 +81,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
   const [statusFilter, setStatusFilter] = useState<"All" | "Signed / Verified" | "Tampered" | "Failed">("All");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
 
   // Filter items
   const filteredDocs = useMemo(() => {
@@ -173,7 +178,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
               disabled={downloadingZip}
               loading={downloadingZip}
               icon={!downloadingZip ? <Archive className="w-3.5 h-3.5" /> : undefined}
-              className="rounded-none bg-[#31719B] hover:bg-[#275a7c] h-9"
+              className="rounded-md bg-[#31719B] hover:bg-[#275a7c] h-9"
             >
               Download selected ({selectedIds.size}) ZIP
             </Button>
@@ -195,7 +200,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
           </div>
 
           {/* Status filter pills */}
-          <div className="inline-flex items-center rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
+          <div className="inline-flex items-center rounded-lg border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
             {(["All", "Signed / Verified", "Tampered", "Failed"] as const).map((filter) => {
               const active = statusFilter === filter;
               return (
@@ -206,7 +211,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     setStatusFilter(filter);
                     setCurrentPage(1);
                   }}
-                  className={`h-7 px-3 text-xs font-semibold rounded-none cursor-pointer transition-all ${
+                  className={`h-7 px-3 text-xs font-semibold rounded-md cursor-pointer transition-all ${
                     active
                       ? "bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white shadow-xs font-semibold"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -413,7 +418,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                           <button
                             type="button"
                             onClick={() => onVerify(doc)}
-                            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border transition-colors shadow-2xs ${
+                            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold border transition-colors shadow-2xs ${
                               doc.status === "Tampered"
                                 ? "border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100"
                                 : "border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-[#31719B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -430,11 +435,29 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                           <button
                             type="button"
                             onClick={() => onDownload(doc)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
                             title="Download PDF file"
                           >
                             <Download className="w-3.5 h-3.5" />
                             <span>Download</span>
+                          </button>
+                        )}
+
+                        {/* Row Delete button */}
+                        {onDeleteDocument && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const docId = doc.id || (doc as any)._id;
+                              if (confirm(`Are you sure you want to delete "${doc.fileName}"?`)) {
+                                onDeleteDocument(docId);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 transition-colors shadow-2xs cursor-pointer"
+                            title="Delete this document record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
                           </button>
                         )}
 
@@ -466,21 +489,49 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      {filteredDocs.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalItems={filteredDocs.length}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setCurrentPage(1);
-          }}
-          showPageSize={true}
-          pageSizeOptions={[10, 20, 50]}
-        />
-      )}
+      {/* Bottom Actions & Pagination Strip */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+        {/* Bottom Delete Button */}
+        <div className="px-4 py-2 sm:py-0 flex items-center">
+          <button
+            type="button"
+            disabled={selectedIds.size === 0}
+            onClick={() => {
+              if (selectedIds.size === 0) return;
+              if (confirm(`Are you sure you want to delete ${selectedIds.size} selected document(s)?`)) {
+                onDeleteSelected?.(Array.from(selectedIds));
+                setSelectedIds(new Set());
+              }
+            }}
+            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-none text-xs font-semibold transition-colors shadow-2xs ${
+              selectedIds.size > 0
+                ? "bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-700"
+            }`}
+            title={selectedIds.size > 0 ? `Delete ${selectedIds.size} selected documents` : "Select documents using checkboxes to delete"}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete {selectedIds.size > 0 ? `Selected (${selectedIds.size})` : "Entries"}</span>
+          </button>
+        </div>
+
+        <div className="flex-1">
+          {filteredDocs.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={filteredDocs.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              showPageSize={true}
+              pageSizeOptions={[5, 10, 20, 50]}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };

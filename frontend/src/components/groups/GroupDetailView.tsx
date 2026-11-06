@@ -26,6 +26,8 @@ import { AddEditGroupModal } from "./AddEditGroupModal";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { ToastNotification } from "@/components/ui/ToastNotification";
 import { usePermission } from "@/components/team/usePermission";
+import { Button } from "@/components/ui/Button";
+import { TableActionDropdown } from "@/components/ui/TableActionDropdown";
 
 interface GroupDetailViewProps {
   groupId: string;
@@ -62,10 +64,9 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
   // Track loaded tabs for lazy loading
   const [loadedTabs, setLoadedTabs] = useState<Set<GroupTabType>>(new Set(["entities"]));
 
-  // Modals & Menu
+  // Modals
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   // Fetch Group details
@@ -194,14 +195,15 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
         {/* Right: Edit + Generate Invoice + 3-Dot (Delete) + Close (X) */}
         <div className="flex items-center gap-2.5 self-end sm:self-auto">
           {canAddEdit("clients") && (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setIsEditModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-lg shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              icon={<Pencil size={13} className="text-gray-500" />}
             >
-              <Pencil size={13} className="text-gray-500" />
-              <span>Edit</span>
-            </button>
+              Edit
+            </Button>
           )}
 
           {/* Generate Invoice primary button */}
@@ -215,36 +217,19 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
           </Link>
 
           {/* Three-dot Action Menu (Delete Group) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <MoreVertical size={16} />
-            </button>
-
-            {isMenuOpen && (
-              <div
-                className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg shadow-xl py-1 z-30 animate-in fade-in zoom-in-95 duration-100"
-                onMouseLeave={() => setIsMenuOpen(false)}
-              >
-                {canDelete("clients") && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 cursor-pointer"
-                  >
-                    <Trash2 size={12} />
-                    <span>Delete Group</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          {canDelete("clients") && (
+            <TableActionDropdown
+              align="right"
+              actions={[
+                {
+                  label: "Delete Group",
+                  icon: Trash2,
+                  variant: "danger",
+                  onClick: () => setIsDeleteModalOpen(true),
+                },
+              ]}
+            />
+          )}
 
           {/* Close (X) button */}
           <Link

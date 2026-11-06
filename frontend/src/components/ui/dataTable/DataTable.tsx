@@ -267,7 +267,7 @@ export function DataTable<T>({
       )}
 
       {/* Scrollable Spreadsheet Table */}
-      <div className="overflow-x-auto scrollbar-slim">
+      <div className="overflow-x-auto scrollbar-slim touch-pan-x overscroll-x-contain">
         <table
           suppressHydrationWarning
           className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
@@ -312,7 +312,7 @@ export function DataTable<T>({
                   <th
                     key={col.id}
                     scope="col"
-                    className={`group/th relative px-3 py-2.5 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap select-none ${alignClass}`}
+                    className={`group group/th relative px-3 py-2.5 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap select-none ${alignClass}`}
                     style={{
                       backgroundColor: "var(--orange-havy-light)",
                       width: `${colWidth}px`,
@@ -388,7 +388,7 @@ export function DataTable<T>({
 
           <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
             {loading ? (
-              Array.from({ length: 8 }).map((_, rIdx) => (
+              Array.from({ length: 5 }).map((_, rIdx) => (
                 <tr
                   key={`skeleton-row-${rIdx}`}
                   className="animate-pulse border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]"
@@ -437,17 +437,17 @@ export function DataTable<T>({
                   <tr
                     key={rowId}
                     onClick={() => onRowClick?.(item, idx)}
-                    className={`transition-colors border-b border-[#dde2e8] dark:border-[#334155] ${isSelected
-                        ? "bg-blue-50/50 dark:bg-blue-950/20"
-                        : "bg-white dark:bg-[#1e293b] hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
+                    className={`transition-colors border-b border-[#dde2e8] dark:border-[#334155] [content-visibility:auto] ${isSelected
+                      ? "bg-blue-50/50 dark:bg-blue-950/20"
+                      : "bg-white dark:bg-[#1e293b] hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
                       } ${onRowClick ? "cursor-pointer" : ""}`}
                   >
                     {/* Frozen Checkbox Cell */}
                     {selectable && (
                       <td
                         className={`sticky left-0 z-20 px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center ${isSelected
-                            ? "bg-blue-50/90 dark:bg-[#182642]"
-                            : "bg-white dark:bg-[#1e293b]"
+                          ? "bg-blue-50/90 dark:bg-[#182642]"
+                          : "bg-white dark:bg-[#1e293b]"
                           }`}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -499,8 +499,8 @@ export function DataTable<T>({
                     {actions && (
                       <td
                         className={`sticky right-0 z-20 px-3 py-2.5 border-l border-b border-[#dde2e8] dark:border-[#334155] text-center ${isSelected
-                            ? "bg-blue-50/90 dark:bg-[#182642]"
-                            : "bg-white dark:bg-[#1e293b]"
+                          ? "bg-blue-50/90 dark:bg-[#182642]"
+                          : "bg-white dark:bg-[#1e293b]"
                           }`}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -517,49 +517,15 @@ export function DataTable<T>({
 
       {/* Pagination Footer */}
       {pagination && (
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
-          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-            {pagination.rowsPerPageOptions && pagination.onRowsPerPageChange && (
-              <div className="flex items-center gap-1.5">
-                <span>Rows per page:</span>
-                <select
-                  value={pagination.pageSize}
-                  onChange={(e) => pagination.onRowsPerPageChange!(Number(e.target.value))}
-                  className="bg-transparent border border-[#dde2e8] dark:border-[#334155] rounded-sm px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer focus:outline-none"
-                >
-                  {pagination.rowsPerPageOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <span>
-              Showing{" "}
-              <strong>
-                {pagination.totalItems > 0
-                  ? (pagination.currentPage - 1) * pagination.pageSize + 1
-                  : 0}
-              </strong>
-              –
-              <strong>
-                {Math.min(
-                  pagination.currentPage * pagination.pageSize,
-                  pagination.totalItems
-                )}
-              </strong>{" "}
-              of <strong>{pagination.totalItems}</strong> entries
-            </span>
-          </div>
-
-          <Pagination
-            currentPage={pagination.currentPage}
-            pageSize={pagination.pageSize}
-            totalItems={pagination.totalItems}
-            onPageChange={pagination.onPageChange}
-          />
-        </div>
+        <Pagination
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          onPageChange={pagination.onPageChange}
+          showPageSize={Boolean(pagination.onRowsPerPageChange)}
+          onPageSizeChange={pagination.onRowsPerPageChange}
+          pageSizeOptions={pagination.rowsPerPageOptions || [5, 10, 15, 25, 50]}
+        />
       )}
     </div>
   );

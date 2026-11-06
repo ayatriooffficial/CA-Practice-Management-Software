@@ -226,13 +226,74 @@ export const pdfSignerApi = {
   },
 
   /**
+   * Download single signed or original document as Blob with authentication
+   */
+  downloadDocument: async (id: string): Promise<{ blob: Blob; fileName?: string }> => {
+    const authHeaders: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('turia_current_user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          if (u.id) authHeaders['X-User-Id'] = u.id;
+          if (u.role) authHeaders['X-User-Role'] = u.role;
+          if (u.orgId || u.organization) authHeaders['X-Org-Id'] = u.orgId || u.organization;
+          if (u.token) authHeaders['Authorization'] = `Bearer ${u.token}`;
+        }
+      } catch {}
+    }
+
+    const res = await fetch(`${API_BASE_URL}/pdf-signer/documents/${id}/download`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/pdf',
+        ...authHeaders,
+      },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Download failed');
+      throw new Error(errText || 'Failed to download document');
+    }
+
+    let fileName: string | undefined = undefined;
+    const disposition = res.headers.get('content-disposition');
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = decodeURIComponent(match[1].replace(/['"]/g, ''));
+      }
+    }
+
+    const blob = await res.blob();
+    return { blob, fileName };
+  },
+
+  /**
    * Download selected documents as ZIP archive
    */
   downloadZip: async (documentIds: string[]): Promise<Blob> => {
+    const authHeaders: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('turia_current_user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          if (u.id) authHeaders['X-User-Id'] = u.id;
+          if (u.role) authHeaders['X-User-Role'] = u.role;
+          if (u.orgId || u.organization) authHeaders['X-Org-Id'] = u.orgId || u.organization;
+          if (u.token) authHeaders['Authorization'] = `Bearer ${u.token}`;
+        }
+      } catch {}
+    }
+
     const res = await fetch(`${API_BASE_URL}/pdf-signer/documents/download-zip`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
       },
       body: JSON.stringify({ documentIds }),
     });
@@ -325,8 +386,39 @@ export const pdfSignerApi = {
     date?: string;
     dueDate?: string;
     totalAmount: number;
-    services?: Array<{ serviceName: string; amount: number; description?: string }>;
+    subTotal?: number;
+    services?: Array<{
+      serviceName: string;
+      amount: number;
+      description?: string;
+      hsnSac?: string;
+      quantity?: number;
+      rate?: number;
+      taxRate?: string;
+      taxable?: number;
+    }>;
     billingOrg?: string;
+    billingAddress?: string;
+    firmGstin?: string;
+    firmPan?: string;
+    clientAddress?: string;
+    clientGstin?: string;
+    clientPan?: string;
+    clientTan?: string;
+    clientContact?: string;
+    clientEmail?: string;
+    clientPhone?: string;
+    placeOfSupply?: string;
+    notes?: string;
+    bankDetails?: {
+      accountHolderName?: string;
+      accountNumber?: string;
+      ifscCode?: string;
+      branchName?: string;
+      bankName?: string;
+      upiId?: string;
+    };
+    pdfBase64?: string;
   }): Promise<ApiResponse<SignedDocItem>> => {
     return request<SignedDocItem>('/pdf-signer/stage-invoice', {
       method: 'POST',

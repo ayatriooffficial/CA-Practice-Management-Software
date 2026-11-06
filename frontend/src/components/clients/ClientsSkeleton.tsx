@@ -2,11 +2,11 @@ import React from "react";
 
 export const ClientsSkeleton: React.FC = () => {
   return (
-    <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-100">
+    <div className="w-full flex flex-col space-y-4">
       {/* Top Header Row Skeleton */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-36 bg-gray-200 dark:bg-gray-800 rounded-md animate-pulse" />
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
+        <div className="flex items-center gap-3 py-2 min-h-[40px]">
+          <div className="h-8 w-44 bg-gray-200 dark:bg-gray-800 rounded-md animate-pulse" />
         </div>
 
         <div className="flex items-center gap-3 py-2">
@@ -35,7 +35,7 @@ export const ClientsSkeleton: React.FC = () => {
       </div>
 
       {/* Table Skeleton */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none">
         <div className="overflow-x-auto scrollbar-slim">
           <table
             className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
@@ -97,7 +97,7 @@ export const ClientsSkeleton: React.FC = () => {
             </thead>
 
             <tbody>
-              {Array.from({ length: 8 }).map((_, rIdx) => (
+              {Array.from({ length: 5 }).map((_, rIdx) => (
                 <tr
                   key={rIdx}
                   className={`border-b border-[#dde2e8] dark:border-[#334155] ${

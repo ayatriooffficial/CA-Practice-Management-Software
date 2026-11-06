@@ -32,6 +32,7 @@ const formatCellDate = (iso: string): string => {
 
 export const ALL_LEAD_COLUMNS: LeadColumnDef[] = [
   { key: "fullName", label: "Party Full Name", sortable: true, width: "w-[220px]" },
+  { key: "status", label: "Status", sortable: true, width: "w-[130px]" },
   { key: "mobile", label: "Communication Mobile", kind: "phone", width: "w-[170px]" },
   { key: "email", label: "Communication Mail ID", kind: "email", width: "w-[210px]" },
   { key: "pan", label: "PAN No", sortable: true, width: "w-[130px]" },
@@ -63,6 +64,7 @@ export const ALL_LEAD_COLUMNS: LeadColumnDef[] = [
 
 export const INITIAL_LEAD_COLUMN_WIDTHS: Record<string, number> = {
   fullName: 220,
+  status: 130,
   mobile: 170,
   email: 210,
   pan: 130,

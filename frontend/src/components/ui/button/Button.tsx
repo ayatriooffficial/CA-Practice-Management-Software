@@ -38,9 +38,9 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-8 px-2.5 text-xs",
-  md: "h-9 px-3.5 text-xs font-semibold",
-  lg: "h-10 px-4 text-sm font-semibold",
+  sm: "h-8 px-2.5 text-xs justify-center",
+  md: "h-9 px-3.5 text-xs font-semibold justify-center",
+  lg: "h-10 px-4 text-sm font-semibold justify-center",
   icon: "h-8 w-8 p-1 justify-center",
   "icon-sm": "h-7 w-7 p-1 justify-center",
 };
@@ -71,7 +71,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         style={primaryStyle}
-        className={`inline-flex items-center gap-1.5 rounded-sm font-medium transition-all select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+        className={`inline-flex items-center justify-center gap-1.5 rounded-sm font-medium transition-all select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
         {...props}
       >
         {loading ? (

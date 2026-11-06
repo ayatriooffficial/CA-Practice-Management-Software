@@ -147,6 +147,9 @@ export const queryLeadSchema = z.object({
 });
 
 export const convertLeadSchema = z.object({
+  companyName: z.string().min(2, 'Company name is required').optional(),
+  directorDesignation: z.string().optional(),
+  directorShare: z.string().optional(),
   type: z.string().min(1, 'Client constitution type is required'),
   group: z.string().min(1, 'Client practice group is required'),
   fileNo: z.string().optional(),

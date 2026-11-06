@@ -6,7 +6,9 @@ import { MoreVertical, Trash2, ShieldCheck, Loader2 } from "lucide-react";
 import { GroupRecord } from "@/services/groupApi";
 import { groupApi } from "@/services/groupApi";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { TableActionDropdown } from "@/components/ui/TableActionDropdown";
 import { usePermission } from "@/components/team/usePermission";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupEntitiesTabProps {
   group: GroupRecord;
@@ -28,8 +30,9 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
 }) => {
   const { canDelete } = usePermission();
   const [clientToRemove, setClientToRemove] = useState<any | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [updatingPocId, setUpdatingPocId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const entities = group.entities || [];
 
@@ -64,7 +67,7 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
   return (
     <div className="w-full flex flex-col gap-3">
       {/* Table Container (Image 2) */}
-      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-x-auto shadow-2xs">
+      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto shadow-2xs">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50/70 dark:bg-slate-800/60 border-b border-[#dde2e8] dark:border-[#334155] text-gray-500 dark:text-gray-400 font-semibold select-none">
@@ -90,11 +93,12 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
                 </td>
               </tr>
             ) : (
-              entities.map((entity: any) => {
+              entities
+                .slice((page - 1) * limit, page * limit)
+                .map((entity: any) => {
                 const isPoc = group.pocClientId
                   ? group.pocClientId.toString() === entity.id
                   : false;
-                const isMenuOpen = openMenuId === entity.id;
 
                 const primaryContact =
                   (entity.contacts || []).find((c: any) => c.isPrimary) ||
@@ -192,34 +196,21 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
                     </td>
 
                     {/* Actions Menu */}
-                    <td className="py-2.5 px-3 text-center relative">
-                      <button
-                        type="button"
-                        onClick={() => setOpenMenuId(isMenuOpen ? null : entity.id)}
-                        className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <MoreVertical size={15} />
-                      </button>
-
-                      {isMenuOpen && (
-                        <div
-                          className="absolute right-3 top-full mt-1 w-44 bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg shadow-xl py-1 z-30 animate-in fade-in zoom-in-95 duration-100"
-                          onMouseLeave={() => setOpenMenuId(null)}
-                        >
-                          {canDelete("clients") && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClientToRemove(entity);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full text-left px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 cursor-pointer"
-                            >
-                              <Trash2 size={12} />
-                              <span>Remove from Group</span>
-                            </button>
-                          )}
-                        </div>
+                    <td className="py-2.5 px-3 text-center">
+                      {canDelete("clients") ? (
+                        <TableActionDropdown
+                          align="right"
+                          actions={[
+                            {
+                              label: "Remove from Group",
+                              icon: Trash2,
+                              variant: "danger",
+                              onClick: () => setClientToRemove(entity),
+                            },
+                          ]}
+                        />
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600">-</span>
                       )}
                     </td>
                   </tr>
@@ -229,6 +220,23 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {entities.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={entities.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[5, 10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
+      )}
 
       {/* Remove Confirmation Dialog */}
       {clientToRemove && (

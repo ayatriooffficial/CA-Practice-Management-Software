@@ -35,35 +35,50 @@ import { serviceApi } from "@/services/serviceApi";
 import { Service } from "@/data/serviceData";
 import { IosToggleSwitch } from "@/components/ui/IosToggleSwitch";
 import { clientApi } from "@/services/clientApi";
+import { groupApi } from "@/services/groupApi";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
 import { ClientDetailViewTabs } from "./ClientDetailViewTabs";
 import { ToastNotification } from "@/components/ui/ToastNotification";
-import { AddLicenseModal } from "./modals/AddLicenseModal";
-import { AddDocumentInOutModal } from "./modals/AddDocumentInOutModal";
-import { AddDscModal } from "./modals/AddDscModal";
-import { AddPasswordModal } from "./modals/AddPasswordModal";
-import { AddNoteModal } from "./modals/AddNoteModal";
+import dynamic from "next/dynamic";
 import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab";
 import { usePermission } from "@/components/team/usePermission";
 import { useToggleClientServiceMutation } from "@/hooks/useServicesQuery";
-import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import { useAppDispatch } from "@/store/hooks";
+import { mergeClientSectionData } from "@/store/features/clients/clientSlice";
+
+const AddLicenseModal = dynamic(
+  () => import("./modals/AddLicenseModal").then((m) => m.AddLicenseModal),
+  { ssr: false }
+);
+const AddDocumentInOutModal = dynamic(
+  () => import("./modals/AddDocumentInOutModal").then((m) => m.AddDocumentInOutModal),
+  { ssr: false }
+);
+const AddDscModal = dynamic(
+  () => import("./modals/AddDscModal").then((m) => m.AddDscModal),
+  { ssr: false }
+);
+const AddPasswordModal = dynamic(
+  () => import("./modals/AddPasswordModal").then((m) => m.AddPasswordModal),
+  { ssr: false }
+);
+const AddNoteModal = dynamic(
+  () => import("./modals/AddNoteModal").then((m) => m.AddNoteModal),
+  { ssr: false }
+);
+const DiscardConfirmationModal = dynamic(
+  () => import("@/components/ui/DiscardConfirmationModal"),
+  { ssr: false }
+);
 
 export type ClientTabType =
   | "Master"
   | "IT"
   | "Contacts"
-  | "Tasks & Assignees"
-  | "Assignee"
-  | "Tasks"
-  | "SLA"
   | "Invoices"
   | "Ledger"
-  | "Recurring"
   | "Compliance"
-  | "Notes"
-  | "Passwords"
-  | "Licenses"
   | "DSC"
   | "Documents"
   | "Group"
@@ -71,7 +86,6 @@ export type ClientTabType =
 
 export const CLIENT_TABS: ClientTabType[] = [
   "Master",
-  "Contacts",
   "Invoices",
   "Ledger",
   "Compliance",
@@ -100,6 +114,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 }) => {
   const { canView, canAddEdit, canDelete } = usePermission();
   const toggleClientServiceMutation = useToggleClientServiceMutation();
+  const dispatch = useAppDispatch();
+  const loadedSectionsRef = React.useRef<Set<string>>(new Set());
   const [client, setClient] = useState<Client>(initialClient);
 
   useEffect(() => {
@@ -144,21 +160,71 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-  // Filter tabs dynamically based on user role and granular permissions
+  // Group membership state for dynamic conditional Group tab
+  const [hasGroupMembership, setHasGroupMembership] = useState<boolean>(false);
+
+  useEffect(() => {
+    const clientId = client.id || (client as any)._id?.toString();
+    if (!clientId) {
+      setHasGroupMembership(false);
+      return;
+    }
+    let isMounted = true;
+    groupApi
+      .listGroups({ limit: 100 })
+      .then((res) => {
+        if (!isMounted) return;
+        const groups = res?.data || [];
+        const isMatch = groups.some((g) => {
+          const pocId =
+            typeof g.pocClientId === "string"
+              ? g.pocClientId
+              : (g.pocClientId as any)?.id || (g.pocClientId as any)?._id;
+          if (pocId && String(pocId) === String(clientId)) return true;
+
+          const isMember = (g.clientIds || []).some((c: any) => {
+            const cid = typeof c === "string" ? c : c.id || c._id?.toString();
+            return String(cid) === String(clientId);
+          });
+          if (isMember) return true;
+
+          const isEntity = (g.entities || []).some((e: any) => {
+            const eid = typeof e === "string" ? e : e.id || e._id?.toString();
+            return String(eid) === String(clientId);
+          });
+          return isEntity;
+        });
+        setHasGroupMembership(isMatch);
+      })
+      .catch((err) => {
+        console.error("Failed to check group membership for client:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [client.id, (client as any)._id]);
+
+  // Fallback to Master if activeTab is Contacts or if Group tab is no longer permitted
+  useEffect(() => {
+    if (activeTab === "Contacts" || (activeTab === "Group" && !hasGroupMembership)) {
+      setActiveTab("Master");
+    }
+  }, [activeTab, hasGroupMembership]);
+
+  // Filter tabs dynamically based on user role, group membership, and granular permissions
   const visibleTabs = useMemo(() => {
     return CLIENT_TABS.filter((tab) => {
+      if (tab === "Contacts") return false;
+      if (tab === "Group") return hasGroupMembership && canView("groups");
       if (tab === "Invoices") return canView("invoice");
-      if (tab === "Passwords") return canView("password");
-      if (tab === "Licenses") return canView("licenses");
       if (tab === "DSC") return canView("digital_signature");
       if (tab === "Documents") return canView("document_in_out");
-      if (tab === "Recurring") return canView("recurring");
       if (tab === "Ledger") return canView("billing");
       if (tab === "Compliance") return canView("compliance_tracker");
-      if (tab === "Tasks" || tab === "Assignee" || tab === "Tasks & Assignees") return canView("task_manager");
       return true;
     });
-  }, [canView]);
+  }, [canView, hasGroupMembership]);
 
   // Modals
   const [isAddLicenseOpen, setIsAddLicenseOpen] = useState(false);
@@ -181,7 +247,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     title: "",
     message: "",
     confirmText: "Delete",
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const promptConfirm = (
@@ -238,6 +304,100 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     }
   }, [client.id, onClientUpdated]);
 
+  // Synchronize internal state when initialClient prop updates with full profile
+  useEffect(() => {
+    setClient(initialClient);
+  }, [initialClient]);
+
+  // If opened with summary data only, fetch master tab data first and cache in Redux
+  useEffect(() => {
+    const isSummaryOnly =
+      !initialClient.contacts &&
+      !initialClient.passwords &&
+      !initialClient.licenses;
+    if (isSummaryOnly && initialClient.id) {
+      setIsRefreshing(true);
+      clientApi
+        .getClientById(initialClient.id, { section: "master" })
+        .then((res) => {
+          if (res.data) {
+            setClient((prev) => ({ ...prev, ...res.data }));
+            dispatch(mergeClientSectionData({ id: initialClient.id, patch: res.data }));
+            onClientUpdated?.(res.data);
+            loadedSectionsRef.current.add("master");
+          }
+        })
+        .catch((err) => console.error("Error loading master section:", err))
+        .finally(() => setIsRefreshing(false));
+    }
+  }, [initialClient, dispatch, onClientUpdated]);
+
+  // Section-based on-demand fetching: when activeTab changes, load data for that section and cache in Redux
+  useEffect(() => {
+    if (!client.id) return;
+
+    if (activeTab === "Service Settings") {
+      const alreadyLoaded =
+        (client.serviceSettings && client.serviceSettings.length > 0) ||
+        loadedSectionsRef.current.has("service-settings");
+
+      if (!alreadyLoaded) {
+        setIsLoadingServices(true);
+        clientApi
+          .getClientSection(client.id, "service-settings")
+          .then((res) => {
+            if (res.data) {
+              const patch = {
+                serviceSettings: res.data.serviceSettings || [],
+                recurringTaskConfigs: (res.data as any).recurringTaskConfigs || [],
+              };
+              setClient((prev) => ({ ...prev, ...patch }));
+              dispatch(mergeClientSectionData({ id: client.id, patch }));
+              loadedSectionsRef.current.add("service-settings");
+            }
+          })
+          .catch((err) => console.error("Error loading service settings section:", err))
+          .finally(() => setIsLoadingServices(false));
+      }
+    } else if (activeTab === "Documents") {
+      const alreadyLoaded =
+        client.documentsInOut !== undefined ||
+        loadedSectionsRef.current.has("documents");
+
+      if (!alreadyLoaded) {
+        clientApi
+          .getClientSection(client.id, "documents")
+          .then((res) => {
+            if (res.data) {
+              const patch = { documentsInOut: res.data.documentsInOut || [] };
+              setClient((prev) => ({ ...prev, ...patch }));
+              dispatch(mergeClientSectionData({ id: client.id, patch }));
+              loadedSectionsRef.current.add("documents");
+            }
+          })
+          .catch((err) => console.error("Error loading documents section:", err));
+      }
+    } else if (activeTab === "DSC") {
+      const alreadyLoaded =
+        client.dscs !== undefined ||
+        loadedSectionsRef.current.has("dsc");
+
+      if (!alreadyLoaded) {
+        clientApi
+          .getClientSection(client.id, "dsc")
+          .then((res) => {
+            if (res.data) {
+              const patch = { dscs: res.data.dscs || [] };
+              setClient((prev) => ({ ...prev, ...patch }));
+              dispatch(mergeClientSectionData({ id: client.id, patch }));
+              loadedSectionsRef.current.add("dsc");
+            }
+          })
+          .catch((err) => console.error("Error loading DSC section:", err));
+      }
+    }
+  }, [activeTab, client.id, client.serviceSettings, client.documentsInOut, client.dscs, dispatch]);
+
   // Fetch client tasks when switching to Tasks or Documents tab
   const fetchClientTasks = useCallback(() => {
     if (!client.id && !client.name && !client.fileNo) return;
@@ -258,10 +418,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   useEffect(() => {
     if (
-      activeTab === "Tasks" ||
-      activeTab === "Documents" ||
-      activeTab === "Assignee" ||
-      activeTab === "Tasks & Assignees"
+      activeTab === "Documents"
     ) {
       fetchClientTasks();
     }

@@ -5,6 +5,8 @@ import { X, Search, Check, AlertCircle, Loader2, ChevronDown } from "lucide-reac
 import { GroupRecord } from "@/services/groupApi";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 interface AddEditGroupModalProps {
   isOpen: boolean;
@@ -244,8 +246,8 @@ export const AddEditGroupModal: React.FC<AddEditGroupModalProps> = ({
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
               Group Name <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <Input
+              inputSize="sm"
               placeholder="e.g. Yadav Enterprises, Reliance Group"
               value={name}
               onChange={(e) => {
@@ -253,7 +255,6 @@ export const AddEditGroupModal: React.FC<AddEditGroupModalProps> = ({
                 if (error) setError(null);
               }}
               required
-              className="w-full px-3.5 py-2 text-xs bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-lg shadow-2xs outline-hidden focus:border-[#31719B] transition-colors"
             />
           </div>
 
@@ -262,12 +263,12 @@ export const AddEditGroupModal: React.FC<AddEditGroupModalProps> = ({
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
               Group ID <span className="text-gray-400 font-normal">(Optional, e.g. GRP-001)</span>
             </label>
-            <input
-              type="text"
+            <Input
+              inputSize="sm"
               placeholder="Leave empty to auto-assign"
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
-              className="w-full px-3.5 py-2 text-xs bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-lg shadow-2xs outline-hidden focus:border-[#31719B] font-mono transition-colors"
+              className="font-mono"
             />
           </div>
 
@@ -413,29 +414,23 @@ export const AddEditGroupModal: React.FC<AddEditGroupModalProps> = ({
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#dde2e8] dark:border-[#334155]">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+              variant="primary"
+              size="sm"
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <span>Save</span>
-              )}
-            </button>
+              Save
+            </Button>
           </div>
         </form>
       </div>

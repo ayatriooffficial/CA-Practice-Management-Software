@@ -7,6 +7,8 @@ import { GroupRecord } from "@/services/groupApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchInvoicesRequest } from "@/store/features/invoices";
 import { InvoiceRecord, InvoiceTab } from "@/components/invoice/types";
+import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupInvoicesTabProps {
   group: GroupRecord;
@@ -21,6 +23,8 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
 
   const [activeSubTab, setActiveSubTab] = useState<"invoice" | "proforma" | "reimbursement">("invoice");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   // Fetch invoices on mount
   useEffect(() => {
@@ -124,20 +128,20 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
         </div>
 
         {/* Search */}
-        <div className="relative min-w-[200px] sm:min-w-[240px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
+        <div className="min-w-[200px] sm:min-w-[260px]">
+          <Input
+            inputSize="sm"
             placeholder="Search by invoice no. or client..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md shadow-2xs outline-hidden focus:border-[#31719B] transition-colors"
+            onClear={() => setSearch("")}
+            leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
           />
         </div>
       </div>
 
       {/* Invoice Table Container */}
-      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-x-auto shadow-2xs">
+      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto shadow-2xs">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50/70 dark:bg-slate-800/60 border-b border-[#dde2e8] dark:border-[#334155] text-gray-500 dark:text-gray-400 font-semibold select-none">
@@ -171,7 +175,9 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
                 </td>
               </tr>
             ) : (
-              currentList.map((inv) => (
+              currentList
+                .slice((page - 1) * limit, page * limit)
+                .map((inv) => (
                 <tr key={inv.id} className="hover:bg-gray-50/60 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3 font-semibold text-[#31719B] font-mono">
                     <Link href={`/invoice?id=${inv.id}`} className="hover:underline">
@@ -208,6 +214,23 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {currentList.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={currentList.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[5, 10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
+      )}
     </div>
   );
 };

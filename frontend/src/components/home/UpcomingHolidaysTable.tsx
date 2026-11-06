@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UpcomingHolidayItem } from '../../services/attendanceApi';
+import { Pagination } from '../ui/Pagination';
 
 interface UpcomingHolidaysTableProps {
   holidays: UpcomingHolidayItem[];
@@ -12,6 +13,9 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
   holidays,
   isLoading = false,
 }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const paginatedHolidays = holidays.slice((page - 1) * pageSize, page * pageSize);
   return (
     <div
       className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col shadow-xs"
@@ -59,7 +63,7 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
                 </td>
               </tr>
             ) : (
-              holidays.map((h) => (
+              paginatedHolidays.map((h) => (
                 <tr
                   key={h.id}
                   className="hover:bg-[#F6F4F2] dark:hover:bg-[#162032] transition-colors"
@@ -82,6 +86,22 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {holidays.length > 5 && (
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={holidays.length}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          showPageSize={true}
+          pageSizeOptions={[5, 10, 20]}
+        />
+      )}
     </div>
   );
 };

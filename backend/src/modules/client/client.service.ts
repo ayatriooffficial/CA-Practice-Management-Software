@@ -48,6 +48,14 @@ export class ClientService {
       }
     }
 
+    // Enforce at least 1 director or promoter required to create a company
+    const validPromoters = (data.customerFiles?.promoter || []).filter(
+      (p: any) => p && typeof p.name === 'string' && p.name.trim().length > 0
+    );
+    if (validPromoters.length === 0) {
+      throw AppError.badRequest('At least 1 director or promoter (lead) is required to create a company.');
+    }
+
     // Check PAN conflict if PAN is provided
     if (data.pan && data.pan.trim() !== '') {
       const existingPan = await Client.findOne({
@@ -231,7 +239,38 @@ export class ClientService {
       pan: data.pan ? data.pan.toUpperCase() : '',
     });
 
-    return await client.save();
+    const savedClient = await client.save();
+
+    // Link company to matching lead(s)
+    try {
+      const promoterPans = validPromoters
+        .map((p: any) => (typeof p.pan === 'string' ? p.pan.trim().toUpperCase() : ''))
+        .filter(Boolean);
+      const promoterNames = validPromoters
+        .map((p: any) => (typeof p.name === 'string' ? p.name.trim() : ''))
+        .filter(Boolean);
+
+      const leadConditions: any[] = [];
+      if (data.leadId) leadConditions.push({ _id: data.leadId });
+      if (promoterPans.length > 0) leadConditions.push({ pan: { $in: promoterPans } });
+      if (promoterNames.length > 0) {
+        leadConditions.push({ fullName: { $in: promoterNames } });
+      }
+
+      if (leadConditions.length > 0) {
+        await Lead.updateMany(
+          { $or: leadConditions, isDeleted: false },
+          {
+            $addToSet: { associatedClientIds: savedClient._id },
+            $set: { status: 'converted' },
+          }
+        );
+      }
+    } catch {
+      // Non-blocking sync
+    }
+
+    return savedClient;
   }
 
 /**
@@ -500,19 +539,67 @@ export class ClientService {
       }
     }
 
+    // Lightweight table projection: only fetch fields required for table view.
+    // Heavy sub-documents (serviceSettings, customerFiles, passwords, licenses, dscs, documentsInOut, contacts, notes)
+    // are excluded to keep payload size tiny and table rendering instant.
+    const defaultTableFields = [
+      'name',
+      'fileNo',
+      'type',
+      'mobile',
+      'email',
+      'group',
+      'tags',
+      'active',
+      'users',
+      'photo',
+      'pan',
+      'city',
+      'state',
+      'leadId',
+      'orgId',
+      'userId',
+      'createdBy',
+      'isDeleted',
+      'deletedAt',
+      'createdAt',
+      'updatedAt',
+    ].join(' ');
+
+    if (!parsedQuery.projection) {
+      parsedQuery.projection = defaultTableFields;
+    } else if (parsedQuery.projection === 'all' || parsedQuery.projection === 'full') {
+      parsedQuery.projection = undefined;
+    }
+
     return await QueryBuilder.paginate<IClientDocument>(Client, parsedQuery);
   }
 
   /**
    * Retrieve client by ID
    */
-  static async getClientById(id: string, includeDeleted: boolean = false): Promise<IClientDocument> {
+  static async getClientById(
+    id: string,
+    includeDeleted: boolean = false,
+    section?: string
+  ): Promise<IClientDocument | any> {
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
     const query = isObjectId
       ? Client.findById(id)
       : Client.findOne({ $or: [{ fileNo: id }, { name: id }] });
     if (includeDeleted) {
       query.setOptions({ includeDeleted: true });
+    }
+
+    if (section === 'master') {
+      // Exclude heavy sub-sections not needed for Master view
+      query.select('-serviceSettings -documentsInOut -dscs -recurringTaskConfigs');
+    } else if (section === 'service-settings' || section === 'services') {
+      query.select('name fileNo serviceSettings recurringTaskConfigs');
+    } else if (section === 'documents') {
+      query.select('name fileNo documentsInOut');
+    } else if (section === 'dsc' || section === 'dscs') {
+      query.select('name fileNo dscs');
     }
 
     const client = await query.populate('leadId').exec();
@@ -1437,6 +1524,7 @@ export class ClientService {
       content: data.content,
       author: data.author || 'Admin',
       createdAt: data.createdAt || new Date().toISOString(),
+      leadId: data.leadId || '',
     };
     client.notes = client.notes || [];
     client.notes.unshift(newNote);
@@ -1480,6 +1568,7 @@ export class ClientService {
       fatherName: data.fatherName || '',
       address: data.address || '',
       createdAt: data.createdAt || new Date().toISOString(),
+      leadId: data.leadId || '',
     };
     client.contacts = client.contacts || [];
     // If marked as primary, unmark previous primaries
@@ -1502,6 +1591,22 @@ export class ClientService {
         client.markModified('customerFiles');
       }
     }
+
+    if (data.leadId) {
+      try {
+        await Lead.findByIdAndUpdate(data.leadId, {
+          $addToSet: { associatedClientIds: client._id },
+        });
+      } catch (err) {}
+    } else if (newContact.pan) {
+      try {
+        await Lead.findOneAndUpdate(
+          { pan: newContact.pan.toUpperCase(), isDeleted: { $ne: true } },
+          { $addToSet: { associatedClientIds: client._id } }
+        );
+      } catch (err) {}
+    }
+
     return await client.save();
   }
 

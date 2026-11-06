@@ -350,3 +350,30 @@ export function useDeleteLeadNote() {
     isPending: false,
   };
 }
+
+/**
+ * Fetch companies associated with a Lead (promoter)
+ */
+export function useLeadCompanies(leadId: string | null | undefined) {
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchCompanies = useCallback(async () => {
+    if (!leadId) return;
+    setLoading(true);
+    try {
+      const res = await leadApi.getLeadCompanies(leadId);
+      setCompanies(res.data || []);
+    } catch {
+      setCompanies([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId]);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  return { data: companies, isLoading: loading, refetch: fetchCompanies };
+}

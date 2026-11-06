@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setSelectedClient } from "@/store/features/clients/clientSlice";
+import { navigationProgress } from "@/services/navigationProgress";
 
 export function getSectionKey(pathname: string | null): string {
   if (!pathname || pathname === "/") return "home";
@@ -114,6 +115,9 @@ export function useSectionNavigation() {
           window.dispatchEvent(new CustomEvent("app:reset-view:groups"));
         }
       }
+
+      // Signal simulated progress bar start for section navigation
+      navigationProgress.start(targetFirstPage);
 
       activeSectionRef.current = targetSectionKey;
       router.replace(targetFirstPage);

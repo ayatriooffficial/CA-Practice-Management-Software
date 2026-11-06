@@ -2,17 +2,21 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  compress: true,
+  poweredByHeader: false,
   images: {
     unoptimized: true,
   },
-  /* config options here */
   experimental: {
     agentFeedback: true,
     externalDir: true,
-    optimizePackageImports: ["lucide-react"],
+    optimizePackageImports: [
+      "lucide-react",
+      "@reduxjs/toolkit",
+      "react-redux",
+    ],
   },
   turbopack: {
-    // Agent Center consumes the single catalog owned by the backend module.
     root: path.resolve(__dirname, ".."),
     rules: {
       "*.css": {

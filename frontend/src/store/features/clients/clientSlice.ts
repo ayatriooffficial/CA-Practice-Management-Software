@@ -220,6 +220,30 @@ export const clientSlice = createSlice({
       state.error = action.payload;
     },
 
+    mergeClientSectionData: (
+      state,
+      action: PayloadAction<{ id: string; patch: Partial<Client> }>
+    ) => {
+      const { id, patch } = action.payload;
+      if (
+        state.selectedClient &&
+        (state.selectedClient.id === id || (state.selectedClient as any)._id === id)
+      ) {
+        state.selectedClient = {
+          ...state.selectedClient,
+          ...patch,
+        };
+      }
+      const index = state.items.findIndex(
+        (c) => c.id === id || (c as any)._id === id
+      );
+      if (index >= 0) {
+        state.items[index] = {
+          ...state.items[index],
+          ...patch,
+        };
+      }
+    },
     setSelectedClient: (state, action: PayloadAction<Client | null>) => {
       state.selectedClient = action.payload;
       if (action.payload) {
@@ -263,6 +287,7 @@ export const {
   bulkDeleteClientsRequest,
   bulkDeleteClientsSuccess,
   bulkDeleteClientsFailure,
+  mergeClientSectionData,
   setSelectedClient,
   clearClientError,
 } = clientSlice.actions;

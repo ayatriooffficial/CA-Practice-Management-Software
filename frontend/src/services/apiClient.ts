@@ -2,6 +2,8 @@
  * Base API Client for Ayatrio CRM
  */
 
+import { navigationProgress } from './navigationProgress';
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
@@ -186,80 +188,99 @@ export async function request<T>(
     ...authHeaders,
   };
 
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('app:loading:start'));
-  }
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...options,
-      credentials: 'include',
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    });
-  } catch (err: any) {
-    throw new ApiError(
-      err?.message || 'Network error: Unable to connect to backend server',
-      0
-    );
+  const method = (options.method || 'GET').toUpperCase();
+  const isNavRequest =
+    method === 'GET' &&
+    typeof window !== 'undefined' &&
+    navigationProgress.isNavigationActive();
+
+  if (isNavRequest) {
+    navigationProgress.incrementRequests();
   }
 
-  // Handle 401 Unauthorized with automatic token refresh (skip for auth login/refresh routes)
-  const isAuthRoute = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/refresh') || endpoint.startsWith('/auth/verify-otp');
-  const hasToken = Boolean(authHeaders['Authorization']);
-  if (response.status === 401 && !isRetry && !isAuthRoute && hasToken) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      // Retry original request once with new token
-      return request<T>(
-        endpoint,
-        {
-          ...options,
-          headers: {
-            ...options.headers,
-            Authorization: `Bearer ${newToken}`,
-          },
+  const signal = options.signal || (isNavRequest ? navigationProgress.getAbortSignal() || undefined : undefined);
+
+  try {
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        signal,
+        credentials: 'include',
+        headers: {
+          ...defaultHeaders,
+          ...options.headers,
         },
-        true
+      });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        throw err;
+      }
+      throw new ApiError(
+        err?.message || 'Network error: Unable to connect to backend server',
+        0
       );
     }
-  }
 
-  const contentType = response.headers.get('content-type');
-  const isJson = contentType && contentType.includes('application/json');
-
-  if (!response.ok) {
-    let errorMessage = `HTTP error! status: ${response.status}`;
-    let errors: Array<{ field: string; message: string }> | undefined = undefined;
-
-    if (isJson) {
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
-        errors = errorData.errors;
-      } catch {
-        // Fallback to text
+    // Handle 401 Unauthorized with automatic token refresh (skip for auth login/refresh routes)
+    const isAuthRoute = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/refresh') || endpoint.startsWith('/auth/verify-otp');
+    const hasToken = Boolean(authHeaders['Authorization']);
+    if (response.status === 401 && !isRetry && !isAuthRoute && hasToken) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        // Retry original request once with new token
+        return request<T>(
+          endpoint,
+          {
+            ...options,
+            headers: {
+              ...options.headers,
+              Authorization: `Bearer ${newToken}`,
+            },
+          },
+          true
+        );
       }
     }
 
-    throw new ApiError(errorMessage, response.status, errors);
-  }
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
 
-  if (response.status === 204) {
-    return {
-      success: true,
-      statusCode: 204,
-      message: 'No content',
-      data: null as unknown as T,
-    };
-  }
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      let errors: Array<{ field: string; message: string }> | undefined = undefined;
 
-  const jsonResult = (await response.json()) as ApiResponse<T>;
-  if (jsonResult && jsonResult.data) {
-    jsonResult.data = normalizeId(jsonResult.data);
-  }
+      if (isJson) {
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+          errors = errorData.errors;
+        } catch {
+          // Fallback to text
+        }
+      }
 
-  return jsonResult;
+      throw new ApiError(errorMessage, response.status, errors);
+    }
+
+    if (response.status === 204) {
+      return {
+        success: true,
+        statusCode: 204,
+        message: 'No content',
+        data: null as unknown as T,
+      };
+    }
+
+    const jsonResult = (await response.json()) as ApiResponse<T>;
+    if (jsonResult && jsonResult.data) {
+      jsonResult.data = normalizeId(jsonResult.data);
+    }
+
+    return jsonResult;
+  } finally {
+    if (isNavRequest) {
+      navigationProgress.decrementRequests();
+    }
+  }
 }

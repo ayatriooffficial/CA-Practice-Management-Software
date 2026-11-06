@@ -216,6 +216,76 @@ export class AttendanceController {
   }
 
   /**
+   * Leave Applications: Get All (Team section)
+   */
+  static async getAllLeaves(req: Request, res: Response) {
+    try {
+      const user = req.user;
+      if (!user?.orgId) {
+        return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
+      }
+      const leaves = await AttendanceService.getAllLeaves(user.orgId);
+      return ApiResponse.success(res, leaves);
+    } catch (err: any) {
+      return ApiResponse.error(res, err.message || 'Failed to fetch leaves', err.statusCode || 500);
+    }
+  }
+
+  /**
+   * Leave Applications: Create
+   */
+  static async createLeave(req: Request, res: Response) {
+    try {
+      const user = req.user;
+      if (!user?.userId || !user?.orgId) {
+        return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { applicant, employeeId, leaveType, dateOfLeave, startDate, endDate, days, daysApplied, reason, status } =
+        req.body;
+      const leave = await AttendanceService.createLeaveApplication({
+        firmId: user.orgId,
+        userId: employeeId || user.userId,
+        applicant: applicant || user.name || 'Employee',
+        leaveType: leaveType || 'Sick Leave',
+        startDate: startDate || dateOfLeave,
+        endDate,
+        days: days || daysApplied || 1,
+        reason,
+        status: status || 'Approved',
+      });
+
+      return ApiResponse.success(res, leave, 'Leave application created successfully', HTTP_STATUS.CREATED);
+    } catch (err: any) {
+      return ApiResponse.error(res, err.message || 'Failed to create leave application', err.statusCode || 500);
+    }
+  }
+
+  /**
+   * Leave Applications: Update Status
+   */
+  static async updateLeaveStatus(req: Request, res: Response) {
+    try {
+      const user = req.user;
+      if (!user?.orgId) {
+        return ApiResponse.error(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const leaveId = String(req.params.id);
+      const { status, remark, rejectionRemarks } = req.body;
+      const updated = await AttendanceService.updateLeaveStatus(
+        user.orgId,
+        leaveId,
+        status,
+        remark || rejectionRemarks
+      );
+      return ApiResponse.success(res, updated, 'Leave status updated successfully');
+    } catch (err: any) {
+      return ApiResponse.error(res, err.message || 'Failed to update leave status', err.statusCode || 500);
+    }
+  }
+
+  /**
    * Office Notices: Read (Everyone)
    */
   static async getNotices(req: Request, res: Response) {

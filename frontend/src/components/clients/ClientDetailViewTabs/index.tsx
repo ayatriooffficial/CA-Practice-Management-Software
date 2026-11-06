@@ -6,36 +6,49 @@ import { Client, ClientServiceSetting } from "@/data/crmData";
 import { TaskItem } from "@/data/taskData";
 import { ClientTabType } from "../ClientDetailView";
 
-import { ClientServiceSettingsTab } from "./ClientServiceSettingsTab";
-import { ClientLicensesTab } from "./ClientLicensesTab";
-import { ClientDocumentsTab } from "./ClientDocumentsTab";
-import { ClientDscTab } from "./ClientDscTab";
+import dynamic from "next/dynamic";
+import { Loader2 } from "lucide-react";
 import { ClientMasterTab } from "./ClientMasterTab";
-import { ClientTasksTab } from "./ClientTasksTab";
-import { ClientPasswordsTab } from "./ClientPasswordsTab";
-import { ClientNotesTab } from "./ClientNotesTab";
-import { ClientContactsTab } from "./ClientContactsTab";
-import { ClientInvoicesTab } from "./ClientInvoicesTab";
-import { ClientLedgerTab } from "./ClientLedgerTab";
-import { ClientAssigneeTab } from "./ClientAssigneeTab";
-import { ClientAssigneeTasksTab } from "./ClientAssigneeTasksTab";
-import { ClientGroupTab } from "./ClientGroupTab";
+const TabLoadingFallback = () => (
+  <div className="p-12 flex flex-col items-center justify-center text-gray-400 gap-2">
+    <Loader2 className="w-6 h-6 animate-spin text-[#31719B]" />
+    <span className="text-xs font-medium">Loading section...</span>
+  </div>
+);
+
+const ClientServiceSettingsTab = dynamic(
+  () => import("./ClientServiceSettingsTab").then((m) => m.ClientServiceSettingsTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
+const ClientDocumentsTab = dynamic(
+  () => import("./ClientDocumentsTab").then((m) => m.ClientDocumentsTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
+const ClientDscTab = dynamic(
+  () => import("./ClientDscTab").then((m) => m.ClientDscTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
+const ClientInvoicesTab = dynamic(
+  () => import("./ClientInvoicesTab").then((m) => m.ClientInvoicesTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
+const ClientLedgerTab = dynamic(
+  () => import("./ClientLedgerTab").then((m) => m.ClientLedgerTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
+const ClientGroupTab = dynamic(
+  () => import("./ClientGroupTab").then((m) => m.ClientGroupTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
 
 export {
   ClientServiceSettingsTab,
-  ClientLicensesTab,
   ClientDocumentsTab,
   ClientDscTab,
   ClientMasterTab,
-  ClientTasksTab,
-  ClientPasswordsTab,
-  ClientNotesTab,
-  ClientContactsTab,
   ClientInvoicesTab,
   ClientLedgerTab,
-  ClientAssigneeTab,
   ClientGroupTab,
-  ClientAssigneeTasksTab,
 };
 
 export interface ClientDetailViewTabsProps {
@@ -159,17 +172,7 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
         />
       );
 
-    case "Licenses":
-      return (
-        <ClientLicensesTab
-          client={client}
-          licenses={client.licenses || []}
-          setIsAddLicenseOpen={setIsAddLicenseOpen}
-          handleDeleteLicense={handleDeleteLicense}
-          onEditLicense={onEditLicense}
-          onClientUpdated={onClientUpdated}
-        />
-      );
+
 
     case "Documents":
       return (
@@ -197,7 +200,7 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
       );
 
     case "Master":
-return (
+      return (
         <ClientMasterTab
           client={client}
           allServices={allServices}
@@ -216,50 +219,9 @@ return (
         />
       );
 
-    case "Tasks & Assignees":
-    case "Tasks":
-    case "Assignee":
-      return (
-        <ClientAssigneeTasksTab
-          client={client}
-          clientTasks={clientTasks}
-          isLoadingTasks={isLoadingTasks}
-          onRefreshTasks={onRefreshTasks}
-          onClientUpdated={onClientUpdated}
-          showToast={showToast}
-        />
-      );
 
-    case "Passwords":
-      return (
-        <ClientPasswordsTab
-          passwords={client.passwords || []}
-          revealedPasswords={revealedPasswords}
-          setRevealedPasswords={setRevealedPasswords}
-          setIsAddPasswordOpen={setIsAddPasswordOpen}
-          handleDeletePassword={handleDeletePassword}
-          showToast={showToast}
-        />
-      );
 
-    case "Notes":
-      return (
-        <ClientNotesTab
-          client={client}
-          setIsAddNoteOpen={setIsAddNoteOpen}
-          handleDeleteNote={handleDeleteNote}
-        />
-      );
 
-    case "Contacts":
-      return (
-        <ClientContactsTab
-          client={client}
-          onClientUpdated={onClientUpdated}
-          showToast={showToast}
-          handleDeleteContact={handleDeleteContact}
-        />
-      );
 
     case "Invoices":
       return <ClientInvoicesTab client={client} showToast={showToast} />;

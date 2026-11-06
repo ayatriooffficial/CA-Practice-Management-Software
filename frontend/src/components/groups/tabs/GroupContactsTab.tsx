@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Search, Loader2, User, ExternalLink } from "lucide-react";
 import { groupApi, GroupContactRecord } from "@/services/groupApi";
+import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupContactsTabProps {
   groupId: string;
@@ -68,23 +70,26 @@ export const GroupContactsTab: React.FC<GroupContactsTabProps> = ({ groupId }) =
     <div className="w-full flex flex-col gap-3">
       {/* Top Search Toolbar */}
       <div className="flex items-center justify-between gap-3">
-        <div className="relative min-w-[200px] sm:min-w-[260px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
+        <div className="min-w-[200px] sm:min-w-[280px]">
+          <Input
+            inputSize="sm"
             placeholder="Search group contacts..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-[#1e293b] border border-[#d1d5db] dark:border-[#334155] rounded-md shadow-2xs outline-hidden focus:border-[#31719B] transition-colors"
+            onClear={() => {
+              setSearch("");
+              setPage(1);
+            }}
+            leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
           />
         </div>
       </div>
 
       {/* Horizontally Scrollable Aggregated Contacts Table (Image 3) */}
-      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-x-auto shadow-2xs">
+      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto shadow-2xs">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50/70 dark:bg-slate-800/60 border-b border-[#dde2e8] dark:border-[#334155] text-gray-500 dark:text-gray-400 font-semibold select-none whitespace-nowrap">
@@ -217,32 +222,20 @@ export const GroupContactsTab: React.FC<GroupContactsTabProps> = ({ groupId }) =
       </div>
 
       {/* Pagination Footer */}
-      {filtered.length > limit && (
-        <div className="flex items-center justify-between gap-3 px-1 py-1 text-xs text-gray-500">
-          <span>
-            {`Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, filtered.length)} of ${
-              filtered.length
-            }`}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-              className="p-1 rounded border border-[#d1d5db] dark:border-[#334155] disabled:opacity-40 cursor-pointer"
-            >
-              &lt;
-            </button>
-            <button
-              type="button"
-              disabled={page * limit >= filtered.length}
-              onClick={() => setPage(page + 1)}
-              className="p-1 rounded border border-[#d1d5db] dark:border-[#334155] disabled:opacity-40 cursor-pointer"
-            >
-              &gt;
-            </button>
-          </div>
-        </div>
+      {filtered.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[10, 25, 50, 100]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
       )}
     </div>
   );

@@ -70,6 +70,13 @@ router.delete(
   LeadController.permanentDeleteLead
 );
 
+// Get All Companies Associated with Lead
+router.get(
+  '/:id/companies',
+  validateRequest({ params: leadIdParamSchema }),
+  LeadController.getLeadCompanies
+);
+
 // Convert Lead to Active Client
 router.post(
   '/:id/convert',
