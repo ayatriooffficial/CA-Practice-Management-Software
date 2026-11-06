@@ -7,6 +7,7 @@ import { GroupRecord } from "@/services/groupApi";
 import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
 import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupTasksTabProps {
   group: GroupRecord;
@@ -17,6 +18,8 @@ export const GroupTasksTab: React.FC<GroupTasksTabProps> = ({ group }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const clientIdsSet = useMemo(() => {
     const set = new Set<string>();
@@ -149,7 +152,9 @@ export const GroupTasksTab: React.FC<GroupTasksTabProps> = ({ group }) => {
                 </td>
               </tr>
             ) : (
-              filteredTasks.map((task) => (
+              filteredTasks
+                .slice((page - 1) * limit, page * limit)
+                .map((task) => (
                 <tr key={task.id} className="hover:bg-gray-50/60 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3">
                     <Link
@@ -191,6 +196,23 @@ export const GroupTasksTab: React.FC<GroupTasksTabProps> = ({ group }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {filteredTasks.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={filteredTasks.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[5, 10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
+      )}
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchInvoicesRequest } from "@/store/features/invoices";
 import { InvoiceRecord, InvoiceTab } from "@/components/invoice/types";
 import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupInvoicesTabProps {
   group: GroupRecord;
@@ -22,6 +23,8 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
 
   const [activeSubTab, setActiveSubTab] = useState<"invoice" | "proforma" | "reimbursement">("invoice");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   // Fetch invoices on mount
   useEffect(() => {
@@ -172,7 +175,9 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
                 </td>
               </tr>
             ) : (
-              currentList.map((inv) => (
+              currentList
+                .slice((page - 1) * limit, page * limit)
+                .map((inv) => (
                 <tr key={inv.id} className="hover:bg-gray-50/60 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3 font-semibold text-[#31719B] font-mono">
                     <Link href={`/invoice?id=${inv.id}`} className="hover:underline">
@@ -209,6 +214,23 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {currentList.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={currentList.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[5, 10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
+      )}
     </div>
   );
 };

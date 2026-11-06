@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { Search, Calendar as CalendarIcon, MoreVertical, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
 import { TodayAttendanceRow } from '../../services/attendanceApi';
 import { Pagination } from '@/components/ui/Pagination';
 import { Input } from '@/components/ui/Input';
@@ -21,7 +21,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const rowsPerPage = 50;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Filter rows by employee name or email
   const filteredRows = useMemo(() => {
@@ -139,14 +139,6 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
               className="absolute inset-0 opacity-0 pointer-events-auto cursor-pointer"
             />
           </label>
-
-          {/* Three Dots Menu */}
-          <button
-            type="button"
-            className="p-1.5 rounded-md border border-[#dde2e8] dark:border-[#475569] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#162032] transition-colors shadow-2xs"
-          >
-            <MoreVertical size={16} />
-          </button>
         </div>
       </div>
 
@@ -364,6 +356,12 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
         pageSize={rowsPerPage}
         totalItems={totalCount}
         onPageChange={setPage}
+        onPageSizeChange={(newSize) => {
+          setRowsPerPage(newSize);
+          setPage(1);
+        }}
+        showPageSize={true}
+        pageSizeOptions={[5, 10, 15, 25, 50]}
       />
     </div>
   );

@@ -517,51 +517,15 @@ export function DataTable<T>({
 
       {/* Pagination Footer */}
       {pagination && (
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
-          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-            {pagination.rowsPerPageOptions && pagination.onRowsPerPageChange && (
-              <div className="flex items-center gap-1.5">
-                <label htmlFor="datatable-rows-per-page" className="cursor-pointer">Rows per page:</label>
-                <select
-                  id="datatable-rows-per-page"
-                  aria-label="Rows per page"
-                  value={pagination.pageSize}
-                  onChange={(e) => pagination.onRowsPerPageChange!(Number(e.target.value))}
-                  className="bg-transparent border border-[#dde2e8] dark:border-[#334155] rounded-sm px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer focus:outline-none"
-                >
-                  {pagination.rowsPerPageOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <span>
-              Showing{" "}
-              <strong>
-                {pagination.totalItems > 0
-                  ? (pagination.currentPage - 1) * pagination.pageSize + 1
-                  : 0}
-              </strong>
-              –
-              <strong>
-                {Math.min(
-                  pagination.currentPage * pagination.pageSize,
-                  pagination.totalItems
-                )}
-              </strong>{" "}
-              of <strong>{pagination.totalItems}</strong> entries
-            </span>
-          </div>
-
-          <Pagination
-            currentPage={pagination.currentPage}
-            pageSize={pagination.pageSize}
-            totalItems={pagination.totalItems}
-            onPageChange={pagination.onPageChange}
-          />
-        </div>
+        <Pagination
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          onPageChange={pagination.onPageChange}
+          showPageSize={Boolean(pagination.onRowsPerPageChange)}
+          onPageSizeChange={pagination.onRowsPerPageChange}
+          pageSizeOptions={pagination.rowsPerPageOptions || [5, 10, 15, 25, 50]}
+        />
       )}
     </div>
   );

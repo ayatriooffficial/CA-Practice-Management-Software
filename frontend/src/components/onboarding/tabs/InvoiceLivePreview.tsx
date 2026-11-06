@@ -600,15 +600,14 @@ export function printInvoiceElement(elementId: string = "invoice-printable-root"
 }
 
 /**
- * Generates and downloads a high-resolution, pixel-perfect A4 PDF using jsPDF & html2canvas.
+ * Generates a high-resolution, pixel-perfect A4 jsPDF instance using html2canvas.
  */
-export async function downloadInvoicePDF(
-  elementId: string = "invoice-printable-root",
-  fileName: string = "invoice.pdf"
-): Promise<void> {
-  if (typeof window === "undefined") return;
+export async function generateInvoicePdfDoc(
+  elementId: string = "invoice-printable-root"
+): Promise<any | null> {
+  if (typeof window === "undefined") return null;
   const element = document.getElementById(elementId);
-  if (!element) return;
+  if (!element) return null;
 
   try {
     const html2canvas = (await import("html2canvas")).default;
@@ -650,6 +649,56 @@ export async function downloadInvoicePDF(
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
+        onclone: (clonedDoc) => {
+          // Fix: Prevent "Attempting to parse an unsupported color function 'lab'" in html2canvas
+          // In Tailwind v4 and modern Chromium browsers, computed styles can return lab() or oklch().
+          // html2canvas fails on these functions. We sanitize all elements in the cloned DOM to standard RGB/Hex.
+          try {
+            const probeCanvas = clonedDoc.createElement("canvas");
+            const probeCtx = probeCanvas.getContext("2d");
+            if (!probeCtx) return;
+
+            const allElements = clonedDoc.querySelectorAll("*");
+            allElements.forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              if (!htmlEl.style) return;
+
+              const computed = window.getComputedStyle(htmlEl);
+              const colorKeys = [
+                "color",
+                "backgroundColor",
+                "borderTopColor",
+                "borderRightColor",
+                "borderBottomColor",
+                "borderLeftColor",
+                "outlineColor",
+              ] as const;
+
+              colorKeys.forEach((key) => {
+                const val = (computed as any)[key];
+                if (
+                  val &&
+                  (val.includes("lab(") ||
+                    val.includes("oklch(") ||
+                    val.includes("oklab(") ||
+                    val.includes("color("))
+                ) {
+                  try {
+                    probeCtx.fillStyle = "#000000";
+                    probeCtx.fillStyle = val;
+                    const converted = String(probeCtx.fillStyle);
+                    if (converted && !converted.includes("lab") && !converted.includes("oklch")) {
+                      const cssProp = key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+                      htmlEl.style.setProperty(cssProp, converted, "important");
+                    }
+                  } catch {}
+                }
+              });
+            });
+          } catch (e) {
+            console.warn("onclone color normalization warning:", e);
+          }
+        },
       });
       const imgData = canvas.toDataURL("image/png");
       pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
@@ -659,10 +708,36 @@ export async function downloadInvoicePDF(
       document.body.removeChild(paginatedDom);
     }
 
-    const safeName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
-    pdf.save(safeName);
+    return pdf;
   } catch (error) {
     console.error("Failed to generate PDF via html2canvas:", error);
+    return null;
+  }
+}
+
+/**
+ * Generates an exact A4 PDF Blob matching the app invoice preview
+ */
+export async function generateInvoicePdfBlob(
+  elementId: string = "invoice-printable-root"
+): Promise<Blob | null> {
+  const pdf = await generateInvoicePdfDoc(elementId);
+  if (!pdf) return null;
+  return pdf.output("blob") as Blob;
+}
+
+/**
+ * Generates and downloads a high-resolution, pixel-perfect A4 PDF using jsPDF & html2canvas.
+ */
+export async function downloadInvoicePDF(
+  elementId: string = "invoice-printable-root",
+  fileName: string = "invoice.pdf"
+): Promise<void> {
+  const pdf = await generateInvoicePdfDoc(elementId);
+  if (pdf) {
+    const safeName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
+    pdf.save(safeName);
+  } else {
     // Fallback to print if canvas generation encounters an error
     printInvoiceElement(elementId);
   }
@@ -694,7 +769,7 @@ export interface InvoiceLivePreviewProps {
   firmPhone?: string;
   firmLogoUrl?: string | null;
   digitalSignatureUrl?: string | null;
-  showCaLogo: boolean;
+  showCaLogo?: boolean;
   invoiceType?: "invoice" | "proforma" | "credit_note";
   title?: string;
   invoiceNumber?: string;

@@ -386,8 +386,39 @@ export const pdfSignerApi = {
     date?: string;
     dueDate?: string;
     totalAmount: number;
-    services?: Array<{ serviceName: string; amount: number; description?: string }>;
+    subTotal?: number;
+    services?: Array<{
+      serviceName: string;
+      amount: number;
+      description?: string;
+      hsnSac?: string;
+      quantity?: number;
+      rate?: number;
+      taxRate?: string;
+      taxable?: number;
+    }>;
     billingOrg?: string;
+    billingAddress?: string;
+    firmGstin?: string;
+    firmPan?: string;
+    clientAddress?: string;
+    clientGstin?: string;
+    clientPan?: string;
+    clientTan?: string;
+    clientContact?: string;
+    clientEmail?: string;
+    clientPhone?: string;
+    placeOfSupply?: string;
+    notes?: string;
+    bankDetails?: {
+      accountHolderName?: string;
+      accountNumber?: string;
+      ifscCode?: string;
+      branchName?: string;
+      bankName?: string;
+      upiId?: string;
+    };
+    pdfBase64?: string;
   }): Promise<ApiResponse<SignedDocItem>> => {
     return request<SignedDocItem>('/pdf-signer/stage-invoice', {
       method: 'POST',

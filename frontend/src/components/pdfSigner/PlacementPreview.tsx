@@ -52,12 +52,18 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
 
       try {
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = typeof window !== 'undefined' ? `${window.location.origin}/pdf.worker.min.mjs` : '/pdf.worker.min.mjs';
+        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = typeof window !== 'undefined'
+            ? `${window.location.origin}/pdf.worker.min.mjs`
+            : '/pdf.worker.min.mjs';
+        }
 
         const arrayBuffer = await pdfFile.arrayBuffer();
         if (!active) return;
 
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(arrayBuffer),
+        });
         const pdf = await loadingTask.promise;
         if (!active) return;
 
@@ -83,6 +89,7 @@ export const PlacementPreview: React.FC<PlacementPreviewProps> = ({
 
         if (active) setHasRenderedPdf(true);
       } catch (err) {
+        console.warn('PDF placement canvas render warning:', err);
         // Fallback to wireframe preview if render fails or password protected
         if (active) setHasRenderedPdf(false);
       }

@@ -11,7 +11,7 @@ import { AddInvoiceForm } from "@/components/invoice/AddInvoiceForm";
 import { serviceApi } from "@/services/serviceApi";
 import { Service } from "@/data/serviceData";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
-import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from "@/components/onboarding/tabs/InvoiceLivePreview";
+import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF, generateInvoicePdfBlob } from "@/components/onboarding/tabs/InvoiceLivePreview";
 import { DataTable, DataTableColumn } from "@/components/ui/dataTable/DataTable";
 import { Button } from "@/components/ui/button/Button";
 import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
@@ -96,11 +96,20 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
   const handleSignInvoiceWithDsc = async (row: any) => {
     setSigningInvoiceId(row.id);
     try {
+      const fileName = `Invoice_${row.number || row.id}.pdf`;
+      let blob: Blob | null = null;
+      try {
+        blob = await generateInvoicePdfBlob("invoice-printable-root");
+      } catch (genErr) {
+        console.warn("Could not generate direct invoice PDF blob:", genErr);
+      }
+
       await stageAndRedirectToPdfSigner(router, {
-        fileName: `Invoice_${row.number || row.id}.pdf`,
+        fileName,
         clientId: client.id || row.clientId,
         clientName: row.clientBusinessName || row.clientLegalName || client.name,
-        invoiceData: {
+        blob: blob || undefined,
+        invoiceData: !blob ? {
           invoiceNumber: row.number || `INV-${row.id}`,
           clientName: row.clientBusinessName || row.clientLegalName || client.name || "Valued Client",
           clientId: client.id || row.clientId,
@@ -113,7 +122,7 @@ const ClientInvoicesInner: React.FC<ClientInvoicesTabProps> = ({ client, showToa
             description: s.description || "",
           })),
           billingOrg: row.billingOrg,
-        },
+        } : undefined,
       });
     } catch (err: any) {
       alert(err?.message || "Failed to prepare invoice for DSC signing");

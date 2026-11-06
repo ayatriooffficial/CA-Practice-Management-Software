@@ -28,6 +28,11 @@ router.get('/me', AttendanceController.getMonthlyRecords);
 router.get('/holidays/upcoming', AttendanceController.getUpcomingHolidays);
 router.get('/leaves/upcoming', AttendanceController.getUpcomingLeaves); // Admin only
 
+// Leave applications (Team management)
+router.get('/leaves', AttendanceController.getAllLeaves);
+router.post('/leaves', AttendanceController.createLeave);
+router.patch('/leaves/:id/status', AttendanceController.updateLeaveStatus);
+
 // Office Notice Board (Read for everyone, Create/Delete admin only)
 router.get('/office-notices', AttendanceController.getNotices);
 router.post('/office-notices', AttendanceController.createNotice);

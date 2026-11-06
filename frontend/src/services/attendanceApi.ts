@@ -168,6 +168,36 @@ export const attendanceApi = {
     return res.data || [];
   },
 
+  async getAllLeaves(): Promise<any[]> {
+    const res = await request<any[]>('/attendance/leaves');
+    return res.data || [];
+  },
+
+  async createLeaveApplication(data: {
+    applicant: string;
+    employeeId?: string;
+    leaveType: string;
+    dateOfLeave: string;
+    daysApplied: number;
+    reason: string;
+    status?: string;
+  }): Promise<any> {
+    const res = await request<any>('/attendance/leaves', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!res.success) throw new Error(res.message || 'Failed to create leave');
+    return res.data!;
+  },
+
+  async updateLeaveStatus(id: string, status: string, remark?: string): Promise<any> {
+    const res = await request<any>(`/attendance/leaves/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, remark }),
+    });
+    return res.data;
+  },
+
   async getOfficeNotices(): Promise<OfficeNoticeItem[]> {
     const res = await request<OfficeNoticeItem[]>('/attendance/office-notices');
     return res.data || [];
