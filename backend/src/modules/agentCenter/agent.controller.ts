@@ -8,6 +8,8 @@ import { AgentSchedulerService } from './scheduler.service';
 import { getPublicDefinitions } from './definitions';
 import { AppError } from '../../shared/utils/apiError';
 import { MailService } from '../../shared/utils/mailService';
+import { env } from '../../config/env';
+import { logger } from '../../config/logger';
 
 function organizationId(req: Request): string {
   if (!req.user?.orgId) throw AppError.unauthorized('Organization context is required.');
@@ -150,5 +152,51 @@ export class AgentCenterController {
     const limit = typeof req.query.limit === 'number' ? req.query.limit : typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
     const history = await AgentExecutionService.list(organizationId(req), limit, true);
     return ApiResponse.success(res, history, 'Agent history retrieved successfully');
+  });
+
+  /**
+   * GET /api/v1/agent-center/whatsapp/webhook
+   * Meta WhatsApp Cloud API webhook challenge verification.
+   */
+  static verifyWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    const expectedToken = env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'ayatrio_practice_whatsapp_verify_token';
+
+    if (mode === 'subscribe' && token === expectedToken) {
+      logger.info('WhatsApp webhook verified successfully');
+      return res.status(200).send(challenge);
+    }
+    return res.status(403).send('Forbidden');
+  });
+
+  /**
+   * POST /api/v1/agent-center/whatsapp/webhook
+   * Meta WhatsApp Cloud API delivery status webhook.
+   * Transitions agent runs to 'delivered', 'read', or 'failed'.
+   */
+  static handleWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body;
+    if (body?.object === 'whatsapp_business_account' || body?.entry) {
+      const entries = Array.isArray(body.entry) ? body.entry : [];
+      for (const entry of entries) {
+        const changes = Array.isArray(entry?.changes) ? entry.changes : [];
+        for (const change of changes) {
+          const value = change?.value;
+          const statuses = Array.isArray(value?.statuses) ? value.statuses : [];
+          for (const statusObj of statuses) {
+            const messageId = statusObj?.id;
+            const status = statusObj?.status; // 'sent' | 'delivered' | 'read' | 'failed'
+            const errors = statusObj?.errors ? statusObj.errors.map((e: any) => `${e?.code}: ${e?.title || e?.message}`) : undefined;
+            if (messageId && status) {
+              await AgentExecutionService.updateWhatsAppDeliveryStatus(messageId, status, errors);
+            }
+          }
+        }
+      }
+    }
+    return res.status(200).json({ status: 'ok' });
   });
 }

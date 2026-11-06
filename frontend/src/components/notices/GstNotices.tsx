@@ -9,7 +9,12 @@ import { NoticeTable, type ColumnDef, formatNoticeDate, getClientIdentifier } fr
 import { StatusPill } from "@/components/common/StatusPill";
 import { isOverdue, getOverdueDays } from "@/lib/dates";
 
-export const GstNotices: React.FC = () => {
+export interface GstNoticesProps {
+  notices?: Notice[];
+  loading?: boolean;
+}
+
+export const GstNotices: React.FC<GstNoticesProps> = ({ notices, loading }) => {
   const router = useRouter();
   const [stagingNoticeId, setStagingNoticeId] = useState<string | null>(null);
 
@@ -233,6 +238,8 @@ export const GstNotices: React.FC = () => {
       columns={columns}
       searchPlaceholder="Search by client, notice number, description..."
       defaultGroupBy="client"
+      notices={notices}
+      loading={loading}
     />
   );
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Coins,
@@ -13,7 +13,11 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import type { ComplianceCategory } from "@/types/compliance";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchComplianceRequest } from "@/store/features/compliance/complianceSlice";
 import {
   useComplianceCategories,
   useSyncEntitlementData,
@@ -125,6 +129,17 @@ export const ComplianceShell: React.FC = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const dispatch = useAppDispatch();
+  const { rows, columns, loading, isLoaded } = useAppSelector(
+    (state) => state.compliance
+  );
+
+  useEffect(() => {
+    if (!isLoaded) {
+      dispatch(fetchComplianceRequest({}));
+    }
+  }, [dispatch, isLoaded]);
+
   const { categories: fetchedCategories } = useComplianceCategories();
   const { isCooldown, daysRemaining } = useSyncEntitlementData();
   const { credits } = useCreditsData();
@@ -222,7 +237,7 @@ export const ComplianceShell: React.FC = () => {
     >
       {/* 1. Category Chips & Credits Section */}
       <div
-        className="px-6 pt-3 pb-2.5 border-b flex flex-col gap-2"
+        className="px-4 sm:px-6 pt-3 pb-2.5 border-b flex flex-col gap-2"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-main)",
@@ -230,7 +245,7 @@ export const ComplianceShell: React.FC = () => {
       >
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           {/* Chips list wrapping into 2-3 lines */}
-          <div className="flex flex-wrap items-end gap-x-2 gap-y-1 flex-1">
+          <div className="flex overflow-x-auto items-end gap-x-2 gap-y-1 flex-1 pb-1 w-full hide-scrollbar snap-x">
             {categories.map((cat) => {
               const isActive = activeCategoryId === cat.id || activeCategory?.name.toLowerCase() === cat.name.toLowerCase();
               const hasAutoBadge =
@@ -239,7 +254,7 @@ export const ComplianceShell: React.FC = () => {
                 AUTO_CATEGORY_IDS.has(cat.name.toLowerCase());
 
               return (
-                <div key={cat.id} className="flex flex-col items-center justify-end">
+                <div key={cat.id} className="flex flex-col items-center justify-end shrink-0 snap-start">
                   {hasAutoBadge ? (
                     <span
                       className="text-[9px] font-bold px-1.5 py-0.2 rounded uppercase leading-tight tracking-wider mb-0.5"
@@ -282,7 +297,7 @@ export const ComplianceShell: React.FC = () => {
             })}
 
             {/* Settings Gear Button at end */}
-            <div className="flex flex-col items-center justify-end">
+            <div className="flex flex-col items-center justify-end shrink-0 snap-start">
               <span className="text-[9px] leading-tight mb-0.5 opacity-0 pointer-events-none select-none">
                 AUTO
               </span>
@@ -335,67 +350,41 @@ export const ComplianceShell: React.FC = () => {
         <>
           {/* 2. Toolbar Section */}
           <div
-            className="px-6 py-2.5 border-b flex flex-wrap items-center justify-between gap-3"
+            className="px-4 sm:px-6 py-2.5 border-b flex flex-col md:flex-row items-start md:items-center justify-between gap-3"
             style={{
               backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-main)",
             }}
           >
             {/* Left side: Search input */}
-            <div className="relative flex-1 min-w-[260px] max-w-sm">
-              <Search
-                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "var(--text-subtle)" }}
-              />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={handleSearchChange}
-                placeholder={searchPlaceholder}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border focus:outline-none transition-colors"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
-                }}
-              />
-            </div>
+            <Input
+              leftIcon={<Search className="w-4 h-4" />}
+              inputSize="sm"
+              placeholder={searchPlaceholder}
+              value={searchInput}
+              onChange={handleSearchChange}
+              containerClassName="w-full md:flex-1 md:min-w-[260px] max-w-sm"
+            />
 
             {/* Action Controls & Filters */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex overflow-x-auto w-full md:w-auto items-center gap-2.5 pb-1 hide-scrollbar">
               {/* Download Utility */}
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
-                }}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Download className="w-3.5 h-3.5" />}
               >
-                <Download
-                  className="w-3.5 h-3.5"
-                  style={{ color: "var(--text-subtle)" }}
-                />
-                <span>Download Utility</span>
-              </button>
+                Download Utility
+              </Button>
 
               {/* XLS */}
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-main)",
-                  color: "var(--text-main)",
-                }}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<FileSpreadsheet className="w-3.5 h-3.5" />}
               >
-                <FileSpreadsheet
-                  className="w-3.5 h-3.5"
-                  style={{ color: "var(--text-subtle)" }}
-                />
-                <span>XLS</span>
-              </button>
+                XLS
+              </Button>
 
               {/* Frequency Segmented Control */}
               <div
@@ -431,71 +420,55 @@ export const ComplianceShell: React.FC = () => {
 
               {/* FY Selector */}
               <div
-                className="flex items-center gap-1 px-2 py-1 rounded-md border shrink-0"
+                className="flex items-center gap-1 px-1 py-0.5 rounded-md border shrink-0"
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderColor: "var(--border-main)",
                   color: "var(--text-main)",
                 }}
               >
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   aria-label="Previous Financial Year"
                   onClick={handlePrevFy}
-                  className="p-0.5 rounded hover:opacity-80 transition-opacity cursor-pointer"
-                  style={{ color: "var(--text-subtle)" }}
                 >
                   <ChevronLeft className="w-4 h-4" />
-                </button>
+                </Button>
                 <span className="text-xs font-semibold px-1 whitespace-nowrap">
                   {fyLabel}
                 </span>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   aria-label="Next Financial Year"
                   onClick={handleNextFy}
-                  className="p-0.5 rounded hover:opacity-80 transition-opacity cursor-pointer"
-                  style={{ color: "var(--text-subtle)" }}
                 >
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
 
               {/* Sync Status Button */}
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw className="w-3.5 h-3.5" />}
                 onClick={() => setIsSyncDrawerOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--primary)",
-                  color: "var(--primary)",
-                }}
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Sync Status</span>
-              </button>
+                Sync Status
+              </Button>
 
               {/* Free Sync Button */}
               <div className="flex flex-col items-center shrink-0">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Zap className="w-3.5 h-3.5" />}
                   disabled={isCooldown}
                   onClick={() => setIsSyncDrawerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                    isCooldown
-                      ? "opacity-50 cursor-not-allowed"
-                      : "cursor-pointer"
-                  }`}
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderColor: "var(--primary)",
-                    color: "var(--primary)",
-                  }}
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Free Sync</span>
-                </button>
+                  Free Sync
+                </Button>
                 <span
                   className="text-[10px] mt-0.5 tracking-tight whitespace-nowrap font-medium"
                   style={{ color: "var(--status-online)" }}
@@ -507,7 +480,7 @@ export const ComplianceShell: React.FC = () => {
           </div>
 
           {/* 3. Compliance Grid Section */}
-          <div className="flex-1 p-6 flex flex-col">
+          <div className="flex-1 p-4 sm:p-6 flex flex-col min-w-0">
             <ComplianceGrid
               categoryId={activeCategoryId}
               fy={fyLabel}
@@ -515,6 +488,9 @@ export const ComplianceShell: React.FC = () => {
               search={searchInput}
               portal={activeCategory?.portal}
               isAuto={activeCategory?.mode === "auto"}
+              rows={rows}
+              columns={columns}
+              loading={loading}
             />
           </div>
         </>

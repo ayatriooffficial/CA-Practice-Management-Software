@@ -193,10 +193,40 @@ export class MailService {
     }
 
     if (googleIntegration?.email) {
-      const email = googleIntegration.email;
+      const email = googleIntegration.email.trim().toLowerCase();
+      const authorizedPracticeEmail = (process.env.AUTHORIZED_PRACTICE_EMAIL || env.AUTHORIZED_PRACTICE_EMAIL || 'searchaicloud@gmail.com').trim().toLowerCase();
+
+      // 1. Verify authorized practice email address
+      if (authorizedPracticeEmail && email !== authorizedPracticeEmail) {
+        return {
+          connected: true,
+          authorized: false,
+          provider: 'gmail',
+          email,
+          needsReconnect: true,
+          statusText: `Authorization required (${email} is not authorized practice email ${authorizedPracticeEmail})`,
+          error: `Connected Google account (${email}) does not match authorized practice email (${authorizedPracticeEmail}). Please connect ${authorizedPracticeEmail} at /email.`,
+        };
+      }
+
+      // 2. Verify OAuth send permission scope
+      const scope = String(googleIntegration.scope || '').trim();
+      const hasSendScope = !scope || scope.includes('https://www.googleapis.com/auth/gmail.send') || scope.includes('https://mail.google.com');
+      if (!hasSendScope) {
+        return {
+          connected: true,
+          authorized: false,
+          provider: 'gmail',
+          email,
+          needsReconnect: true,
+          statusText: `Authorization required (${email} missing gmail.send permission)`,
+          error: 'Connected Google account is missing the required gmail.send permission scope. Please reconnect Gmail at /email with full send permissions.',
+        };
+      }
+
       const isExpired = googleIntegration.expiryDate ? Date.now() >= googleIntegration.expiryDate - 30000 : true;
 
-      // If access token is still within validity window, test or report active
+      // If access token is still within validity window, report active
       if (!isExpired && googleIntegration.accessToken) {
         return {
           connected: true,
@@ -243,8 +273,8 @@ export class MailService {
         provider: 'gmail',
         email,
         needsReconnect: true,
-        statusText: `Authorization required (${email} expired)`,
-        error: 'Gmail access token expired. Please reconnect Gmail at /email.',
+        statusText: `Authorization required (${email} token expired)`,
+        error: 'Gmail access token expired and could not be refreshed. Please reconnect Gmail at /email.',
       };
     }
 
@@ -366,16 +396,15 @@ export class MailService {
           const errMsg = errJson.error?.message || `Gmail API HTTP error ${res.status}`;
           logger.warn(`Gmail API dispatch failed: ${errMsg}`);
 
-          // If error is 401 and refresh wasn't possible, report honest error
-          if (res.status === 401) {
-            const smtpFallback = getTransporter();
-            if (!smtpFallback) {
-              return {
-                success: false,
-                error: 'Gmail authorization expired or missing client credentials. Please reconnect Gmail via /email.',
-                provider: 'gmail',
-              };
-            }
+          const smtpFallback = getTransporter();
+          if (!smtpFallback) {
+            return {
+              success: false,
+              error: res.status === 401
+                ? 'Gmail authorization expired or missing client credentials. Please reconnect Gmail via /email.'
+                : errMsg,
+              provider: 'gmail',
+            };
           }
         } catch (gmailErr: any) {
           logger.warn(`Gmail API invocation exception: ${gmailErr?.message}`);

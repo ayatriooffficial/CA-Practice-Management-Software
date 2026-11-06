@@ -22,6 +22,7 @@ import { optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 import { workdoneRoutes } from './modules/workdone/workdone.routes';
 import { todoRoutes } from './modules/todo/todo.routes';
+import { groupRoutes } from './modules/group/group.routes';
 
 const router = Router();
 
@@ -64,6 +65,7 @@ router.use('/pdf-signer', optionalAuthenticate, pdfSignerRoutes);
 router.use('/documents', optionalAuthenticate, documentRoutes);
 router.use('/workdone', optionalAuthenticate,workdoneRoutes );
 router.use('/todos', todoRoutes);
+router.use('/groups', optionalAuthenticate, groupRoutes);
 
 
 // GST Data Collection Module (Staff + Public Form)

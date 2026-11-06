@@ -12,6 +12,8 @@ const agentSchema = new Schema<IAgent>(
     // Drafts deliberately permit an incomplete config. Strict validation happens on publish/test-run.
     config: { type: Schema.Types.Mixed, required: true, default: {} },
     publishedAt: { type: Date, default: null },
+    isSystem: { type: Boolean, default: false, index: true },
+    systemKey: { type: String, trim: true, index: true, sparse: true },
   },
   {
     timestamps: true,
@@ -29,6 +31,7 @@ const agentSchema = new Schema<IAgent>(
 );
 
 agentSchema.index({ orgId: 1, module: 1, status: 1, updatedAt: -1 });
+agentSchema.index({ orgId: 1, isSystem: 1, systemKey: 1 });
 agentSchema.index({ updatedAt: -1 });
 
 export const Agent: Model<IAgent> = (models.AgentCenterAgent as Model<IAgent>) || model<IAgent>('AgentCenterAgent', agentSchema);

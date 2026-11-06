@@ -45,6 +45,7 @@ export const createApp = (): Application => {
       },
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-User-Id', 'X-User-Role', 'X-Org-Id'],
+      exposedHeaders: ['Content-Disposition', 'Content-Length'],
       credentials: true,
       maxAge: 86400, // 24 hours
     })

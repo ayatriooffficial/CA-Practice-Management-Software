@@ -366,22 +366,52 @@ export async function getCalendarEvents(params: {
 }): Promise<unknown[]> {
   const { month, portal, status, by = 'due_date' } = params;
 
-  const match: Record<string, unknown> = { isDeleted: false };
-  if (portal) match.portal = portal;
-  if (status) {
-    if (portal === 'GST') match.status = status;
-    else match.manualStatus = status;
-  }
+  const conditions: Record<string, unknown>[] = [{ isDeleted: false }];
+  if (portal) conditions.push({ portal });
 
-  // Filter by month using dueDate or noticeDate
+  // Filter by month using dueDate or noticeDate/issuedOn
   if (month) {
     const start = `${month}-01`;
     const [y, m] = month.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     const end = `${month}-${String(lastDay).padStart(2, '0')}`;
-    const dateField = by === 'notice_date' ? 'noticeDate' : 'dueDate';
-    match[dateField] = { $gte: start, $lte: end };
+
+    if (by === 'notice_date') {
+      if (portal === 'GST' || portal === 'TDS') {
+        conditions.push({ noticeDate: { $gte: start, $lte: end } });
+      } else if (portal === 'IT') {
+        conditions.push({
+          $or: [
+            { issuedOn: { $gte: start, $lte: end } },
+            { noticeDate: { $gte: start, $lte: end } },
+          ],
+        });
+      } else {
+        conditions.push({
+          $or: [
+            { noticeDate: { $gte: start, $lte: end } },
+            { issuedOn: { $gte: start, $lte: end } },
+          ],
+        });
+      }
+    } else {
+      conditions.push({ dueDate: { $gte: start, $lte: end } });
+    }
   }
+
+  if (status) {
+    if (portal === 'GST') {
+      conditions.push({ status });
+    } else if (portal === 'IT' || portal === 'TDS') {
+      conditions.push({ manualStatus: status });
+    } else {
+      conditions.push({
+        $or: [{ status }, { manualStatus: status }],
+      });
+    }
+  }
+
+  const match = conditions.length === 1 ? conditions[0] : { $and: conditions };
 
   const pipeline: mongoose.PipelineStage[] = [
     { $match: match },
@@ -399,20 +429,27 @@ export async function getCalendarEvents(params: {
   ];
 
   const notices = await NoticeModel.aggregate(pipeline);
-  return notices.map((n) => ({
-    id: String(n._id),
-    date: (by === 'notice_date' ? n.noticeDate : n.dueDate) ?? n.noticeDate ?? n.dueDate ?? n.issuedOn,
-    title: n.noticeNumber ?? n.description ?? 'Notice',
-    clientId: String(n.clientId),
-    clientName: n.clientName,
-    portal: n.portal,
-    noticeNumber: n.noticeNumber,
-    dueDate: n.dueDate ?? null,
-    noticeDate: n.noticeDate ?? null,
-    issuedOn: n.issuedOn ?? null,
-    status: resolveNoticeStatus(n),
-    description: n.description,
-  }));
+  return notices.map((n) => {
+    const effectiveDate =
+      by === 'notice_date'
+        ? (n.noticeDate || n.issuedOn || n.dueDate)
+        : (n.dueDate || n.noticeDate || n.issuedOn);
+
+    return {
+      id: String(n._id),
+      date: effectiveDate,
+      title: n.noticeNumber ?? n.description ?? 'Notice',
+      clientId: String(n.clientId),
+      clientName: n.clientName,
+      portal: n.portal,
+      noticeNumber: n.noticeNumber,
+      dueDate: n.dueDate ?? null,
+      noticeDate: n.noticeDate ?? null,
+      issuedOn: n.issuedOn ?? null,
+      status: resolveNoticeStatus(n),
+      description: n.description,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

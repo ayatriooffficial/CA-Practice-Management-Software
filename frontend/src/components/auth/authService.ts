@@ -83,13 +83,13 @@ export const authService = {
           combined[existingIdx] = {
             ...combined[existingIdx],
             name: emp.name,
-            role: emp.role.toLowerCase(),
+            role: ((combined[existingIdx].role || '').toLowerCase() === 'admin') ? 'admin' : emp.role.toLowerCase(),
             initials: emp.initials,
             orgId: combined[existingIdx].orgId || emp.orgId || "",
             department: emp.department,
             designation: emp.designation,
             status: emp.status,
-            permissions: emp.permissions,
+            permissions: ((combined[existingIdx].role || '').toLowerCase() === 'admin') ? combined[existingIdx].permissions : emp.permissions,
           };
         } else {
           combined.push({
@@ -98,13 +98,13 @@ export const authService = {
             email: emp.email,
             mobile: emp.mobile,
             firmName: (emp as any).firmName || "Ayatrio Practice",
-            role: emp.role.toLowerCase(),
+            role: ((combined[existingIdx].role || '').toLowerCase() === 'admin') ? 'admin' : emp.role.toLowerCase(),
             initials: emp.initials,
             orgId: emp.orgId || "",
             department: emp.department,
             designation: emp.designation,
             status: emp.status,
-            permissions: emp.permissions,
+            permissions: ((combined[existingIdx].role || '').toLowerCase() === 'admin') ? combined[existingIdx].permissions : emp.permissions,
             createdAt: emp.createdAt,
           });
         }

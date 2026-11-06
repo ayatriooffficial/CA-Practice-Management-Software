@@ -1146,20 +1146,58 @@ export class ClientService {
   static async updateLicense(id: string, licenseId: string, data: any): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+    let updatedLicense: any = null;
+    let oldLicense: any = null;
+
     client.licenses = (client.licenses || []).map((l: any) => {
-      if (l.id === licenseId || l._id?.toString() === licenseId) {
-        return {
+      if (l.id === licenseId || l._id?.toString() === licenseId || l.licenseNo === licenseId) {
+        oldLicense = { ...l };
+        updatedLicense = {
           ...l,
           ...data,
           fileUrl: data.fileUrl !== undefined ? data.fileUrl : l.fileUrl,
           driveFileId: data.driveFileId !== undefined ? data.driveFileId : l.driveFileId,
           id: l.id || licenseId,
         };
+        return updatedLicense;
       }
       return l;
     });
+
+    if (!updatedLicense) {
+      throw AppError.notFound('License record not found');
+    }
+
     client.markModified('licenses');
-    return await client.save();
+    const saved = await client.save();
+
+    if (saved.orgId && updatedLicense) {
+      const isRenewed = Boolean(
+        (data.expiryDate && data.expiryDate !== oldLicense?.expiryDate) ||
+        (data.status && String(data.status).toLowerCase() === 'active' && String(oldLicense?.status).toLowerCase() !== 'active') ||
+        data.isRenewal
+      );
+
+      if (isRenewed) {
+        const prevExpiry = oldLicense?.expiryDate || 'none';
+        const newExpiry = updatedLicense.expiryDate || 'none';
+        void AgentExecutionService.dispatchLicenseEvent(
+          String(saved.orgId),
+          'License Renewed',
+          {
+            clientId: String(saved._id),
+            clientName: saved.name,
+            clientEmail: saved.email || '',
+            clientMobile: saved.mobile || '',
+            license: updatedLicense,
+            previousExpiryDate: prevExpiry,
+          },
+          `lic-renewed:${String(saved._id)}:${updatedLicense.id || licenseId}:${prevExpiry}->${newExpiry}`
+        ).catch(() => []);
+      }
+    }
+
+    return saved;
   }
 
   /**
@@ -1168,9 +1206,25 @@ export class ClientService {
   static async deleteLicense(id: string, licenseId: string): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
-    client.licenses = (client.licenses || []).filter((l: any) => l.id !== licenseId && l._id?.toString() !== licenseId);
+    const deletedLicense = (client.licenses || []).find((l: any) => l.id === licenseId || l._id?.toString() === licenseId || l.licenseNo === licenseId);
+    client.licenses = (client.licenses || []).filter((l: any) => l.id !== licenseId && l._id?.toString() !== licenseId && l.licenseNo !== licenseId);
     client.markModified('licenses');
-    return await client.save();
+    const saved = await client.save();
+    if (saved.orgId && deletedLicense) {
+      void AgentExecutionService.dispatchLicenseEvent(
+        String(saved.orgId),
+        'License Deleted',
+        {
+          clientId: String(saved._id),
+          clientName: saved.name,
+          clientEmail: saved.email || '',
+          clientMobile: saved.mobile || '',
+          license: deletedLicense,
+        },
+        `lic-deleted:${String(saved._id)}:${deletedLicense.id || licenseId}`
+      ).catch(() => []);
+    }
+    return saved;
   }
 
   /**
@@ -1212,14 +1266,89 @@ export class ClientService {
   }
 
   /**
+   * Update a DSC for Client
+   */
+  static async updateDsc(id: string, dscId: string, data: any): Promise<IClientDocument> {
+    const client = await Client.findById(id);
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+
+    let updatedDsc: any = null;
+    let oldDsc: any = null;
+
+    client.dscs = (client.dscs || []).map((d: any) => {
+      if (d.id === dscId || d._id?.toString() === dscId || d.dscId === dscId) {
+        oldDsc = { ...d };
+        updatedDsc = {
+          ...d,
+          ...data,
+          id: d.id || dscId,
+        };
+        return updatedDsc;
+      }
+      return d;
+    });
+
+    if (!updatedDsc) {
+      throw AppError.notFound('DSC record not found');
+    }
+
+    client.markModified('dscs');
+    const saved = await client.save();
+
+    if (saved.orgId && updatedDsc) {
+      const isRenewed = Boolean(
+        (data.expiryDate && data.expiryDate !== oldDsc?.expiryDate) ||
+        (data.status && String(data.status).toLowerCase() === 'active' && String(oldDsc?.status).toLowerCase() !== 'active') ||
+        data.isRenewal
+      );
+
+      if (isRenewed) {
+        const prevExpiry = oldDsc?.expiryDate || 'none';
+        const newExpiry = updatedDsc.expiryDate || 'none';
+        void AgentExecutionService.dispatchDscEvent(
+          String(saved.orgId),
+          'DSC Renewed',
+          {
+            clientId: String(saved._id),
+            clientName: saved.name,
+            clientEmail: saved.email || '',
+            clientMobile: saved.mobile || '',
+            dsc: updatedDsc,
+            previousExpiryDate: prevExpiry,
+          },
+          `dsc-renewed:${String(saved._id)}:${updatedDsc.id || dscId}:${prevExpiry}->${newExpiry}`
+        ).catch(() => []);
+      }
+    }
+
+    return saved;
+  }
+
+  /**
    * Delete a DSC from Client
    */
   static async deleteDsc(id: string, dscId: string): Promise<IClientDocument> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
-    client.dscs = (client.dscs || []).filter((d: any) => d.id !== dscId && d._id?.toString() !== dscId);
+    const deletedDsc = (client.dscs || []).find((d: any) => d.id === dscId || d._id?.toString() === dscId || d.dscId === dscId);
+    client.dscs = (client.dscs || []).filter((d: any) => d.id !== dscId && d._id?.toString() !== dscId && d.dscId !== dscId);
     client.markModified('dscs');
-    return await client.save();
+    const saved = await client.save();
+    if (saved.orgId && deletedDsc) {
+      void AgentExecutionService.dispatchDscEvent(
+        String(saved.orgId),
+        'DSC Deleted',
+        {
+          clientId: String(saved._id),
+          clientName: saved.name,
+          clientEmail: saved.email || '',
+          clientMobile: saved.mobile || '',
+          dsc: deletedDsc,
+        },
+        `dsc-deleted:${String(saved._id)}:${deletedDsc.id || dscId}`
+      ).catch(() => []);
+    }
+    return saved;
   }
 
   /**
@@ -1492,7 +1621,32 @@ export class ClientService {
     }
 
     const contacts = client.contacts;
-    const idx = contacts.findIndex((c: any) => c.id === contactId || c._id?.toString() === contactId);
+    let idx = contacts.findIndex((c: any) => c.id === contactId || c._id?.toString() === contactId);
+    if (idx === -1) {
+      // Resilient check: if contact was synthetic from customerFiles.promoter
+      if (Array.isArray(client.customerFiles?.promoter)) {
+        const pIdx = client.customerFiles.promoter.findIndex(
+          (p: any, i: number) => `promoter-${p.key || i + 1}` === contactId || p.name?.trim().toLowerCase() === data.name?.trim().toLowerCase()
+        );
+        if (pIdx >= 0) {
+          const p = client.customerFiles.promoter[pIdx];
+          const newC: any = {
+            id: contactId,
+            name: p.name || data.name,
+            designation: p.designation || data.designation || 'Director',
+            pan: p.pan || data.pan || '',
+            din: p.mcaId || data.din || '',
+            mcaId: p.mcaId || data.mcaId || '',
+            mcaPassword: p.mcaPassword || data.mcaPassword || '',
+            dinStatus: 'Active',
+            isPrimary: Boolean(data.isPrimary),
+            createdAt: new Date().toISOString(),
+          };
+          contacts.push(newC);
+          idx = contacts.length - 1;
+        }
+      }
+    }
     if (idx === -1) {
       throw AppError.notFound('Contact not found');
     }
@@ -1513,15 +1667,16 @@ export class ClientService {
     client.markModified('contacts');
 
     // Also sync to customerFiles.promoter if matching
-    if (client.customerFiles?.promoter) {
+    const currentContact = contacts[idx];
+    if (currentContact && client.customerFiles?.promoter) {
       const pIdx = client.customerFiles.promoter.findIndex(
         (p: any) =>
-          (p.name && p.name.trim().toLowerCase() === contacts[idx].name?.trim().toLowerCase()) ||
-          (contacts[idx].pan && p.pan && p.pan.trim().toUpperCase() === contacts[idx].pan.trim().toUpperCase())
+          (p.name && currentContact.name && p.name.trim().toLowerCase() === currentContact.name.trim().toLowerCase()) ||
+          (currentContact.pan && p.pan && p.pan.trim().toUpperCase() === currentContact.pan.trim().toUpperCase())
       );
       if (pIdx >= 0) {
-        if (contacts[idx].mcaId) client.customerFiles.promoter[pIdx].mcaId = contacts[idx].mcaId;
-        if (contacts[idx].mcaPassword) client.customerFiles.promoter[pIdx].mcaPassword = contacts[idx].mcaPassword;
+        if (currentContact.mcaId) client.customerFiles.promoter[pIdx].mcaId = currentContact.mcaId;
+        if (currentContact.mcaPassword) client.customerFiles.promoter[pIdx].mcaPassword = currentContact.mcaPassword;
         client.markModified('customerFiles');
       }
     }
@@ -1542,7 +1697,78 @@ export class ClientService {
       (c: any) => c.id !== contactId && c._id?.toString() !== contactId
     );
 
+    // Also prune from customerFiles.promoter so synthetic contacts don't resurface
+    if (Array.isArray(client.customerFiles?.promoter)) {
+      client.customerFiles.promoter = client.customerFiles.promoter.filter(
+        (p: any, i: number) => {
+          const promoId = `promoter-${p.key || i + 1}`;
+          return promoId !== contactId && p._id?.toString() !== contactId && p.id !== contactId;
+        }
+      );
+      client.markModified('customerFiles');
+    }
+
     client.markModified('contacts');
     return await client.save();
+  }
+
+  /**
+   * Search existing contacts across all clients for autocomplete
+   */
+  static async getExistingContactsDirectory(search?: string): Promise<any[]> {
+    const clients = await Client.find({ isDeleted: false, 'contacts.0': { $exists: true } })
+      .select('name contacts')
+      .lean();
+
+    const result: any[] = [];
+    const seen = new Set<string>();
+    const searchLower = (search || '').toLowerCase().trim();
+
+    clients.forEach((c: any) => {
+      (c.contacts || []).forEach((ct: any) => {
+        if (!ct.name) return;
+        const key = `${ct.name.toLowerCase()}-${ct.pan?.toLowerCase() || ''}-${ct.din?.toLowerCase() || ''}`;
+        if (seen.has(key)) return;
+
+        if (
+          !searchLower ||
+          ct.name.toLowerCase().includes(searchLower) ||
+          (ct.email && ct.email.toLowerCase().includes(searchLower)) ||
+          (ct.mobile && ct.mobile.includes(searchLower)) ||
+          (ct.din && ct.din.toLowerCase().includes(searchLower)) ||
+          (ct.pan && ct.pan.toLowerCase().includes(searchLower))
+        ) {
+          seen.add(key);
+          result.push({
+            id: ct.id || ct._id?.toString(),
+            name: ct.name,
+            firstName: ct.firstName || ct.name.split(' ')[0] || '',
+            middleName: ct.middleName || (ct.name.split(' ').length > 2 ? ct.name.split(' ')[1] : ''),
+            lastName: ct.lastName || ct.name.split(' ').slice(1).join(' ') || '',
+            designation: ct.designation || 'Director',
+            din: ct.din || '',
+            dinStatus: ct.dinStatus || 'Active',
+            appointmentDate: ct.appointmentDate || '',
+            dob: ct.dob || '',
+            email: ct.email || '',
+            mobile: ct.mobile || '',
+            countryCode: ct.countryCode || '+91',
+            pan: ct.pan || '',
+            aadhar: ct.aadhar || '',
+            passport: ct.passport || '',
+            passportExpiry: ct.passportExpiry || '',
+            fatherName: ct.fatherName || '',
+            addressLine1: ct.addressLine1 || ct.address || '',
+            addressLine2: ct.addressLine2 || '',
+            city: ct.city || '',
+            state: ct.state || '',
+            pincode: ct.pincode || '',
+            clientName: c.name,
+          });
+        }
+      });
+    });
+
+    return result.slice(0, 50);
   }
 }

@@ -8,29 +8,29 @@ import {
   ComplianceSummaryResponse,
   UpcomingComplianceItem,
 } from '../../services/dashboardSummaryApi';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchDashboardRequest } from '@/store/features/dashboard/dashboardSlice';
+import {
+  selectDashboardComplianceSummary,
+  selectDashboardLoading,
+} from '@/store/features/dashboard/dashboardSelectors';
 
 export const ComplianceCard: React.FC = () => {
-  const [data, setData] = useState<ComplianceSummaryResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const reduxComplianceData = useAppSelector(selectDashboardComplianceSummary);
+  const isReduxLoading = useAppSelector(selectDashboardLoading);
+
+  const [fallbackData, setFallbackData] = useState<ComplianceSummaryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const data = reduxComplianceData || fallbackData;
+  const isLoading = isReduxLoading && !data;
+
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const res = await dashboardSummaryApi.getComplianceSummary();
-        if (isMounted) setData(res);
-      } catch (err: any) {
-        if (isMounted) setError(err?.message || 'Failed to load compliance summary');
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!reduxComplianceData) {
+      dispatch(fetchDashboardRequest());
+    }
+  }, [dispatch, reduxComplianceData]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';

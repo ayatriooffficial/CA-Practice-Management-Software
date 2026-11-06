@@ -266,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           parsed.initials = computeInitials(parsed.name);
           setCurrentUser(parsed);
+          setIsLoading(false);
           localStorage.setItem("x-org-id", parsed.orgId);
 
           if (parsed.token) {

@@ -8,32 +8,32 @@ import {
   CompactTaskSummaryResponse,
   TaskGroupItem,
 } from '../../services/dashboardSummaryApi';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchDashboardRequest } from '@/store/features/dashboard/dashboardSlice';
+import {
+  selectDashboardTaskSummary,
+  selectDashboardLoading,
+} from '@/store/features/dashboard/dashboardSelectors';
 
 type StatusTab = 'pending' | 'hold' | 'inProgress' | 'completed';
 
 export const CompactTaskCard: React.FC = () => {
-  const [data, setData] = useState<CompactTaskSummaryResponse | null>(null);
+  const dispatch = useAppDispatch();
+  const reduxTaskData = useAppSelector(selectDashboardTaskSummary);
+  const isReduxLoading = useAppSelector(selectDashboardLoading);
+
+  const [fallbackData, setFallbackData] = useState<CompactTaskSummaryResponse | null>(null);
   const [activeTab, setActiveTab] = useState<StatusTab>('pending');
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const data = reduxTaskData || fallbackData;
+  const isLoading = isReduxLoading && !data;
+
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const res = await dashboardSummaryApi.getCompactTaskSummary();
-        if (isMounted) setData(res);
-      } catch (err: any) {
-        if (isMounted) setError(err?.message || 'Failed to load task summary');
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!reduxTaskData) {
+      dispatch(fetchDashboardRequest());
+    }
+  }, [dispatch, reduxTaskData]);
 
   const currentGroups: TaskGroupItem[] = useMemo(() => {
     if (!data?.groups) return [];

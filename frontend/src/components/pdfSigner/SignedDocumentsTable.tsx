@@ -173,7 +173,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
               disabled={downloadingZip}
               loading={downloadingZip}
               icon={!downloadingZip ? <Archive className="w-3.5 h-3.5" /> : undefined}
-              className="rounded-none bg-[#31719B] hover:bg-[#275a7c] h-9"
+              className="rounded-md bg-[#31719B] hover:bg-[#275a7c] h-9"
             >
               Download selected ({selectedIds.size}) ZIP
             </Button>
@@ -195,7 +195,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
           </div>
 
           {/* Status filter pills */}
-          <div className="inline-flex items-center rounded-none border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
+          <div className="inline-flex items-center rounded-lg border border-[#dde2e8] dark:border-[#334155] p-0.5 bg-gray-50 dark:bg-[#0f172a]">
             {(["All", "Signed / Verified", "Tampered", "Failed"] as const).map((filter) => {
               const active = statusFilter === filter;
               return (
@@ -206,7 +206,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                     setStatusFilter(filter);
                     setCurrentPage(1);
                   }}
-                  className={`h-7 px-3 text-xs font-semibold rounded-none cursor-pointer transition-all ${
+                  className={`h-7 px-3 text-xs font-semibold rounded-md cursor-pointer transition-all ${
                     active
                       ? "bg-white dark:bg-[#1e293b] text-gray-900 dark:text-white shadow-xs font-semibold"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -413,7 +413,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                           <button
                             type="button"
                             onClick={() => onVerify(doc)}
-                            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border transition-colors shadow-2xs ${
+                            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold border transition-colors shadow-2xs ${
                               doc.status === "Tampered"
                                 ? "border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100"
                                 : "border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-[#31719B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -430,7 +430,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                           <button
                             type="button"
                             onClick={() => onDownload(doc)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-2xs"
                             title="Download PDF file"
                           >
                             <Download className="w-3.5 h-3.5" />
@@ -444,7 +444,7 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
                             type="button"
                             onClick={() => onRetry(doc)}
                             disabled={isRetrying}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none text-[11px] font-semibold border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 shadow-2xs"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 shadow-2xs"
                             title="Retry signing this document"
                           >
                             {isRetrying ? (

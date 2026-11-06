@@ -63,6 +63,7 @@ export const PUBLIC_AGENT_DEFINITIONS = {
         { value: 'DSC Renewed', condition: null },
         { value: 'DSC Expiry Approaching', condition: { key: 'daysBeforeExpiry', label: 'Days before expiry', min: 1, max: 365, default: 30 } },
         { value: 'DSC Expired', condition: null },
+        { value: 'DSC Deleted', condition: null },
         // Backwards compatibility:
         { value: 'DSC expiry approaching', condition: { key: 'daysBeforeExpiry', label: 'Days before expiry', min: 1, max: 365, default: 30 } },
         { value: 'DSC expired', condition: null },
@@ -79,6 +80,7 @@ export const PUBLIC_AGENT_DEFINITIONS = {
         { value: 'License Renewed', condition: null },
         { value: 'License Expiry Approaching', condition: { key: 'daysBeforeExpiry', label: 'Days before expiry', min: 1, max: 365, default: 30 } },
         { value: 'License Expired', condition: null },
+        { value: 'License Deleted', condition: null },
         // Backwards compatibility:
         { value: 'License expiry approaching', condition: { key: 'daysBeforeExpiry', label: 'Days before expiry', min: 1, max: 365, default: 30 } },
         { value: 'License expired', condition: null },

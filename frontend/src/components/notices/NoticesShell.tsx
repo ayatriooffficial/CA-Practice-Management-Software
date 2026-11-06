@@ -5,6 +5,8 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Bell, Coins } from "lucide-react";
 import { getCredits, getSyncJobs } from "@/services/noticeApi";
 import { onSyncCompleted } from "@/lib/syncEvents";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchNoticesRequest } from "@/store/features/notices/noticeSlice";
 import { NoticeCalendarView } from "./NoticeCalendarView";
 import { GstNotices } from "./GstNotices";
 import { TdsNotices } from "./TdsNotices";
@@ -72,6 +74,17 @@ export const NoticesShell: React.FC = () => {
 
   const tabParam = searchParams.get("tab");
   const activeTab = parseTabFromQuery(tabParam);
+
+  const dispatch = useAppDispatch();
+  const { items, loading, error, isLoaded, pagination } = useAppSelector(
+    (state) => state.notices
+  );
+
+  useEffect(() => {
+    if (!isLoaded) {
+      dispatch(fetchNoticesRequest({ page: 1, limit: 50 }));
+    }
+  }, [dispatch, isLoaded]);
 
   const [credits, setCredits] = useState<number | null>(null);
   const [lastSync, setLastSync] = useState<string>("");
@@ -221,9 +234,9 @@ export const NoticesShell: React.FC = () => {
       <div className="flex-1 flex flex-col w-full">
         {activeTab === "Calendar" && <NoticeCalendarView />}
         {activeTab === "Clients" && <ClientsTab />}
-        {activeTab === "GST Notices" && <GstNotices />}
-        {activeTab === "TDS Notices" && <TdsNotices />}
-        {activeTab === "IT Notices" && <ItNotices />}
+        {activeTab === "GST Notices" && <GstNotices notices={items} loading={loading} />}
+        {activeTab === "TDS Notices" && <TdsNotices notices={items} loading={loading} />}
+        {activeTab === "IT Notices" && <ItNotices notices={items} loading={loading} />}
         {activeTab === "Logs" && <LogsTab module="notices" />}
       </div>
     </div>

@@ -9,7 +9,6 @@ import { ClientTabType } from "../ClientDetailView";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 import { ClientMasterTab } from "./ClientMasterTab";
-
 const TabLoadingFallback = () => (
   <div className="p-12 flex flex-col items-center justify-center text-gray-400 gap-2">
     <Loader2 className="w-6 h-6 animate-spin text-[#31719B]" />
@@ -37,6 +36,10 @@ const ClientLedgerTab = dynamic(
   () => import("./ClientLedgerTab").then((m) => m.ClientLedgerTab),
   { ssr: false, loading: TabLoadingFallback }
 );
+const ClientGroupTab = dynamic(
+  () => import("./ClientGroupTab").then((m) => m.ClientGroupTab),
+  { ssr: false, loading: TabLoadingFallback }
+);
 
 export {
   ClientServiceSettingsTab,
@@ -45,6 +48,7 @@ export {
   ClientMasterTab,
   ClientInvoicesTab,
   ClientLedgerTab,
+  ClientGroupTab,
 };
 
 export interface ClientDetailViewTabsProps {
@@ -224,6 +228,9 @@ export const ClientDetailViewTabs: React.FC<ClientDetailViewTabsProps> = ({
 
     case "Ledger":
       return <ClientLedgerTab client={client} showToast={showToast} />;
+
+    case "Group":
+      return <ClientGroupTab client={client} />;
 
 
     default:

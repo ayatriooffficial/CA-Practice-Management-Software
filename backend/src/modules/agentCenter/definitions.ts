@@ -106,11 +106,13 @@ function sampleEventFor(moduleName: AgentModule, trigger: string): TriggerDefini
   if (moduleName === 'DSC') {
     if (norm.includes('approaching') || norm.includes('renewal')) return (conditions) => ({ event: trigger, dsc: SAMPLE_DSC, daysToExpiry: conditions?.daysBeforeExpiry ?? 30, ...SAMPLE_DSC });
     if (norm.includes('expired')) return () => ({ event: trigger, dsc: SAMPLE_DSC, expired: true, ...SAMPLE_DSC });
+    if (norm.includes('deleted')) return () => ({ event: trigger, dsc: SAMPLE_DSC, deleted: true, ...SAMPLE_DSC });
     return () => ({ event: trigger, dsc: SAMPLE_DSC, ...SAMPLE_DSC });
   }
 
   if (norm.includes('approaching') || norm.includes('renewal')) return (conditions) => ({ event: trigger, license: SAMPLE_LICENSE, daysToExpiry: conditions?.daysBeforeExpiry ?? 30, ...SAMPLE_LICENSE });
   if (norm.includes('expired')) return () => ({ event: trigger, license: SAMPLE_LICENSE, expired: true, ...SAMPLE_LICENSE });
+  if (norm.includes('deleted')) return () => ({ event: trigger, license: SAMPLE_LICENSE, deleted: true, ...SAMPLE_LICENSE });
   return () => ({ event: trigger, license: SAMPLE_LICENSE, ...SAMPLE_LICENSE });
 }
 

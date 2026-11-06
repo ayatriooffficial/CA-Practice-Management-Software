@@ -660,7 +660,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   const { id: directorMcaId, pwd: directorMcaPassword } = getDirectorMcaCredentials(contact);
                   return (
                     <div
-                      key={contact.id || idx}
+                      key={String(contact.id || "c") + "-" + String(idx)}
                       className={`border rounded-md p-4 transition-all shadow-2xs ${isPrimary
                           ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20"
                           : "border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
@@ -886,7 +886,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                     pageSize={CONTACTS_PER_PAGE}
                     totalItems={contactsList.length}
                     onPageChange={(page) => setContactsPage(page)}
-                    className="rounded-md border border-gray-200 dark:border-gray-700 mt-2 px-4 py-2.5 bg-white/70 dark:bg-gray-800/50"
+                    className="rounded-none border border-gray-200 dark:border-gray-700 mt-2 px-4 py-2.5 bg-white/70 dark:bg-gray-800/50"
                   />
                 )}
               </div>

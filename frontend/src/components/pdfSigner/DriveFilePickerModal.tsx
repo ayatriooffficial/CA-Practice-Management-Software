@@ -279,7 +279,7 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
+            className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -302,7 +302,7 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
             <button
               type="button"
               onClick={() => setSelectedCategory('ALL')}
-              className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-none transition cursor-pointer whitespace-nowrap ${
+              className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition cursor-pointer whitespace-nowrap ${
                 selectedCategory === 'ALL'
                   ? 'bg-[#31719B] text-white shadow-xs'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -318,7 +318,7 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-none transition cursor-pointer whitespace-nowrap ${
+                  className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition cursor-pointer whitespace-nowrap ${
                     selectedCategory === cat
                       ? 'bg-[#31719B] text-white shadow-xs'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -439,7 +439,7 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
               size="sm"
               onClick={onClose}
               disabled={isStaging}
-              className="rounded-none border-[#dde2e8] dark:border-[#334155]"
+              className="rounded-md border-[#dde2e8] dark:border-[#334155]"
             >
               Cancel
             </Button>
@@ -452,7 +452,7 @@ export const DriveFilePickerModal: React.FC<DriveFilePickerModalProps> = ({
               disabled={isStaging || selectedDocIds.length === 0}
               loading={isStaging}
               icon={!isStaging ? <Check className="w-3.5 h-3.5" /> : undefined}
-              className="rounded-none bg-[#31719B] hover:bg-[#25587a]"
+              className="rounded-md bg-[#31719B] hover:bg-[#25587a]"
             >
               Import & Stage Selected ({selectedDocIds.length})
             </Button>

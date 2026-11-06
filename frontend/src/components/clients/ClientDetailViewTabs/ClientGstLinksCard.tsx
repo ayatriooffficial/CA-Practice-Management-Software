@@ -36,7 +36,7 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
-  const [historyPageSize, setHistoryPageSize] = useState(10);
+  const [historyPageSize, setHistoryPageSize] = useState(5);
 
   const paginatedLinks = useMemo(() => {
     const start = (historyPage - 1) * historyPageSize;
@@ -589,10 +589,10 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
                 onClick={handleGenerate}
                 disabled={isGenerating || !returnPeriod || returnPeriod.length < 6}
                 loading={isGenerating}
-                className="w-full h-9 rounded-sm text-xs font-semibold"
+                icon={<Link2 className="w-3.5 h-3.5 shrink-0" />}
+                className="w-full h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
-                <Link2 className="w-4 h-4" />
-                <span>Generate Link</span>
+                Generate Link
               </Button>
             </div>
           </div>
@@ -616,7 +616,7 @@ export const ClientGstLinksCard: React.FC<ClientGstLinksCardProps> = ({ client, 
             pageSize: historyPageSize,
             totalItems: (links || []).length,
             onPageChange: setHistoryPage,
-            rowsPerPageOptions: [10, 20, 50],
+            rowsPerPageOptions: [5, 10, 20],
             onRowsPerPageChange: (newSize) => {
               setHistoryPageSize(newSize);
               setHistoryPage(1);
