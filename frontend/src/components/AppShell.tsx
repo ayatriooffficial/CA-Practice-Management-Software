@@ -28,6 +28,13 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isPublicPage = isAuthPage || isPublicForm;
 
   useEffect(() => {
+    navigationProgress.setLoading("auth", isLoading);
+    return () => {
+      navigationProgress.setLoading("auth", false);
+    };
+  }, [isLoading]);
+
+  useEffect(() => {
     if (!isLoading && !currentUser && !isPublicPage) {
       router.replace("/login");
     }

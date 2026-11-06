@@ -27,6 +27,7 @@ const INITIAL_STATE: ProgressState = {
 class NavigationProgressService {
   private state: ProgressState = INITIAL_STATE;
   private pendingRequests = 0;
+  private externalLoaders = new Set<string>();
   private routeCommitted = false;
   private visibleTimestamp = 0;
 
@@ -198,21 +199,48 @@ class NavigationProgressService {
   }
 
   /**
+   * Register or release external page-level loading state (e.g. auth loading, initial dashboard loading).
+   * While ANY external loader is active, the progress bar will NEVER snap to 100% early.
+   */
+  public setLoading(key: string, isLoading: boolean): void {
+    if (isLoading) {
+      this.externalLoaders.add(key);
+      if (this.settleTimer) {
+        clearTimeout(this.settleTimer);
+        this.settleTimer = null;
+      }
+    } else {
+      this.externalLoaders.delete(key);
+      this.checkCompletion();
+    }
+  }
+
+  /**
    * Check if conditions are met to finish:
    * 1. Route has committed (mounted)
-   * 2. Pending API requests == 0 and has stayed 0 for 150ms settle time
+   * 2. Pending API requests == 0 AND external loaders == 0, sustained for 400ms settle window
    */
   private checkCompletion(): void {
-    if (!this.state.isNavigating || !this.routeCommitted || this.pendingRequests > 0) {
+    if (
+      !this.state.isNavigating ||
+      !this.routeCommitted ||
+      this.pendingRequests > 0 ||
+      this.externalLoaders.size > 0
+    ) {
       return;
     }
 
     if (this.settleTimer) clearTimeout(this.settleTimer);
     this.settleTimer = setTimeout(() => {
-      if (this.state.isNavigating && this.routeCommitted && this.pendingRequests === 0) {
+      if (
+        this.state.isNavigating &&
+        this.routeCommitted &&
+        this.pendingRequests === 0 &&
+        this.externalLoaders.size === 0
+      ) {
         this.finish();
       }
-    }, 150);
+    }, 400);
   }
 
   /**

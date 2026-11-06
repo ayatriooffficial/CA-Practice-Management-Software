@@ -140,7 +140,7 @@ export const ClientGroupTab: React.FC<ClientGroupTabProps> = ({ client }) => {
         return (
           <div
             key={grp.id}
-            className={`rounded-xl border shadow-xs overflow-hidden transition-all ${
+            className={`rounded-none border shadow-xs overflow-hidden transition-all ${
               isClientPoc
                 ? "border-purple-300 dark:border-purple-800/80 bg-white dark:bg-[#1e293b]"
                 : "border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]"

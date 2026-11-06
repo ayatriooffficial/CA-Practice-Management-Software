@@ -32,7 +32,10 @@ export const TopLoadingBar: React.FC = () => {
   useEffect(() => {
     if (typeof window !== "undefined") {
       navigationProgress.start(window.location.pathname);
-      navigationProgress.routeMounted();
+      const t = setTimeout(() => {
+        navigationProgress.routeMounted();
+      }, 120);
+      return () => clearTimeout(t);
     }
   }, []);
 

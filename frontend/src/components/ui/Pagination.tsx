@@ -34,7 +34,7 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-4 px-6 py-3.5 border-t border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-sm ${className}`}
+      className={`flex flex-wrap items-center justify-between gap-4 px-6 py-3.5 border-t border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-sm rounded-none ${className}`}
     >
       {/* Left: Showing 1–10 of 20 */}
       <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-normal">
@@ -65,7 +65,7 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
               aria-label="Rows per page"
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="h-8 px-2 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 text-xs outline-none cursor-pointer"
+              className="h-8 px-2 rounded-none border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 text-xs outline-none cursor-pointer"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -86,7 +86,7 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
           }}
           disabled={!canGoPrevious}
           aria-label="Previous Page"
-          className={`h-8 px-3 rounded-md border text-xs sm:text-sm font-medium transition-colors select-none ${
+          className={`h-8 px-3 rounded-none border text-xs sm:text-sm font-medium transition-colors select-none ${
             canGoPrevious
               ? "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] active:bg-gray-100 cursor-pointer shadow-2xs"
               : "border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-80"
@@ -105,7 +105,7 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
           }}
           disabled={!canGoNext}
           aria-label="Next Page"
-          className={`h-8 px-3 rounded-md border text-xs sm:text-sm font-medium transition-colors select-none ${
+          className={`h-8 px-3 rounded-none border text-xs sm:text-sm font-medium transition-colors select-none ${
             canGoNext
               ? "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] active:bg-gray-100 cursor-pointer shadow-2xs"
               : "border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-80"

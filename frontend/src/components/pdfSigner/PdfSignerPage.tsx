@@ -474,15 +474,22 @@ export const PdfSignerPage: React.FC = () => {
     }
   };
 
-  // Single file download
-  const handleDownloadDoc = (doc: SignedDocItem) => {
-    const url = pdfSignerApi.getDownloadUrl(doc.id);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Signed_${doc.fileName}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Single file download (using Blob to support cross-origin downloads reliably)
+  const handleDownloadDoc = async (doc: SignedDocItem) => {
+    try {
+      const { blob, fileName } = await pdfSignerApi.downloadDocument(doc.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || (doc.fileName.startsWith('Signed_') ? doc.fileName : `Signed_${doc.fileName}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast(`Downloaded "${doc.fileName}" successfully`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to download document', 'error');
+    }
   };
 
   // Download ZIP archive of selected documents

@@ -376,7 +376,7 @@ export const GroupListView: React.FC = () => {
       </div>
 
       {/* Main Table Container */}
-      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-lg overflow-x-auto shadow-2xs">
+      <div className="w-full bg-white dark:bg-[#1e293b] border border-[#dde2e8] dark:border-[#334155] rounded-none overflow-x-auto shadow-2xs">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50/70 dark:bg-slate-800/60 border-b border-[#dde2e8] dark:border-[#334155] text-gray-500 dark:text-gray-400 font-semibold select-none">
@@ -692,7 +692,7 @@ export const GroupListView: React.FC = () => {
         showPageSize
         pageSizeOptions={[10, 25, 50, 100]}
         onPageSizeChange={handleLimitChange}
-        className="rounded-lg border border-[#dde2e8] dark:border-[#334155]"
+        className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
       />
 
       {/* Add / Edit Group Modal */}
