@@ -108,6 +108,10 @@ export interface Lead {
   detailNotes?: LeadNoteItem[];
   addressDetails?: AddressDetails;
   paymentDetails?: PaymentDetails;
+  convertedToClientId?: string;
+  convertedAt?: string;
+  associatedClientIds?: string[];
+  companies?: any[];
 }
 
 export interface ClientLicense {
@@ -216,6 +220,7 @@ export interface ClientContact {
   createdAt?: string;
   mcaId?: string;
   mcaPassword?: string;
+  leadId?: string;
 }
 
 export interface Client {

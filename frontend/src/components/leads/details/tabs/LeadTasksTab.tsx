@@ -6,14 +6,16 @@ import { Lead, LeadFollowUpTask } from "@/data/crmData";
 import { useLeadTasks, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useLeadsQuery";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { ComposeModal } from "@/components/email/ComposeModal";
+import { AssociatedCompaniesCard } from "../AssociatedCompaniesCard";
 
 interface LeadTasksTabProps {
   lead: Lead;
   onOpenAddTask: () => void;
   onEditTask?: (task: any) => void;
+  onRegisterCompany?: () => void;
 }
 
-export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask }: LeadTasksTabProps) => {
+export const LeadTasksTab = memo(({ lead, onOpenAddTask, onEditTask, onRegisterCompany }: LeadTasksTabProps) => {
   const { data: tasks = [], isLoading } = useLeadTasks(lead.id);
   const updateTaskMutation = useUpdateLeadTask();
   const deleteTaskMutation = useDeleteLeadTask();
@@ -110,6 +112,9 @@ Ayatrio Practice`;
 
   return (
     <div className="w-full space-y-4">
+      {/* Associated Companies Section */}
+      <AssociatedCompaniesCard lead={lead} onRegisterCompany={onRegisterCompany} />
+
       {/* Tab Header */}
       <div className="flex items-center justify-between pb-1 border-b border-[#e2e8f0] dark:border-[#334155]">
         <h2 className="text-base font-bold text-gray-900 dark:text-white">

@@ -12,10 +12,24 @@ import {
   Plus,
   FileText,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { TaskSummaryView } from "@/components/tasks/TaskSummaryView";
 import { TaskListView } from "@/components/tasks/TaskListView";
-import { TaskDetailView } from "@/components/tasks/TaskDetailView";
-import { AddTaskModal } from "@/components/tasks/AddTaskModal";
+
+const TaskDetailView = dynamic(
+  () => import("@/components/tasks/TaskDetailView").then((m) => m.TaskDetailView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="py-12 text-center text-xs text-gray-400">Loading task details...</div>
+    ),
+  }
+);
+
+const AddTaskModal = dynamic(
+  () => import("@/components/tasks/AddTaskModal").then((m) => m.AddTaskModal),
+  { ssr: false }
+);
 import { TaskItem } from "@/data/taskData";
 import { useAuth } from "@/components/auth/AuthContext";
 import { usePermission } from "@/components/team/usePermission";

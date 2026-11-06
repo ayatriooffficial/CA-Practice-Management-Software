@@ -537,7 +537,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
                 return (
                   <th
                     key={col.key}
-                    className="py-3 px-3.5 whitespace-nowrap tracking-wider uppercase relative group font-semibold text-xs text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155]"
+                    className="py-3 px-3.5 whitespace-nowrap tracking-wider uppercase relative group group/th font-semibold text-xs text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155]"
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span

@@ -167,7 +167,7 @@ export const Select: React.FC<SelectProps> = memo(function Select({
             }
           }
         }}
-        className={`flex h-11 w-full items-center justify-between rounded-md border bg-white dark:bg-[#0f172a] text-sm text-[#000000] dark:text-white transition-all cursor-pointer ${
+        className={`flex h-10 w-full items-center text-xs justify-between rounded-md border bg-white dark:bg-[#0f172a] text-sm text-[#000000] dark:text-white transition-all cursor-pointer ${
           disabled
             ? "bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed"
             : error

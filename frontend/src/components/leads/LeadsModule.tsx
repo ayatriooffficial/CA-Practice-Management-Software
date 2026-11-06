@@ -14,6 +14,8 @@ import {
   EyeOff,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
+import { leadApi } from "@/services/leadApi";
 import { Lead } from "@/data/crmData";
 import {
   LeadTableRow,
@@ -153,6 +155,26 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
   const [editingLead, setEditingLead] = useState<Lead | null | undefined>(undefined);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
   const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<Lead | null>(null);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (!searchParams) return;
+    const qSearch = searchParams.get("search");
+    const qLeadId = searchParams.get("leadId");
+    if (qSearch) {
+      setSearch(qSearch);
+    }
+    if (qLeadId) {
+      leadApi
+        .getLeadById(qLeadId)
+        .then((res) => {
+          if (res.data) {
+            setSelectedLeadForDetails(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [searchParams]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Column resizing state with persistent storage
   const {
@@ -345,14 +367,14 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
   );
 
   const handleConvertLead = useCallback(
-    async (config: { type: string; group: string; fileNo?: string; services?: string[] }) => {
+    async (config: { companyName: string; type: string; group: string; fileNo?: string; services?: string[] }) => {
       if (!convertingLead) return;
       try {
         await convertMutation.mutateAsync({
           id: convertingLead.id,
           payload: config,
         });
-        showToast(`Lead "${convertingLead.fullName}" converted to client folder!`);
+        showToast(`Company "${config.companyName}" successfully registered for promoter ${convertingLead.fullName}!`);
         setConvertingLead(null);
       } catch (err: any) {
         showToast(err.message || "Conversion failed.");
@@ -382,6 +404,10 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
                 <img
                   src={getDirectFilePreviewUrl(lead.photo)}
                   alt=""
+                  width={28}
+                  height={28}
+                  loading="lazy"
+                  decoding="async"
                   className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200"
                 />
               ) : (
@@ -409,6 +435,23 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
         width: getColumnWidth(col.key as string) || (INITIAL_LEAD_COLUMN_WIDTHS[col.key as string] || 140),
         cell: (lead: Lead) => {
           const val = (lead as any)[col.key];
+          if (col.key === "status") {
+            const isConverted =
+              val === "converted" ||
+              Boolean(lead.convertedToClientId) ||
+              (Array.isArray(lead.associatedClientIds) && lead.associatedClientIds.length > 0);
+            return isConverted ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Converted
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                Lead
+              </span>
+            );
+          }
           if (col.kind === "timestamp" || col.kind === "date") {
             return <span>{formatDate(val)}</span>;
           }
@@ -620,7 +663,7 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
       )}
 
       {/* Spreadsheet Table using reusable DataTable */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
         <DataTable<Lead>
           columns={dataTableColumns}
           data={leads}

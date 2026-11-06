@@ -11,6 +11,7 @@ export interface IPromoterFile {
   designation?: string;
   mcaId?: string;
   mcaPassword?: string;
+  leadId?: string;
 }
 
 export interface IStatutoryFile {
@@ -152,6 +153,7 @@ export interface IClientContact {
   createdAt?: string;
   mcaId?: string;
   mcaPassword?: string;
+  leadId?: string;
 }
 
 export interface IClient {

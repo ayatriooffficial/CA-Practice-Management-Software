@@ -36,31 +36,40 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Position calculation with window boundary checks
-  const updatePosition = () => {
+  const calculatePosition = () => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const dropdownWidth = 180;
-    let left = rect.left;
+    const dropdownWidth = 185;
+    const dropdownHeight = 175;
+
+    // Check vertical space (open below if space permits, else open above)
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const showAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+    const top = showAbove ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
+
+    // Align right edge of menu with button so it sits neatly under the column header
+    let left = rect.right - dropdownWidth;
+    if (left < 12) {
+      left = Math.max(12, rect.left);
+    }
     if (left + dropdownWidth > window.innerWidth - 12) {
       left = window.innerWidth - dropdownWidth - 12;
     }
-    setCoords({
-      top: rect.bottom + 4,
-      left: Math.max(12, left),
-    });
+
+    setCoords({ top, left });
   };
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (!isOpen) {
-      updatePosition();
+      calculatePosition();
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
     }
-    setIsOpen((prev) => !prev);
   };
 
-  // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
 
@@ -77,7 +86,7 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
     };
 
     const handleScrollOrResize = () => {
-      updatePosition();
+      calculatePosition();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -106,8 +115,10 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
         type="button"
         onClick={handleToggle}
         aria-label={`Column options for ${columnHeader}`}
-        className={`p-1 rounded-sm text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 transition-opacity cursor-pointer ${
-          isOpen ? "opacity-100 bg-black/5 dark:bg-white/10" : "opacity-0 group-hover/th:opacity-100"
+        className={`column-header-trigger p-1 rounded-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-black/5 dark:hover:bg-white/10 transition-opacity cursor-pointer ${
+          isOpen
+            ? "opacity-100 bg-black/5 dark:bg-white/10"
+            : "opacity-0 group-hover:opacity-100 group-hover/th:opacity-100"
         }`}
       >
         <MoreVertical className="w-3.5 h-3.5" />
@@ -125,7 +136,7 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
               zIndex: 9999,
             }}
             onClick={(e) => e.stopPropagation()}
-            className="w-48 bg-white dark:bg-[#1e293b] rounded-lg shadow-xl border border-gray-100 dark:border-gray-800 p-1.5 text-xs animate-in fade-in zoom-in-95 duration-100 select-none"
+            className="w-[185px] bg-white dark:bg-[#1e293b] rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 p-2 text-xs animate-in fade-in zoom-in-95 duration-100 select-none"
           >
             {/* Sort Ascending */}
             <button
@@ -134,13 +145,9 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
                 onSortAsc();
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-md transition-colors text-left cursor-pointer ${
-                isSortedAsc
-                  ? "bg-[#31719B]/10 text-[#31719B] dark:text-[#3D88BF]"
-                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
+              className="w-full flex items-center gap-3 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-md transition-colors text-left cursor-pointer"
             >
-              <ArrowUp className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+              <ArrowUp className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
               <span>Sort Ascending</span>
             </button>
 
@@ -151,13 +158,9 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
                 onSortDesc();
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-md transition-colors text-left cursor-pointer ${
-                isSortedDesc
-                  ? "bg-[#31719B]/10 text-[#31719B] dark:text-[#3D88BF]"
-                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
+              className="w-full flex items-center gap-3 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-md transition-colors text-left cursor-pointer"
             >
-              <ArrowDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+              <ArrowDown className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
               <span>Sort Descending</span>
             </button>
 
@@ -168,31 +171,29 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
                 onHideColumn();
                 setIsOpen(false);
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-md transition-colors text-left cursor-pointer"
             >
-              <EyeOff className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+              <EyeOff className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
               <span>Hide Column</span>
             </button>
 
-            {/* Divider */}
-            <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
-
-            {/* Clear All */}
-            <button
-              type="button"
-              onClick={() => {
-                onClearAll();
-                setIsOpen(false);
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors text-left cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <span>Clear All</span>
-            </button>
+            {/* Clear All (with red accent and spacing) */}
+            <div className="pt-2 mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  onClearAll();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 text-[13px] font-normal text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors text-left cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4 text-red-500 shrink-0" />
+                <span>Clear All</span>
+              </button>
+            </div>
           </div>,
           document.body
         )}
     </>
   );
 };
-

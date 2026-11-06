@@ -27,6 +27,9 @@ export interface LeadStats {
 }
 
 export interface ConvertLeadPayload {
+  companyName?: string;
+  directorDesignation?: string;
+  directorShare?: string;
   type: string;
   group: string;
   fileNo?: string;
@@ -90,6 +93,10 @@ export const leadApi = {
     return request<null>(`/leads/${id}/permanent`, {
       method: 'DELETE',
     });
+  },
+
+  getLeadCompanies: async (id: string): Promise<ApiResponse<any[]>> => {
+    return request<any[]>(`/leads/${id}/companies`);
   },
 
   convertLead: async (

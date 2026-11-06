@@ -116,3 +116,16 @@ export function isGstReturnServiceEnabled(
 
   return false;
 }
+
+
+export const getPortalDefaultUrl = (portal?: string, explicitUrl?: string): string => {
+  if (explicitUrl && explicitUrl.trim()) return explicitUrl.trim();
+  const p = (portal || "").toLowerCase();
+  if (p.includes("gst")) return "https://www.gst.gov.in";
+  if (p.includes("income tax") || p.includes("e-filing") || p.includes("itd") || p.includes("incometax")) return "https://www.incometax.gov.in";
+  if (p.includes("traces")) return "https://www.tdscpc.gov.in";
+  if (p.includes("mca") || p.includes("v3")) return "https://www.mca.gov.in";
+  if (p.includes("epfo") || p.includes("pf")) return "https://unifiedportal-mem.epfindia.gov.in";
+  if (p.includes("esic")) return "https://www.esic.in";
+  return "https://www.google.com";
+};

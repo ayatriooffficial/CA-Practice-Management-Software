@@ -425,6 +425,31 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
     setPage(1);
   }, []);
 
+  // On-demand detail loader: opens detail shell instantly with table data and fetches master profile
+  const handleOpenClientDetail = useCallback(
+    async (clientSummary: Client, tab: ClientTabType = "Master") => {
+      setViewingClient(clientSummary);
+      setActiveDetailTab(tab);
+      setViewMode("detail");
+      dispatch(setSelectedClient(clientSummary));
+
+      const clientId = clientSummary.id || (clientSummary as any)._id;
+      if (clientId) {
+        try {
+          const res = await clientApi.getClientById(clientId, { section: "master" });
+          if (res && res.data) {
+            setViewingClient((prev) => (prev ? { ...prev, ...res.data } : res.data));
+            dispatch(setSelectedClient(res.data));
+            dispatch(fetchClientByIdSuccess(res.data));
+          }
+        } catch (err) {
+          console.error("Failed to load client master profile:", err);
+        }
+      }
+    },
+    [dispatch]
+  );
+
   // DataTable columns adapter for Clients
   const clientDataTableColumns = useMemo<DataTableColumn<Client>[]>(() => {
     return [
@@ -456,12 +481,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         cell: (client: Client) => (
           <button
             type="button"
-            onClick={() => {
-              setViewingClient(client);
-              dispatch(setSelectedClient(client));
-              setActiveDetailTab("Master");
-              setViewMode("detail");
-            }}
+            onClick={() => handleOpenClientDetail(client)}
             className="hover:text-[#31719B] hover:underline cursor-pointer truncate max-w-full font-mono text-xs text-gray-600 dark:text-gray-400"
           >
             {client.fileNo}
@@ -479,12 +499,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
           return (
             <button
               type="button"
-              onClick={() => {
-                setViewingClient(client);
-                dispatch(setSelectedClient(client));
-                setActiveDetailTab("Master");
-                setViewMode("detail");
-              }}
+              onClick={() => handleOpenClientDetail(client)}
               className="hover:underline cursor-pointer text-left flex items-center gap-1.5 truncate max-w-full font-semibold text-[#31719B]"
             >
               <span className="truncate">{client.name}</span>
@@ -604,10 +619,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         label: "View Master",
         icon: Eye,
         onClick: () => {
-          setViewingClient(client);
-          dispatch(setSelectedClient(client));
-          setActiveDetailTab("Master");
-          setViewMode("detail");
+          handleOpenClientDetail(client);
         },
       },
     ];
@@ -689,19 +701,19 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
 
 
   return (
-    <div className="w-full flex flex-col space-y-4 animate-in fade-in duration-150">
+    <div className="w-full flex flex-col space-y-4">
       {/* Toast Feedback */}
       <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white py-2">
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
+        <div className="flex items-center gap-3 py-2 min-h-[40px]">
+          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white">
             Clients ({pagination?.totalDocs ?? clients.length})
           </h1>
           {isFetching && (
             <span title="Syncing...">
-              <Loader2 className="w-4 h-4 animate-spin text-[#31719B]" />
+              <Loader2 className="w-4 h-4 animate-spin text-[#31719B] [will-change:transform]" />
             </span>
           )}
         </div>
@@ -745,7 +757,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
       </div>
 
       {/* Filters Bar */}
-      <div className="p-4  bg-white dark:bg-[#1e293b] space-y-3">
+      <div className="p-4 bg-white dark:bg-[#1e293b] space-y-3 rounded-md border border-[#dde2e8] dark:border-[#334155]">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {/* Debounced Search */}
           <div className="relative">
@@ -847,7 +859,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
       )}
 
       {/* Spreadsheet Table using reusable DataTable */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
         <DataTable<Client>
           columns={clientDataTableColumns}
           data={clients}
@@ -866,10 +878,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
               : "No clients found. Click '+ Add Client' to register a new client."
           }
           onRowClick={(client) => {
-            setViewingClient(client);
-            dispatch(setSelectedClient(client));
-            setActiveDetailTab("Master");
-            setViewMode("detail");
+            handleOpenClientDetail(client);
           }}
           pagination={{
             currentPage: page,

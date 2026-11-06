@@ -93,6 +93,16 @@ export class LeadController {
    * Convert Lead to Client
    * POST /api/v1/leads/:id/convert
    */
+  /**
+   * Get all companies associated with this Lead (Promoter)
+   * GET /api/v1/leads/:id/companies
+   */
+  static getLeadCompanies = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const companies = await LeadService.getLeadCompanies(id);
+    return ApiResponse.success(res, companies, 'Lead companies retrieved successfully');
+  });
+
   static convertLead = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const userCtx = getUserContextFromRequest(req);

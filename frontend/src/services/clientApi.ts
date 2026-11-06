@@ -90,14 +90,38 @@ export const clientApi = {
     };
   },
 
-  getClientById: async (id: string, includeDeleted = false): Promise<ApiResponse<Client>> => {
-    const res = await request<Client>(`/clients/${id}${includeDeleted ? '?includeDeleted=true' : ''}`);
+  getClientById: async (
+    id: string,
+    options?: { includeDeleted?: boolean; section?: string } | boolean
+  ): Promise<ApiResponse<Client>> => {
+    let includeDeleted = false;
+    let section: string | undefined;
+    if (typeof options === 'boolean') {
+      includeDeleted = options;
+    } else if (options && typeof options === 'object') {
+      includeDeleted = Boolean(options.includeDeleted);
+      section = options.section;
+    }
+
+    const searchParams = new URLSearchParams();
+    if (includeDeleted) searchParams.set('includeDeleted', 'true');
+    if (section) searchParams.set('section', section);
+
+    const query = searchParams.toString();
+    const res = await request<Client>(`/clients/${id}${query ? `?${query}` : ''}`);
     if (res && res.data) {
       const c: any = res.data;
       c.id = c.id || c._id?.toString() || c._id;
       return res;
     }
     throw new Error('Client not found');
+  },
+
+  getClientSection: async (
+    id: string,
+    section: 'master' | 'service-settings' | 'documents' | 'dsc'
+  ): Promise<ApiResponse<Partial<Client>>> => {
+    return clientApi.getClientById(id, { section });
   },
 
   createClient: async (payload: Partial<Client>): Promise<ApiResponse<Client>> => {

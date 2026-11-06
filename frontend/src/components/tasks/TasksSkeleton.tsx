@@ -97,7 +97,7 @@ export const TaskListSkeleton: React.FC = () => (
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 8 }).map((_, rIdx) => (
+            {Array.from({ length: 5 }).map((_, rIdx) => (
               <tr
                 key={rIdx}
                 className={`border-b border-[#dde2e8] dark:border-[#334155] ${

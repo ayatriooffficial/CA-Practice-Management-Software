@@ -758,7 +758,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
       )}
 
       {/* Spreadsheet Table using reusable DataTable */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
         <DataTable<Service>
           columns={serviceDataTableColumns}
           data={services}

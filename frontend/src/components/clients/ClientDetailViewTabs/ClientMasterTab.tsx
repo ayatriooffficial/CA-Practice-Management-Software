@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   User,
   Plus,
@@ -35,9 +36,9 @@ import { Pagination } from "@/components/ui/Pagination";
 import { ClientGstLinksCard } from "./ClientGstLinksCard";
 import { ClientMasterSuggestionsCard } from "./ClientMasterSuggestionsCard";
 import { isGstReturnServiceEnabled } from "./utils";
-import { AddContactModal } from "../modals/AddContactModal";
+import { AddDirectorModal } from "../modals/AddDirectorModal";
 import { getAvatarBadge } from "./utils";
-import { getPortalDefaultUrl } from "./ClientPasswordsTab";
+import { getPortalDefaultUrl } from "./utils";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { clientApi } from "@/services/clientApi";
 
@@ -80,6 +81,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
   // Contacts state & pagination (limit 3)
   const CONTACTS_PER_PAGE = 3;
+  const router = useRouter();
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
   const [contactsPage, setContactsPage] = useState(1);
@@ -600,7 +602,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span>Contacts & Directors</span>
+                    <span>Directors & Promoters</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]">
                       {contactsList.length}
                     </span>
@@ -627,7 +629,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add Contact</span>
+                  <span>Add Director</span>
                 </button>
               </div>
             </div>
@@ -734,13 +736,31 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                           <button
                             type="button"
                             onClick={() => {
+                              const q = new URLSearchParams();
+                              if (contact.leadId) q.set("leadId", contact.leadId);
+                              if (contact.pan && contact.pan !== "-") {
+                                q.set("search", contact.pan);
+                              } else if (contact.name) {
+                                q.set("search", contact.name);
+                              }
+                              router.push(`/leads?${q.toString()}`);
+                            }}
+                            className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Open promoter KYC & identity profile in Leads"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Edit in Leads</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
                               setEditingContact(contact);
                               setIsAddContactModalOpen(true);
                             }}
-                            className="h-7 px-2.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-[#31719B] text-gray-600 dark:text-gray-300 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                            className="h-7 px-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-[#31719B] text-gray-500 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Edit designation or company role"
                           >
-                            <Pencil className="w-3 h-3 text-[#31719B]" />
-                            <span>Edit</span>
+                            <Pencil className="w-3 h-3 text-gray-500" />
                           </button>
                           {handleDeleteContact && (
                             <button
@@ -1630,8 +1650,8 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
         </div>
       </div>
 
-      {/* Add / Edit Contact Modal */}
-      <AddContactModal
+      {/* Add / Edit Director Modal */}
+      <AddDirectorModal
         isOpen={isAddContactModalOpen}
         client={client}
         editingContact={editingContact}

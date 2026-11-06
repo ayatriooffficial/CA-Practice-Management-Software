@@ -177,7 +177,7 @@ export const createClientSchema = z.object({
   leadId: z.string().regex(OBJECT_ID_REGEX, 'Invalid Lead ID').optional().or(z.literal('')).nullable(),
   customerFiles: z
     .object({
-      promoter: z.array(promoterItemSchema).optional().default([]),
+      promoter: z.array(promoterItemSchema).min(1, 'At least 1 director or promoter (lead) is required to create a company.'),
       statutory: z.array(statutoryItemSchema).optional().default([]),
       recurring: z.array(recurringItemSchema).optional().default([]),
     })

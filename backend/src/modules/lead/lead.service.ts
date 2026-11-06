@@ -195,23 +195,116 @@ export class LeadService {
       }
     }
 
+    // Lightweight table projection: only fetch fields required for table view.
+    const defaultLeadTableFields = [
+      'fullName',
+      'firstName',
+      'middleName',
+      'lastName',
+      'abbreviation',
+      'status',
+      'mobile',
+      'aadhaarMobile',
+      'email',
+      'pan',
+      'aadhaar',
+      'gender',
+      'dob',
+      'state',
+      'country',
+      'pincode',
+      'nationality',
+      'policeStation',
+      'postOffice',
+      'din',
+      'mcaId',
+      'referredBy',
+      'photo',
+      'panAttachment',
+      'aadhaarAttachment',
+      'dinAttachment',
+      'isDeleted',
+      'orgId',
+      'userId',
+      'createdAt',
+      'updatedAt',
+    ];
+    if (!parsedQuery.projection) {
+      parsedQuery.projection = defaultLeadTableFields.join(' ');
+    }
+
     return await QueryBuilder.paginate<ILeadDocument>(Lead, parsedQuery);
   }
 
   /**
    * Retrieve single lead by ID
    */
-  static async getLeadById(id: string, includeDeleted: boolean = false): Promise<ILeadDocument> {
+  static async getLeadById(id: string, includeDeleted: boolean = false): Promise<any> {
     const query = Lead.findById(id);
     if (includeDeleted) {
       query.setOptions({ includeDeleted: true });
     }
 
-    const lead = await query.exec();
+    const leadDoc = await query.exec();
+    if (!leadDoc) {
+      throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
+    }
+    const leadObj: any = leadDoc.toObject();
+
+    // Attach all associated companies (clients) where this lead is the promoter/director
+    try {
+      const orConditions: any[] = [
+        { leadId: leadDoc._id },
+        { _id: { $in: leadDoc.associatedClientIds || [] } },
+      ];
+      if (leadDoc.pan && leadDoc.pan.trim()) {
+        orConditions.push({ 'customerFiles.promoter.pan': leadDoc.pan.trim().toUpperCase() });
+      }
+      if (leadDoc.fullName && leadDoc.fullName.trim()) {
+        orConditions.push({
+          'customerFiles.promoter.name': leadDoc.fullName.trim(),
+        });
+      }
+
+      const companies = await Client.find({
+        $or: orConditions,
+        isDeleted: false,
+      }).select('name legalName fileNo type group mobile email status active customerFiles.promoter createdAt');
+
+      leadObj.companies = companies;
+    } catch {
+      leadObj.companies = [];
+    }
+
+    return leadObj;
+  }
+
+  /**
+   * Get all companies where this Lead is a Promoter / Director
+   */
+  static async getLeadCompanies(leadId: string): Promise<any[]> {
+    const lead = await Lead.findById(leadId);
     if (!lead) {
       throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
     }
-    return lead;
+
+    const orConditions: any[] = [
+      { leadId: lead._id },
+      { _id: { $in: lead.associatedClientIds || [] } },
+    ];
+    if (lead.pan && lead.pan.trim()) {
+      orConditions.push({ 'customerFiles.promoter.pan': lead.pan.trim().toUpperCase() });
+    }
+    if (lead.fullName && lead.fullName.trim()) {
+      orConditions.push({
+        'customerFiles.promoter.name': lead.fullName.trim(),
+      });
+    }
+
+    return Client.find({
+      $or: orConditions,
+      isDeleted: false,
+    }).select('name legalName fileNo type group mobile email status active customerFiles.promoter createdAt');
   }
 
   /**
@@ -461,12 +554,15 @@ export class LeadService {
   static async convertLeadToClient(
     leadId: string,
     conversionData: {
+      companyName?: string;
       type: string;
       group: string;
       fileNo?: string;
       active?: boolean;
       services?: string[];
       users?: string[];
+      directorDesignation?: string;
+      directorShare?: string;
     },
     userCtx?: { userId: string | null; orgId?: string | null } | null
   ) {
@@ -475,29 +571,26 @@ export class LeadService {
       throw AppError.notFound(ResponseMessages.LEAD_NOT_FOUND);
     }
 
-    if (lead.status === 'converted' && lead.convertedToClientId) {
-      throw AppError.badRequest(ResponseMessages.LEAD_ALREADY_CONVERTED);
-    }
-
     // Generate automatic unique fileNo if not supplied
     let fileNo = conversionData.fileNo;
     if (!fileNo) {
       fileNo = await CounterService.getNextClientFileNo();
     }
 
-    // Construct customerFiles from lead details (e.g. Promoter and Statutory entries)
-    const promoterFiles = [];
-    if (lead.din || lead.mcaId || lead.pan) {
-      promoterFiles.push({
+    const companyName = (conversionData.companyName || lead.businessName || lead.fullName || 'Company').trim();
+
+    // Construct customerFiles: Lead is the director/promoter of this company
+    const promoterFiles = [
+      {
         key: 1,
         name: lead.fullName,
         pan: lead.pan || '',
-        share: '100%',
-        designation: 'Director / Proprietor',
+        share: conversionData.directorShare || '100%',
+        designation: conversionData.directorDesignation || 'Director / Promoter',
         mcaId: lead.mcaId || '',
-        mcaPassword: '',
-      });
-    }
+        mcaPassword: lead.mcaPassword || '',
+      },
+    ];
 
     const statutoryFiles = [];
     if (lead.pan) {
@@ -517,9 +610,10 @@ export class LeadService {
       });
     }
 
-    // Create client
+    // Create company (client)
     const newClient = new Client({
-      name: lead.fullName,
+      name: companyName,
+      legalName: companyName,
       fileNo,
       type: conversionData.type,
       group: conversionData.group,
@@ -556,10 +650,16 @@ export class LeadService {
 
     const savedClient = await newClient.save();
 
-    // Mark lead as converted
+    // Link company to lead & update lead status
     lead.status = 'converted';
     lead.convertedToClientId = savedClient._id as Types.ObjectId;
-    lead.convertedAt = new Date();
+    lead.convertedAt = lead.convertedAt || new Date();
+    if (!lead.associatedClientIds) {
+      lead.associatedClientIds = [];
+    }
+    if (!lead.associatedClientIds.some((id) => String(id) === String(savedClient._id))) {
+      lead.associatedClientIds.push(savedClient._id as Types.ObjectId);
+    }
     await lead.save();
 
     return {

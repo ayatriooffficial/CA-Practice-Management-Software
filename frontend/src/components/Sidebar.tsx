@@ -116,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <Link
                 key={item.id}
                 href={item.href}
-                prefetch={true}
+                prefetch={false}
                 className={`w-full flex flex-col items-center justify-center py-1.5 px-0.5 text-center transition-all group relative cursor-pointer font-semibold ${isActive
                   ? ""
                   : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"

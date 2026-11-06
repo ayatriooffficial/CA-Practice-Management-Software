@@ -267,7 +267,7 @@ export function DataTable<T>({
       )}
 
       {/* Scrollable Spreadsheet Table */}
-      <div className="overflow-x-auto scrollbar-slim">
+      <div className="overflow-x-auto scrollbar-slim touch-pan-x overscroll-x-contain">
         <table
           suppressHydrationWarning
           className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"
@@ -312,7 +312,7 @@ export function DataTable<T>({
                   <th
                     key={col.id}
                     scope="col"
-                    className={`group/th relative px-3 py-2.5 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap select-none ${alignClass}`}
+                    className={`group group/th relative px-3 py-2.5 font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-[#dde2e8] dark:border-[#334155] whitespace-nowrap select-none ${alignClass}`}
                     style={{
                       backgroundColor: "var(--orange-havy-light)",
                       width: `${colWidth}px`,
@@ -388,7 +388,7 @@ export function DataTable<T>({
 
           <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
             {loading ? (
-              Array.from({ length: 8 }).map((_, rIdx) => (
+              Array.from({ length: 5 }).map((_, rIdx) => (
                 <tr
                   key={`skeleton-row-${rIdx}`}
                   className="animate-pulse border-b border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]"
@@ -437,7 +437,7 @@ export function DataTable<T>({
                   <tr
                     key={rowId}
                     onClick={() => onRowClick?.(item, idx)}
-                    className={`transition-colors border-b border-[#dde2e8] dark:border-[#334155] ${isSelected
+                    className={`transition-colors border-b border-[#dde2e8] dark:border-[#334155] [content-visibility:auto] ${isSelected
                         ? "bg-blue-50/50 dark:bg-blue-950/20"
                         : "bg-white dark:bg-[#1e293b] hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
                       } ${onRowClick ? "cursor-pointer" : ""}`}
@@ -521,8 +521,10 @@ export function DataTable<T>({
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             {pagination.rowsPerPageOptions && pagination.onRowsPerPageChange && (
               <div className="flex items-center gap-1.5">
-                <span>Rows per page:</span>
+                <label htmlFor="datatable-rows-per-page" className="cursor-pointer">Rows per page:</label>
                 <select
+                  id="datatable-rows-per-page"
+                  aria-label="Rows per page"
                   value={pagination.pageSize}
                   onChange={(e) => pagination.onRowsPerPageChange!(Number(e.target.value))}
                   className="bg-transparent border border-[#dde2e8] dark:border-[#334155] rounded-sm px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer focus:outline-none"

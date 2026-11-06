@@ -6,7 +6,6 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
-
 import { PendingApprovalCard } from "./auth/PendingApprovalCard";
 
 const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -32,15 +31,9 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  if (isLoading || !currentUser) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[var(--bg-app)] text-[var(--text-muted)] text-sm">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-          <span>Loading practice portal...</span>
-        </div>
-      </div>
-    );
+  // If client-side auth is finished checking and user is unauthenticated, redirecting
+  if (!isLoading && !currentUser) {
+    return null;
   }
 
   const isPending =
@@ -49,7 +42,7 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-app)] text-[var(--text-main)]">
-      {/* Persistent Top Header */}
+      {/* Persistent Top Header (renders immediately in SSR & hydration) */}
       <Header onOpenMobileMenu={() => setIsMobileNavOpen(true)} />
 
       {/* Layout Body with Sidebar + Main Content */}

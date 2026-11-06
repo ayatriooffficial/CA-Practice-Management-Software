@@ -218,6 +218,12 @@ const leadSchema = new Schema<ILeadDocument>(
       type: Date,
       default: null,
     },
+    associatedClientIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Client',
+      },
+    ],
     addressDetails: {
       type: addressSchema,
       default: () => ({}),

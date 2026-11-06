@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import { LeadsModule } from "@/components/leads/LeadsModule";
 
 export const metadata: Metadata = {
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function LeadsPage() {
   return (
     <div className="w-full min-h-[calc(100vh-var(--header-height))] p-2 bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] transition-colors">
-      <LeadsModule />
+      <Suspense fallback={null}>
+        <LeadsModule />
+      </Suspense>
     </div>
   );
 }

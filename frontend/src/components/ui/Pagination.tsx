@@ -86,7 +86,7 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
           }}
           disabled={!canGoPrevious}
           aria-label="Previous Page"
-          className={`h-8 px-3 rounded-md border text-xs sm:text-sm font-medium transition-colors select-none ${
+          className={`min-h-[38px] sm:min-h-[32px] px-3.5 sm:px-3 rounded-md border text-xs sm:text-sm font-medium transition-colors select-none ${
             canGoPrevious
               ? "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] active:bg-gray-100 cursor-pointer shadow-2xs"
               : "border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-80"
@@ -105,7 +105,7 @@ export const Pagination: React.FC<PaginationProps> = memo(function Pagination({
           }}
           disabled={!canGoNext}
           aria-label="Next Page"
-          className={`h-8 px-3 rounded-md border text-xs sm:text-sm font-medium transition-colors select-none ${
+          className={`min-h-[38px] sm:min-h-[32px] px-3.5 sm:px-3 rounded-md border text-xs sm:text-sm font-medium transition-colors select-none ${
             canGoNext
               ? "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1e293b] active:bg-gray-100 cursor-pointer shadow-2xs"
               : "border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-80"
