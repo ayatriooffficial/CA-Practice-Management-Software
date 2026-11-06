@@ -35,7 +35,7 @@ export const ClientsSkeleton: React.FC = () => {
       </div>
 
       {/* Table Skeleton */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none">
         <div className="overflow-x-auto scrollbar-slim">
           <table
             className="min-w-full border-separate border-spacing-0 text-left text-xs select-none"

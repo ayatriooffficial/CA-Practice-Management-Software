@@ -438,16 +438,16 @@ export function DataTable<T>({
                     key={rowId}
                     onClick={() => onRowClick?.(item, idx)}
                     className={`transition-colors border-b border-[#dde2e8] dark:border-[#334155] [content-visibility:auto] ${isSelected
-                        ? "bg-blue-50/50 dark:bg-blue-950/20"
-                        : "bg-white dark:bg-[#1e293b] hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
+                      ? "bg-blue-50/50 dark:bg-blue-950/20"
+                      : "bg-white dark:bg-[#1e293b] hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
                       } ${onRowClick ? "cursor-pointer" : ""}`}
                   >
                     {/* Frozen Checkbox Cell */}
                     {selectable && (
                       <td
                         className={`sticky left-0 z-20 px-3 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155] text-center ${isSelected
-                            ? "bg-blue-50/90 dark:bg-[#182642]"
-                            : "bg-white dark:bg-[#1e293b]"
+                          ? "bg-blue-50/90 dark:bg-[#182642]"
+                          : "bg-white dark:bg-[#1e293b]"
                           }`}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -499,8 +499,8 @@ export function DataTable<T>({
                     {actions && (
                       <td
                         className={`sticky right-0 z-20 px-3 py-2.5 border-l border-b border-[#dde2e8] dark:border-[#334155] text-center ${isSelected
-                            ? "bg-blue-50/90 dark:bg-[#182642]"
-                            : "bg-white dark:bg-[#1e293b]"
+                          ? "bg-blue-50/90 dark:bg-[#182642]"
+                          : "bg-white dark:bg-[#1e293b]"
                           }`}
                         onClick={(e) => e.stopPropagation()}
                       >

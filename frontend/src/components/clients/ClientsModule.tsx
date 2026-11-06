@@ -889,7 +889,7 @@ onClick={() => handleSelectClient(client, "Master")}
       )}
 
       {/* Spreadsheet Table using reusable DataTable */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none">
         <DataTable<Client>
           columns={clientDataTableColumns}
           data={clients}
