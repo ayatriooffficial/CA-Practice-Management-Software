@@ -60,9 +60,10 @@ export interface ComplianceGridColumn {
 }
 
 export interface GetComplianceGridParams {
+  category?: string;
   categoryId?: string;
   fy?: string;
-  frequency?: Frequency | 'ALL';
+  frequency?: Frequency | 'ALL' | 'all';
   search?: string;
 }
 

@@ -128,9 +128,9 @@ export const serviceApi = {
     clientId: string,
     enabled: boolean
   ): Promise<ApiResponse<Client>> => {
-    return request<Client>(`/services/${serviceId}/clients/${clientId}/toggle`, {
+    return request<Client>(`/clients/${encodeURIComponent(clientId)}/services/${encodeURIComponent(serviceId)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ enabled }),
+      body: JSON.stringify({ isActive: enabled, enabled }),
     });
   },
 

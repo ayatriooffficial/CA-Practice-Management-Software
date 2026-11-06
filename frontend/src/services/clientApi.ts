@@ -219,6 +219,17 @@ export const clientApi = {
     });
   },
 
+  toggleClientService: async (
+    clientId: string,
+    serviceId: string,
+    isActive: boolean
+  ): Promise<ApiResponse<Client>> => {
+    return request<Client>(`/clients/${encodeURIComponent(clientId)}/services/${encodeURIComponent(serviceId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive, enabled: isActive }),
+    });
+  },
+
   addPassword: async (id: string, payload: any): Promise<ApiResponse<Client>> => {
     return request<Client>(`/clients/${id}/passwords`, {
       method: 'POST',

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
-  Coins,
   Settings,
   Search,
   Download,
@@ -15,14 +14,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import type { ComplianceCategory } from "@/types/compliance";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchComplianceRequest } from "@/store/features/compliance/complianceSlice";
 import {
-  useComplianceCategories,
   useSyncEntitlementData,
-  useCreditsData,
 } from "@/hooks/useCompliance";
+import { SERVICE_CATEGORIES } from "@/constants/serviceCategories";
 import { ComplianceGrid } from "./ComplianceGrid";
 import { NoticeCalendarView } from "@/components/notices/NoticeCalendarView";
 import { LogsTab } from "@/components/notices/LogsTab";
@@ -38,35 +35,47 @@ export const FREQUENCY_OPTIONS = [
 
 export type FrequencyKey = (typeof FREQUENCY_OPTIONS)[number]["key"];
 
-const DEFAULT_CATEGORIES: ComplianceCategory[] = [
-  { id: "cat-calendar", name: "Calendar", order: 1, mode: "manual" },
-  { id: "cat-gst", name: "GST", order: 2, mode: "auto", portal: "GST" },
-  { id: "cat-tds", name: "TDS/TCS", order: 3, mode: "auto", portal: "TDS" },
-  { id: "cat-it", name: "Income Tax", order: 4, mode: "auto", portal: "IT" },
-  { id: "cat-adv-tax", name: "Adv Tax", order: 5, mode: "manual" },
-  { id: "cat-pf", name: "PF", order: 6, mode: "manual" },
-  { id: "cat-esi", name: "ESI", order: 7, mode: "manual" },
-  { id: "cat-it-comp", name: "Income Tax Compliances", order: 8, mode: "manual" },
-  { id: "cat-stage-1", name: "Stage 1", order: 9, mode: "manual" },
-  { id: "cat-corp-sec", name: "Corporate & Secretarial Compliances", order: 10, mode: "manual" },
-  { id: "cat-mgmt-cons", name: "Management Consultancy", order: 11, mode: "manual" },
-  { id: "cat-tds-comp", name: "TDS Compliances", order: 12, mode: "manual" },
-  { id: "cat-accounts", name: "Accounts", order: 13, mode: "manual" },
-  { id: "cat-retainer", name: "Retainer", order: 14, mode: "manual" },
-  { id: "cat-book-keeping", name: "Book Keeping", order: 15, mode: "manual" },
-  { id: "cat-labour", name: "Labour Compliances", order: 16, mode: "manual" },
-  { id: "cat-pune-pt", name: "Pune PT", order: 17, mode: "manual" },
-  { id: "cat-real-estate", name: "Real Estate", order: 18, mode: "manual" },
-  { id: "cat-uncat", name: "Uncategoriz", order: 19, mode: "manual" },
-  { id: "cat-audit", name: "Audit & Assurance", order: 20, mode: "manual" },
-  { id: "cat-cfo", name: "CFO Services", order: 21, mode: "manual" },
-  { id: "cat-gst-comp", name: "GST Compliances", order: 22, mode: "manual" },
-  { id: "cat-payroll", name: "Payroll", order: 23, mode: "manual" },
-  { id: "cat-sebi", name: "SEBI", order: 24, mode: "manual" },
-  { id: "cat-stpi", name: "STPI Compliances", order: 25, mode: "manual" },
-  { id: "cat-turia-test", name: "CA Test", order: 26, mode: "manual" },
-  { id: "cat-logs", name: "Logs", order: 27, mode: "manual" },
-];
+const AUTO_CATEGORIES = new Set([
+  "g.s.t",
+  "gst",
+  "income tax",
+  "r.o.c",
+]);
+
+const LEGACY_ID_TO_CATEGORY: Record<string, string> = {
+  "cat-gst": "G.S.T",
+  "cat-it": "Income Tax",
+  "cat-corp-sec": "R.O.C",
+  "cat-pf": "E.P.F.P",
+  "cat-esi": "E.S.I.C",
+  "cat-audit": "Audit",
+  "cat-retainer": "Retainer",
+  "cat-pune-pt": "Profession Tax",
+  "cat-trade-license": "Trade License",
+  "cat-iec": "Import Export",
+  "cat-shram-suvida": "Shram Suvida",
+  "gst": "G.S.T",
+  "it": "Income Tax",
+  "pf": "E.P.F.P",
+  "esi": "E.S.I.C",
+  "pt": "Profession Tax",
+  "roc": "R.O.C",
+};
+
+function findActiveCategory(param: string | null): string {
+  if (!param) return "G.S.T";
+  const low = param.toLowerCase().trim();
+  if (LEGACY_ID_TO_CATEGORY[low]) {
+    return LEGACY_ID_TO_CATEGORY[low];
+  }
+  const normalized = low.replace(/[\s\.\-_]/g, "");
+  const match = SERVICE_CATEGORIES.find(
+    (c) =>
+      c.toLowerCase() === low ||
+      c.toLowerCase().replace(/[\s\.\-_]/g, "") === normalized
+  );
+  return match || "G.S.T";
+}
 
 function parseFrequency(param: string | null, _categoryId?: string): FrequencyKey {
   if (param) {
@@ -90,38 +99,16 @@ function parseFyStartYear(param: string | null): number {
   return 2025;
 }
 
-function findCategory(
-  param: string | null,
-  categories: ComplianceCategory[]
-): ComplianceCategory | undefined {
-  if (!categories.length) return undefined;
-  if (!param) {
-    // Default to Income Tax as shown in reference screenshot, or cat-it
-    return categories.find((c) => c.id === "cat-it" || c.name === "Income Tax") || categories[0];
-  }
-  const clean = decodeURIComponent(param).trim().toLowerCase();
-  return (
-    categories.find((c) => c.id.toLowerCase() === clean) ||
-    categories.find((c) => c.id.replace("cat-", "").toLowerCase() === clean) ||
-    categories.find((c) => c.name.toLowerCase() === clean) ||
-    categories.find((c) => c.portal?.toLowerCase() === clean) ||
-    categories[0]
-  );
-}
-
-function getSearchPlaceholder(category?: ComplianceCategory): string {
-  if (!category) return "Search by PAN, Client Name";
-  const id = category.id.toLowerCase();
-  const name = category.name.toLowerCase();
-  const portal = category.portal;
-
-  if (portal === "GST" || id === "cat-gst" || name === "gst") {
+function getSearchPlaceholder(categoryName?: string): string {
+  if (!categoryName) return "Search by PAN, Client Name";
+  const lower = categoryName.toLowerCase();
+  if (lower.includes("gst")) {
     return "Search by GSTIN, Legal Name, Form Name";
   }
-  if (portal === "TDS" || id === "cat-tds" || name.includes("tds")) {
-    return "Search by TAN, Legal Name, Type";
+  if (lower.includes("tax") || lower.includes("it")) {
+    return "Search by PAN, Client Name";
   }
-  return "Search by PAN, Client Name";
+  return `Search ${categoryName} by Client Name, ID`;
 }
 
 export const ComplianceShell: React.FC = () => {
@@ -130,48 +117,44 @@ export const ComplianceShell: React.FC = () => {
   const searchParams = useSearchParams();
 
   const dispatch = useAppDispatch();
-  const { rows, columns, loading, isLoaded } = useAppSelector(
+  const { rows, columns, loading } = useAppSelector(
     (state) => state.compliance
   );
 
-  useEffect(() => {
-    if (!isLoaded) {
-      dispatch(fetchComplianceRequest({}));
-    }
-  }, [dispatch, isLoaded]);
-
-  const { categories: fetchedCategories } = useComplianceCategories();
-  const { isCooldown, daysRemaining } = useSyncEntitlementData();
-  const { credits } = useCreditsData();
-
-  const categories = useMemo(() => {
-    if (fetchedCategories && fetchedCategories.length > 0) {
-      return fetchedCategories;
-    }
-    return DEFAULT_CATEGORIES;
-  }, [fetchedCategories]);
+  const { isCooldown } = useSyncEntitlementData();
 
   const categoryParam = searchParams.get("category") || searchParams.get("tab");
   const frequencyParam = searchParams.get("frequency");
   const fyParam = searchParams.get("fy");
   const searchParam = searchParams.get("search");
 
-  const activeCategory = useMemo(() => {
-    return findCategory(categoryParam, categories);
-  }, [categoryParam, categories]);
-
-  const activeCategoryId = activeCategory?.id || "cat-it";
+  const activeCategoryId = useMemo(() => {
+    return findActiveCategory(categoryParam);
+  }, [categoryParam]);
 
   const activeFrequency = useMemo(() => {
     return parseFrequency(frequencyParam, activeCategoryId);
   }, [frequencyParam, activeCategoryId]);
 
   const fyStartYear = parseFyStartYear(fyParam);
-  const fyLabel = `FY ${fyStartYear}-${fyStartYear + 1}`;
+  const activeFy = `FY ${fyStartYear}-${fyStartYear + 1}`;
+  const fyLabel = activeFy;
 
   const [localSearch, setLocalSearch] = useState<string | null>(null);
   const [isSyncDrawerOpen, setIsSyncDrawerOpen] = useState(false);
   const searchInput = localSearch !== null ? localSearch : searchParam || "";
+
+  useEffect(() => {
+    dispatch(
+      fetchComplianceRequest({
+        category: activeCategoryId,
+        categoryId: activeCategoryId,
+        fy: activeFy,
+        frequency: activeFrequency,
+        search: searchInput || undefined,
+      })
+    );
+  }, [dispatch, activeCategoryId, activeFy, activeFrequency, searchInput]);
 
   const updateUrlParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -190,11 +173,20 @@ export const ComplianceShell: React.FC = () => {
     [router, pathname, searchParams]
   );
 
-  const handleCategoryClick = (cat: ComplianceCategory) => {
+  const handleCategoryClick = (catName: string) => {
     updateUrlParams({
-      category: cat.id,
-      tab: cat.id,
+      category: catName,
+      tab: catName,
     });
+    dispatch(
+      fetchComplianceRequest({
+        category: catName,
+        categoryId: catName,
+        fy: activeFy,
+        frequency: activeFrequency,
+        search: searchInput || undefined,
+      })
+    );
   };
 
   const handleFrequencyChange = (freq: FrequencyKey) => {
@@ -217,18 +209,9 @@ export const ComplianceShell: React.FC = () => {
     updateUrlParams({ search: val || null });
   };
 
-  const isCalendarView = activeCategoryId === "cat-calendar" || activeCategory?.name === "Calendar";
-  const isLogsView = activeCategoryId === "cat-logs" || activeCategory?.name === "Logs";
-  const searchPlaceholder = getSearchPlaceholder(activeCategory);
-
-  const AUTO_CATEGORY_IDS = new Set([
-    "cat-gst",
-    "cat-tds",
-    "cat-it",
-    "gst",
-    "tds/tcs",
-    "income tax",
-  ]);
+  const isCalendarView = categoryParam?.toLowerCase() === "cat-calendar" || categoryParam?.toLowerCase() === "calendar";
+  const isLogsView = categoryParam?.toLowerCase() === "cat-logs" || categoryParam?.toLowerCase() === "logs";
+  const searchPlaceholder = getSearchPlaceholder(activeCategoryId);
 
   return (
     <div
@@ -244,17 +227,14 @@ export const ComplianceShell: React.FC = () => {
         }}
       >
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-          {/* Chips list wrapping into 2-3 lines */}
+          {/* Chips list wrapping into rows with modern scroll */}
           <div className="flex overflow-x-auto items-end gap-x-2 gap-y-1 flex-1 pb-1 w-full hide-scrollbar snap-x">
-            {categories.map((cat) => {
-              const isActive = activeCategoryId === cat.id || activeCategory?.name.toLowerCase() === cat.name.toLowerCase();
-              const hasAutoBadge =
-                cat.mode === "auto" ||
-                AUTO_CATEGORY_IDS.has(cat.id.toLowerCase()) ||
-                AUTO_CATEGORY_IDS.has(cat.name.toLowerCase());
+            {SERVICE_CATEGORIES.map((catName) => {
+              const isActive = activeCategoryId.toLowerCase() === catName.toLowerCase();
+              const hasAutoBadge = AUTO_CATEGORIES.has(catName.toLowerCase());
 
               return (
-                <div key={cat.id} className="flex flex-col items-center justify-end shrink-0 snap-start">
+                <div key={catName} className="flex flex-col items-center justify-end shrink-0 snap-start">
                   {hasAutoBadge ? (
                     <span
                       className="text-[9px] font-bold px-1.5 py-0.2 rounded uppercase leading-tight tracking-wider mb-0.5"
@@ -272,7 +252,7 @@ export const ComplianceShell: React.FC = () => {
                   )}
                   <button
                     type="button"
-                    onClick={() => handleCategoryClick(cat)}
+                    onClick={() => handleCategoryClick(catName)}
                     className={`inline-flex items-center px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border ${
                       isActive
                         ? "font-semibold shadow-xs"
@@ -290,7 +270,7 @@ export const ComplianceShell: React.FC = () => {
                         : "var(--text-main)",
                     }}
                   >
-                    <span>{cat.name}</span>
+                    <span>{catName}</span>
                   </button>
                 </div>
               );
@@ -315,25 +295,6 @@ export const ComplianceShell: React.FC = () => {
                 <Settings className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
-
-          {/* Credits badge aligned to top right */}
-          <div className="shrink-0 self-start mt-2 lg:mt-3">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-2xs"
-              style={{
-                backgroundColor: "var(--credits-bg)",
-                borderColor: "var(--credits-border)",
-                color: "var(--credits-text)",
-              }}
-            >
-              <Coins className="w-3.5 h-3.5" />
-              <span className="tracking-wide text-[10px] font-bold">CREDITS</span>
-              <span className="font-bold">
-                {credits === null ? "13,841" : credits.toLocaleString()}
-              </span>
-            </button>
           </div>
         </div>
       </div>
@@ -459,23 +420,15 @@ export const ComplianceShell: React.FC = () => {
               </Button>
 
               {/* Free Sync Button */}
-              <div className="flex flex-col items-center shrink-0">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={<Zap className="w-3.5 h-3.5" />}
-                  disabled={isCooldown}
-                  onClick={() => setIsSyncDrawerOpen(true)}
-                >
-                  Free Sync
-                </Button>
-                <span
-                  className="text-[10px] mt-0.5 tracking-tight whitespace-nowrap font-medium"
-                  style={{ color: "var(--status-online)" }}
-                >
-                  Once in 14 days (Growth plan)
-                </span>
-              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Zap className="w-3.5 h-3.5" />}
+                disabled={isCooldown}
+                onClick={() => setIsSyncDrawerOpen(true)}
+              >
+                Free Sync
+              </Button>
             </div>
           </div>
 
@@ -483,11 +436,11 @@ export const ComplianceShell: React.FC = () => {
           <div className="flex-1 p-4 sm:p-6 flex flex-col min-w-0">
             <ComplianceGrid
               categoryId={activeCategoryId}
-              fy={fyLabel}
+              fy={activeFy}
               frequency={activeFrequency}
               search={searchInput}
-              portal={activeCategory?.portal}
-              isAuto={activeCategory?.mode === "auto"}
+              portal={activeCategoryId.toLowerCase().includes("gst") ? "GST Portal" : undefined}
+              isAuto={AUTO_CATEGORIES.has(activeCategoryId.toLowerCase())}
               rows={rows}
               columns={columns}
               loading={loading}

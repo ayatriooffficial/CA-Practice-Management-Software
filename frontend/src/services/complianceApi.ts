@@ -27,7 +27,8 @@ export const complianceApi = {
 
   getGrid: (params: GetComplianceGridParams = {}): Promise<ApiResponse<ComplianceGridResponse>> =>
     request<Record<string, unknown>>('/compliance/grid' + query({
-      categoryId: params.categoryId,
+      category: params.category || params.categoryId,
+      categoryId: params.categoryId || params.category,
       fy: params.fy
         ? params.fy.startsWith('FY ') ? params.fy : `FY ${params.fy.length === 7 ? `${params.fy.slice(0, 4)}-20${params.fy.slice(5)}` : params.fy}`
         : undefined,

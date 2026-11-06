@@ -804,11 +804,25 @@ export class ServiceService {
   ): Promise<any> {
     // 1. Resolve Service
     const isServiceObjectId = mongoose.Types.ObjectId.isValid(serviceId) && /^[0-9a-fA-F]{24}$/.test(serviceId);
-    const service = isServiceObjectId
+    let service = isServiceObjectId
       ? await Service.findById(serviceId)
-      : await Service.findOne({ $or: [{ _id: serviceId as any }, { name: serviceId }] });
+      : await Service.findOne({
+          $or: [
+            { name: serviceId },
+            { name: new RegExp(`^${serviceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+            { serviceId: serviceId },
+          ],
+        });
     if (!service) {
-      throw AppError.notFound(ResponseMessages.SERVICE_NOT_FOUND);
+      service = await Service.findOne({ name: new RegExp(serviceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') });
+    }
+    if (!service) {
+      service = await Service.create({
+        name: serviceId,
+        category: 'General',
+        frequency: 'Monthly',
+        isRecurring: true,
+      });
     }
 
     // 2. Resolve Client
@@ -1047,35 +1061,115 @@ export class ServiceService {
     const cat = (serviceCategory || '').trim().toLowerCase();
     const name = (serviceName || '').trim().toLowerCase();
 
-    if (cat.includes('income tax') || cat === 'it' || name.includes('income tax') || name.includes('itr')) {
-      return 'cat-it';
-    }
-    if (cat.includes('gst') || name.includes('gstr') || name.includes('gst') || cat.includes('g.s.t')) {
+    // 1. Direct Category matching (matches the 11 strict SERVICE_CATEGORIES)
+    if (cat.includes('gst') || cat.includes('g.s.t')) {
       return 'cat-gst';
     }
-    if (cat.includes('tds') || cat.includes('tcs') || name.includes('tds')) {
-      return 'cat-tds';
+    if (
+      cat.includes('income tax') ||
+      cat === 'it' ||
+      cat.includes('tds') ||
+      cat.includes('tcs') ||
+      cat.includes('advance tax') ||
+      cat.includes('adv tax')
+    ) {
+      return 'cat-it';
     }
-    if (cat.includes('advance tax') || cat.includes('adv tax') || name.includes('advance tax')) {
-      return 'cat-adv-tax';
-    }
-    if (cat.includes('corporate') || cat.includes('roc') || cat.includes('mca') || cat.includes('secretarial')) {
+    if (
+      cat.includes('corporate') ||
+      cat.includes('roc') ||
+      cat.includes('mca') ||
+      cat.includes('secretarial') ||
+      cat.includes('r.o.c')
+    ) {
       return 'cat-corp-sec';
     }
-    if (cat.includes('payroll') || name.includes('payroll')) {
-      return 'cat-payroll';
-    }
-    if (cat.includes('pf') || name.includes('pf')) {
+    if (
+      cat.includes('pf') ||
+      cat.includes('provident') ||
+      cat.includes('e.p.f.p') ||
+      cat.includes('epfp')
+    ) {
       return 'cat-pf';
     }
-    if (cat.includes('esi') || name.includes('esi')) {
+    if (
+      cat.includes('esi') ||
+      cat.includes('esic') ||
+      cat.includes('e.s.i.c')
+    ) {
       return 'cat-esi';
     }
     if (cat.includes('audit')) {
       return 'cat-audit';
     }
-    if (cat.includes('account') || cat.includes('book keeping') || cat.includes('book-keeping')) {
-      return 'cat-accounts';
+    if (cat.includes('retainer') || cat.includes('account') || cat.includes('book keeping') || cat.includes('book-keeping')) {
+      return 'cat-retainer';
+    }
+    if (
+      cat.includes('profession tax') ||
+      cat.includes('pune pt') ||
+      cat === 'pt'
+    ) {
+      return 'cat-pune-pt';
+    }
+    if (cat.includes('trade license') || cat.includes('trade-license')) {
+      return 'cat-trade-license';
+    }
+    if (cat.includes('import export') || cat.includes('iec')) {
+      return 'cat-iec';
+    }
+    if (cat.includes('shram') || cat.includes('suvida')) {
+      return 'cat-shram-suvida';
+    }
+
+    // 2. Name-based inferences if category is generic/empty
+    if (name.includes('gst') || name.includes('gstr')) {
+      return 'cat-gst';
+    }
+    if (
+      name.includes('tds') ||
+      name.includes('tcs') ||
+      name.includes('income tax') ||
+      name.includes('itr') ||
+      name.includes('advance tax') ||
+      name.includes('form 24q') ||
+      name.includes('form 26q')
+    ) {
+      return 'cat-it';
+    }
+    if (
+      name.includes('roc') ||
+      name.includes('mca') ||
+      name.includes('incorporation') ||
+      name.includes('secretarial') ||
+      name.includes('aoc-4') ||
+      name.includes('mgt-7')
+    ) {
+      return 'cat-corp-sec';
+    }
+    if (name.includes('pf') || name.includes('provident') || name.includes('epfo')) {
+      return 'cat-pf';
+    }
+    if (name.includes('esi') || name.includes('esic')) {
+      return 'cat-esi';
+    }
+    if (name.includes('audit')) {
+      return 'cat-audit';
+    }
+    if (name.includes('retainer') || name.includes('account') || name.includes('book keeping')) {
+      return 'cat-retainer';
+    }
+    if (name.includes('profession tax') || name.includes(' pt')) {
+      return 'cat-pune-pt';
+    }
+    if (name.includes('trade license')) {
+      return 'cat-trade-license';
+    }
+    if (name.includes('import export') || name.includes('iec')) {
+      return 'cat-iec';
+    }
+    if (name.includes('shram') || name.includes('suvida')) {
+      return 'cat-shram-suvida';
     }
 
     const clean = (serviceCategory || '').trim();
@@ -1092,6 +1186,7 @@ export class ServiceService {
       if (dbCat) {
         return dbCat.categoryId;
       }
+      return `cat-${clean.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
     }
 
     return 'cat-it';

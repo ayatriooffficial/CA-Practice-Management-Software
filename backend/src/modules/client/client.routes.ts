@@ -155,6 +155,8 @@ router.delete('/:id/documents-in-out/:subId', ClientController.deleteDocumentInO
 
 // Service Settings
 router.patch('/:id/service-settings', ClientController.updateServiceSettings);
+router.patch('/:clientId/services/:serviceId', ClientController.toggleClientService);
+router.patch('/:id/services/:serviceId', ClientController.toggleClientService);
 
 // Passwords & Statutory Credentials
 router.post('/:id/passwords', ClientController.addPassword);

@@ -46,6 +46,7 @@ import { AddPasswordModal } from "./modals/AddPasswordModal";
 import { AddNoteModal } from "./modals/AddNoteModal";
 import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab";
 import { usePermission } from "@/components/team/usePermission";
+import { useToggleClientServiceMutation } from "@/hooks/useServicesQuery";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
 export type ClientTabType =
@@ -98,6 +99,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   onClientUpdated,
 }) => {
   const { canView, canAddEdit, canDelete } = usePermission();
+  const toggleClientServiceMutation = useToggleClientServiceMutation();
   const [client, setClient] = useState<Client>(initialClient);
 
   useEffect(() => {
@@ -390,6 +392,10 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   // Toggle compliance switch for single service
   const handleToggleServiceCompliance = async (serviceName: string, currentVal: boolean) => {
     const nextVal = !currentVal;
+    const srv = allServices.find((s) => s.serviceName.trim().toLowerCase() === serviceName.trim().toLowerCase());
+    const targetServiceId = srv?.serviceId || srv?.serviceName || serviceName;
+    const clientId = client.id || (client as any)._id;
+
     const updated = allServices.map((s) =>
       s.serviceName.trim().toLowerCase() === serviceName.trim().toLowerCase()
         ? {
@@ -409,7 +415,11 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     }));
 
     try {
-      const res = await clientApi.updateServiceSettings(client.id, updated);
+      const res = await toggleClientServiceMutation.mutateAsync({
+        clientId,
+        serviceId: targetServiceId,
+        isActive: nextVal,
+      });
       if (res.data) {
         setClient(res.data);
         onClientUpdated?.(res.data);
@@ -425,6 +435,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const handleToggleCategoryCompliance = async (catName: string, items: ClientServiceSetting[]) => {
     const allEnabled = items.every((x) => (x.isActive !== undefined ? x.isActive : x.compliance));
     const targetState = !allEnabled;
+    const clientId = client.id || (client as any)._id;
+
     const updated = allServices.map((s) =>
       s.category.trim().toLowerCase() === catName.trim().toLowerCase()
         ? {
@@ -444,10 +456,13 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     }));
 
     try {
-      const res = await clientApi.updateServiceSettings(client.id, updated);
-      if (res.data) {
-        setClient(res.data);
-        onClientUpdated?.(res.data);
+      for (const item of items) {
+        const targetServiceId = item.serviceId || item.serviceName;
+        await toggleClientServiceMutation.mutateAsync({
+          clientId,
+          serviceId: targetServiceId,
+          isActive: targetState,
+        });
       }
       showToast(`Category "${catName}" services ${targetState ? "enabled" : "disabled"}.`);
     } catch (err: any) {
@@ -938,11 +953,15 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
       <AddDscModal
         isOpen={isAddDscOpen}
+        preselectedClientId={client.id || (client as any)._id}
+        preselectedClientName={client.name}
         client={client}
         onClose={() => setIsAddDscOpen(false)}
         onSuccess={(updated) => {
-          setClient(updated);
-          onClientUpdated?.(updated);
+          if (updated) {
+            setClient(updated);
+            onClientUpdated?.(updated);
+          }
           showToast("Digital signature registered.");
         }}
       />
