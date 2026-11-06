@@ -198,7 +198,7 @@ export async function request<T>(
     navigationProgress.incrementRequests();
   }
 
-  const signal = options.signal || (isNavRequest ? navigationProgress.getAbortSignal() || undefined : undefined);
+  const signal = options.signal;
 
   try {
     let response: Response;

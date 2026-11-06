@@ -21,28 +21,30 @@ export function useClients(params: ClientQueryParams = {}) {
     (state) => state.clients
   );
 
-  const paramsKey = JSON.stringify(params || {});
-  const lastFetchedKeyRef = useRef<string | null>(null);
+  const paramsKey = useMemo(() => JSON.stringify(params || {}), [params]);
+  const lastDispatchedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (lastFetchedKeyRef.current === paramsKey) {
-      return;
-    }
-
     const isSameParams = JSON.stringify(currentParams) === paramsKey;
 
-    // If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
+    // 1. If data is already in state and params haven't changed, reuse state (no network refetch on tab switch)
     if (isLoaded && isSameParams) {
-      lastFetchedKeyRef.current = paramsKey;
+      lastDispatchedKeyRef.current = paramsKey;
       return;
     }
 
-    lastFetchedKeyRef.current = paramsKey;
+    // 2. If already dispatched for these exact params and currently loading or already loaded, avoid duplicate requests
+    if (lastDispatchedKeyRef.current === paramsKey && (loading || isLoaded)) {
+      return;
+    }
+
+    // 3. Otherwise (not loaded yet, params changed, or hard reload), fetch data
+    lastDispatchedKeyRef.current = paramsKey;
     dispatch(fetchClientsRequest(params));
-  }, [dispatch, paramsKey, isLoaded, currentParams, params]);
+  }, [dispatch, paramsKey, isLoaded, currentParams, loading, params]);
 
   const refetch = useCallback(() => {
-    lastFetchedKeyRef.current = null;
+    lastDispatchedKeyRef.current = null;
     dispatch(fetchClientsRequest(params));
   }, [dispatch, params]);
 

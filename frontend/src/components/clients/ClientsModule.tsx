@@ -510,7 +510,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         cell: (client: Client) => (
           <button
             type="button"
-onClick={() => handleSelectClient(client, "Master")}
+            onClick={() => handleSelectClient(client, "Master")}
             className="hover:text-[#31719B] hover:underline cursor-pointer truncate max-w-full font-mono text-xs text-gray-600 dark:text-gray-400"
           >
             {client.fileNo}
@@ -889,7 +889,7 @@ onClick={() => handleSelectClient(client, "Master")}
       )}
 
       {/* Spreadsheet Table using reusable DataTable */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col  rounded-none">
         <DataTable<Client>
           columns={clientDataTableColumns}
           data={clients}
@@ -907,7 +907,7 @@ onClick={() => handleSelectClient(client, "Master")}
               ? "Trash is empty."
               : "No clients found. Click '+ Add Client' to register a new client."
           }
-onRowClick={(client) => handleSelectClient(client, "Master")}
+          onRowClick={(client) => handleSelectClient(client, "Master")}
           pagination={{
             currentPage: page,
             totalItems: pagination?.totalDocs || clients.length,

@@ -65,7 +65,7 @@ export default function TaskPage() {
   };
 
   return (
-    <div className="">
+    <div className="p-2">
       {/* Detail View Mode */}
       {selectedDetailTaskId ? (
         <TaskDetailView
@@ -75,7 +75,7 @@ export default function TaskPage() {
       ) : (
         <>
           {/* Top Main Navigation Header matching Screenshots 3 & 4 */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between items-center border-b border-[var(--border-main)] p-2">
+          <div className="flex flex-col sm:flex-row sm:items-center  justify-between items-center border-b border-[var(--border-main)] pb-2">
             {/* Left Main Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto">
               {MAIN_TABS.map((tab) => {
