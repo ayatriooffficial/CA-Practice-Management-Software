@@ -31,6 +31,7 @@ import { TuriaEmptyState } from "./TuriaEmptyState";
 import { TuriaDateTaskView } from "./TuriaDateTaskView";
 import { TuriaAddTodoModal } from "./TuriaAddTodoModal";
 import { TodoCalendarView } from "./TodoCalendarView";
+import { Select } from "@/components/ui/Select";
 import {
   parseDateToYMD,
   getTodayKolkataYMD,
@@ -600,14 +601,26 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
   const ViewIcon = currentViewConfig.icon;
 
-  return (
-    <div
-      className="w-full h-[calc(100vh-var(--header-height))] flex overflow-hidden select-none"
-      style={{ backgroundColor: "var(--bg-app)" }}
-    >
-      {isCalendarView ? (
-        /* Full-Page Notices-Style To-Do Calendar Experience */
-        <div className="flex-1 flex flex-col w-full h-full overflow-hidden">
+  if (isCalendarView) {
+    return (
+      <div className="w-full flex flex-col space-y-4">
+        {/* Header Row */}
+        <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
+          <div className="flex items-center gap-3 py-2 min-h-[40px]">
+            <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white">
+              To-Do Calendar
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCalendarView(false)}
+            className="flex items-center gap-1.5 h-10 px-3.5 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-all cursor-pointer"
+          >
+            Switch to List View
+          </button>
+        </div>
+
+        <div className="w-full bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md min-h-[600px]">
           <TodoCalendarView
             initialEmployeeFilter={selectedAssigneeId}
             isAdmin={isAdmin}
@@ -620,29 +633,53 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
             }}
           />
         </div>
-      ) : (
-        <>
-          {/* Main Full-Width Content Column */}
-          <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
-            {/* 1. TOP HORIZONTAL CATEGORY & TAG NAVIGATION ROW (Compliance Style) */}
-            <div
-              className="px-4 sm:px-6 py-2.5 border-b flex items-center gap-2.5 sm:gap-3 shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-main)",
-              }}
-            >
-              {/* Task-View Dropdown (All / Important / Finished / Recurring Master / Deleted) */}
-              <div className="relative shrink-0" ref={viewDropdownRef}>
+
+        {/* Add / Assign To-Do Modal */}
+        <TuriaAddTodoModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={() => loadTasks(false)}
+          isAdmin={isAdmin}
+          currentUserId={currentUser?.id}
+          currentUserName={currentUser?.name}
+          defaultDate={dueDateFilter || undefined}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex flex-col space-y-4">
+      {/* 1. Header Row - Client Module Style */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
+        <div className="flex items-center gap-3 py-2 min-h-[40px]">
+          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white">
+            To-Do ({filteredTasks.length})
+          </h1>
+          {isRefreshing && (
+            <span title="Syncing...">
+              <Loader2 className="w-4 h-4 animate-spin text-[#31719B] [will-change:transform]" />
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Main Layout Row: Single Task-List Container + Right Rail */}
+      <div className="flex items-start gap-3">
+        {/* The ONE Single Main Task-List Container */}
+        <div className="flex-1 min-w-0 bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
+          {/* Row 1: Top Category & Tag Navigation Row */}
+          <div className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex items-center gap-2.5 sm:gap-3 shrink-0 overflow-x-auto no-scrollbar bg-white dark:bg-[#1e293b]">
+            {/* Task-View Dropdown (All / Important / Finished / Recurring Master / Deleted) */}
+            <div className="relative shrink-0" ref={viewDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setIsViewDropdownOpen((prev) => !prev)}
-                  className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none"
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderColor: isViewDropdownOpen ? "var(--primary)" : "var(--border-main)",
-                    color: "var(--text-main)",
-                  }}
+                  className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 ${
+                    isViewDropdownOpen
+                      ? "border-[#31719B] ring-1 ring-[#31719B]"
+                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400"
+                  }`}
                   aria-haspopup="listbox"
                   aria-expanded={isViewDropdownOpen}
                   title="Select Task View"
@@ -657,17 +694,11 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                     }`}
                   />
                   <span>{currentViewConfig.label}</span>
-                  <span
-                    className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-medium"
-                    style={{
-                      backgroundColor: "var(--bg-subtle)",
-                      color: "var(--text-muted)",
-                    }}
-                  >
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                     {currentViewCount}
                   </span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-150 ${
                       isViewDropdownOpen ? "rotate-180" : ""
                     }`}
                   />
@@ -676,11 +707,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                 {/* Dropdown Menu */}
                 {isViewDropdownOpen && (
                   <div
-                    className="absolute left-0 top-full mt-1.5 w-60 sm:w-64 rounded-xl border p-1.5 z-50 shadow-lg animate-in fade-in zoom-in-95 duration-100"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-main)",
-                    }}
+                    className="absolute left-0 top-full mt-1.5 w-60 sm:w-64 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100"
                     role="listbox"
                   >
                     <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -706,10 +733,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                             setIsViewDropdownOpen(false);
                             setIsCalendarView(false);
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer text-left ${
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer text-left ${
                             isSelected
-                              ? "bg-slate-100 dark:bg-slate-800 font-semibold text-[#31719B] dark:text-[#60A5FA]"
-                              : "hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+                              ? "bg-[#31719B]/10 font-semibold text-[#31719B] dark:text-[#60A5FA]"
+                              : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300"
                           }`}
                           role="option"
                           aria-selected={isSelected}
@@ -762,10 +789,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                             setIsViewDropdownOpen(false);
                             setIsCalendarView(false);
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer text-left ${
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer text-left ${
                             isSelected
-                              ? "bg-slate-100 dark:bg-slate-800 font-semibold text-[#31719B] dark:text-[#60A5FA]"
-                              : "hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+                              ? "bg-[#31719B]/10 font-semibold text-[#31719B] dark:text-[#60A5FA]"
+                              : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300"
                           }`}
                           role="option"
                           aria-selected={isSelected}
@@ -791,7 +818,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               </div>
 
               {/* Vertical Divider */}
-              <div className="h-5 w-[1px] bg-slate-200 dark:bg-slate-700 shrink-0" />
+              <div className="h-5 w-[1px] bg-[#dde2e8] dark:bg-[#334155] shrink-0" />
 
               {/* Horizontal Tag Pills (Scrollable with smooth touch/drag support) */}
               <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar snap-x py-0.5">
@@ -804,14 +831,9 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   }}
                   className={`inline-flex items-center px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
                     selectedTag === null
-                      ? "font-semibold shadow-xs"
-                      : "hover:border-slate-400 dark:hover:border-slate-500 font-medium"
+                      ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
+                      : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
                   }`}
-                  style={{
-                    backgroundColor: selectedTag === null ? "var(--primary)" : "var(--bg-surface)",
-                    borderColor: selectedTag === null ? "var(--primary)" : "var(--border-main)",
-                    color: selectedTag === null ? "var(--text-inverse)" : "var(--text-main)",
-                  }}
                 >
                   <span>All Tags</span>
                 </button>
@@ -831,14 +853,9 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       }}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
                         isSelected
-                          ? "font-semibold shadow-xs"
-                          : "hover:border-slate-400 dark:hover:border-slate-500 font-medium"
+                          ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
+                          : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
                       }`}
-                      style={{
-                        backgroundColor: isSelected ? "var(--primary)" : "var(--bg-surface)",
-                        borderColor: isSelected ? "var(--primary)" : "var(--border-main)",
-                        color: isSelected ? "var(--text-inverse)" : "var(--text-main)",
-                      }}
                       title={`Filter by ${tag}`}
                     >
                       <span
@@ -858,12 +875,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
-                  className="p-1.5 rounded-full border transition-colors cursor-pointer shrink-0 snap-start hover:border-slate-400 dark:hover:border-slate-500"
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderColor: "var(--border-main)",
-                    color: "var(--text-muted)",
-                  }}
+                  className="p-1.5 rounded-full border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors cursor-pointer shrink-0 snap-start"
                   title="Add or manage tags"
                   aria-label="Add or manage tags"
                 >
@@ -872,251 +884,113 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* 2. HEADER ROW: Heading + Primary Action Buttons */}
-            <div
-              className="px-4 sm:px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-3 shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-              }}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40 shadow-2xs shrink-0">
-                  <CheckSquare className="w-4 h-4 stroke-[2.2]" />
-                </div>
-                <div>
-                  <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-                    <span>To-Do Manager</span>
-                    {isRefreshing && (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-gray-400" />
-                    )}
-                  </h1>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 -mt-0.5">
-                    {activeSection === "completed"
-                      ? "Viewing finished tasks"
-                      : activeSection === "important"
-                      ? "Viewing high & urgent priority tasks"
-                      : activeSection === "recurring"
-                      ? "Viewing recurring master templates"
-                      : activeSection === "deleted"
-                      ? "Viewing archived & deleted tasks"
-                      : "Viewing all applicable tasks"}
-                    {selectedTag ? ` · Tag: ${selectedTag}` : ""}
-                    {` (${filteredTasks.length} ${filteredTasks.length === 1 ? "task" : "tasks"})`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Right: Actions (Filter by due date, Calendar, + Add To-Do) */}
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                {/* Filter by due date button / popover */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowDatePicker((prev) => !prev)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border flex items-center gap-2 transition-colors cursor-pointer ${
-                      dueDateFilter
-                        ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 font-semibold"
-                        : "bg-white dark:bg-card border-gray-200 dark:border-border text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                    <span>
-                      {dueDateFilter
-                        ? `Due: ${formatFriendlyDate(dueDateFilter)}`
-                        : "Filter by due date"}
-                    </span>
-                    {dueDateFilter && (
-                      <X
-                        className="w-3 h-3 text-indigo-500 hover:text-indigo-700 ml-0.5"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDueDateFilter(null);
-                        }}
-                      />
-                    )}
-                  </button>
-
-                  {/* Date Filter Dropdown Popover */}
-                  {showDatePicker && (
-                    <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-card rounded-xl shadow-xl border border-gray-200 dark:border-border p-3 z-30 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Quick Date Select
-                      </div>
-                      <div className="space-y-1 mb-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDueDateFilter(getTodayKolkataYMD());
-                            setShowDatePicker(false);
-                          }}
-                          className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                        >
-                          Today ({formatFriendlyDate(getTodayKolkataYMD())})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDueDateFilter(getTomorrowKolkataYMD());
-                            setShowDatePicker(false);
-                          }}
-                          className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                        >
-                          Tomorrow ({formatFriendlyDate(getTomorrowKolkataYMD())})
-                        </button>
-                      </div>
-                      <div className="pt-2 border-t border-gray-100 dark:border-border/60">
-                        <label className="block text-[11px] text-gray-500 mb-1">
-                          Or pick custom date:
-                        </label>
-                        <input
-                          type="date"
-                          value={dueDateFilter || ""}
-                          onChange={(e) => {
-                            setDueDateFilter(e.target.value || null);
-                            setShowDatePicker(false);
-                          }}
-                          className="w-full px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-border bg-gray-50 dark:bg-slate-800 text-gray-800 dark:text-gray-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Calendar button */}
-                <button
-                  type="button"
-                  onClick={() => setIsCalendarView(true)}
-                  className="h-8 sm:h-9 px-3 rounded-lg border flex items-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer bg-white dark:bg-card border-gray-200 dark:border-border text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 shadow-2xs"
-                  title="Open Full-Page Notices-Style Calendar"
-                >
-                  <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Calendar</span>
-                </button>
-
-                {/* + Add To-Do Primary Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="h-8 sm:h-9 px-4 text-xs font-semibold text-white bg-[#5B50E5] hover:bg-[#4E43D8] rounded-lg shadow-sm flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>+ Add To-Do</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 3. FILTERS & SEARCH TOOLBAR ROW (Compliance Style) */}
-            <div
-              className="px-4 sm:px-6 pb-3 pt-1 border-b flex items-center gap-2 sm:gap-3 flex-wrap shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-main)",
-              }}
-            >
+                      {/* Row 2: Filters Toolbar (Search, Client, Assignee, Sort, ⋮ on left; Filter by due date, Calendar, + Add To-Do on right) */}
+          <div className="p-3 sm:px-4 sm:py-3 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1e293b]">
+            {/* Left Controls */}
+            <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
               {/* Search Box */}
-              <div className="relative w-full sm:w-72 md:w-80">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <div className="relative w-full sm:w-60 md:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
+                  id="todo-search-input"
+                  name="todoSearch"
+                  aria-label="Search to-dos"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search to-dos..."
-                  className="w-full h-8 sm:h-9 px-3 pl-9 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all shadow-2xs"
+                  className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs text-[#000000] dark:text-white outline-none focus:border-[#31719B] transition-colors"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white cursor-pointer"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
               {/* Client Filter Dropdown */}
-              <div className="relative">
-                <select
+              <div className="w-full sm:w-44 shrink-0">
+                <Select
+                  aria-label="Filter by client"
                   value={selectedClientId}
-                  onChange={(e) => setSelectedClientId(e.target.value)}
-                  className="h-8 sm:h-9 px-3 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-700 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer shadow-2xs"
-                >
-                  <option value="All">All Clients</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.name || c.legalName}>
-                      {c.name || c.legalName}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  onChange={(val) => setSelectedClientId(val)}
+                  placeholder="All Clients"
+                  searchable
+                  options={[
+                    { value: "All", label: "All Clients" },
+                    ...clients.map((c) => ({
+                      value: c.name || c.legalName || c.id,
+                      label: c.name || c.legalName || "Unnamed Client",
+                    })),
+                  ]}
+                />
               </div>
 
               {/* Assignee Filter Dropdown */}
-              <div className="relative">
-                <select
+              <div className="w-full sm:w-40 shrink-0">
+                <Select
+                  aria-label="Filter by assignee"
                   value={selectedAssigneeId}
-                  onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                  onChange={(val) => setSelectedAssigneeId(val)}
+                  placeholder="All Assignees"
                   disabled={!isAdmin}
-                  className={`h-8 sm:h-9 px-3 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-700 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none shadow-2xs ${
-                    !isAdmin ? "cursor-default opacity-90" : "cursor-pointer"
-                  }`}
-                >
-                  {isAdmin ? (
-                    <>
-                      <option value="All">All Assignees</option>
-                      <option value={currentUser?.name || "Ayatrio Admin"}>
-                        {currentUser?.name || "Ayatrio Admin"} (Me)
-                      </option>
-                      {employees
-                        .filter((emp) => emp.name !== currentUser?.name)
-                        .map((emp) => (
-                          <option key={emp.id} value={emp.name}>
-                            {emp.name}
-                          </option>
-                        ))}
-                    </>
-                  ) : (
-                    <option value={currentUser?.name || "Me"}>
-                      {currentUser?.name || "My Assigned Tasks"}
-                    </option>
-                  )}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  options={
+                    isAdmin
+                      ? [
+                          { value: "All", label: "All Assignees" },
+                          {
+                            value: currentUser?.name || "Ayatrio Admin",
+                            label: `${currentUser?.name || "Ayatrio Admin"} (Me)`,
+                          },
+                          ...employees
+                            .filter((emp) => emp.name !== currentUser?.name)
+                            .map((emp) => ({ value: emp.name, label: emp.name })),
+                        ]
+                      : [
+                          {
+                            value: currentUser?.name || "Me",
+                            label: currentUser?.name || "My Assigned Tasks",
+                          },
+                        ]
+                  }
+                />
               </div>
 
               {/* Sort Dropdown */}
-              <div className="relative">
-                <select
+              <div className="w-full sm:w-40 shrink-0">
+                <Select
+                  aria-label="Sort to-dos"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="h-8 sm:h-9 px-3 pr-8 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-xs text-gray-700 dark:text-gray-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer shadow-2xs"
-                >
-                  <option value="created-desc">Created On ↓</option>
-                  <option value="created-asc">Created On ↑</option>
-                  <option value="due-asc">Due Date (Earliest)</option>
-                  <option value="priority-desc">Priority (Highest)</option>
-                </select>
-                <ArrowDownUp className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  onChange={(val) => setSortBy(val as any)}
+                  separator={false}
+                  options={[
+                    { value: "created-desc", label: "Created On ↓" },
+                    { value: "created-asc", label: "Created On ↑" },
+                    { value: "due-asc", label: "Due Date (Earliest)" },
+                    { value: "priority-desc", label: "Priority (Highest)" },
+                  ]}
+                />
               </div>
 
               {/* Action Menu ⋮ with quick access to Recurring, Deleted, Refresh */}
-              <div className="relative ml-auto sm:ml-0" ref={moreMenuRef}>
+              <div className="relative shrink-0" ref={moreMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsMoreMenuOpen((prev) => !prev)}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-card text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+                  className="h-10 w-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center cursor-pointer transition-colors"
                   title="More options"
+                  aria-label="More options"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
 
                 {isMoreMenuOpen && (
                   <div
-                    className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border p-1 z-30 shadow-lg animate-in fade-in zoom-in-95 duration-100"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-main)",
-                    }}
+                    className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-56 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100"
                   >
                     <button
                       type="button"
@@ -1124,7 +998,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                         setActiveSection("recurring");
                         setIsMoreMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
                     >
                       <Repeat className="w-3.5 h-3.5 text-slate-500" />
                       <span>Recurring Master ({sidebarCounts.recurring})</span>
@@ -1135,7 +1009,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                         setActiveSection("deleted");
                         setIsMoreMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-slate-500" />
                       <span>Deleted Tasks ({sidebarCounts.deleted})</span>
@@ -1147,7 +1021,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                         loadTasks(true);
                         setIsMoreMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
                     >
                       <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
                       <span>Refresh Tasks</span>
@@ -1163,7 +1037,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                           setDueDateFilter(null);
                           setIsMoreMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg cursor-pointer text-left"
+                        className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md cursor-pointer text-left font-medium"
                       >
                         <X className="w-3.5 h-3.5" />
                         <span>Reset All Filters</span>
@@ -1174,73 +1048,168 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* 4. MAIN TASK-LIST AREA */}
-            <main className="flex-1 min-w-0 flex flex-col h-full bg-[#FAFAFC] dark:bg-background/80 overflow-y-auto">
-              <div className="mx-2 sm:mx-6 my-3 sm:my-6 rounded-xl sm:rounded-2xl border border-gray-200/90 dark:border-border bg-white dark:bg-card shadow-xs flex-1 flex flex-col p-2.5 sm:p-6 min-h-[450px] overflow-hidden">
-                {isLoading ? (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400 text-xs">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-                    <span>Loading to-do manager...</span>
-                  </div>
-                ) : filteredTasks.length === 0 ? (
-                  <TuriaEmptyState
-                    onAddTodo={() => setIsAddModalOpen(true)}
-                    title={
-                      searchQuery || selectedClientId !== "All" || selectedAssigneeId !== "All" || selectedTag
-                        ? "No Matching Tasks Found"
-                        : activeSection === "completed"
-                        ? "No Finished Tasks"
-                        : activeSection === "important"
-                        ? "No Important Tasks"
-                        : activeSection === "recurring"
-                        ? "No Recurring Master Tasks"
-                        : activeSection === "deleted"
-                        ? "No Deleted Tasks"
-                        : "Ready to Tackle Your Day?"
-                    }
-                    subtitle={
-                      searchQuery || selectedClientId !== "All" || selectedAssigneeId !== "All" || selectedTag
-                        ? "Try resetting filters or searching for something else."
-                        : activeSection === "completed"
-                        ? "Completed tasks will appear here once marked as finished."
-                        : activeSection === "important"
-                        ? "Mark tasks as high or urgent priority to see them here."
-                        : activeSection === "recurring"
-                        ? "Set up recurring tasks to automate regular obligations."
-                        : activeSection === "deleted"
-                        ? "Tasks you cancel or delete will be preserved here."
-                        : "Click 'Add To-Do' to create your first task and get organized!"
-                    }
-                  />
-                ) : (
-                  <div className="flex-1 overflow-y-auto pr-1">
-                    <TuriaDateTaskView
-                      tasks={filteredTasks}
-                      isAdmin={isAdmin}
-                      onToggleChecklist={handleToggleChecklist}
-                      onUpdateStatus={handleUpdateStatus}
-                      onToggleCompleteTask={handleToggleCompleteTask}
-                      onDeleteTask={handleDeleteTask}
-                      onStarTask={handleStarTask}
-                      activeFilterTab={dateFilterTab}
-                      onTabChange={setDateFilterTab}
-                      adminScope={adminScope}
-                      onScopeChange={setAdminScope}
-                      scopeCounts={scopeCounts}
+            {/* Right Controls: Filter by due date, Calendar, + Add To-Do */}
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+              {/* Filter by due date button / popover */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker((prev) => !prev)}
+                  className={`h-10 px-3.5 text-xs font-semibold rounded-md border flex items-center gap-2 transition-all cursor-pointer ${
+                    dueDateFilter
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 font-semibold"
+                      : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                  <span>
+                    {dueDateFilter
+                      ? `Due: ${formatFriendlyDate(dueDateFilter)}`
+                      : "Filter by due date"}
+                  </span>
+                  {dueDateFilter && (
+                    <X
+                      className="w-3 h-3 text-indigo-500 hover:text-indigo-700 ml-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDueDateFilter(null);
+                      }}
                     />
+                  )}
+                </button>
+
+                {/* Date Filter Dropdown Popover */}
+                {showDatePicker && (
+                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[#1e293b] rounded-md shadow-xl border border-[#dde2e8] dark:border-[#334155] p-3 z-30 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Quick Date Select
+                    </div>
+                    <div className="space-y-1 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDueDateFilter(getTodayKolkataYMD());
+                          setShowDatePicker(false);
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        Today ({formatFriendlyDate(getTodayKolkataYMD())})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDueDateFilter(getTomorrowKolkataYMD());
+                          setShowDatePicker(false);
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        Tomorrow ({formatFriendlyDate(getTomorrowKolkataYMD())})
+                      </button>
+                    </div>
+                    <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+                      <label className="block text-[11px] text-gray-500 mb-1">
+                        Or pick custom date:
+                      </label>
+                      <input
+                        type="date"
+                        value={dueDateFilter || ""}
+                        onChange={(e) => {
+                          setDueDateFilter(e.target.value || null);
+                          setShowDatePicker(false);
+                        }}
+                        className="w-full px-2.5 py-1 text-xs rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
-            </main>
+
+              {/* Calendar button */}
+              <button
+                type="button"
+                onClick={() => setIsCalendarView(true)}
+                className="h-10 px-3.5 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-gray-400 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                title="Open Full-Page Notices-Style Calendar"
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#31719B]" />
+                <span>Calendar</span>
+              </button>
+
+              {/* + Add To-Do Primary Button */}
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Add To-Do</span>
+              </button>
+            </div>
           </div>
 
-          {/* Right Utility Rail */}
-          <TuriaRightRail
-            onToggleCalendar={() => setIsCalendarView(true)}
-            isCalendarActive={false}
-          />
-        </>
-      )}
+          {/* Row 3 & 4: Task List / Table Area */}
+          <div className="flex-1 flex flex-col min-h-[450px]">
+            {isLoading ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-gray-400 text-xs">
+                <Loader2 className="w-6 h-6 animate-spin text-[#31719B]" />
+                <span>Loading to-do manager...</span>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <TuriaEmptyState
+                onAddTodo={() => setIsAddModalOpen(true)}
+                title={
+                  searchQuery || selectedClientId !== "All" || selectedAssigneeId !== "All" || selectedTag
+                    ? "No Matching Tasks Found"
+                    : activeSection === "completed"
+                    ? "No Finished Tasks"
+                    : activeSection === "important"
+                    ? "No Important Tasks"
+                    : activeSection === "recurring"
+                    ? "No Recurring Master Tasks"
+                    : activeSection === "deleted"
+                    ? "No Deleted Tasks"
+                    : "Ready to Tackle Your Day?"
+                }
+                subtitle={
+                  searchQuery || selectedClientId !== "All" || selectedAssigneeId !== "All" || selectedTag
+                    ? "Try resetting filters or searching for something else."
+                    : activeSection === "completed"
+                    ? "Completed tasks will appear here once marked as finished."
+                    : activeSection === "important"
+                    ? "Mark tasks as high or urgent priority to see them here."
+                    : activeSection === "recurring"
+                    ? "Set up recurring tasks to automate regular obligations."
+                    : activeSection === "deleted"
+                    ? "Tasks you cancel or delete will be preserved here."
+                    : "Click 'Add To-Do' to create your first task and get organized!"
+                }
+              />
+            ) : (
+              <TuriaDateTaskView
+                tasks={filteredTasks}
+                isAdmin={isAdmin}
+                onToggleChecklist={handleToggleChecklist}
+                onUpdateStatus={handleUpdateStatus}
+                onToggleCompleteTask={handleToggleCompleteTask}
+                onDeleteTask={handleDeleteTask}
+                onStarTask={handleStarTask}
+                activeFilterTab={dateFilterTab}
+                onTabChange={setDateFilterTab}
+                adminScope={adminScope}
+                onScopeChange={setAdminScope}
+                scopeCounts={scopeCounts}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Right Utility Rail */}
+        <TuriaRightRail
+          onToggleCalendar={() => setIsCalendarView(true)}
+          isCalendarActive={false}
+        />
+      </div>
 
       {/* Add / Assign To-Do Modal */}
       <TuriaAddTodoModal

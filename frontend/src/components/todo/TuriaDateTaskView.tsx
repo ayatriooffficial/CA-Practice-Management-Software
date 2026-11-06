@@ -127,18 +127,18 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full space-y-3">
+    <div className="flex flex-col flex-1 min-w-0">
       {/* Scope Selector & Date Agenda Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100 dark:border-border/60">
+      <div className="px-4 py-2 border-b border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
         {/* Date Agenda Tabs */}
         {onTabChange && (
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink-0 w-full max-w-full min-w-0">
             <button
               type="button"
               onClick={() => onTabChange("all")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
                 activeFilterTab === "all"
-                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -147,9 +147,9 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("today")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
                 activeFilterTab === "today"
-                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -168,9 +168,9 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("tomorrow")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
                 activeFilterTab === "tomorrow"
-                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -189,9 +189,9 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("upcoming")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
                 activeFilterTab === "upcoming"
-                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -210,9 +210,9 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onTabChange("overdue")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
                 activeFilterTab === "overdue"
-                  ? "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 font-semibold shadow-2xs"
+                  ? "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-900 shadow-2xs"
                   : "text-rose-600/80 dark:text-rose-400/80 hover:bg-rose-50/50 dark:hover:bg-rose-950/20"
               }`}
             >
@@ -233,14 +233,14 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
 
         {/* Admin Scope Switcher: My Work | Team Work | All Work */}
         {isAdmin && onScopeChange && (
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg shrink-0 self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-md shrink-0 self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full border border-[#dde2e8]/60 dark:border-[#334155]/60">
             <button
               type="button"
               onClick={() => onScopeChange("my_work")}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer shrink-0 ${
+              className={`px-2.5 py-1 text-xs rounded font-medium transition-all cursor-pointer shrink-0 ${
                 adminScope === "my_work"
-                  ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] shadow-2xs font-semibold"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
               My Work {scopeCounts ? `(${scopeCounts.myWork})` : ""}
@@ -248,10 +248,10 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onScopeChange("team_work")}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer shrink-0 ${
+              className={`px-2.5 py-1 text-xs rounded font-medium transition-all cursor-pointer shrink-0 ${
                 adminScope === "team_work"
-                  ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] shadow-2xs font-semibold"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
               Team Work {scopeCounts ? `(${scopeCounts.teamWork})` : ""}
@@ -259,10 +259,10 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
             <button
               type="button"
               onClick={() => onScopeChange("all_work")}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer shrink-0 ${
+              className={`px-2.5 py-1 text-xs rounded font-medium transition-all cursor-pointer shrink-0 ${
                 adminScope === "all_work"
-                  ? "bg-white dark:bg-card text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                  ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] shadow-2xs font-semibold"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
               All Work {scopeCounts ? `(${scopeCounts.allWork})` : ""}
@@ -271,12 +271,10 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
         )}
       </div>
 
-      {/* Main Container Matching Turia Reference */}
-      <div className="rounded-xl border border-gray-200/80 dark:border-border overflow-hidden bg-white dark:bg-card shadow-2xs">
-        {/* Desktop Table View (>= md) */}
-        <div className="hidden md:block">
-          {/* Table Header Row */}
-        <div className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-gray-200/80 dark:border-border/80 px-4 py-2.5 flex items-center text-[11px] font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase select-none">
+      {/* Desktop Table View (>= md) */}
+      <div className="hidden md:block">
+        {/* Table Header Row */}
+        <div className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-[#dde2e8] dark:border-[#334155] px-4 py-2.5 flex items-center text-[11px] font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase select-none">
           <div className="w-16 shrink-0 flex items-center" />
           <div className="flex-1 min-w-[200px] pr-4">TITLE</div>
           <div className="w-36 shrink-0 pr-4">CLIENT</div>
@@ -288,7 +286,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
         </div>
 
         {/* Table Body Rows */}
-        <div className="divide-y divide-gray-100 dark:divide-border/60">
+        <div className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
           {filteredTasks.length === 0 ? (
             <div className="py-12 text-center text-xs text-gray-400">
               No tasks found for this view.
@@ -563,7 +561,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
       </div>
 
       {/* Mobile Task Cards View (< md) */}
-      <div className="block md:hidden divide-y divide-gray-100 dark:divide-border/60">
+      <div className="block md:hidden divide-y divide-[#dde2e8] dark:divide-[#334155]">
         {filteredTasks.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
             No tasks found for this view.
@@ -769,7 +767,6 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
           })
         )}
       </div>
-    </div>
     </div>
   );
 };
