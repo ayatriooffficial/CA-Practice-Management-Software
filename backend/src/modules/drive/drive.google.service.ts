@@ -32,9 +32,17 @@ export class GoogleDriveService {
   public initializeDriveClient(): void {
     try {
       // Dynamically re-read .env to immediately reflect any updated tokens
-      const envPath = path.resolve(__dirname, '../../../.env');
-      if (fs.existsSync(envPath)) {
-        dotenv.config({ path: envPath, override: true });
+      const possibleEnvPaths = [
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(process.cwd(), 'backend/.env'),
+        path.resolve(__dirname, '../../../.env'),
+        path.resolve(__dirname, '../../../../.env'),
+      ];
+      for (const envPath of possibleEnvPaths) {
+        if (fs.existsSync(envPath)) {
+          dotenv.config({ path: envPath, override: true });
+          break;
+        }
       }
 
       // Method 1: Service Account JSON file path
@@ -407,6 +415,10 @@ export class GoogleDriveService {
    * Returns current Google Drive integration status.
    */
   public async getStatus(): Promise<IDriveStatusResponse> {
+    if (!this.isConfigured || !this.driveClient) {
+      this.initializeDriveClient();
+    }
+
     if (!this.isConfigured || !this.driveClient) {
       return {
         isConfigured: false,
