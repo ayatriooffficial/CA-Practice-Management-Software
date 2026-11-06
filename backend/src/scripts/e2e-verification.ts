@@ -6,7 +6,7 @@
  * 3. Context-aware Global vs Local DSC Modal (subtitle visibility, client dropdown visibility, validations, saving)
  */
 
-import mongoose from 'mongoose';
+export {};
 
 const BASE = 'http://localhost:5000/api/v1';
 
