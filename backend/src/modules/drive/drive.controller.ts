@@ -124,6 +124,15 @@ export class DriveController {
    */
   static previewDocument = asyncHandler(async (req: Request, res: Response) => {
     const documentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    // Check client HTTP cache (ETag) to instantly return 304 without downloading from storage
+    const clientEtag = req.headers['if-none-match'];
+    const fileEtag = `"${documentId}"`;
+    if (clientEtag === fileEtag) {
+      res.status(304).end();
+      return;
+    }
+
     try {
       const { stream, document } = await DriveService.getFileStream(documentId);
 
@@ -135,7 +144,8 @@ export class DriveController {
       if (document.size) {
         res.setHeader('Content-Length', document.size.toString());
       }
-      res.setHeader('Cache-Control', 'no-cache, private');
+      res.setHeader('ETag', fileEtag);
+      res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
       stream.pipe(res);
@@ -150,7 +160,7 @@ export class DriveController {
           'base64'
         );
         res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         res.status(200).send(transparentPng);
         return;
@@ -167,7 +177,8 @@ export class DriveController {
       if (isImageRequest) {
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f8fafc"/><circle cx="100" cy="80" r="35" fill="#cbd5e1"/><path d="M40 160 c0 -30 30 -45 60 -45 s60 15 60 45" fill="#cbd5e1"/></svg>`;
         res.setHeader('Content-Type', 'image/svg+xml');
-        res.setHeader('Cache-Control', 'no-cache, private');
+        res.setHeader('ETag', fileEtag);
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=86400');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         res.status(200).send(svg);
         return;
