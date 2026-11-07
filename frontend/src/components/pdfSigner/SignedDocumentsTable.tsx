@@ -516,20 +516,19 @@ export const SignedDocumentsTable: React.FC<SignedDocumentsTableProps> = ({
         </div>
 
         <div className="flex-1">
-          {filteredDocs.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={filteredDocs.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1);
-              }}
-              showPageSize={true}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          )}
+          <Pagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={filteredDocs.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            showPageSize={true}
+            pageSizeOptions={[5, 10, 20, 50]}
+            className="border-t-0"
+          />
         </div>
       </div>
     </div>

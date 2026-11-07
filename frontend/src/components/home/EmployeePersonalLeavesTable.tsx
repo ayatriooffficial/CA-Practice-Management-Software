@@ -135,7 +135,7 @@ export const EmployeePersonalLeavesTable: React.FC<EmployeePersonalLeavesTablePr
       </div>
 
       {/* Pagination Footer */}
-      {leaves.length > 5 && (
+      {leaves.length > 0 && (
         <Pagination
           currentPage={page}
           pageSize={pageSize}

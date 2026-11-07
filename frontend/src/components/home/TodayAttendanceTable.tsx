@@ -222,7 +222,7 @@ export const TodayAttendanceTable: React.FC<TodayAttendanceTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && paginatedRows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center py-12 text-xs text-gray-400 border-b border-[#dde2e8] dark:border-[#334155]">
                   Loading attendance records...

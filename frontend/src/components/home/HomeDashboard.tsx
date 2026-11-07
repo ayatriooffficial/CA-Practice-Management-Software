@@ -56,12 +56,17 @@ export const HomeDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('attendance');
 
   // Cached local snapshot for zero-flicker instant render on revisit
-  const cachedHome = pageStateCache.get('home_dashboard_data');
+  const cachedHome = useMemo(() => pageStateCache.get('home_dashboard_data'), []);
+  const cachedSummaryCards = useMemo(() => pageStateCache.get<SummaryCardData[]>('home_attendance_summary'), []);
+  const cachedTodayRows = useMemo(() => pageStateCache.get<TodayAttendanceRow[]>('home_attendance_today_rows'), []);
+  const cachedEmployeeRecords = useMemo(() => pageStateCache.get<MonthlyRecordItem[]>('home_attendance_employee_records'), []);
 
   // Summary state
   const [period, setPeriod] = useState<'month' | 'year'>('month');
-  const [summaryCards, setSummaryCards] = useState<SummaryCardData[]>(() => cachedHome?.summaryCards || []);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(!cachedHome);
+  const [summaryCards, setSummaryCards] = useState<SummaryCardData[]>(() => {
+    return cachedSummaryCards?.length ? cachedSummaryCards : cachedHome?.summaryCards || [];
+  });
+  const [isSummaryLoading, setIsSummaryLoading] = useState(!cachedHome && !cachedSummaryCards?.length);
 
   // Today Attendance (Admin) state
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -72,11 +77,15 @@ export const HomeDashboard: React.FC = () => {
       day: '2-digit',
     }).format(new Date());
   });
-  const [todayRows, setTodayRows] = useState<TodayAttendanceRow[]>(() => cachedHome?.todayRows || []);
+  const [todayRows, setTodayRows] = useState<TodayAttendanceRow[]>(() => {
+    return cachedTodayRows?.length ? cachedTodayRows : cachedHome?.todayRows || [];
+  });
   const [isTodayLoading, setIsTodayLoading] = useState(false);
 
   // Attendance Details (Employee) state: previous 5 days + today
-  const [employeeRecords, setEmployeeRecords] = useState<MonthlyRecordItem[]>(() => cachedHome?.employeeRecords || []);
+  const [employeeRecords, setEmployeeRecords] = useState<MonthlyRecordItem[]>(() => {
+    return cachedEmployeeRecords?.length ? cachedEmployeeRecords : cachedHome?.employeeRecords || [];
+  });
   const [isEmployeeRecordsLoading, setIsEmployeeRecordsLoading] = useState(false);
 
   // Bottom tables state
@@ -89,9 +98,12 @@ export const HomeDashboard: React.FC = () => {
     try {
       setIsSummaryLoading(true);
       const res = await attendanceApi.getSummary(period);
-      setSummaryCards(res.cards || []);
+      if (res.cards && res.cards.length > 0) {
+        setSummaryCards(res.cards);
+        pageStateCache.set('home_attendance_summary', res.cards);
+      }
     } catch {
-      // Retain previous
+      // Retain previous cards from cache
     } finally {
       setIsSummaryLoading(false);
     }
@@ -103,9 +115,12 @@ export const HomeDashboard: React.FC = () => {
       try {
         setIsTodayLoading(true);
         const res = await attendanceApi.getTodayAttendance(selectedDate);
-        setTodayRows(res.rows || []);
+        if (res.rows) {
+          setTodayRows(res.rows);
+          pageStateCache.set('home_attendance_today_rows', res.rows);
+        }
       } catch {
-        setTodayRows([]);
+        // Retain previous rows instead of blanking out
       } finally {
         setIsTodayLoading(false);
       }
@@ -113,9 +128,12 @@ export const HomeDashboard: React.FC = () => {
       try {
         setIsEmployeeRecordsLoading(true);
         const res = await attendanceApi.getMonthlyAttendance();
-        setEmployeeRecords(res.records || []);
+        if (res.records) {
+          setEmployeeRecords(res.records);
+          pageStateCache.set('home_attendance_employee_records', res.records);
+        }
       } catch {
-        setEmployeeRecords([]);
+        // Retain previous records instead of blanking out
       } finally {
         setIsEmployeeRecordsLoading(false);
       }

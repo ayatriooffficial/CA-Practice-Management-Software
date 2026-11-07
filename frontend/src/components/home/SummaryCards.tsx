@@ -90,7 +90,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
             {/* Value & Badge */}
             <div className="flex items-center my-3" style={{ gap: '10px' }}>
               <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                {isLoading ? '--' : c.value}
+                {isLoading && !c.value ? '--' : c.value}
               </span>
               <span
                 className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#ecfdf5] dark:bg-emerald-950/50 text-[#10b981] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40"
@@ -103,7 +103,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
             <div
               className="w-full rounded-lg text-center font-medium text-xs truncate py-1.5 px-3 bg-[#ecfdf5] dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40"
             >
-              {isLoading ? 'Loading...' : c.bar}
+              {isLoading && !c.bar ? 'Loading...' : c.bar}
             </div>
           </div>
         );

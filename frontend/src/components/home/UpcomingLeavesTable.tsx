@@ -104,7 +104,7 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
       </div>
 
       {/* Pagination Footer */}
-      {leaves.length > 5 && (
+      {leaves.length > 0 && (
         <Pagination
           currentPage={page}
           pageSize={pageSize}

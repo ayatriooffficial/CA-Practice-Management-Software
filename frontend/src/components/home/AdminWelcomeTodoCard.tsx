@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { todoApi, TeamTaskItem, AdminTaskItem, TodoItem } from '../../services/todoApi';
 import { useAuth } from '../auth/AuthContext';
+import { pageStateCache } from '@/services/pageStateCache';
 import {
   getTodayKolkataYMD,
   getTomorrowKolkataYMD,
@@ -35,10 +36,11 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
   const role = (currentUser?.role || 'admin').toLowerCase().trim();
   const isAdmin = ['admin', 'owner', 'partner', 'manager'].includes(role);
 
-  const [tasks, setTasks] = useState<TeamTaskItem[]>([]);
+  const cachedTasks = useMemo(() => pageStateCache.get<TeamTaskItem[]>('home_todo_tasks'), []);
+  const [tasks, setTasks] = useState<TeamTaskItem[]>(() => cachedTasks || []);
   const [activeTab, setActiveTab] = useState<DateTab>('today');
   const [adminScope, setAdminScope] = useState<ScopeTab>(isAdmin ? 'all' : 'my_work');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!cachedTasks?.length);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +134,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
         }
 
         setTasks(merged);
+        pageStateCache.set('home_todo_tasks', merged);
       } else {
         const [myRes, personalRes] = await Promise.all([
           todoApi.getMyTasks().catch(() => []),
@@ -183,6 +186,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
         }
 
         setTasks(merged);
+        pageStateCache.set('home_todo_tasks', merged);
       }
     } catch (err: any) {
       console.error('Failed to load to-do list in home section:', err);

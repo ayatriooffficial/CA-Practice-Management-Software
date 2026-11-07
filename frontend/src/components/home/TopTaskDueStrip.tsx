@@ -23,6 +23,7 @@ import { Lead, Client } from '@/data/crmData';
 import { usePermission } from '../team/usePermission';
 import { isRoleAdmin } from '@/store/permissions/roleSelectors';
 import { useAuth } from '../auth/AuthContext';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export type TimeRangeFilter = 'today' | 'week' | 'month' | 'all';
 
@@ -48,13 +49,38 @@ export const TopTaskDueStrip: React.FC = () => {
   }, [currentUser, isPermAdmin]);
 
   // Redux state selectors
-  const taskData = useAppSelector(selectDashboardTaskSummary);
-  const invoicingData = useAppSelector(selectDashboardInvoicingSummary);
-  const complianceData = useAppSelector(selectDashboardComplianceSummary);
-  const clientData = useAppSelector(selectDashboardClientStats);
-  const leadStats = useAppSelector(selectDashboardLeadStats);
+  const rawTaskData = useAppSelector(selectDashboardTaskSummary);
+  const rawInvoicingData = useAppSelector(selectDashboardInvoicingSummary);
+  const rawComplianceData = useAppSelector(selectDashboardComplianceSummary);
+  const rawClientData = useAppSelector(selectDashboardClientStats);
+  const rawLeadStats = useAppSelector(selectDashboardLeadStats);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
   const isRefreshing = useAppSelector(selectDashboardRefreshing);
+
+  // Cached fallback state to prevent 0 counts during 1-2s revalidation
+  const [cachedStrip, setCachedStrip] = useState(() => {
+    return pageStateCache.get<any>('home_task_strip_data') || null;
+  });
+
+  const taskData = rawTaskData || cachedStrip?.taskData;
+  const invoicingData = rawInvoicingData || cachedStrip?.invoicingData;
+  const complianceData = rawComplianceData || cachedStrip?.complianceData;
+  const clientData = rawClientData || cachedStrip?.clientData;
+  const leadStats = rawLeadStats || cachedStrip?.leadStats;
+
+  useEffect(() => {
+    if (rawTaskData || rawInvoicingData || rawComplianceData || rawClientData || rawLeadStats) {
+      const snap = {
+        taskData: rawTaskData || cachedStrip?.taskData,
+        invoicingData: rawInvoicingData || cachedStrip?.invoicingData,
+        complianceData: rawComplianceData || cachedStrip?.complianceData,
+        clientData: rawClientData || cachedStrip?.clientData,
+        leadStats: rawLeadStats || cachedStrip?.leadStats,
+      };
+      pageStateCache.set('home_task_strip_data', snap);
+      setCachedStrip(snap);
+    }
+  }, [rawTaskData, rawInvoicingData, rawComplianceData, rawClientData, rawLeadStats]);
 
   // Time filter state
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('today');
@@ -209,9 +235,9 @@ export const TopTaskDueStrip: React.FC = () => {
     const totalDue = (c?.pending ?? 0) + (c?.missed ?? 0);
 
     if (timeRange === 'today') {
-      newCompliance = c?.upcoming?.filter((item) => isCreatedToday(item.date)).length ?? 0;
+      newCompliance = c?.upcoming?.filter((item: any) => isCreatedToday(item?.date)).length ?? 0;
     } else if (timeRange === 'week') {
-      newCompliance = c?.upcoming?.filter((item) => isCreatedThisWeek(item.date)).length ?? 0;
+      newCompliance = c?.upcoming?.filter((item: any) => isCreatedThisWeek(item?.date)).length ?? 0;
     } else if (timeRange === 'month') {
       newCompliance = c?.dueThisMonth ?? 0;
     } else {

@@ -14,6 +14,7 @@ import {
   selectDashboardTaskSummary,
   selectDashboardLoading,
 } from '@/store/features/dashboard/dashboardSelectors';
+import { pageStateCache } from '@/services/pageStateCache';
 
 type StatusTab = 'pending' | 'hold' | 'inProgress' | 'completed';
 
@@ -22,12 +23,23 @@ export const CompactTaskCard: React.FC = () => {
   const reduxTaskData = useAppSelector(selectDashboardTaskSummary);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
 
-  const [fallbackData, setFallbackData] = useState<CompactTaskSummaryResponse | null>(null);
+  // Synchronously initialize fallback data from local session cache
+  const [fallbackData, setFallbackData] = useState<CompactTaskSummaryResponse | null>(() => {
+    return pageStateCache.get<CompactTaskSummaryResponse>('home_task_summary') || null;
+  });
   const [activeTab, setActiveTab] = useState<StatusTab>('pending');
   const [error, setError] = useState<string | null>(null);
 
   const data = reduxTaskData || fallbackData;
   const isLoading = isReduxLoading && !data;
+
+  // Persist updated task summary to cache immediately upon arrival
+  useEffect(() => {
+    if (reduxTaskData) {
+      pageStateCache.set('home_task_summary', reduxTaskData);
+      setFallbackData(reduxTaskData);
+    }
+  }, [reduxTaskData]);
 
   useEffect(() => {
     if (!reduxTaskData) {

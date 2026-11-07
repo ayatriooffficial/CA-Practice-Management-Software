@@ -88,7 +88,7 @@ export const UpcomingHolidaysTable: React.FC<UpcomingHolidaysTableProps> = ({
       </div>
 
       {/* Pagination Footer */}
-      {holidays.length > 5 && (
+      {holidays.length > 0 && (
         <Pagination
           currentPage={page}
           pageSize={pageSize}

@@ -95,34 +95,56 @@ export class PageStateCache {
   }
 
   /**
-   * Stores data in memory and session storage under both specific key and canonical section.
+   * Stores data in memory, session storage, and local storage under both specific key and canonical section.
    */
   public set(key: string, data: any): void {
+    if (!key || data === undefined) return;
     const section = getCanonicalSection(key);
     this.cache.set(key, data);
-    this.cache.set(section, data);
+    if (section && section !== key) {
+      this.cache.set(section, data);
+    }
     this.markLoaded(section);
     if (typeof window !== 'undefined') {
       try {
-        sessionStorage.setItem(`turia_cache_${section}`, JSON.stringify(data));
+        const serialized = JSON.stringify(data);
+        sessionStorage.setItem(`turia_cache_key_${key}`, serialized);
+        sessionStorage.setItem(`turia_cache_${section}`, serialized);
+        localStorage.setItem(`turia_cache_key_${key}`, serialized);
+        localStorage.setItem(`turia_cache_${section}`, serialized);
       } catch {}
     }
   }
 
   /**
-   * Retrieves data from memory or session storage.
+   * Retrieves data from memory, session storage, or local storage.
    */
   public get<T = any>(key: string): T | undefined {
+    if (!key) return undefined;
+    // 1. In-memory exact key hit
     if (this.cache.has(key)) return this.cache.get(key) as T;
+
+    // 2. Storage exact key hit
+    if (typeof window !== 'undefined') {
+      try {
+        const storedKey = sessionStorage.getItem(`turia_cache_key_${key}`) || localStorage.getItem(`turia_cache_key_${key}`);
+        if (storedKey) {
+          const parsed = JSON.parse(storedKey);
+          this.cache.set(key, parsed);
+          return parsed as T;
+        }
+      } catch {}
+    }
+
+    // 3. Fallback to section key hit
     const section = getCanonicalSection(key);
     if (this.cache.has(section)) return this.cache.get(section) as T;
 
     if (typeof window !== 'undefined') {
       try {
-        const stored = sessionStorage.getItem(`turia_cache_${section}`);
+        const stored = sessionStorage.getItem(`turia_cache_${section}`) || localStorage.getItem(`turia_cache_${section}`);
         if (stored) {
           const parsed = JSON.parse(stored);
-          this.cache.set(key, parsed);
           this.cache.set(section, parsed);
           this.markLoaded(section);
           return parsed as T;
@@ -134,11 +156,18 @@ export class PageStateCache {
 
   public has(key: string): boolean {
     if (this.cache.has(key)) return true;
+    if (typeof window !== 'undefined') {
+      try {
+        if (sessionStorage.getItem(`turia_cache_key_${key}`) !== null || localStorage.getItem(`turia_cache_key_${key}`) !== null) {
+          return true;
+        }
+      } catch {}
+    }
     const section = getCanonicalSection(key);
     if (this.cache.has(section)) return true;
     if (typeof window !== 'undefined') {
       try {
-        return sessionStorage.getItem(`turia_cache_${section}`) !== null;
+        return sessionStorage.getItem(`turia_cache_${section}`) !== null || localStorage.getItem(`turia_cache_${section}`) !== null;
       } catch {}
     }
     return false;
