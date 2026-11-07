@@ -103,6 +103,10 @@ export const serviceSettingItemSchema = z.object({
   invFreq: z.string().optional().default('Monthly'),
   invDay: z.union([z.number(), z.string()]).optional().default(1),
   amount: z.coerce.number().optional().default(0),
+  professionalFee: z.coerce.number().optional().default(0),
+  governmentFee: z.coerce.number().optional().default(0),
+  otherCharges: z.coerce.number().optional().default(0),
+  totalServiceFee: z.coerce.number().optional().default(0),
   // Recurring Task Fields
   taskName: z.string().optional(),
   priority: z.string().optional(),

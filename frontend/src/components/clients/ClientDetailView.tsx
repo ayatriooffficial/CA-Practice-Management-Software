@@ -450,6 +450,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         const found = clientMap.get(svc.name.trim().toLowerCase());
         if (found) {
           const active = found.isActive !== undefined ? Boolean(found.isActive) : Boolean(found.compliance);
+          const profFee = found.professionalFee !== undefined ? found.professionalFee : (svc.professionalFee || found.amount || 0);
+          const govtFee = found.governmentFee !== undefined ? found.governmentFee : (svc.governmentFee || 0);
+          const other = found.otherCharges !== undefined ? found.otherCharges : 0;
+          const totalFee = found.totalServiceFee !== undefined ? found.totalServiceFee : (found.amount !== undefined ? found.amount : (svc.totalServiceFee || (profFee + govtFee + other)));
+          const amount = found.amount !== undefined ? found.amount : totalFee;
+
           return {
             ...found,
             id: found.id || (found as any)._id || `ss-${svc.id}`,
@@ -466,9 +472,17 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             end: found.end || (svc.tatDays ? `Day ${svc.tatDays + 2}` : "Day 20"),
             invFreq: found.invFreq || "Monthly",
             invDay: found.invDay !== undefined ? found.invDay : 1,
-            amount: found.amount !== undefined ? found.amount : (svc.professionalFee || 0),
+            amount,
+            professionalFee: profFee,
+            governmentFee: govtFee,
+            otherCharges: other,
+            totalServiceFee: totalFee,
           };
         }
+
+        const defaultProfFee = svc.professionalFee || 0;
+        const defaultGovtFee = svc.governmentFee || 0;
+        const defaultTotalFee = svc.totalServiceFee || (defaultProfFee + defaultGovtFee);
 
         return {
           id: `ss-${svc.id}`,
@@ -485,7 +499,11 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           end: svc.tatDays ? `Day ${svc.tatDays + 2}` : "Day 20",
           invFreq: "Monthly",
           invDay: 1,
-          amount: svc.professionalFee || 0,
+          amount: defaultTotalFee,
+          professionalFee: defaultProfFee,
+          governmentFee: defaultGovtFee,
+          otherCharges: 0,
+          totalServiceFee: defaultTotalFee,
         };
       });
 

@@ -106,6 +106,11 @@ export interface IClientServiceSetting {
   invFreq?: string;
   invDay?: number | string;
   amount: number;
+  // Charges breakdown for client
+  professionalFee?: number;
+  governmentFee?: number;
+  otherCharges?: number;
+  totalServiceFee?: number;
   // Recurring Task Fields matching UI
   taskName?: string;
   priority?: string;

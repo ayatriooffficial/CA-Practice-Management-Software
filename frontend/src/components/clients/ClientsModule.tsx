@@ -751,37 +751,33 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         <div className="flex items-center gap-3 py-2">
           {/* Toggle Trash / Active View */}
           {canDelete("clients") && (
-            <button
+            <Button
+              variant="outline"
               type="button"
               onClick={() => {
                 setShowDeleted((prev) => !prev);
                 setPage(1);
               }}
-              className={`flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border transition-all cursor-pointer ${showDeleted
-                ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300"
-                : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
-                }`}
               title="Toggle deleted records"
             >
               {showDeleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               <span>{showDeleted ? "Trash View" : "Active Only"}</span>
-            </button>
+            </Button>
           )}
 
           {/* New Client Button */}
           {canAddEdit("clients") && (
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setEditingClient(null);
                 setViewMode("create");
               }}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+
             >
               <Plus className="w-4 h-4" />
               <span>Add Client</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>

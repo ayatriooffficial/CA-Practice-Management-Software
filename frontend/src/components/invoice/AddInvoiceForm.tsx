@@ -13,6 +13,7 @@ import {
   Eye,
   Printer,
   Check,
+  CheckCircle2,
   Edit2,
   SlidersHorizontal,
   Download,
@@ -34,7 +35,7 @@ import { taskApi } from '@/services/taskApi';
 import { TaskItem } from '@/data/taskData';
 import { clientApi } from '@/services/clientApi';
 import { serviceApi } from '@/services/serviceApi';
-import { Client } from '@/data/crmData';
+import { Client, ClientServiceSetting } from '@/data/crmData';
 import { Service } from '@/data/serviceData';
 import { organizationApi, OrganizationDetails } from '@/services/organizationApi';
 import { InvoiceLivePreview, printInvoiceElement, downloadInvoicePDF } from '@/components/onboarding/tabs/InvoiceLivePreview';
@@ -218,6 +219,115 @@ tax:'18%',
 
   // console.log(services);
   
+
+  // Client active service settings
+  const [clientServiceSettings, setClientServiceSettings] = useState<ClientServiceSetting[]>([]);
+  const [isLoadingClientServices, setIsLoadingClientServices] = useState<boolean>(false);
+
+  const activeClientServices = React.useMemo(() => {
+    return clientServiceSettings.filter(
+      (s) => s.isActive || s.compliance || s.recInvoice === 'Enabled'
+    );
+  }, [clientServiceSettings]);
+
+  const populateActiveClientServices = React.useCallback((settingsToUse?: ClientServiceSetting[]) => {
+    const active = (settingsToUse || activeClientServices);
+    if (!active || active.length === 0) return;
+
+    const mapped: ServiceItem[] = active.map((s, idx) => {
+      const prof = Number(s.professionalFee ?? s.amount ?? 0);
+      const govt = Number(s.governmentFee ?? 0);
+      const other = Number(s.otherCharges ?? 0);
+      const total = Number(s.totalServiceFee ?? (prof + govt + other || s.amount || 0));
+      const unitPrice = total || prof;
+
+      return {
+        id: `srv-${Date.now()}-${idx}`,
+        serviceName: s.serviceName,
+        description: `${s.serviceName} compliance & retainer (${s.frequency || 'Monthly'})`,
+        compliancePeriod: 'FY 2026-27',
+        frequency: (s.frequency as any) || 'Monthly',
+        periodLabel: s.frequency || 'Monthly Retainer',
+        quantity: 1,
+        price: unitPrice,
+        amount: unitPrice,
+        governmentFee: govt,
+        professionalFee: prof,
+        totalServiceFee: total,
+        tax: '18%',
+        total: unitPrice,
+      };
+    });
+
+    setServices(mapped);
+  }, [activeClientServices]);
+
+  useEffect(() => {
+    if (!selectedClientId) {
+      setClientServiceSettings([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingClientServices(true);
+
+    clientApi.getClientById(selectedClientId)
+      .then((res) => {
+        if (!isMounted) return;
+        const fetchedClient = res.data;
+        const settings: ClientServiceSetting[] = fetchedClient?.serviceSettings || [];
+        setClientServiceSettings(settings);
+
+        if (mode === 'create') {
+          const active = settings.filter(
+            (s) => s.isActive || s.compliance || s.recInvoice === 'Enabled'
+          );
+          if (active.length > 0) {
+            setServices((prev) => {
+              const isOnlyBlank =
+                prev.length === 1 && (!prev[0].serviceName || prev[0].serviceName.trim() === '');
+              if (isOnlyBlank || prev.length === 0) {
+                return active.map((s, idx) => {
+                  const prof = Number(s.professionalFee ?? s.amount ?? 0);
+                  const govt = Number(s.governmentFee ?? 0);
+                  const other = Number(s.otherCharges ?? 0);
+                  const total = Number(s.totalServiceFee ?? (prof + govt + other || s.amount || 0));
+                  const unitPrice = total || prof;
+
+                  return {
+                    id: `srv-${Date.now()}-${idx}`,
+                    serviceName: s.serviceName,
+                    description: `${s.serviceName} compliance & retainer (${s.frequency || 'Monthly'})`,
+                    compliancePeriod: 'FY 2026-27',
+                    frequency: (s.frequency as any) || 'Monthly',
+                    periodLabel: s.frequency || 'Monthly Retainer',
+                    quantity: 1,
+                    price: unitPrice,
+                    amount: unitPrice,
+                    governmentFee: govt,
+                    professionalFee: prof,
+                    totalServiceFee: total,
+                    tax: '18%',
+                    total: unitPrice,
+                  };
+                });
+              }
+              return prev;
+            });
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load client details for invoice:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingClientServices(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedClientId, mode]);
 
   // Note
   const [note, setNote] = useState(() => initialData?.notes || '');
@@ -652,27 +762,60 @@ tax:'18%',
         if (s.id !== id) return s;
         const updated = { ...s, [field]: value };
         if (field === 'serviceName') {
+          // 1. Check if client has a customized setting for this service
+          const matchedClientSetting = clientServiceSettings.find(
+            (c) => c.serviceName.toLowerCase() === String(value).toLowerCase() || c.id === value || c.serviceId === value
+          );
+
+          if (matchedClientSetting) {
+            const prof = Number(matchedClientSetting.professionalFee ?? matchedClientSetting.amount ?? 0);
+            const govt = Number(matchedClientSetting.governmentFee ?? 0);
+            const other = Number(matchedClientSetting.otherCharges ?? 0);
+            const total = Number(matchedClientSetting.totalServiceFee ?? (prof + govt + other || matchedClientSetting.amount || 0));
+            const unitPrice = total || prof;
+
+            updated.serviceName = matchedClientSetting.serviceName;
+            updated.price = unitPrice;
+            updated.amount = (updated.quantity || 1) * unitPrice;
+            updated.governmentFee = govt;
+            updated.professionalFee = prof;
+            updated.totalServiceFee = total;
+            updated.total = updated.amount;
+            updated.frequency = (matchedClientSetting.frequency as any) || updated.frequency || 'Monthly';
+            if (!updated.description || updated.description === 'Description') {
+              updated.description = `${matchedClientSetting.serviceName} compliance & retainer`;
+            }
+            return updated;
+          }
+
+          // 2. Otherwise fall back to global service catalog
           const matchedSrv = serviceCatalog.find(
             (c) => c.name.toLowerCase() === String(value).toLowerCase() || c.id === value
           );
           if (matchedSrv) {
-            if (matchedSrv.professionalFee) {
-              updated.price =matchedSrv?.totalServiceFee|| matchedSrv.professionalFee;
-              updated.amount =matchedSrv?.totalServiceFee|| (updated.quantity || 1) * matchedSrv.professionalFee;
-              updated.governmentFee=matchedSrv?.governmentFee;
-              updated.professionalFee=matchedSrv?.professionalFee;
-              updated.totalServiceFee=matchedSrv?.totalServiceFee;
-              updated.total =totalPayable||matchedSrv?.totalServiceFee|| updated.amount;
-              updated.tax=matchedSrv?.taxRate;
-            }
+            const prof = matchedSrv.professionalFee || 0;
+            const govt = matchedSrv.governmentFee || 0;
+            const total = matchedSrv.totalServiceFee || (prof + govt);
+            const unitPrice = total || prof;
+
+            updated.serviceName = matchedSrv.name;
+            updated.price = unitPrice;
+            updated.amount = (updated.quantity || 1) * unitPrice;
+            updated.governmentFee = govt;
+            updated.professionalFee = prof;
+            updated.totalServiceFee = total;
+            updated.total = updated.amount;
+            updated.tax = matchedSrv.taxRate || '18%';
             if (matchedSrv.description && !updated.description) {
               updated.description = matchedSrv.description;
             }
           }
         }
         if (field === 'quantity' || field === 'price') {
-          const qty = field === 'quantity' ? Number(value) : s.quantity;
-          const prc = field === 'price' ? Number(value) : s.price;
+          const qty = field === 'quantity' ? Number(value) : (s.quantity || 1);
+          const prc = field === 'price' ? Number(value) : (s.price || 0);
+          updated.price = prc;
+          updated.totalServiceFee = prc;
           updated.amount = (qty || 0) * (prc || 0);
           updated.total = updated.amount;
         }
@@ -1516,6 +1659,25 @@ tax:'18%',
                   <div className="col-span-1 text-right">Total</div>
                 </div>
 
+                {/* Active Services Notification Banner */}
+                {selectedClientId && activeClientServices.length > 0 && (
+                  <div className="mx-6 mt-4 p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-[#3D6A9E] dark:text-[#60a5fa]">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>
+                        <b>{activeClientServices.length}</b> active service{activeClientServices.length > 1 ? "s" : ""} linked from <b>{selectedClient?.name || "Client"}</b>'s settings.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => populateActiveClientServices()}
+                      className="self-start sm:self-auto px-2.5 py-1 rounded bg-[#3D6A9E] hover:bg-[#325680] text-white text-[11px] font-semibold cursor-pointer transition-colors shadow-2xs"
+                    >
+                      Reload Active Services
+                    </button>
+                  </div>
+                )}
+
                 {/* Service Rows (20px top padding from header, 20px gap between rows) */}
                 <div className="flex flex-col divide-y divide-[#e5e7eb] dark:divide-[#334155] p-6 gap-5">
                   {services.map((srv) => (
@@ -1529,12 +1691,23 @@ tax:'18%',
                             onChange={(e) => handleServiceChange(srv.id, 'serviceName', e.target.value)}
                             className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
                           >
-                            <option value="">Service Name</option>
-                            {serviceCatalog.map((service) => (
-                              <option key={service.id} value={service.name}>
-                                {service.name}
-                              </option>
-                            ))}
+                            <option value="">Select Service Name</option>
+                            {activeClientServices.length > 0 && (
+                              <optgroup label={`Active Client Services (${selectedClient?.name || 'Client'})`}>
+                                {activeClientServices.map((service) => (
+                                  <option key={service.id || service.serviceName} value={service.serviceName}>
+                                    ★ {service.serviceName} — ₹{service.totalServiceFee || service.amount || 0} ({service.frequency || 'Monthly'})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            <optgroup label="All Catalog Services">
+                              {serviceCatalog.map((service) => (
+                                <option key={service.id} value={service.name}>
+                                  {service.name} — ₹{service.totalServiceFee || service.professionalFee || 0}
+                                </option>
+                              ))}
+                            </optgroup>
                           </select>
                         </div>
 

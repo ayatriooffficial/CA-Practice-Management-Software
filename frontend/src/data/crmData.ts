@@ -175,6 +175,10 @@ export interface ClientServiceSetting {
   invFreq?: string;
   invDay?: number | string;
   amount: number;
+  professionalFee?: number;
+  governmentFee?: number;
+  otherCharges?: number;
+  totalServiceFee?: number;
   taskName?: string;
   priority?: string;
   assignee?: string;
