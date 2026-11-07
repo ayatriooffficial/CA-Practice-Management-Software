@@ -26,18 +26,22 @@ import { SigningDetailsCard, SigningDetailsState } from './SigningDetailsCard';
 import { SignedDocumentsTable } from './SignedDocumentsTable';
 import { VerifyDrawer } from './VerifyDrawer';
 import { ToastNotification } from '@/components/ui/ToastNotification';
+import { Button } from '@/components/ui/Button';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const PdfSignerPage: React.FC = () => {
+  const cachedSigner = pageStateCache.get('pdf_signer_page_data');
+
   // Signer provider status
-  const [status, setStatus] = useState<SignerStatusResponse | null>(null);
-  const [isStatusLoading, setIsStatusLoading] = useState(true);
+  const [status, setStatus] = useState<SignerStatusResponse | null>(() => cachedSigner?.status || null);
+  const [isStatusLoading, setIsStatusLoading] = useState(() => !cachedSigner?.status);
 
   // Clients & registered DSCs
-  const [clients, setClients] = useState<Client[]>([]);
-  const [dscList, setDscList] = useState<GlobalDsc[]>([]);
+  const [clients, setClients] = useState<Client[]>(() => cachedSigner?.clients || []);
+  const [dscList, setDscList] = useState<GlobalDsc[]>(() => cachedSigner?.dscList || []);
 
   // Staged documents for signing
-  const [stagedDocs, setStagedDocs] = useState<SignedDocItem[]>([]);
+  const [stagedDocs, setStagedDocs] = useState<SignedDocItem[]>(() => cachedSigner?.stagedDocs || []);
   const [selectedStagedIds, setSelectedStagedIds] = useState<string[]>([]);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [stagedFilesMap, setStagedFilesMap] = useState<Record<string, File>>({});
@@ -65,8 +69,8 @@ export const PdfSignerPage: React.FC = () => {
   const [isSigning, setIsSigning] = useState(false);
 
   // History / Signed documents
-  const [historyDocs, setHistoryDocs] = useState<SignedDocItem[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [historyDocs, setHistoryDocs] = useState<SignedDocItem[]>(() => cachedSigner?.historyDocs || []);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(() => !cachedSigner?.historyDocs);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [downloadingZip, setDownloadingZip] = useState(false);
 
@@ -192,6 +196,20 @@ export const PdfSignerPage: React.FC = () => {
     fetchClientsAndDscs();
     fetchDocuments();
   }, [fetchStatus, fetchClientsAndDscs, fetchDocuments]);
+
+  // Save page state to local cache for instant render on revisit
+  useEffect(() => {
+    if (!isStatusLoading && !isHistoryLoading) {
+      pageStateCache.set('pdf_signer_page_data', {
+        status,
+        clients,
+        dscList,
+        stagedDocs,
+        historyDocs,
+      });
+      pageStateCache.markLoaded('/pdf-signer');
+    }
+  }, [isStatusLoading, isHistoryLoading, status, clients, dscList, stagedDocs, historyDocs]);
 
   // Auto-fetch active document binary for interactive placement preview if not present in memory
   useEffect(() => {
@@ -596,18 +614,20 @@ export const PdfSignerPage: React.FC = () => {
 
         {/* Quick action buttons */}
         <div className="flex items-center gap-3 py-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={() => {
               fetchStatus();
               fetchDocuments();
             }}
-            className="flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
+            icon={<RefreshCw className="w-3.5 h-3.5" />}
             title="Refresh documents and signer status"
+            className="h-10"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
-          </button>
+            Refresh
+          </Button>
 
           <Link
             href="/dsc"

@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     if (id === "invoice") return canView("invoice");
     if (id === "proposal") return canView("proposals");
     if (id === "dsc") return canView("digital_signature");
-    if (id === "pdf-signer") return canView("pdf_signer") || canView("digital_signature");
+    if (id === "pdf-signer") return canView("pdf_signer");
     if (id === "reports") return canView("reports");
     if (id === "documents") return canView("document_in_out") || canView("file_manager");
     if (id === "task") return canView("task_manager");

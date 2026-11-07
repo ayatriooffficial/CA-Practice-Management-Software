@@ -11,19 +11,22 @@ import { teamStore } from './teamStore';
 import { EmployeeRecord } from './types';
 
 import { useAuth } from '../auth/AuthContext';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const TeamModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TeamTab>('team');
-  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeRecord[]>(() => teamStore.getEmployees());
+  const [isLoaded, setIsLoaded] = useState(() => teamStore.getEmployees().length > 0);
   const { currentUser } = useAuth();
   const roleLower = (currentUser?.role || '').toLowerCase();
   const isEmployee = roleLower === 'employee';
   const isAdmin = roleLower === 'admin';
 
   const loadData = async () => {
-    setEmployees(teamStore.getEmployees());
+    const local = teamStore.getEmployees();
+    setEmployees(local);
     setIsLoaded(true);
+    pageStateCache.markLoaded('/team');
     try {
       const fresh = await teamStore.loadEmployeesFromBackend();
       if (fresh && fresh.length > 0) {
@@ -38,7 +41,7 @@ export const TeamModule: React.FC = () => {
     void loadData();
   }, []);
 
-  const currentTab: TeamTab = isEmployee ? 'team' : activeTab;
+  const currentTab: TeamTab = activeTab;
 
   if (!isLoaded) {
     return (
@@ -54,7 +57,7 @@ export const TeamModule: React.FC = () => {
       <TeamTabsHeader
         activeTab={currentTab}
         onTabChange={(tab) => {
-          if (!isEmployee) setActiveTab(tab);
+          setActiveTab(tab);
         }}
       />
 
@@ -63,11 +66,11 @@ export const TeamModule: React.FC = () => {
         <TeamListView employees={employees} onRefresh={loadData} />
       )}
 
-      {currentTab === 'attendance' && !isEmployee && <AttendanceView />}
+      {currentTab === 'attendance' && <AttendanceView />}
 
-      {currentTab === 'leave' && !isEmployee && <LeaveView />}
+      {currentTab === 'leave' && <LeaveView />}
 
-      {currentTab === 'reimbursement' && !isEmployee && <ReimbursementView />}
+      {currentTab === 'reimbursement' && <ReimbursementView />}
 
       {currentTab === 'employment-requests' && isAdmin && <EmploymentRequestView />}
     </div>

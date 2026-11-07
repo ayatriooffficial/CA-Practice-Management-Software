@@ -220,12 +220,47 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
       if (!isSilent) setIsLoading(true);
       else setIsRefreshing(true);
 
-      if (isAdmin) {
-        const [teamRes, adminRes] = await Promise.all([
-          todoApi.getTeamTasks({ limit: 100 }).catch(() => ({ tasks: [], total: 0 })),
-          todoApi.getAdminTasks().catch(() => []),
-        ]);
+      // 1. Fetch user's own personalized to-dos (created by this user)
+      const personalRes = await todoApi.getTodos().catch(() => []);
+      const mappedPersonal: TeamTaskItem[] = (personalRes || []).map((pt) => ({
+        id: `pt_${pt.id}`,
+        taskId: pt.id,
+        taskName: pt.title,
+        description: pt.description || '',
+        category: pt.category || 'General',
+        clientName: pt.clientName || 'Personal',
+        clientId: pt.clientId,
+        assigneeId: currentUser?.id || 'me',
+        assigneeName: currentUser?.name || 'Me',
+        assigneeInitials: (currentUser?.name || 'U').slice(0, 2).toUpperCase(),
+        assigneeColor: '#31719B',
+        priority: pt.priority || 'Medium',
+        status: pt.completed ? 'Completed' : 'Pending',
+        startDate: pt.createdAt ? pt.createdAt.slice(0, 10) : '',
+        targetDueDate: pt.dueDate || '',
+        progress: pt.completed ? 100 : 0,
+        checklistTotal: 0,
+        checklistCompleted: 0,
+        checklist: [],
+        isOverdue: !pt.completed && Boolean(pt.dueDate && pt.dueDate < getTodayKolkataYMD()),
+        daysLeft: pt.dueDate ? Math.ceil((new Date(pt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999,
+        createdAt: pt.createdAt,
+        updatedAt: pt.updatedAt,
+        isPersonal: true,
+      }));
 
+      const seenIds = new Set<string>();
+      const merged: TeamTaskItem[] = [];
+
+      for (const item of mappedPersonal) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          merged.push(item);
+        }
+      }
+
+      if (isAdmin) {
+        const adminRes = await todoApi.getAdminTasks().catch(() => []);
         const mappedAdminTasks: TeamTaskItem[] = (adminRes || []).map((at) => ({
           id: at.dedupKey || at.id,
           taskId: at.sourceId || at.id,
@@ -235,8 +270,8 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
           clientName: at.clientName,
           clientId: at.clientId,
           assigneeId: currentUser?.id || "admin",
-          assigneeName: "Ayatrio Admin",
-          assigneeInitials: "AY",
+          assigneeName: currentUser?.name || "Admin",
+          assigneeInitials: (currentUser?.name || "AD").slice(0, 2).toUpperCase(),
           assigneeColor: "#6366F1",
           priority: at.priority,
           status: at.completed ? "Completed" : at.status === "Expired" ? "Overdue" : "Pending",
@@ -261,29 +296,24 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
           isAdministrative: true,
         }));
 
-        const seenIds = new Set<string>();
-        const merged: TeamTaskItem[] = [];
-
         for (const item of mappedAdminTasks) {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
             merged.push(item);
           }
         }
-
-        for (const item of (teamRes.tasks || [])) {
-          const assignedKey = `admin:assigned_task:${item.taskId}`;
-          if (!seenIds.has(item.id) && !seenIds.has(item.taskId) && !seenIds.has(assignedKey)) {
-            seenIds.add(item.id);
+      } else {
+        const myTasks = await todoApi.getMyTasks().catch(() => []);
+        for (const item of myTasks || []) {
+          const itemKey = item.taskId || item.id;
+          if (!seenIds.has(itemKey) && !seenIds.has(item.id)) {
+            seenIds.add(itemKey);
             merged.push(item);
           }
         }
-
-        setRawTasks(merged);
-      } else {
-        const myTasks = await todoApi.getMyTasks();
-        setRawTasks(myTasks || []);
       }
+
+      setRawTasks(merged);
     } catch (err) {
       console.error("Failed to load to-do tasks:", err);
     } finally {
@@ -543,7 +573,11 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
     const nextProgress = isCurrentlyDone ? 0 : 100;
 
     try {
-      if ((task as any).isAdministrative || task.id.startsWith("admin:") || (task as any).sourceType === "dsc" || (task as any).sourceType === "license" || (task as any).sourceType === "document") {
+      if ((task as any).isPersonal || task.id.startsWith("pt_")) {
+        await todoApi.updateTodo(task.taskId || task.id.replace("pt_", ""), {
+          completed: !isCurrentlyDone,
+        });
+      } else if ((task as any).isAdministrative || task.id.startsWith("admin:") || (task as any).sourceType === "dsc" || (task as any).sourceType === "license" || (task as any).sourceType === "document") {
         await todoApi.toggleAdminTask(task.id, !isCurrentlyDone);
       } else {
         await todoApi.updateTaskProgress(task.id, {

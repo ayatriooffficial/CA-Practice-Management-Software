@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { useInvoice } from './InvoiceContext';
 import { usePermission } from '../team/usePermission';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface InvoiceToolbarProps {
   onAddNew: () => void;
@@ -285,26 +287,29 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
       {/* Right Toolbar Controls */}
       <div className="flex items-center gap-2.5">
         {/* Search Input */}
-        <div className="relative flex-1 md:w-64">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search"
+        <div className="flex-1 md:w-64">
+          <Input
+            size="md"
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B] shadow-2xs"
+            onClear={() => setSearchQuery("")}
+            leftIcon={<Search className="w-4 h-4 text-gray-400" />}
+            className="h-10 text-xs"
           />
         </div>
 
         {/* Primary Action Button */}
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="md"
           onClick={onAddNew}
-          style={{ backgroundColor: "var(--premium-blue-dark)" }}
-          className="h-10 flex items-center gap-1 px-4 rounded-md text-white text-xs font-semibold shadow-xs hover:opacity-95 transition-all cursor-pointer whitespace-nowrap active:scale-98"
+          icon={<Plus className="w-4 h-4" />}
+          className="h-10 px-4 whitespace-nowrap"
         >
           {actionButtonText}
-        </button>
+        </Button>
 
         {/* Three dots menu */}
         <div className="relative">

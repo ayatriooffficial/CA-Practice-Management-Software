@@ -253,14 +253,6 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
 
   const validateStep3 = (): boolean => {
     setErrorMsg('');
-    if (!presentAddress.addressLine1.trim()) {
-      setErrorMsg('Address Line 1 is required.');
-      return false;
-    }
-    if (!presentAddress.city.trim() || !presentAddress.state.trim()) {
-      setErrorMsg('City and State are required.');
-      return false;
-    }
     return true;
   };
 
@@ -832,7 +824,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Address Line 1 <span className="text-red-500">*</span>
+                      Address Line 1
                     </label>
                     <input
                       type="text"
@@ -856,7 +848,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      City <span className="text-red-500">*</span>
+                      City
                     </label>
                     <input
                       type="text"
@@ -868,7 +860,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      State <span className="text-red-500">*</span>
+                      State
                     </label>
                     <input
                       type="text"
@@ -880,7 +872,7 @@ export const AddEmployeeWizard: React.FC<AddEmployeeWizardProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Pincode <span className="text-red-500">*</span>
+                      Pincode
                     </label>
                     <input
                       type="text"

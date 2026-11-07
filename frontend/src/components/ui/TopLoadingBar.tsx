@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { navigationProgress, ProgressState } from "@/services/navigationProgress";
+import { pageStateCache } from "@/services/pageStateCache";
 
 export const TopLoadingBar: React.FC = () => {
   const pathname = usePathname();
@@ -28,20 +29,26 @@ export const TopLoadingBar: React.FC = () => {
     }
   }, []);
 
-  // Initial page mount: start navigation cycle so hard reload on Home or direct entry shows progress
+  // Initial page mount: start navigation cycle only if the page has not been loaded yet
   useEffect(() => {
     if (typeof window !== "undefined") {
-      navigationProgress.start(window.location.pathname);
-      const t = setTimeout(() => {
-        navigationProgress.routeMounted();
-      }, 120);
-      return () => clearTimeout(t);
+      const current = window.location.pathname;
+      if (!pageStateCache.isLoaded(current)) {
+        navigationProgress.start(current);
+        const t = setTimeout(() => {
+          navigationProgress.routeMounted(current);
+        }, 120);
+        return () => clearTimeout(t);
+      }
     }
   }, []);
 
   // When pathname or searchParams change, the Next.js router has committed the navigation
   useEffect(() => {
-    navigationProgress.routeMounted();
+    if (pathname) {
+      navigationProgress.routeMounted(pathname);
+      pageStateCache.markLoaded(pathname);
+    }
   }, [pathname, searchParams]);
 
   // Global click interception for navigation links to start progress within ~100ms
@@ -71,6 +78,10 @@ export const TopLoadingBar: React.FC = () => {
         const isSamePageHash = isSameOrigin && url.pathname === window.location.pathname && url.search === window.location.search && url.hash !== "";
 
         if (isSameOrigin && !isSamePageHash) {
+          // If destination page/section is already loaded: DO NOT show progress bar on revisit!
+          if (pageStateCache.isLoaded(url.pathname)) {
+            return;
+          }
           navigationProgress.start(url.pathname);
         }
       } catch {}

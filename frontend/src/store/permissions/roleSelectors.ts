@@ -52,11 +52,6 @@ export function canAccess(
 
   let mod = permissions[normKey] || permissions[moduleKey];
 
-  // Fallback: pdf_signer falls back to digital_signature if unassigned
-  if (!mod && normKey === 'pdf_signer' && permissions['digital_signature']) {
-    mod = permissions['digital_signature'];
-  }
-
   if (!mod) return false;
 
   if (action === 'view') {
