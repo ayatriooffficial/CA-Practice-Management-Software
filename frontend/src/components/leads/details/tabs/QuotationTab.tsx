@@ -1,7 +1,9 @@
 "use client";
 
 import React, { memo, useState, useMemo } from "react";
-import { Plus, Search, FileText, Eye, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, FileText, Eye, Trash2, PenTool } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import { Lead } from "@/data/crmData";
 import { useQuotations, useDeleteQuotation } from "@/hooks/useQuotationsQuery";
 import { Quotation } from "@/services/quotationApi";
@@ -23,6 +25,20 @@ export const QuotationTab = memo(
     const [page, setPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; quotationNo: string } | null>(null);
+    const router = useRouter();
+
+    const handleSignQuotationWithDsc = async (quotation: Quotation) => {
+      try {
+        await stageAndRedirectToPdfSigner(router, {
+          fileName: `${quotation.quotationNo || 'Quotation'}.pdf`,
+          clientId: quotation.leadId || (quotation as any).clientId || lead?.id,
+          clientName: (quotation as any).clientName || (quotation as any).leadName || lead?.fullName,
+        });
+      } catch (err: any) {
+        console.error('Failed to stage quotation for DSC:', err);
+        alert(err?.message || 'Failed to stage quotation for DSC signing');
+      }
+    };
 
     const { data, isLoading } = useQuotations({
       leadId: lead.id,
@@ -165,6 +181,11 @@ export const QuotationTab = memo(
         label: "View Quotation",
         icon: Eye,
         onClick: () => onViewQuotation(quotation),
+      },
+      {
+        label: "Sign with DSC",
+        icon: PenTool,
+        onClick: () => handleSignQuotationWithDsc(quotation),
       },
       {
         label: "Delete Quotation",

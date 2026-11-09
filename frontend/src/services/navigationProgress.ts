@@ -10,6 +10,8 @@
  * - Fully compatible with React useSyncExternalStore (cached snapshot, stable subscribe)
  */
 
+import { pageStateCache } from './pageStateCache';
+
 export interface ProgressState {
   progress: number;
   isVisible: boolean;
@@ -78,9 +80,15 @@ class NavigationProgressService {
 
   /**
    * Start a navigation cycle.
-   * Jumps to random 10-15%, starts decaying trickle timer, and displays within ~60-80ms.
+   * Jumps to random 10-15%, starts decaying trickle timer, and displays after showDelayTimer if still loading.
    */
   public start(initialTarget?: string): void {
+    const target = initialTarget || (typeof window !== 'undefined' ? window.location.pathname : '');
+    if (target && pageStateCache.isLoaded(target)) {
+      // Page data and UI are already loaded; strictly skip progress bar on revisit
+      return;
+    }
+
     if (this.abortController) {
       try {
         this.abortController.abort();
@@ -102,23 +110,23 @@ class NavigationProgressService {
       progress: nextProgress,
     });
 
-    // Make visible within ~60ms to acknowledge user click smoothly
+    // 180ms delay: fast loads and cached pages finish before this fires, keeping the bar 100% invisible
     this.showDelayTimer = setTimeout(() => {
       if (this.state.isNavigating) {
         this.visibleTimestamp = Date.now();
         this.updateState({ isVisible: true });
       }
-    }, 60);
+    }, 180);
 
     // If navigating to the exact page we are already on (e.g. clicking Home while on Home)
     if (
       typeof window !== 'undefined' &&
-      initialTarget &&
-      (window.location.pathname === initialTarget ||
-        (initialTarget === '/' && window.location.pathname === ''))
+      target &&
+      (window.location.pathname === target ||
+        (target === '/' && window.location.pathname === ''))
     ) {
       setTimeout(() => {
-        this.routeMounted();
+        this.routeMounted(target);
       }, 80);
     }
 
@@ -177,8 +185,12 @@ class NavigationProgressService {
   /**
    * Signal from router when target route has committed and rendered.
    */
-  public routeMounted(): void {
+  public routeMounted(pathname?: string): void {
     this.routeCommitted = true;
+    const target = pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
+    if (target) {
+      pageStateCache.markLoaded(target);
+    }
     this.checkCompletion();
   }
 

@@ -7,14 +7,33 @@ import {
   AttendanceStatus,
 } from './types';
 import { teamStore } from './teamStore';
+import { Pagination } from '../ui/Pagination';
+import { useAuth } from '../auth/AuthContext';
+import { Button } from '../ui/Button';
 
 type AttendanceSubTab = 'today' | 'weekly' | 'monthly' | 'regularization';
 
 export const AttendanceView: React.FC = () => {
+  const { currentUser } = useAuth();
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const isEmployee = roleLower === 'employee';
+  const isAdmin = roleLower === 'admin';
+
   const [subTab, setSubTab] = useState<AttendanceSubTab>('today');
   const [todayRecords, setTodayRecords] = useState<TodayAttendanceRecord[]>(() => teamStore.getTodayAttendance());
   const [regularizations, setRegularizations] = useState<RegularizationRecord[]>(() => teamStore.getRegularizations());
   const [selectedDate, setSelectedDate] = useState('2026-10-21');
+  const [todayPage, setTodayPage] = useState(1);
+  const [todayPageSize, setTodayPageSize] = useState(10);
+  const [regPage, setRegPage] = useState(1);
+  const [regPageSize, setRegPageSize] = useState(10);
+
+  // Regularization Request modal states
+  const [showRegModal, setShowRegModal] = useState(false);
+  const [regDate, setRegDate] = useState(new Date().toISOString().slice(0, 10));
+  const [regPunchIn, setRegPunchIn] = useState('09:30 AM');
+  const [regPunchOut, setRegPunchOut] = useState('06:30 PM');
+  const [regReason, setRegReason] = useState('');
 
   React.useEffect(() => {
     teamStore.syncTodayAttendanceFromBackend().then((recs) => {
@@ -22,11 +41,33 @@ export const AttendanceView: React.FC = () => {
     });
   }, []);
 
-  const employees = teamStore
-    .getEmployees()
-    .filter((e) => e.status === 'Active' && (e.role || '').toLowerCase() !== 'admin');
+  const employees = React.useMemo(() => {
+    const all = teamStore
+      .getEmployees()
+      .filter((e) => e.status === 'Active' && (e.role || '').toLowerCase() !== 'admin');
+    if (isEmployee) {
+      const myName = (currentUser?.name || '').toLowerCase().trim();
+      const myId = String(currentUser?.id || '').trim();
+      const me = all.filter((e) => {
+        const eName = (e.name || '').toLowerCase().trim();
+        const eId = String(e.id || '').trim();
+        return (myName && (eName === myName || eName.includes(myName))) || (myId && eId === myId);
+      });
+      return me.length > 0 ? me : all.slice(0, 1);
+    }
+    return all;
+  }, [isEmployee, currentUser]);
 
   const filteredTodayRecords = React.useMemo(() => {
+    if (isEmployee) {
+      const myName = (currentUser?.name || '').toLowerCase().trim();
+      const myId = String(currentUser?.id || '').trim();
+      return todayRecords.filter((r) => {
+        const rName = (r.name || '').toLowerCase().trim();
+        const rEmpId = String(r.employeeId || r.id || '').trim();
+        return (myName && (rName === myName || rName.includes(myName))) || (myId && rEmpId === myId);
+      });
+    }
     const adminEmpIds = new Set(
       teamStore
         .getEmployees()
@@ -34,7 +75,20 @@ export const AttendanceView: React.FC = () => {
         .map((e) => e.id)
     );
     return todayRecords.filter((r) => !adminEmpIds.has(r.employeeId) && !adminEmpIds.has(r.id));
-  }, [todayRecords]);
+  }, [todayRecords, isEmployee, currentUser]);
+
+  const filteredRegularizations = React.useMemo(() => {
+    if (isEmployee) {
+      const myName = (currentUser?.name || '').toLowerCase().trim();
+      const myId = String(currentUser?.id || '').trim();
+      return regularizations.filter((r) => {
+        const rName = (r.employeeName || '').toLowerCase().trim();
+        const rEmpId = String(r.employeeId || '').trim();
+        return (myName && (rName === myName || rName.includes(myName))) || (myId && rEmpId === myId);
+      });
+    }
+    return regularizations;
+  }, [regularizations, isEmployee, currentUser]);
 
   const handleApproveReg = (id: string) => {
     teamStore.updateRegularizationStatus(id, 'Approved');
@@ -44,6 +98,35 @@ export const AttendanceView: React.FC = () => {
   const handleRejectReg = (id: string) => {
     teamStore.updateRegularizationStatus(id, 'Rejected');
     setRegularizations(teamStore.getRegularizations());
+  };
+
+  const handleSubmitReg = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regReason.trim()) {
+      alert('Please enter a reason for regularization.');
+      return;
+    }
+    const myName = currentUser?.name || 'Employee';
+    const myId = currentUser?.id || 'emp-me';
+    teamStore.addRegularization({
+      employeeId: myId,
+      employeeName: myName,
+      date: regDate,
+      punchIn: regPunchIn,
+      punchOut: regPunchOut,
+      totalHours: '09h 00m',
+      workLocation: 'Office',
+      punchInLocation: 'Office Premises',
+      punchOutLocation: 'Office Premises',
+      officeLocation: 'Headquarters',
+      distanceRadius: 'Inside',
+      status: 'Pending',
+      approvalStatus: 'Pending',
+      reason: regReason.trim(),
+    });
+    setRegularizations(teamStore.getRegularizations());
+    setShowRegModal(false);
+    setRegReason('');
   };
 
   // Weekly data generator for Oct 18 - Oct 24, 2026
@@ -197,7 +280,9 @@ export const AttendanceView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTodayRecords.map((r) => (
+                {filteredTodayRecords
+                  .slice((todayPage - 1) * todayPageSize, todayPage * todayPageSize)
+                  .map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/70 dark:hover:bg-[#131d30] transition-colors">
                     <td className="px-3.5 py-2.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <div className="flex items-center gap-2.5">
@@ -230,6 +315,23 @@ export const AttendanceView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {filteredTodayRecords.length > 0 && (
+            <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+              <Pagination
+                currentPage={todayPage}
+                pageSize={todayPageSize}
+                totalItems={filteredTodayRecords.length}
+                onPageChange={setTodayPage}
+                onPageSizeChange={(newSize) => {
+                  setTodayPageSize(newSize);
+                  setTodayPage(1);
+                }}
+                showPageSize={true}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -407,13 +509,26 @@ export const AttendanceView: React.FC = () => {
       {/* 4. REGULARIZATION */}
       {subTab === 'regularization' && (
         <div className="bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] overflow-hidden shadow-card transition-colors">
-          <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-              Regularization Requests ({regularizations.length})
-            </h3>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              Review and approve employee punch regularization requests
-            </span>
+          <div className="p-4 border-b border-[#dde2e8] dark:border-[#334155] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                Regularization Requests ({filteredRegularizations.length})
+              </h3>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {isAdmin
+                  ? 'Review and approve employee punch regularization requests'
+                  : 'Track and submit your punch regularization requests'}
+              </span>
+            </div>
+            {isEmployee && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowRegModal(true)}
+              >
+                + Request Regularization
+              </Button>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -436,66 +551,176 @@ export const AttendanceView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]/60">
-                {regularizations.map((reg) => (
-                  <tr key={reg.id} className="hover:bg-gray-50/60 dark:hover:bg-[#131d30] transition-colors">
-                    {/* Actions Column in First Position matching screenshot */}
-                    <td className="py-3 px-4 text-center">
-                      {reg.approvalStatus === 'Pending' ? (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => handleApproveReg(reg.id)}
-                            title="Approve"
-                            className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/40 cursor-pointer"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleRejectReg(reg.id)}
-                            title="Reject"
-                            className="p-1 rounded bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/40 cursor-pointer"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-[11px]">-</span>
-                      )}
+                {filteredRegularizations.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="py-12 text-center text-xs text-gray-400">
+                      No regularization requests found
                     </td>
-
-                    <td className="py-3 px-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full font-medium text-[11px] border ${reg.approvalStatus === 'Approved'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
-                            : reg.approvalStatus === 'Rejected'
-                              ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800/40'
-                              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40'
-                          }`}
-                      >
-                        {reg.approvalStatus}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={reg.reason}>
-                      {reg.reason}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{reg.employeeName}</td>
-                    <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.date}</td>
-                    <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.punchIn}</td>
-                    <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.punchOut}</td>
-                    <td className="py-3 px-3 font-medium text-gray-900 dark:text-white">{reg.totalHours}</td>
-                    <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.workLocation}</td>
-                    <td className="py-3 px-3 text-gray-600 dark:text-gray-400">{reg.punchInLocation}</td>
-                    <td className="py-3 px-3 text-gray-600 dark:text-gray-400">{reg.punchOutLocation}</td>
-                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{reg.officeLocation}</td>
-                    <td className="py-3 px-3 text-gray-600 dark:text-gray-400">{reg.distanceRadius}</td>
                   </tr>
-                ))}
+                ) : (
+                  filteredRegularizations
+                    .slice((regPage - 1) * regPageSize, regPage * regPageSize)
+                    .map((reg) => (
+                    <tr key={reg.id} className="hover:bg-gray-50/60 dark:hover:bg-[#131d30] transition-colors">
+                      {/* Actions Column in First Position matching screenshot */}
+                      <td className="py-3 px-4 text-center">
+                        {isAdmin && reg.approvalStatus === 'Pending' ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleApproveReg(reg.id)}
+                              title="Approve"
+                              className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/40 cursor-pointer"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleRejectReg(reg.id)}
+                              title="Reject"
+                              className="p-1 rounded bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/40 cursor-pointer"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-[11px]">-</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full font-medium text-[11px] border ${reg.approvalStatus === 'Approved'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
+                              : reg.approvalStatus === 'Rejected'
+                                ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800/40'
+                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40'
+                            }`}
+                        >
+                          {reg.approvalStatus}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={reg.reason}>
+                        {reg.reason}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{reg.employeeName}</td>
+                      <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.date}</td>
+                      <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.punchIn}</td>
+                      <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.punchOut}</td>
+                      <td className="py-3 px-3 font-medium text-gray-900 dark:text-white">{reg.totalHours}</td>
+                      <td className="py-3 px-3 text-gray-700 dark:text-gray-300">{reg.workLocation}</td>
+                      <td className="py-3 px-3 text-gray-600 dark:text-gray-400">{reg.punchInLocation}</td>
+                      <td className="py-3 px-3 text-gray-600 dark:text-gray-400">{reg.punchOutLocation}</td>
+                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{reg.officeLocation}</td>
+                      <td className="py-3 px-3 text-gray-600 dark:text-gray-400">{reg.distanceRadius}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          {filteredRegularizations.length > 0 && (
+            <div className="border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+              <Pagination
+                currentPage={regPage}
+                pageSize={regPageSize}
+                totalItems={filteredRegularizations.length}
+                onPageChange={setRegPage}
+                onPageSizeChange={(newSize) => {
+                  setRegPageSize(newSize);
+                  setRegPage(1);
+                }}
+                showPageSize={true}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Regularization Modal */}
+      {showRegModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] shadow-2xl p-6">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">
+              Request Attendance Regularization
+            </h3>
+            <form onSubmit={handleSubmitReg} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={regDate}
+                  onChange={(e) => setRegDate(e.target.value)}
+                  required
+                  className="w-full h-10 px-3 text-xs border border-[#dde2e8] dark:border-[#475569] rounded-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Punch In
+                  </label>
+                  <input
+                    type="text"
+                    value={regPunchIn}
+                    onChange={(e) => setRegPunchIn(e.target.value)}
+                    required
+                    placeholder="e.g. 09:30 AM"
+                    className="w-full h-10 px-3 text-xs border border-[#dde2e8] dark:border-[#475569] rounded-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Punch Out
+                  </label>
+                  <input
+                    type="text"
+                    value={regPunchOut}
+                    onChange={(e) => setRegPunchOut(e.target.value)}
+                    required
+                    placeholder="e.g. 06:30 PM"
+                    className="w-full h-10 px-3 text-xs border border-[#dde2e8] dark:border-[#475569] rounded-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Reason for Regularization
+                </label>
+                <textarea
+                  rows={3}
+                  value={regReason}
+                  onChange={(e) => setRegReason(e.target.value)}
+                  required
+                  placeholder="e.g. Biometric machine offline / Forgot to clock out"
+                  className="w-full p-2.5 text-xs border border-[#dde2e8] dark:border-[#475569] rounded-none bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowRegModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                >
+                  Submit Request
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

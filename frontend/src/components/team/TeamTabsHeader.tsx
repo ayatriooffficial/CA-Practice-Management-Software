@@ -68,10 +68,9 @@ export const TeamTabsHeader: React.FC<TeamTabsHeaderProps> = ({
     },
   ];
 
-  // Employee role sees ONLY the 'Team' subsection; Employment Request is ONLY visible to Admin
+  // Employment Request is ONLY visible to Admin; Team, Attendance, Leave, Reimbursement visible to all
   const visibleTabs = allTabs.filter((t) => {
     if (t.id === 'employment-requests') return isAdmin;
-    if (isEmployee) return t.id === 'team';
     return true;
   });
 

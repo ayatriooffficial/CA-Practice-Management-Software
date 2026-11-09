@@ -7,6 +7,7 @@ import { TopLoadingBar } from "./ui/TopLoadingBar";
 import { Sidebar } from "./Sidebar";
 import { useSectionNavigation } from "../hooks/useSectionNavigation";
 import { navigationProgress } from "../services/navigationProgress";
+import { pageStateCache } from "../services/pageStateCache";
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { PendingApprovalCard } from "./auth/PendingApprovalCard";
@@ -32,6 +33,12 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
       navigationProgress.setLoading("auth", false);
     };
   }, [isLoading]);
+
+  useEffect(() => {
+    if (pathname && !isAuthPage) {
+      pageStateCache.markLoaded(pathname);
+    }
+  }, [pathname, isAuthPage]);
 
   useEffect(() => {
     if (!isLoading && !currentUser && !isPublicPage) {

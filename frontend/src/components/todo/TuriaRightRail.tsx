@@ -30,7 +30,7 @@ export const TuriaRightRail: React.FC<TuriaRightRailProps> = ({
 
   return (
     <aside
-      className="w-12 shrink-0 border-l border-gray-200 dark:border-border bg-white dark:bg-card hidden lg:flex flex-col items-center justify-between py-4 select-none transition-colors"
+      className="w-12 shrink-0 border border-[#dde2e8] dark:border-[#334155] rounded-md bg-white dark:bg-[#1e293b] hidden lg:flex flex-col items-center justify-between py-4 select-none transition-colors shadow-card self-stretch min-h-[500px]"
       aria-label="Right Utility Rail"
     >
       {/* Top Utility Icons */}
@@ -62,11 +62,11 @@ export const TuriaRightRail: React.FC<TuriaRightRailProps> = ({
           <User className="w-4 h-4" />
         </button>
 
-        {/* Active To-Do Checklist Icon (highlighted in solid blue/indigo matching Turia reference) */}
+        {/* Active To-Do Checklist Icon (highlighted in solid blue matching theme) */}
         <button
           type="button"
           title="To-Do Manager (Active)"
-          className="p-2 rounded-lg bg-[#5B50E5] text-white shadow-xs cursor-default"
+          className="p-2 rounded-lg bg-[#31719B] text-white shadow-xs cursor-default"
         >
           <CheckSquare className="w-4 h-4" />
         </button>

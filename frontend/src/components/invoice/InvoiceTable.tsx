@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu';
 import { DiscardConfirmationModal } from '@/components/ui/DiscardConfirmationModal';
+import { InvoiceLivePreview, generateInvoicePdfBlob } from '@/components/onboarding/tabs/InvoiceLivePreview';
 
 interface ColumnDef {
   key: string;
@@ -63,12 +64,14 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
     voidInvoice,
     deleteInvoice,
     deleteReceipt,
+    bankAccounts,
   } = useInvoice();
   const router = useRouter();
   const { currentUser } = useAuth();
   const { canAddEdit, canDelete } = usePermission();
   const isEmployee = (currentUser?.role || '').toLowerCase() === 'employee';
   const [signingInvoiceId, setSigningInvoiceId] = useState<string | null>(null);
+  const [signingTargetRow, setSigningTargetRow] = useState<any | null>(null);
   const [creditNoteTarget, setCreditNoteTarget] = useState<InvoiceRecord | null>(null);
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
   const [financialActionError, setFinancialActionError] = useState('');
@@ -76,7 +79,29 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
 
   const handleSignInvoiceWithDsc = async (row: any) => {
     setSigningInvoiceId(row.id);
+    setSigningTargetRow(row);
     try {
+      const bank = (bankAccounts || []).find((b) => b.id === row.bankAccountId) || (bankAccounts || []).find((b) => b.isPrimary) || (bankAccounts || [])[0];
+
+      // Allow DOM to mount offscreen preview
+      await new Promise((r) => setTimeout(r, 120));
+
+      let pdfBase64: string | undefined;
+      try {
+        const blob = await generateInvoicePdfBlob('invoice-table-stage-capture');
+        if (blob) {
+          const arrayBuf = await blob.arrayBuffer();
+          let binary = '';
+          const bytes = new Uint8Array(arrayBuf);
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          pdfBase64 = btoa(binary);
+        }
+      } catch (e) {
+        console.warn('Could not generate direct invoice PDF blob in table:', e);
+      }
+
       const res = await pdfSignerApi.stageInvoice({
         invoiceNumber: row.number || `INV-${row.id}`,
         clientName: row.clientBusinessName || row.clientLegalName || 'Valued Client',
@@ -84,20 +109,51 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
         date: row.date,
         dueDate: row.dueDate,
         totalAmount: row.totalPayable || row.amount || 0,
+        subTotal: row.subTotal || 0,
+        billingOrg: row.billingOrg || 'Ayatrio',
+        billingAddress: row.billingAddress || 'Gonde Dumala, gonde dd, Nashik, Maharashtra, 476001',
+        firmGstin: (row as any).firmGstin || '07DDIPA9391G1ZC',
+        firmPan: (row as any).firmPan || 'AAAAA9999A',
+        clientAddress: row.clientAddress || (row as any).address || '',
+        clientGstin: row.clientGstin || '',
+        clientPan: row.clientPan || '',
+        clientTan: (row as any).clientTan || (row as any).tan || '',
+        clientContact: (row as any).clientContact || row.clientBusinessName || row.clientLegalName,
+        clientEmail: (row as any).clientEmail || (row as any).email || '',
+        clientPhone: (row as any).clientPhone || (row as any).phone || '',
+        placeOfSupply: row.placeOfSupply || '27-Maharashtra',
         services: row.services?.map((s: any) => ({
           serviceName: s.serviceName || 'CA Professional Services',
-          amount: s.amount || 0,
+          amount: s.amount || s.total || 0,
           description: s.description || '',
+          hsnSac: s.hsnSac || s.periodLabel || '998211',
+          quantity: s.quantity || 1,
+          rate: s.price || s.amount || 0,
+          taxRate: s.tax || '18%',
+          taxable: s.amount || s.price || 0,
         })),
-        billingOrg: row.billingOrg,
+        notes: row.notes || 'Thank you for your business. Please make payment within the due date.',
+        bankDetails: bank ? {
+          accountHolderName: bank.accountBusinessName || 'Krishna Associates',
+          accountNumber: bank.accountNumber || '50200012345678',
+          ifscCode: bank.ifscCode || 'HDFC0000214',
+          branchName: bank.branchAddress || 'Shop 4, Manpada Road, Dombivli West, Thane, Maharashtra 421202',
+          bankName: bank.bankName || 'HDFC Bank Ltd',
+          upiId: bank.upi || 'krishnaassociates@okhdfcbank',
+        } : undefined,
+        pdfBase64,
       });
-      if (res && res.data) {
+      const stagedId = res?.data?.id || (res?.data as any)?._id;
+      if (stagedId) {
+        router.push(`/pdf-signer?stagedId=${encodeURIComponent(stagedId)}`);
+      } else {
         router.push('/pdf-signer');
       }
     } catch (err: any) {
       alert(err?.message || 'Failed to prepare invoice for DSC signing');
     } finally {
       setSigningInvoiceId(null);
+      setSigningTargetRow(null);
     }
   };
 
@@ -804,6 +860,64 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
         }}
         onCancel={() => setItemToDelete(null)}
       />
+      {/* Hidden offscreen container for direct pixel-perfect PDF capture during DSC signing */}
+      {signingTargetRow && (
+        <div style={{ position: 'fixed', left: '-99999px', top: '-99999px', width: '794px', pointerEvents: 'none' }}>
+          <InvoiceLivePreview
+            id="invoice-table-stage-capture"
+            template="modern"
+            accentColor="#29A9E1"
+            firmName={signingTargetRow.billingOrg || 'Ayatrio'}
+            firmAddress={signingTargetRow.billingAddress || 'Gonde Dumala, gonde dd, Nashik, Maharashtra, 476001'}
+            firmGstin={(signingTargetRow as any).firmGstin || '07DDIPA9391G1ZC'}
+            firmPan={(signingTargetRow as any).firmPan || 'AAAAA9999A'}
+            showCaLogo={true}
+            invoiceType="invoice"
+            title="Tax Invoice"
+            invoiceNumber={signingTargetRow.number || `INV-${signingTargetRow.id}`}
+            invoiceDate={signingTargetRow.date || new Date().toLocaleDateString('en-GB')}
+            dueDate={signingTargetRow.dueDate || new Date().toLocaleDateString('en-GB')}
+            clientName={signingTargetRow.clientBusinessName || signingTargetRow.clientLegalName || 'Valued Client'}
+            clientLegalName={signingTargetRow.clientLegalName || signingTargetRow.clientBusinessName || 'Valued Client'}
+            clientAddress={signingTargetRow.clientAddress || (signingTargetRow as any).address || ''}
+            clientGstin={signingTargetRow.clientGstin || ''}
+            clientPan={signingTargetRow.clientPan || ''}
+            clientTan={(signingTargetRow as any).clientTan || ''}
+            clientEmail={(signingTargetRow as any).clientEmail || ''}
+            clientPhone={(signingTargetRow as any).clientPhone || ''}
+            clientPos={signingTargetRow.placeOfSupply || '27-Maharashtra'}
+            items={signingTargetRow.services && signingTargetRow.services.length > 0
+              ? signingTargetRow.services.map((s: any, idx: number) => {
+                  const taxable = s.amount !== undefined ? s.amount : ((s.price || 0) * (s.quantity || 1));
+                  const itemCgst = Math.round((taxable * 0.09) * 100) / 100;
+                  const itemSgst = Math.round((taxable * 0.09) * 100) / 100;
+                  return {
+                    id: s.id || String(idx + 1),
+                    name: s.serviceName || 'CA Professional Services',
+                    description: s.description || '',
+                    hsnSac: s.hsnSac || '998211',
+                    qty: s.quantity || 1,
+                    rate: s.price || s.amount || 0,
+                    taxable,
+                    gstRate: 18,
+                    cgst: itemCgst,
+                    sgst: itemSgst,
+                    total: s.total || (taxable + itemCgst + itemSgst),
+                  };
+                })
+              : undefined}
+            subtotal={signingTargetRow.subTotal || 6000}
+            totalAmount={signingTargetRow.totalPayable || signingTargetRow.amount || 7080}
+            accountHolderName="Krishna Associates"
+            accountNumber="50200012345678"
+            ifscCode="HDFC0000214"
+            branchName="Shop 4, Manpada Road, Dombivli West, Thane, Maharashtra 421202"
+            bankName="HDFC Bank Ltd"
+            upiId="krishnaassociates@okhdfcbank"
+            notes={signingTargetRow.notes || 'Thank you for your business. Please make payment within the due date.'}
+          />
+        </div>
+      )}
     </div>
   );
 };

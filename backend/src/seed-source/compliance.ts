@@ -53,6 +53,7 @@ export function createComplianceCategoriesSeed(): ComplianceCategory[] {
 }
 
 export function createComplianceItemsSeed(clients: Client[]): ComplianceItem[] {
+  return [];
   const items: ComplianceItem[] = [];
   let itemSeq = 1;
 
@@ -249,6 +250,7 @@ export function createComplianceItemsSeed(clients: Client[]): ComplianceItem[] {
 }
 
 export function createComplianceEntriesSeed(items: ComplianceItem[]): ComplianceEntry[] {
+  return [];
   const entries: ComplianceEntry[] = [];
   const fyPrev = getFinancialYear(-1);
   const fyCurr = getFinancialYear(0);

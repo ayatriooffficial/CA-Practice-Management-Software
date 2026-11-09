@@ -45,6 +45,7 @@ import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { TableActionDropdown } from "@/components/ui/TableActionDropdown";
 import { BulkActionBar } from "@/components/ui/BulkActionBar";
+import { pageStateCache } from "@/services/pageStateCache";
 
 const getInitials = (name?: string) => {
   if (!name) return "GP";
@@ -63,6 +64,10 @@ export const GroupListView: React.FC = () => {
   const filters = useAppSelector(selectGroupFilters);
   const isLoading = useAppSelector(selectGroupLoading);
   const isSubmitting = useAppSelector(selectGroupSubmitting);
+
+  useEffect(() => {
+    pageStateCache.markLoaded('/groups');
+  }, []);
 
   // Search input state
   const [searchInput, setSearchInput] = useState(filters.search || "");

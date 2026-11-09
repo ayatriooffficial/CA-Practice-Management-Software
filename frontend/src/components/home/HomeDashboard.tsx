@@ -11,6 +11,8 @@ import { TodayAttendanceTable } from './TodayAttendanceTable';
 import { MonthlyAttendanceTable } from './MonthlyAttendanceTable';
 import { UpcomingHolidaysTable } from './UpcomingHolidaysTable';
 import { UpcomingLeavesTable } from './UpcomingLeavesTable';
+import { EmployeePersonalLeavesTable } from './EmployeePersonalLeavesTable';
+import { teamStore } from '../team/teamStore';
 import { AdminWelcomeTodoCard } from './AdminWelcomeTodoCard';
 import { PendingInvoicingCard } from './PendingInvoicingCard';
 import { CompactTaskCard } from './CompactTaskCard';
@@ -30,6 +32,7 @@ import { isRoleAdmin } from '@/store/permissions/roleSelectors';
 import { useAppSelector } from '@/store/hooks';
 import { selectDashboardLoading } from '@/store/features/dashboard/dashboardSelectors';
 import { navigationProgress } from '@/services/navigationProgress';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
@@ -52,10 +55,18 @@ export const HomeDashboard: React.FC = () => {
   // Active sub-tab (Attendance is active per task scope)
   const [activeTab, setActiveTab] = useState('attendance');
 
+  // Cached local snapshot for zero-flicker instant render on revisit
+  const cachedHome = useMemo(() => pageStateCache.get('home_dashboard_data'), []);
+  const cachedSummaryCards = useMemo(() => pageStateCache.get<SummaryCardData[]>('home_attendance_summary'), []);
+  const cachedTodayRows = useMemo(() => pageStateCache.get<TodayAttendanceRow[]>('home_attendance_today_rows'), []);
+  const cachedEmployeeRecords = useMemo(() => pageStateCache.get<MonthlyRecordItem[]>('home_attendance_employee_records'), []);
+
   // Summary state
   const [period, setPeriod] = useState<'month' | 'year'>('month');
-  const [summaryCards, setSummaryCards] = useState<SummaryCardData[]>([]);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
+  const [summaryCards, setSummaryCards] = useState<SummaryCardData[]>(() => {
+    return cachedSummaryCards?.length ? cachedSummaryCards : cachedHome?.summaryCards || [];
+  });
+  const [isSummaryLoading, setIsSummaryLoading] = useState(!cachedHome && !cachedSummaryCards?.length);
 
   // Today Attendance (Admin) state
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -66,26 +77,33 @@ export const HomeDashboard: React.FC = () => {
       day: '2-digit',
     }).format(new Date());
   });
-  const [todayRows, setTodayRows] = useState<TodayAttendanceRow[]>([]);
+  const [todayRows, setTodayRows] = useState<TodayAttendanceRow[]>(() => {
+    return cachedTodayRows?.length ? cachedTodayRows : cachedHome?.todayRows || [];
+  });
   const [isTodayLoading, setIsTodayLoading] = useState(false);
 
   // Attendance Details (Employee) state: previous 5 days + today
-  const [employeeRecords, setEmployeeRecords] = useState<MonthlyRecordItem[]>([]);
+  const [employeeRecords, setEmployeeRecords] = useState<MonthlyRecordItem[]>(() => {
+    return cachedEmployeeRecords?.length ? cachedEmployeeRecords : cachedHome?.employeeRecords || [];
+  });
   const [isEmployeeRecordsLoading, setIsEmployeeRecordsLoading] = useState(false);
 
   // Bottom tables state
-  const [holidays, setHolidays] = useState<UpcomingHolidayItem[]>([]);
-  const [leaves, setLeaves] = useState<UpcomingLeaveItem[]>([]);
-  const [isBottomLoading, setIsBottomLoading] = useState(true);
+  const [holidays, setHolidays] = useState<UpcomingHolidayItem[]>(() => cachedHome?.holidays || []);
+  const [leaves, setLeaves] = useState<UpcomingLeaveItem[]>(() => cachedHome?.leaves || []);
+  const [isBottomLoading, setIsBottomLoading] = useState(!cachedHome);
 
   // 1. Fetch Summary Cards
   const fetchSummary = useCallback(async () => {
     try {
       setIsSummaryLoading(true);
       const res = await attendanceApi.getSummary(period);
-      setSummaryCards(res.cards || []);
+      if (res.cards && res.cards.length > 0) {
+        setSummaryCards(res.cards);
+        pageStateCache.set('home_attendance_summary', res.cards);
+      }
     } catch {
-      // Retain previous
+      // Retain previous cards from cache
     } finally {
       setIsSummaryLoading(false);
     }
@@ -97,9 +115,12 @@ export const HomeDashboard: React.FC = () => {
       try {
         setIsTodayLoading(true);
         const res = await attendanceApi.getTodayAttendance(selectedDate);
-        setTodayRows(res.rows || []);
+        if (res.rows) {
+          setTodayRows(res.rows);
+          pageStateCache.set('home_attendance_today_rows', res.rows);
+        }
       } catch {
-        setTodayRows([]);
+        // Retain previous rows instead of blanking out
       } finally {
         setIsTodayLoading(false);
       }
@@ -107,9 +128,12 @@ export const HomeDashboard: React.FC = () => {
       try {
         setIsEmployeeRecordsLoading(true);
         const res = await attendanceApi.getMonthlyAttendance();
-        setEmployeeRecords(res.records || []);
+        if (res.records) {
+          setEmployeeRecords(res.records);
+          pageStateCache.set('home_attendance_employee_records', res.records);
+        }
       } catch {
-        setEmployeeRecords([]);
+        // Retain previous records instead of blanking out
       } finally {
         setIsEmployeeRecordsLoading(false);
       }
@@ -121,7 +145,40 @@ export const HomeDashboard: React.FC = () => {
     try {
       setIsBottomLoading(true);
       const holidaysPromise = attendanceApi.getUpcomingHolidays();
-      const leavesPromise = isAdmin ? attendanceApi.getUpcomingLeaves() : Promise.resolve([]);
+      let leavesPromise: Promise<any[]>;
+
+      if (isAdmin) {
+        leavesPromise = attendanceApi.getUpcomingLeaves();
+      } else {
+        leavesPromise = (async () => {
+          try {
+            const remote = await attendanceApi.getAllLeaves();
+            const local = teamStore.getLeaveApplications();
+            const combined = [...remote, ...local];
+            const userName = (currentUser?.name || '').toLowerCase().trim();
+            const userId = String(currentUser?.id || '').trim();
+
+            const myLeaves = combined.filter((l) => {
+              const applicant = String(l.applicant || '').toLowerCase().trim();
+              const empId = String(l.employeeId || l.userId || '').trim();
+              return (
+                (userName && (applicant === userName || applicant.includes(userName) || userName.includes(applicant))) ||
+                (userId && empId === userId)
+              );
+            });
+
+            // Deduplicate by id / date + reason
+            const map = new Map<string, any>();
+            for (const item of myLeaves) {
+              const key = item.id || `${item.dateOfLeave || item.date}_${item.leaveType}`;
+              if (!map.has(key)) map.set(key, item);
+            }
+            return Array.from(map.values());
+          } catch {
+            return [];
+          }
+        })();
+      }
 
       const [holidaysRes, leavesRes] = await Promise.all([holidaysPromise, leavesPromise]);
       setHolidays(holidaysRes);
@@ -131,7 +188,7 @@ export const HomeDashboard: React.FC = () => {
     } finally {
       setIsBottomLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, currentUser]);
 
   // Parallel concurrent fetching (multithreading-like concurrent requests)
   useEffect(() => {
@@ -142,7 +199,21 @@ export const HomeDashboard: React.FC = () => {
     ]);
   }, [fetchSummary, fetchTableData, fetchBottomData]);
 
-  // Ensure global progress bar stays trickling and does NOT reach 100% until ALL home data has loaded
+  // Save state to local cache whenever data loads
+  useEffect(() => {
+    if (!isSummaryLoading && !isBottomLoading) {
+      pageStateCache.set('home_dashboard_data', {
+        summaryCards,
+        todayRows,
+        employeeRecords,
+        holidays,
+        leaves,
+      });
+      pageStateCache.markLoaded('/');
+    }
+  }, [isSummaryLoading, isBottomLoading, summaryCards, todayRows, employeeRecords, holidays, leaves]);
+
+  // Ensure global progress bar stays trickling on first load only; skip if already cached
   const isDashboardLoading = useAppSelector(selectDashboardLoading);
   const isAnyHomeLoading =
     isSummaryLoading ||
@@ -152,7 +223,9 @@ export const HomeDashboard: React.FC = () => {
     isDashboardLoading;
 
   useEffect(() => {
-    navigationProgress.setLoading('home_dashboard', isAnyHomeLoading);
+    if (!pageStateCache.isLoaded('/')) {
+      navigationProgress.setLoading('home_dashboard', isAnyHomeLoading);
+    }
     return () => {
       navigationProgress.setLoading('home_dashboard', false);
     };
@@ -276,11 +349,9 @@ export const HomeDashboard: React.FC = () => {
         />
       )}
 
-      {/* Row: Side-by-side Tables: Upcoming Holidays and Upcoming Leaves */}
+      {/* Row: Side-by-side Tables: Upcoming Holidays and Upcoming Leaves (Admin: All Staff, Employee: Personal Leaves) */}
       <div
-        className={`w-full grid ${
-          isAdmin ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
-        }`}
+        className="w-full grid grid-cols-1 lg:grid-cols-2"
         style={{ gap: '20px' }}
       >
         <UpcomingHolidaysTable
@@ -288,8 +359,13 @@ export const HomeDashboard: React.FC = () => {
           isLoading={isBottomLoading}
         />
 
-        {isAdmin && (
+        {isAdmin ? (
           <UpcomingLeavesTable
+            leaves={leaves}
+            isLoading={isBottomLoading}
+          />
+        ) : (
+          <EmployeePersonalLeavesTable
             leaves={leaves}
             isLoading={isBottomLoading}
           />

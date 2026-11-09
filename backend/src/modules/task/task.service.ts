@@ -65,9 +65,9 @@ export class TaskService {
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
     const userEmail = typeof userCtx === 'object' ? userCtx?.email : undefined;
 
-    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
+    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
+    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
 
     // Org data isolation filter (employees isolated to org; admins see all practice tasks)
     if (orgId && !isAdminRole) {
@@ -391,9 +391,9 @@ export class TaskService {
     const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
-    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
+    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
+    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
 
     if (orgId && !isAdminRole) {
@@ -478,9 +478,9 @@ export class TaskService {
     await this.seedInitialTasksIfNeeded();
 
     const orgId = userCtx?.orgId;
-    const userRole = (userCtx?.role || '').toLowerCase();
+    const userRole = (userCtx?.role || '').toLowerCase().trim();
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
+    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
 
     const andClauses: any[] = [{ isDeleted: false }];
 
@@ -651,9 +651,9 @@ export class TaskService {
     const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
-    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase();
+    const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = userRole === 'admin' || userRole === 'partner' || userRole === 'owner' || userRole === 'superadmin';
+    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
 
     if (orgId && !isAdminRole) {

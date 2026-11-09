@@ -8,6 +8,7 @@ import { groupApi } from "@/services/groupApi";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { TableActionDropdown } from "@/components/ui/TableActionDropdown";
 import { usePermission } from "@/components/team/usePermission";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupEntitiesTabProps {
   group: GroupRecord;
@@ -30,6 +31,8 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
   const { canDelete } = usePermission();
   const [clientToRemove, setClientToRemove] = useState<any | null>(null);
   const [updatingPocId, setUpdatingPocId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const entities = group.entities || [];
 
@@ -90,7 +93,9 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
                 </td>
               </tr>
             ) : (
-              entities.map((entity: any) => {
+              entities
+                .slice((page - 1) * limit, page * limit)
+                .map((entity: any) => {
                 const isPoc = group.pocClientId
                   ? group.pocClientId.toString() === entity.id
                   : false;
@@ -215,6 +220,23 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {entities.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={entities.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[5, 10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
+      )}
 
       {/* Remove Confirmation Dialog */}
       {clientToRemove && (

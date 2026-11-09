@@ -23,7 +23,10 @@ import {
   PhoneCall,
   Layers,
   Loader2,
+  PenTool,
 } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
+import { generateInvoicePdfBlob } from "@/components/onboarding/tabs/InvoiceLivePreview";
 import { InvoiceRecord, ReceiptRecord } from "./types";
 import { useInvoice } from "./InvoiceContext";
 import { organizationApi, OrganizationDetails } from "@/services/organizationApi";
@@ -240,9 +243,50 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
   const dispatch = useAppDispatch();
   const reduxClients = useAppSelector((state) => state.clients.items);
   const [isOpeningLedger, setIsOpeningLedger] = useState(false);
+  const [isSigningDsc, setIsSigningDsc] = useState(false);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSignInvoiceWithDsc = async () => {
+    setIsSigningDsc(true);
+    try {
+      let pdfBlob: Blob | null = null;
+      try {
+        pdfBlob = await generateInvoicePdfBlob("invoice-detail-preview-sheet");
+      } catch (e) {
+        console.warn("Could not capture detail sheet DOM for PDF:", e);
+      }
+
+      await stageAndRedirectToPdfSigner(router, {
+        blob: pdfBlob || undefined,
+        fileName: `${displayData.invNo || 'Document'}.pdf`,
+        invoiceData: {
+          invoiceNumber: displayData.invNo || 'INV-001',
+          clientName: displayData.clientName || 'Valued Client',
+          clientId: displayData.clientId,
+          date: displayData.date,
+          dueDate: displayData.dueDate,
+          totalAmount: activeInvoice?.totalPayable || displayData.amount || 0,
+          subTotal: activeInvoice?.subTotal || (displayData as any).subTotal || displayData.amount || 0,
+          billingOrg: senderDetails.name,
+          billingAddress: senderDetails.address,
+          firmGstin: senderDetails.gstin,
+          firmPan: senderDetails.pan,
+          clientAddress: displayData.clientAddress,
+          clientGstin: displayData.clientGstin,
+          clientPan: displayData.clientPan,
+        },
+        clientId: displayData.clientId,
+        clientName: displayData.clientName,
+      });
+    } catch (err: any) {
+      console.error("Error staging for DSC:", err);
+      alert(err?.message || "Failed to stage document for DSC signing");
+    } finally {
+      setIsSigningDsc(false);
+    }
   };
 
   const handleOpenClientLedger = async () => {
@@ -445,6 +489,21 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
             <Download className="w-4 h-4" />
           </button>
 
+          {/* Sign with DSC button */}
+          <button
+            type="button"
+            onClick={handleSignInvoiceWithDsc}
+            disabled={isSigningDsc}
+            title="Sign with DSC (PAdES)"
+            className="h-8 w-8 rounded-sm border border-[var(--border-main)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[#31719B] hover:bg-[var(--bg-hover)] flex items-center justify-center transition-colors cursor-pointer"
+          >
+            {isSigningDsc ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#31719B]" />
+            ) : (
+              <PenTool className="w-4 h-4 text-[#31719B]" />
+            )}
+          </button>
+
           {/* Action button: If Proforma -> 'Mark as Invoice'; If Invoice -> 'Record Payment' */}
           {isProforma ? (
             <button
@@ -489,7 +548,7 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
       {/* 2. MAIN 2-COLUMN LAYOUT: Document Preview (Left) + Operations Sidebar (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* LEFT COLUMN: The Document Sheet */}
-        <div className="lg:col-span-8 xl:col-span-9 bg-[var(--bg-surface)] border border-[var(--border-main)] p-6 md:p-8 shadow-xs space-y-6">
+        <div id="invoice-detail-preview-sheet" className="lg:col-span-8 xl:col-span-9 bg-[var(--bg-surface)] border border-[var(--border-main)] p-6 md:p-8 shadow-xs space-y-6">
           {/* Header Row: Sender Org & Document Metadata */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start border-b border-[var(--border-main)] pb-6">
             {/* Sender Info (Left) */}

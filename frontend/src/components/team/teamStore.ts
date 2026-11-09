@@ -373,6 +373,17 @@ export const teamStore = {
     safeSet(REGULARIZATIONS_KEY, regs);
   },
 
+  addRegularization(record: Omit<RegularizationRecord, 'id'>): RegularizationRecord {
+    const list = this.getRegularizations();
+    const newReg: RegularizationRecord = {
+      ...record,
+      id: `reg-${Date.now()}`,
+    };
+    list.unshift(newReg);
+    safeSet(REGULARIZATIONS_KEY, list);
+    return newReg;
+  },
+
   // Leaves
   getLeaveApplications(): LeaveApplication[] {
     const list = safeGet<LeaveApplication[]>(LEAVES_KEY, INITIAL_LEAVE_APPLICATIONS);
@@ -451,6 +462,17 @@ export const teamStore = {
       return r;
     });
     safeSet(REIMBURSEMENTS_KEY, list);
+  },
+
+  addReimbursement(claim: Omit<ReimbursementClaim, 'id'>): ReimbursementClaim {
+    const list = this.getReimbursements();
+    const newClaim: ReimbursementClaim = {
+      ...claim,
+      id: `claim-${Date.now()}`,
+    };
+    list.unshift(newClaim);
+    safeSet(REIMBURSEMENTS_KEY, list);
+    return newClaim;
   },
 
   syncWithAuthUsers(employees: EmployeeRecord[]): void {

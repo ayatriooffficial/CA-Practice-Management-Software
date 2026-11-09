@@ -10,7 +10,7 @@ export default function StandalonePdfSignerRoute() {
   const { currentUser } = useAuth();
   const { canView } = usePermission();
 
-  if (!canView("pdf_signer") && !canView("digital_signature")) {
+  if (!canView("pdf_signer")) {
     return <AccessDenied moduleName="PDF Signer" actionName="view" />;
   }
 

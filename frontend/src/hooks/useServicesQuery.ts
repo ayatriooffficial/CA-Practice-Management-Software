@@ -8,6 +8,8 @@ import {
   deleteServiceRequest,
 } from '@/store/features/services/serviceSlice';
 import { fetchClientsRequest } from '@/store/features/clients/clientSlice';
+import { fetchComplianceRequest } from '@/store/features/compliance/complianceSlice';
+import { clientApi } from '@/services/clientApi';
 import { ServiceQueryParams, serviceApi } from '@/services/serviceApi';
 import { Service } from '@/data/serviceData';
 
@@ -188,15 +190,19 @@ export function useToggleClientServiceMutation() {
     mutateAsync: async ({
       serviceId,
       clientId,
+      isActive,
       enabled,
     }: {
       serviceId: string;
       clientId: string;
-      enabled: boolean;
+      isActive?: boolean;
+      enabled?: boolean;
     }) => {
-      const res = await serviceApi.toggleClientService(serviceId, clientId, enabled);
+      const activeState = isActive !== undefined ? isActive : Boolean(enabled);
+      const res = await clientApi.toggleClientService(clientId, serviceId, activeState);
       dispatch(fetchServicesRequest());
       dispatch(fetchClientsRequest());
+      dispatch(fetchComplianceRequest());
       return res;
     },
     isPending: false,

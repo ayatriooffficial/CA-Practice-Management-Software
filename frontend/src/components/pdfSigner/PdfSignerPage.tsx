@@ -26,18 +26,22 @@ import { SigningDetailsCard, SigningDetailsState } from './SigningDetailsCard';
 import { SignedDocumentsTable } from './SignedDocumentsTable';
 import { VerifyDrawer } from './VerifyDrawer';
 import { ToastNotification } from '@/components/ui/ToastNotification';
+import { Button } from '@/components/ui/Button';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const PdfSignerPage: React.FC = () => {
+  const cachedSigner = pageStateCache.get('pdf_signer_page_data');
+
   // Signer provider status
-  const [status, setStatus] = useState<SignerStatusResponse | null>(null);
-  const [isStatusLoading, setIsStatusLoading] = useState(true);
+  const [status, setStatus] = useState<SignerStatusResponse | null>(() => cachedSigner?.status || null);
+  const [isStatusLoading, setIsStatusLoading] = useState(() => !cachedSigner?.status);
 
   // Clients & registered DSCs
-  const [clients, setClients] = useState<Client[]>([]);
-  const [dscList, setDscList] = useState<GlobalDsc[]>([]);
+  const [clients, setClients] = useState<Client[]>(() => cachedSigner?.clients || []);
+  const [dscList, setDscList] = useState<GlobalDsc[]>(() => cachedSigner?.dscList || []);
 
   // Staged documents for signing
-  const [stagedDocs, setStagedDocs] = useState<SignedDocItem[]>([]);
+  const [stagedDocs, setStagedDocs] = useState<SignedDocItem[]>(() => cachedSigner?.stagedDocs || []);
   const [selectedStagedIds, setSelectedStagedIds] = useState<string[]>([]);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [stagedFilesMap, setStagedFilesMap] = useState<Record<string, File>>({});
@@ -65,8 +69,8 @@ export const PdfSignerPage: React.FC = () => {
   const [isSigning, setIsSigning] = useState(false);
 
   // History / Signed documents
-  const [historyDocs, setHistoryDocs] = useState<SignedDocItem[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [historyDocs, setHistoryDocs] = useState<SignedDocItem[]>(() => cachedSigner?.historyDocs || []);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(() => !cachedSigner?.historyDocs);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [downloadingZip, setDownloadingZip] = useState(false);
 
@@ -156,8 +160,10 @@ export const PdfSignerPage: React.FC = () => {
         );
         setHistoryDocs(history);
 
-        // Staged items are Ready or Password protected
-        const staged = all.filter((d) => d.status === 'Ready' || d.status === 'Password protected');
+        // Staged items are Ready or Password protected (sorted newest first)
+        const staged = all
+          .filter((d) => d.status === 'Ready' || d.status === 'Password protected')
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         setStagedDocs(staged);
 
         // Direct staging support: check query parameter for stagedId
@@ -169,11 +175,13 @@ export const PdfSignerPage: React.FC = () => {
           if (matched) {
             setActiveDocId(matched.id);
             setSelectedStagedIds([matched.id]);
-          } else if (staged.length > 0 && !activeDocId) {
+          } else if (staged.length > 0) {
             setActiveDocId(staged[0].id);
+            setSelectedStagedIds([staged[0].id]);
           }
         } else if (staged.length > 0 && !activeDocId) {
           setActiveDocId(staged[0].id);
+          setSelectedStagedIds([staged[0].id]);
         }
       }
     } catch (err: any) {
@@ -189,18 +197,27 @@ export const PdfSignerPage: React.FC = () => {
     fetchDocuments();
   }, [fetchStatus, fetchClientsAndDscs, fetchDocuments]);
 
+  // Save page state to local cache for instant render on revisit
+  useEffect(() => {
+    if (!isStatusLoading && !isHistoryLoading) {
+      pageStateCache.set('pdf_signer_page_data', {
+        status,
+        clients,
+        dscList,
+        stagedDocs,
+        historyDocs,
+      });
+      pageStateCache.markLoaded('/pdf-signer');
+    }
+  }, [isStatusLoading, isHistoryLoading, status, clients, dscList, stagedDocs, historyDocs]);
+
   // Auto-fetch active document binary for interactive placement preview if not present in memory
   useEffect(() => {
     if (activeDocId && !stagedFilesMap[activeDocId]) {
       const activeDoc = stagedDocs.find((d) => d.id === activeDocId);
       if (activeDoc && activeDoc.status !== 'Password protected') {
-        const downloadUrl = pdfSignerApi.getDownloadUrl(activeDocId);
-        fetch(downloadUrl, { credentials: 'include' })
-          .then((res) => {
-            if (res.ok) return res.blob();
-            throw new Error('Failed to load active PDF bytes');
-          })
-          .then((blob) => {
+        pdfSignerApi.downloadDocument(activeDocId)
+          .then(({ blob }) => {
             const file = new File([blob], activeDoc.fileName, { type: 'application/pdf' });
             setStagedFilesMap((prev) => ({ ...prev, [activeDocId]: file }));
           })
@@ -517,6 +534,39 @@ export const PdfSignerPage: React.FC = () => {
     }
   };
 
+  // Delete single history/signed document
+  const handleDeleteHistoryDoc = async (id: string) => {
+    try {
+      await pdfSignerApi.deleteDocument(id);
+      setHistoryDocs((prev) => prev.filter((d) => d.id !== id && (d as any)._id !== id));
+      showToast('Document deleted successfully.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete document.', 'error');
+    }
+  };
+
+  // Delete multiple selected history/signed documents
+  const handleDeleteSelectedHistoryDocs = async (selectedIds: string[]) => {
+    if (selectedIds.length === 0) return;
+    try {
+      let deletedCount = 0;
+      for (const id of selectedIds) {
+        try {
+          await pdfSignerApi.deleteDocument(id);
+          deletedCount++;
+        } catch (e) {
+          console.error(`Failed to delete document ${id}:`, e);
+        }
+      }
+      setHistoryDocs((prev) =>
+        prev.filter((d) => !selectedIds.includes(d.id) && !selectedIds.includes((d as any)._id))
+      );
+      showToast(`Deleted ${deletedCount} document(s) successfully.`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete selected documents.', 'error');
+    }
+  };
+
   // Active file for placement preview
   const activeFile = activeDocId ? stagedFilesMap[activeDocId] : null;
 
@@ -564,18 +614,20 @@ export const PdfSignerPage: React.FC = () => {
 
         {/* Quick action buttons */}
         <div className="flex items-center gap-3 py-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={() => {
               fetchStatus();
               fetchDocuments();
             }}
-            className="flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
+            icon={<RefreshCw className="w-3.5 h-3.5" />}
             title="Refresh documents and signer status"
+            className="h-10"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
-          </button>
+            Refresh
+          </Button>
 
           <Link
             href="/dsc"
@@ -598,7 +650,10 @@ export const PdfSignerPage: React.FC = () => {
             selectedIds={selectedStagedIds}
             activeDocumentId={activeDocId}
             isUploading={isUploading}
-            onSelectDocument={(id) => setActiveDocId(id)}
+            onSelectDocument={(id) => {
+              setActiveDocId(id);
+              setSelectedStagedIds([id]);
+            }}
             onToggleSelect={handleToggleSelectStaged}
             onToggleSelectAll={handleToggleSelectAllStaged}
             onUploadFiles={handleUploadFiles}
@@ -638,6 +693,8 @@ export const PdfSignerPage: React.FC = () => {
           onDownload={handleDownloadDoc}
           onRetry={handleRetryDocument}
           onDownloadZip={handleDownloadZip}
+          onDeleteDocument={handleDeleteHistoryDoc}
+          onDeleteSelected={handleDeleteSelectedHistoryDocs}
           retryingId={retryingId}
           downloadingZip={downloadingZip}
         />

@@ -1,25 +1,42 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { X, Loader2, KeyRound, Calendar, Building2, MapPin, Usb, Download } from "lucide-react";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
 import { ConnectorStatusBadge } from "@/components/ui/ConnectorStatusBadge";
 import { ToastNotification } from "@/components/ui/ToastNotification";
+import { Select } from "@/components/ui/Select";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { hydrateClients } from "@/store/features/clients/clientSlice";
 
 interface AddDscModalProps {
   isOpen: boolean;
-  client: Client;
   onClose: () => void;
-  onSuccess: (updatedClient: Client) => void;
+  preselectedClientId?: string;   // Passed when opened from Client > DSC tab
+  preselectedClientName?: string; // Passed when opened from Client > DSC tab
+  client?: Client;
+  onSuccess?: (updatedClient?: any) => void;
 }
 
 export const AddDscModal: React.FC<AddDscModalProps> = ({
   isOpen,
-  client,
   onClose,
+  preselectedClientId,
+  preselectedClientName,
+  client,
   onSuccess,
 }) => {
+  const dispatch = useAppDispatch();
+  const reduxClients = useAppSelector((state) => state.clients.items);
+
+  const effectiveClientId = preselectedClientId || client?.id || (client as any)?._id;
+  const effectiveClientName = preselectedClientName || client?.name;
+
+  const [localClients, setLocalClients] = useState<Client[]>(reduxClients || []);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+
+  const [clientId, setClientId] = useState<string>(effectiveClientId || "");
   const [name, setName] = useState("");
   const [customId, setCustomId] = useState("");
   const [vendor, setVendor] = useState("eMudhra");
@@ -41,6 +58,72 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Keep local clients synchronized with Redux store if available
+  useEffect(() => {
+    if (reduxClients && reduxClients.length > 0) {
+      setLocalClients(reduxClients);
+    }
+  }, [reduxClients]);
+
+  // Fetch clients directly whenever opened in global mode (no preselectedClientId)
+  useEffect(() => {
+    if (!isOpen || effectiveClientId) return;
+
+    let isMounted = true;
+    setIsLoadingClients(true);
+
+    clientApi
+      .getClients({ limit: 100 })
+      .then((res) => {
+        if (!isMounted) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setLocalClients(list);
+        if (list.length > 0) {
+          dispatch(hydrateClients({ clients: list }));
+        }
+      })
+      .catch((err) => {
+        console.error("AddDscModal: Failed to fetch clients:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingClients(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, effectiveClientId, dispatch]);
+
+  // Reset form when modal opens or effectiveClientId changes
+  useEffect(() => {
+    if (isOpen) {
+      setClientId(effectiveClientId || "");
+      setName("");
+      setCustomId("");
+      setVendor("eMudhra");
+      setDscClass("Class III");
+      setBinNumber("");
+      setIssuedDate("");
+      setExpiryDate("");
+      setLocation("CA Office");
+      setStatus("Active");
+      setRemarks("");
+      setErrorMessage("");
+    }
+  }, [isOpen, effectiveClientId]);
+
+  const activeClients = localClients.length > 0 ? localClients : reduxClients;
+
+  const clientOptions = useMemo(() => {
+    return (activeClients || []).map((c) => {
+      const id = c.id || (c as any)._id || "";
+      const label = c.name + (c.fileNo ? ` (${c.fileNo})` : "");
+      return { value: id, label };
+    });
+  }, [activeClients]);
 
   const formatToInputDate = (dateVal?: string | Date): string => {
     if (!dateVal) return "";
@@ -107,6 +190,13 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const resolvedClientId = effectiveClientId || clientId;
+    if (!resolvedClientId) {
+      setErrorMessage("Please select a client.");
+      return;
+    }
+
     if (!name.trim()) {
       setErrorMessage("Signatory name is required.");
       return;
@@ -121,6 +211,7 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
 
     try {
       const payload = {
+        clientId: resolvedClientId,
         dscId: customId.trim() || undefined,
         name: name.trim(),
         issuedDate: issuedDate ? formatDateDisplay(issuedDate) : "-",
@@ -133,9 +224,9 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
         remarks: remarks.trim() || "-",
       };
 
-      const res = await clientApi.addDsc(client.id, payload);
+      const res = await clientApi.addDsc(resolvedClientId, payload);
       if (res.data) {
-        onSuccess(res.data);
+        onSuccess?.(res.data);
         onClose();
       } else {
         throw new Error((res as any).error || res.message || "Failed to add digital signature");
@@ -176,9 +267,11 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
               <h2 className="text-base font-bold text-gray-900 dark:text-white">
                 Register Digital Signature (DSC)
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {client.name}
-              </p>
+              {effectiveClientName && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {effectiveClientName}
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -200,24 +293,92 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
             </div>
           )}
 
+          {!effectiveClientId && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Select Client <span className="text-red-500">*</span>
+                </label>
+                {isLoadingClients && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-[#31719B] dark:text-blue-400 font-medium">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Loading clients...</span>
+                  </span>
+                )}
+              </div>
+              <Select
+                value={clientId}
+                onChange={(val) => {
+                  setClientId(val);
+                  if (errorMessage) setErrorMessage("");
+                }}
+                options={clientOptions}
+                placeholder={
+                  isLoadingClients
+                    ? "Loading clients directory..."
+                    : clientOptions.length === 0
+                    ? "No clients found in database"
+                    : "Search and select client..."
+                }
+                disabled={isLoadingClients}
+                searchable={true}
+              />
+            </div>
+          )}
+
           {/* Local DSC Connector Status Badge & Read from USB Action */}
-          <div className="p-3.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] bg-gray-50/70 dark:bg-gray-800/40 space-y-2.5">
+          <div className="relative overflow-hidden p-4 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/20 shadow-sm space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 flex items-center justify-center shadow-2xs">
+                  <Usb className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white block leading-tight">
+                    USB DSC Token Connector
+                  </span>
+                  <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                    Auto-fill signatory, serial no., vendor & expiry from physical USB
+                  </span>
+                </div>
+              </div>
               <ConnectorStatusBadge />
-              <a
-                href="/downloads/DSC-Connector-Windows.zip"
-                download="DSC-Connector-Windows.zip"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-[#31719B]/10 hover:bg-[#31719B]/20 text-[#31719B] dark:text-blue-300 transition-colors cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download Connector (.zip)</span>
-              </a>
             </div>
 
-            <div className="text-[11px] text-gray-600 dark:text-gray-300 space-y-0.5 border-t border-gray-200/60 dark:border-gray-700/60 pt-2">
-              <p>1. Download and extract the ZIP file.</p>
-              <p>2. Open the extracted folder and run DSC-Connector.exe (leave the window open).</p>
-              <p>3. Plug in your USB token and click Read from USB.</p>
+            <div className="p-2.5 rounded-lg bg-white/90 dark:bg-slate-900/70 border border-red-200/80 dark:border-red-900/50 text-[11px] space-y-1.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap border-b border-red-100 dark:border-red-950/60 pb-2">
+                <span className="font-bold text-red-800 dark:text-red-300">
+                  Quick Setup Steps:
+                </span>
+                <a
+                  href="/downloads/DSC-Connector-Windows.zip"
+                  download="DSC-Connector-Windows.zip"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-red-600 hover:bg-red-700 text-white border border-red-600 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Connector (.zip)</span>
+                </a>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-red-700 dark:text-red-300">
+                <div className="flex items-start gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    1
+                  </span>
+                  <span className="font-medium text-red-700 dark:text-red-300">Download and extract ZIP</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    2
+                  </span>
+                  <span className="font-medium text-red-700 dark:text-red-300">Run DSC-Connector.exe</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    3
+                  </span>
+                  <span className="font-medium text-red-700 dark:text-red-300">Insert USB & click button</span>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -225,8 +386,7 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
                 type="button"
                 onClick={handleReadFromUSB}
                 disabled={isReadingToken}
-                className="w-full sm:w-auto h-8 px-3.5 rounded-lg text-xs font-semibold text-white shadow-xs transition-all hover:opacity-95 active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+                className="w-full sm:w-auto h-8 px-4 rounded-lg text-xs font-bold text-white shadow-xs transition-all hover:bg-red-700 active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 border border-red-600"
               >
                 {isReadingToken ? (
                   <>

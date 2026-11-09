@@ -14,6 +14,7 @@ import { RecurringInvoiceView } from './RecurringInvoiceView';
 import { useAuth } from '../auth/AuthContext';
 import { usePermission } from '../team/usePermission';
 import { AccessDenied } from '../team/AccessDenied';
+import { pageStateCache } from '@/services/pageStateCache';
 
 const InvoiceContent: React.FC = () => {
   const { activeTab, setActiveTab, invoiceLoadError } = useInvoice();
@@ -29,6 +30,7 @@ const InvoiceContent: React.FC = () => {
 
   // Auto-detect incoming invoice draft from Task -> Invoice flow
   useEffect(() => {
+    pageStateCache.markLoaded('/invoice');
     try {
       const stored = typeof window !== 'undefined' ? sessionStorage.getItem('turia_draft_invoice_from_task') : null;
       if (stored) {

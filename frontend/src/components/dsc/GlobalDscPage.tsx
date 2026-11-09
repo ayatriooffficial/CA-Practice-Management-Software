@@ -16,9 +16,12 @@ import {
   ArrowUpRight,
   Loader2,
   Filter,
+  Plus,
 } from "lucide-react";
 import { GlobalDsc } from "@/data/crmData";
 import { clientApi } from "@/services/clientApi";
+import { Button } from "@/components/ui/Button";
+import { AddDscModal } from "@/components/clients/modals/AddDscModal";
 
 // Palette for avatar badges
 const AVATAR_PALETTE = [
@@ -75,6 +78,7 @@ export const GlobalDscPage: React.FC = () => {
   const [dscs, setDscs] = useState<GlobalDsc[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAddDscModalOpen, setIsAddDscModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters
@@ -195,6 +199,14 @@ export const GlobalDscPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => setIsAddDscModalOpen(true)}
+          >
+            Add DSC
+          </Button>
+
           <button
             type="button"
             onClick={() => fetchDscs(true)}
@@ -554,6 +566,14 @@ export const GlobalDscPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      <AddDscModal
+        isOpen={isAddDscModalOpen}
+        onClose={() => setIsAddDscModalOpen(false)}
+        onSuccess={() => {
+          fetchDscs(true);
+        }}
+      />
     </div>
   );
 };

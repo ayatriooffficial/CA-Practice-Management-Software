@@ -2,10 +2,14 @@ import { z } from 'zod';
 
 export const complianceGridQuerySchema = z
   .object({
+    category: z.string().optional(),
     categoryId: z.string().optional(),
     fy: z.string().optional().default('FY 2025-2026'),
     frequency: z
-      .enum(['monthly', 'quarterly', 'half_yearly', 'yearly', 'all'])
+      .preprocess(
+        (val) => (typeof val === 'string' ? val.toLowerCase().replace(/-/g, '_') : val),
+        z.enum(['monthly', 'quarterly', 'half_yearly', 'yearly', 'all'])
+      )
       .optional()
       .default('all'),
     search: z.string().optional(),

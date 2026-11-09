@@ -2,12 +2,15 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, FileText, ReceiptText, IndianRupee, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, FileText, ReceiptText, IndianRupee, Loader2, Eye, PenTool } from "lucide-react";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import { GroupRecord } from "@/services/groupApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchInvoicesRequest } from "@/store/features/invoices";
 import { InvoiceRecord, InvoiceTab } from "@/components/invoice/types";
 import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupInvoicesTabProps {
   group: GroupRecord;
@@ -22,6 +25,42 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
 
   const [activeSubTab, setActiveSubTab] = useState<"invoice" | "proforma" | "reimbursement">("invoice");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [signingId, setSigningId] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSignWithDsc = async (inv: InvoiceRecord) => {
+    setSigningId(inv.id);
+    try {
+      await stageAndRedirectToPdfSigner(router, {
+        fileName: `${inv.number || 'Invoice'}.pdf`,
+        invoiceData: {
+          invoiceNumber: inv.number || `INV-${inv.id}`,
+          clientName: inv.clientBusinessName || inv.clientLegalName || 'Valued Client',
+          clientId: inv.clientId,
+          date: inv.date,
+          dueDate: inv.dueDate,
+          totalAmount: inv.totalPayable || (inv as any).amount || 0,
+          subTotal: inv.subTotal || 0,
+          billingOrg: inv.billingOrg || 'Ayatrio',
+          billingAddress: inv.billingAddress || '',
+          firmGstin: (inv as any).firmGstin || '',
+          firmPan: (inv as any).firmPan || '',
+          clientAddress: inv.clientAddress || '',
+          clientGstin: inv.clientGstin || '',
+          clientPan: inv.clientPan || '',
+        },
+        clientId: inv.clientId,
+        clientName: inv.clientBusinessName || inv.clientLegalName,
+      });
+    } catch (err: any) {
+      console.error('Error staging invoice for DSC:', err);
+      alert(err?.message || 'Failed to stage invoice for DSC signing');
+    } finally {
+      setSigningId(null);
+    }
+  };
 
   // Fetch invoices on mount
   useEffect(() => {
@@ -149,20 +188,21 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
               <th className="py-2.5 px-3 min-w-[90px]">Status</th>
               <th className="py-2.5 px-3 text-right min-w-[100px]">Total Amount</th>
               <th className="py-2.5 px-3 text-right min-w-[100px]">Balance Due</th>
+              <th className="py-2.5 px-3 text-center min-w-[80px]">Actions</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-400">
+                <td colSpan={8} className="py-12 text-center text-gray-400">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#31719B]" />
                   <span>Loading invoices...</span>
                 </td>
               </tr>
             ) : currentList.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-400 dark:text-gray-500">
+                <td colSpan={8} className="py-12 text-center text-gray-400 dark:text-gray-500">
                   <p className="font-semibold text-gray-700 dark:text-gray-300">
                     No invoices for this Group's clients yet.
                   </p>
@@ -172,7 +212,9 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
                 </td>
               </tr>
             ) : (
-              currentList.map((inv) => (
+              currentList
+                .slice((page - 1) * limit, page * limit)
+                .map((inv) => (
                 <tr key={inv.id} className="hover:bg-gray-50/60 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3 font-semibold text-[#31719B] font-mono">
                     <Link href={`/invoice?id=${inv.id}`} className="hover:underline">
@@ -203,12 +245,53 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
                   <td className="py-2.5 px-3 text-right font-semibold text-rose-600 dark:text-rose-400">
                     ₹{(inv.balanceAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </td>
+                  <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Link
+                        href={`/invoice?id=${inv.id}`}
+                        title="View Invoice"
+                        className="p-1 text-gray-500 hover:text-[#31719B] hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleSignWithDsc(inv)}
+                        disabled={signingId === inv.id}
+                        title="Sign with DSC"
+                        className="p-1 text-[#31719B] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                      >
+                        {signingId === inv.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#31719B]" />
+                        ) : (
+                          <PenTool className="w-3.5 h-3.5 text-[#31719B]" />
+                        )}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {currentList.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={limit}
+          totalItems={currentList.length}
+          onPageChange={setPage}
+          showPageSize
+          pageSizeOptions={[5, 10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setLimit(newSize);
+            setPage(1);
+          }}
+          className="rounded-none border border-[#dde2e8] dark:border-[#334155]"
+        />
+      )}
     </div>
   );
 };

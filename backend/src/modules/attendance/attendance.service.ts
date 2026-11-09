@@ -638,23 +638,29 @@ export class AttendanceService {
    * UPCOMING LEAVES (ADMIN ONLY)
    */
   static async getUpcomingLeaves(firmId: string) {
-    const firmObjId = new mongoose.Types.ObjectId(firmId);
+    const firmObjId = mongoose.Types.ObjectId.isValid(firmId) ? new mongoose.Types.ObjectId(firmId) : null;
     const todayStr = toISTDateString(getNowIST());
 
-    const leaves = await LeaveModel.find({
-      firmId: firmObjId,
-      status: 'Approved',
+    const query: any = {
+      status: { $in: ['Approved', 'Pending'] },
       endDate: { $gte: todayStr },
-    })
+    };
+    if (firmObjId) {
+      query.$or = [{ firmId: firmObjId }, { firmId: String(firmId) }, { firmId: null }, { firmId: { $exists: false } }];
+    }
+
+    const leaves = await LeaveModel.find(query)
       .sort({ startDate: 1 })
       .limit(20)
       .lean();
 
     return leaves.map((l) => {
-      const [y, m, d] = l.startDate.split('-').map(Number);
-      const dayOfWeek = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).toLocaleDateString('en-US', {
-        weekday: 'short',
-      });
+      const [y, m, d] = (l.startDate || todayStr).split('-').map(Number);
+      const dayOfWeek = !isNaN(y) && !isNaN(m) && !isNaN(d)
+        ? new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).toLocaleDateString('en-US', {
+            weekday: 'short',
+          })
+        : 'Mon';
       return {
         id: String(l._id),
         date: l.startDate,
@@ -665,6 +671,114 @@ export class AttendanceService {
         duration: `${l.days} ${l.days === 1 ? 'day' : 'days'}`,
       };
     });
+  }
+
+  /**
+   * ALL LEAVE APPLICATIONS (TEAM & ATTENDANCE)
+   */
+  static async getAllLeaves(firmId: string) {
+    const firmObjId = mongoose.Types.ObjectId.isValid(firmId) ? new mongoose.Types.ObjectId(firmId) : null;
+    const query: any = {};
+    if (firmObjId) {
+      query.$or = [{ firmId: firmObjId }, { firmId: String(firmId) }, { firmId: null }, { firmId: { $exists: false } }];
+    }
+
+    const leaves = await LeaveModel.find(query).sort({ createdAt: -1 }).lean();
+    return leaves.map((l) => ({
+      id: String(l._id),
+      applicant: l.applicant,
+      employeeId: String(l.userId),
+      leaveType: l.leaveType,
+      dateOfApplication: l.createdAt ? new Date(l.createdAt).toISOString().split('T')[0] : l.startDate,
+      dateOfLeave: l.startDate,
+      daysApplied: l.days,
+      leavesTaken: 2,
+      leaveBalance: 8,
+      reason: l.reason,
+      status: l.status,
+      rejectionRemarks: l.rejectionRemarks,
+      lastUpdated: l.updatedAt ? new Date(l.updatedAt).toISOString().slice(0, 16).replace('T', ' ') : '',
+    }));
+  }
+
+  /**
+   * CREATE LEAVE APPLICATION
+   */
+  static async createLeaveApplication(params: {
+    firmId: string;
+    userId: string;
+    applicant: string;
+    leaveType: 'Casual Leave' | 'Sick Leave' | 'Earned Leave';
+    startDate: string;
+    endDate?: string;
+    days?: number;
+    reason?: string;
+    status?: 'Pending' | 'Approved' | 'Rejected';
+  }) {
+    const firmObjId = mongoose.Types.ObjectId.isValid(params.firmId) ? new mongoose.Types.ObjectId(params.firmId) : null;
+    const userObjId = mongoose.Types.ObjectId.isValid(params.userId) ? new mongoose.Types.ObjectId(params.userId) : null;
+
+    const startDate = params.startDate;
+    const days = Number(params.days) || 1;
+    let endDate = params.endDate;
+    if (!endDate) {
+      const [y, m, d] = startDate.split('-').map(Number);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        dt.setDate(dt.getDate() + Math.max(0, Math.ceil(days) - 1));
+        endDate = dt.toISOString().slice(0, 10);
+      } else {
+        endDate = startDate;
+      }
+    }
+
+    const leave = await LeaveModel.create({
+      firmId: firmObjId,
+      userId: userObjId || firmObjId,
+      applicant: params.applicant,
+      leaveType: params.leaveType || 'Sick Leave',
+      startDate,
+      endDate,
+      days,
+      reason: params.reason || '',
+      status: params.status || 'Approved',
+    });
+
+    return {
+      id: String(leave._id),
+      applicant: leave.applicant,
+      employeeId: String(leave.userId),
+      leaveType: leave.leaveType,
+      dateOfApplication: new Date(leave.createdAt).toISOString().split('T')[0],
+      dateOfLeave: leave.startDate,
+      daysApplied: leave.days,
+      leavesTaken: 2,
+      leaveBalance: 8,
+      reason: leave.reason,
+      status: leave.status,
+      lastUpdated: new Date(leave.updatedAt).toISOString().slice(0, 16).replace('T', ' '),
+    };
+  }
+
+  /**
+   * UPDATE LEAVE STATUS
+   */
+  static async updateLeaveStatus(
+    _firmId: string,
+    leaveId: string,
+    status: 'Pending' | 'Approved' | 'Rejected',
+    rejectionRemarks?: string
+  ) {
+    if (!mongoose.Types.ObjectId.isValid(leaveId)) {
+      throw new Error('Invalid leave ID');
+    }
+    const leave = await LeaveModel.findById(leaveId);
+    if (!leave) throw new Error('Leave application not found');
+
+    leave.status = status;
+    if (rejectionRemarks) leave.rejectionRemarks = rejectionRemarks;
+    await leave.save();
+    return leave;
   }
 
   /**

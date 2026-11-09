@@ -7,6 +7,8 @@ import {
   IComplianceEntryDocument,
 } from './compliance.model';
 import { Client } from '../client/client.model';
+import { Service } from '../service/service.model';
+import { ServiceService } from '../service/service.service';
 import { deriveEntryStatus, getTodayDateString } from '../shared-nc/status.util';
 import { AppError } from '../../shared/utils/apiError';
 import {
@@ -41,17 +43,20 @@ function normalizeFy(fy?: string): string {
 // Compliance Grid
 // ---------------------------------------------------------------------------
 export async function getComplianceGrid(q: ComplianceGridQueryInput) {
-  const { categoryId, fy, frequency, search } = q;
+  const { category, categoryId, fy, frequency, search } = q;
+  const rawCat = category || categoryId;
 
   // Resolve category gracefully (supports slug, portal, name, or default)
-  let resolvedCatId = categoryId;
-  let category = null;
+  let resolvedCatId = rawCat;
+  let catDoc = null;
 
-  if (categoryId) {
-    const clean = categoryId.trim();
-    category = await ComplianceCategoryModel.findOne({
+  if (rawCat) {
+    const clean = rawCat.trim();
+    resolvedCatId = await ServiceService.resolveComplianceCategoryId(clean, '');
+    catDoc = await ComplianceCategoryModel.findOne({
       isDeleted: false,
       $or: [
+        { categoryId: resolvedCatId },
         { categoryId: clean },
         { categoryId: clean.toLowerCase() },
         { categoryId: `cat-${clean.toLowerCase()}` },
@@ -59,31 +64,136 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
         { portal: clean.toUpperCase() },
       ],
     }).lean();
-    if (category) {
-      resolvedCatId = category.categoryId;
+    if (catDoc) {
+      resolvedCatId = catDoc.categoryId;
     }
   } else {
-    category = await ComplianceCategoryModel.findOne({
+    resolvedCatId = 'cat-gst';
+    catDoc = await ComplianceCategoryModel.findOne({
       isDeleted: false,
       categoryId: 'cat-gst',
     }).lean();
-    if (category) resolvedCatId = category.categoryId;
   }
 
-  // Build items query
-  const itemMatch: Record<string, unknown> = { isDeleted: false };
-  if (resolvedCatId) itemMatch.categoryId = resolvedCatId;
-  if (frequency && frequency !== 'all') itemMatch.frequency = frequency;
+  // Fetch non-deleted clients
+  const clientQuery: Record<string, unknown> = {
+    isDeleted: false,
+  };
 
-  const items = await ComplianceItemModel.find(itemMatch).lean();
+  if (search) {
+    const re = escapeRegex(search);
+    clientQuery.$or = [
+      { name: { $regex: re, $options: 'i' } },
+      { 'customerFiles.statutory.idNo': { $regex: re, $options: 'i' } },
+      { pan: { $regex: re, $options: 'i' } },
+      { fileNo: { $regex: re, $options: 'i' } },
+    ];
+  }
 
-  if (items.length === 0) {
+  const clients = await Client.find(clientQuery).lean();
+
+  if (clients.length === 0) {
     return { clients: [], rows: [], columns: generateColumns(fy ?? 'FY 2025-2026', frequency ?? 'all'), entries: [] };
   }
 
-  const itemIds = items.map((i) => i._id);
+  // Pre-load all catalog services to look up categories and frequencies
+  const catalogServices = await Service.find({ isDeleted: false }).lean();
+  const catalogMap = new Map<string, any>();
+  for (const s of catalogServices) {
+    if (s._id) catalogMap.set(String(s._id), s);
+    if (s.name) catalogMap.set(s.name.trim().toLowerCase(), s);
+    if ((s as any).serviceId) catalogMap.set(String((s as any).serviceId), s);
+  }
 
-  // Fetch entries for those items with robust FY matching
+  // Map active recurring compliance services per client
+  interface ClientActiveService {
+    serviceName: string;
+    category: string;
+    frequency: Frequency;
+    formCode: string;
+    isCustom?: boolean;
+    serviceId?: string;
+  }
+
+  const activeServicesByClient = new Map<string, ClientActiveService[]>();
+  const activeFrequencies = new Set<Frequency>();
+
+  for (const client of clients) {
+    const cid = String(client._id);
+    const seenServiceNames = new Set<string>();
+    const clientActiveList: ClientActiveService[] = [];
+
+    // Check client.serviceSettings - Only services explicitly enabled with compliance are included
+    const settings = (client.serviceSettings || []) as any[];
+    for (const s of settings) {
+      const isEnabled = Boolean(s.isActive !== undefined ? s.isActive : s.compliance);
+      if (!isEnabled) continue;
+
+      const sName = (s.serviceName || '').trim();
+      if (!sName || seenServiceNames.has(sName.toLowerCase())) continue;
+      seenServiceNames.add(sName.toLowerCase());
+
+      const dbS = (s.serviceId && catalogMap.get(s.serviceId)) || catalogMap.get(sName.toLowerCase());
+      const rawCategory = s.category || dbS?.category;
+      const serviceCategory = await ServiceService.resolveComplianceCategoryId(rawCategory, sName);
+
+      if (resolvedCatId && serviceCategory !== resolvedCatId) {
+        continue;
+      }
+
+      const serviceFreq = ServiceService.resolveComplianceFrequency(s.frequency || dbS?.frequency);
+      if (frequency && frequency !== 'all' && serviceFreq !== frequency) {
+        continue;
+      }
+
+      const formCode = ServiceService.resolveComplianceFormCode(dbS || { name: sName, code: s.serviceId });
+
+      clientActiveList.push({
+        serviceName: sName,
+        category: serviceCategory,
+        frequency: serviceFreq,
+        formCode,
+        isCustom: Boolean(s.isCustom || !dbS),
+        serviceId: s.serviceId || (dbS?._id ? String(dbS._id) : undefined),
+      });
+      activeFrequencies.add(serviceFreq);
+    }
+
+    if (clientActiveList.length > 0) {
+      activeServicesByClient.set(cid, clientActiveList);
+    }
+  }
+
+  // If no active services mapped, return empty rows
+  if (activeServicesByClient.size === 0) {
+    return {
+      clients: [],
+      rows: [],
+      columns: generateColumns(fy ?? 'FY 2025-2026', frequency ?? 'all'),
+      entries: [],
+    };
+  }
+
+  // Generate dynamic period columns based on active services' frequencies
+  const columns = generateDynamicColumns(fy ?? 'FY 2025-2026', activeFrequencies, frequency ?? 'all');
+  const today = getTodayDateString();
+  const catMode = catDoc?.mode ?? 'manual';
+
+  // Load existing ComplianceItem records for matched clients
+  const matchedClientObjectIds = Array.from(activeServicesByClient.keys()).map((id) => new Types.ObjectId(id));
+  const existingItems = await ComplianceItemModel.find({
+    clientId: { $in: matchedClientObjectIds },
+    isDeleted: false,
+  }).lean();
+
+  const itemMap = new Map<string, any>();
+  for (const it of existingItems) {
+    itemMap.set(`${it.clientId}__${(it.formCode || '').toLowerCase()}`, it);
+    itemMap.set(`${it.clientId}__${(it.label || '').toLowerCase()}`, it);
+  }
+
+  // Fetch entries for those items
+  const itemIds = existingItems.map((i) => i._id);
   const normFy = normalizeFy(fy);
   const possibleFys = [
     normFy,
@@ -99,7 +209,6 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     isDeleted: false,
   }).lean();
 
-  // Build entry map: itemId -> periodKey -> entry
   const entryMap = new Map<string, Map<string, IComplianceEntryDocument>>();
   for (const e of entriesRaw) {
     const iid = String(e.itemId);
@@ -107,49 +216,47 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     entryMap.get(iid)!.set(e.periodKey, e as unknown as IComplianceEntryDocument);
   }
 
-  // Fetch clients
-  const clientIds = [...new Set(items.map((i) => String(i.clientId)))];
-  const clientQuery: Record<string, unknown> = {
-    _id: { $in: clientIds.map((id) => new Types.ObjectId(id)) },
-    isDeleted: false,
-  };
-
-  if (search) {
-    const re = escapeRegex(search);
-    clientQuery.$or = [
-      { name: { $regex: re, $options: 'i' } },
-      { 'customerFiles.statutory.idNo': { $regex: re, $options: 'i' } },
-    ];
-  }
-
-  const clients = await Client.find(clientQuery).lean();
   const clientMap = new Map(clients.map((c) => [String(c._id), c]));
-
-  const columns = generateColumns(fy ?? 'FY 2025-2026', frequency ?? 'all');
-  const today = getTodayDateString();
-  const catMode = category?.mode ?? 'manual';
-
-  // Group items by client
   const rows: unknown[] = [];
   const clientSet = new Set<string>();
-  const itemsByClient = new Map<string, typeof items>();
-  for (const item of items) {
-    const cid = String(item.clientId);
-    if (!clientMap.has(cid)) continue; // filtered out by search or deleted
-    clientSet.add(cid);
-    if (!itemsByClient.has(cid)) itemsByClient.set(cid, []);
-    itemsByClient.get(cid)!.push(item);
-  }
 
-  for (const [cid, clientItems] of itemsByClient) {
+  for (const [cid, serviceList] of activeServicesByClient) {
     const client = clientMap.get(cid);
     if (!client) continue;
+    clientSet.add(cid);
 
-    for (const item of clientItems) {
-      const iid = String(item._id);
+    const clientAny = client as any;
+    let clientIdentifier = '';
+    if (clientAny.customerFiles?.statutory) {
+      const statutory = clientAny.customerFiles.statutory as Array<{ type?: string; idNo?: string }>;
+      const panEntry = statutory.find((s) => s.type?.toUpperCase() === 'PAN');
+      const gstinEntry = statutory.find((s) => s.type?.toUpperCase() === 'GSTIN');
+      const tanEntry = statutory.find((s) => s.type?.toUpperCase() === 'TAN');
+      if (catDoc?.portal === 'IT' || resolvedCatId === 'cat-it') {
+        clientIdentifier = panEntry?.idNo || gstinEntry?.idNo || '';
+      } else if (catDoc?.portal === 'GST' || resolvedCatId === 'cat-gst') {
+        clientIdentifier = gstinEntry?.idNo || panEntry?.idNo || '';
+      } else if (catDoc?.portal === 'TDS' || resolvedCatId === 'cat-tds') {
+        clientIdentifier = tanEntry?.idNo || panEntry?.idNo || '';
+      } else {
+        clientIdentifier = panEntry?.idNo || gstinEntry?.idNo || tanEntry?.idNo || '';
+      }
+    }
+    if (!clientIdentifier && clientAny.pan) {
+      clientIdentifier = clientAny.pan;
+    }
+    const clientState = clientAny.address?.state || clientAny.state || 'Karnataka';
+
+    for (const svc of serviceList) {
+      const existingItem =
+        itemMap.get(`${cid}__${svc.formCode.toLowerCase()}`) ||
+        itemMap.get(`${cid}__${svc.serviceName.toLowerCase()}`);
+
+      const itemId = existingItem ? String(existingItem._id) : `c-item-${cid}-${svc.formCode}`;
       const cells: Record<string, unknown> = {};
+
       for (const col of columns) {
-        const entry = entryMap.get(iid)?.get(col.key);
+        const entry = existingItem ? entryMap.get(String(existingItem._id))?.get(col.key) : undefined;
         if (entry) {
           const status = deriveEntryStatus({
             dueDate: entry.dueDate,
@@ -170,39 +277,21 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
         }
       }
 
-      let clientIdentifier = item.identifier;
-      const clientAny = client as any;
-      if (!clientIdentifier && clientAny.customerFiles?.statutory) {
-        const statutory = clientAny.customerFiles.statutory as Array<{ type?: string; idNo?: string }>;
-        const panEntry = statutory.find((s) => s.type?.toUpperCase() === 'PAN');
-        const gstinEntry = statutory.find((s) => s.type?.toUpperCase() === 'GSTIN');
-        const tanEntry = statutory.find((s) => s.type?.toUpperCase() === 'TAN');
-        if (category?.portal === 'IT' || item.categoryId === 'cat-it') {
-          clientIdentifier = panEntry?.idNo || gstinEntry?.idNo;
-        } else if (category?.portal === 'GST' || item.categoryId === 'cat-gst') {
-          clientIdentifier = gstinEntry?.idNo || panEntry?.idNo;
-        } else if (category?.portal === 'TDS' || item.categoryId === 'cat-tds') {
-          clientIdentifier = tanEntry?.idNo || panEntry?.idNo;
-        } else {
-          clientIdentifier = panEntry?.idNo || gstinEntry?.idNo || tanEntry?.idNo;
-        }
-      }
-      const clientState = item.state || clientAny.address?.state || clientAny.state || 'Karnataka';
-
       rows.push({
         clientId: cid,
         clientName: client.name,
+        form: svc.serviceName, // Map form property to Service Name
         item: {
-          id: iid,
+          id: itemId,
           clientId: cid,
-          categoryId: item.categoryId,
+          categoryId: svc.category,
           identifier: clientIdentifier,
           state: clientState,
-          formCode: item.formCode,
-          label: item.label,
-          kind: item.kind ?? null,
-          frequency: item.frequency,
-          isCustom: item.isCustom,
+          formCode: svc.formCode,
+          label: svc.serviceName, // Map item label to Service Name
+          kind: (existingItem?.kind || (svc.serviceName.toLowerCase().includes('payment') ? 'payment' : 'return')) as any,
+          frequency: svc.frequency,
+          isCustom: svc.isCustom,
         },
         cells,
       });
@@ -358,6 +447,33 @@ export async function getComplianceSummary() {
     total: allEntries.length,
     upcoming: upcomingList.slice(0, 5),
   };
+}
+
+function generateDynamicColumns(
+  fy: string,
+  frequencies: Set<Frequency>,
+  frequencyParam: string
+): { key: string; label: string; frequency: Frequency }[] {
+  if (frequencyParam && frequencyParam !== 'all') {
+    return generateColumns(fy, frequencyParam);
+  }
+  if (frequencies.size === 0) {
+    return generateColumns(fy, 'all');
+  }
+  const cols: { key: string; label: string; frequency: Frequency }[] = [];
+  if (frequencies.has('monthly')) {
+    cols.push(...generateColumns(fy, 'monthly'));
+  }
+  if (frequencies.has('quarterly')) {
+    cols.push(...generateColumns(fy, 'quarterly'));
+  }
+  if (frequencies.has('half_yearly')) {
+    cols.push(...generateColumns(fy, 'half_yearly'));
+  }
+  if (frequencies.has('yearly')) {
+    cols.push(...generateColumns(fy, 'yearly'));
+  }
+  return cols.length > 0 ? cols : generateColumns(fy, 'all');
 }
 
 function generateColumns(

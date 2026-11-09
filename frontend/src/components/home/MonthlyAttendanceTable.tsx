@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { MonthlyRecordItem } from '../../services/attendanceApi';
+import { Pagination } from '../ui/Pagination';
 
 interface MonthlyAttendanceTableProps {
   records: MonthlyRecordItem[];
@@ -12,6 +13,8 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
   records,
   isLoading = false,
 }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   // Badge styles with dark mode support
   const getBadgeClass = (badge: string) => {
     switch (badge) {
@@ -34,6 +37,7 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
 
   // Only previous 5 days and today (no future records)
   const filteredRecords = records.filter((r) => !r.isFuture);
+  const paginatedRecords = filteredRecords.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div
@@ -110,7 +114,7 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
                 </td>
               </tr>
             ) : (
-              filteredRecords.map((r) => {
+              paginatedRecords.map((r) => {
                 const badgeClass = getBadgeClass(r.attendanceBadge);
 
                 return (
@@ -187,6 +191,22 @@ export const MonthlyAttendanceTable: React.FC<MonthlyAttendanceTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {filteredRecords.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={filteredRecords.length}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          showPageSize={true}
+          pageSizeOptions={[5, 10, 15, 25]}
+        />
+      )}
     </div>
   );
 };

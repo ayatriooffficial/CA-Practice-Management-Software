@@ -88,19 +88,9 @@ export interface Service {
   isDeleted?: boolean;
 }
 
-export const SERVICE_CATEGORIES = [
-  'Retainer',
-  'G.S.T',
-  'Income Tax',
-  'R.O.C',
-  'E.P.F.P',
-  'E.S.I.C',
-  'Audit',
-  'Import Export',
-  'Profession Tax',
-  'Shram Suvida',
-  'Trade License',
-];
+import { SERVICE_CATEGORIES } from '@/constants/serviceCategories';
+export { SERVICE_CATEGORIES };
+export type { ServiceCategory } from '@/constants/serviceCategories';
 
 export const SERVICE_FREQUENCIES = [
   'Monthly',

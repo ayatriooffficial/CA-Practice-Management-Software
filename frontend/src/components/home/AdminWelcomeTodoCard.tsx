@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { todoApi, TeamTaskItem, AdminTaskItem, TodoItem } from '../../services/todoApi';
 import { useAuth } from '../auth/AuthContext';
+import { pageStateCache } from '@/services/pageStateCache';
 import {
   getTodayKolkataYMD,
   getTomorrowKolkataYMD,
@@ -35,10 +36,11 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
   const role = (currentUser?.role || 'admin').toLowerCase().trim();
   const isAdmin = ['admin', 'owner', 'partner', 'manager'].includes(role);
 
-  const [tasks, setTasks] = useState<TeamTaskItem[]>([]);
+  const cachedTasks = useMemo(() => pageStateCache.get<TeamTaskItem[]>('home_todo_tasks'), []);
+  const [tasks, setTasks] = useState<TeamTaskItem[]>(() => cachedTasks || []);
   const [activeTab, setActiveTab] = useState<DateTab>('today');
   const [adminScope, setAdminScope] = useState<ScopeTab>(isAdmin ? 'all' : 'my_work');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!cachedTasks?.length);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,9 +61,8 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
       setError(null);
 
       if (isAdmin) {
-        const [adminRes, teamRes, personalRes] = await Promise.all([
+        const [adminRes, personalRes] = await Promise.all([
           todoApi.getAdminTasks().catch(() => []),
-          todoApi.getTeamTasks({ limit: 100 }).catch(() => ({ tasks: [], total: 0 })),
           todoApi.getTodos().catch(() => []),
         ]);
 
@@ -74,7 +75,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
           clientName: at.clientName || '',
           clientId: at.clientId,
           assigneeId: currentUser?.id || 'admin',
-          assigneeName: 'Admin',
+          assigneeName: currentUser?.name || 'Admin',
           priority: at.priority || 'Medium',
           status: at.completed ? 'Completed' : at.status === 'Expired' ? 'Overdue' : 'Pending',
           targetDueDate: at.dueDate,
@@ -116,15 +117,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
         const seenIds = new Set<string>();
         const merged: TeamTaskItem[] = [];
 
-        // 1. Admin tasks
-        for (const item of mappedAdminTasks) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            merged.push(item);
-          }
-        }
-
-        // 2. Personal todos
+        // 1. Personal todos
         for (const item of mappedPersonalTasks) {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
@@ -132,20 +125,19 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
           }
         }
 
-        // 3. Team tasks
-        for (const item of teamRes.tasks || []) {
-          const itemKey = item.taskId || item.id;
-          if (!seenIds.has(itemKey) && !seenIds.has(item.id)) {
-            seenIds.add(itemKey);
+        // 2. Admin tasks
+        for (const item of mappedAdminTasks) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
             merged.push(item);
           }
         }
 
         setTasks(merged);
+        pageStateCache.set('home_todo_tasks', merged);
       } else {
-        const [myRes, teamRes, personalRes] = await Promise.all([
+        const [myRes, personalRes] = await Promise.all([
           todoApi.getMyTasks().catch(() => []),
-          todoApi.getTeamTasks({ limit: 100 }).catch(() => ({ tasks: [], total: 0 })),
           todoApi.getTodos().catch(() => []),
         ]);
 
@@ -184,7 +176,7 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
           }
         }
 
-        // 2. My tasks
+        // 2. My assigned tasks
         for (const item of myRes || []) {
           const itemKey = item.taskId || item.id;
           if (!seenIds.has(itemKey) && !seenIds.has(item.id)) {
@@ -193,16 +185,8 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
           }
         }
 
-        // 3. Team tasks
-        for (const item of teamRes.tasks || []) {
-          const itemKey = item.taskId || item.id;
-          if (!seenIds.has(itemKey) && !seenIds.has(item.id)) {
-            seenIds.add(itemKey);
-            merged.push(item);
-          }
-        }
-
         setTasks(merged);
+        pageStateCache.set('home_todo_tasks', merged);
       }
     } catch (err: any) {
       console.error('Failed to load to-do list in home section:', err);

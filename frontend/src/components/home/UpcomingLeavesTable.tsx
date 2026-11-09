@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UpcomingLeaveItem } from '../../services/attendanceApi';
+import { Pagination } from '../ui/Pagination';
 
 interface UpcomingLeavesTableProps {
   leaves: UpcomingLeaveItem[];
@@ -12,6 +13,9 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
   leaves,
   isLoading = false,
 }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const paginatedLeaves = leaves.slice((page - 1) * pageSize, page * pageSize);
   return (
     <div
       className="w-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col shadow-xs"
@@ -65,7 +69,7 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
                 </td>
               </tr>
             ) : (
-              leaves.map((l) => (
+              paginatedLeaves.map((l) => (
                 <tr
                   key={l.id}
                   className="hover:bg-[#F6F4F2] dark:hover:bg-[#162032] transition-colors"
@@ -98,6 +102,22 @@ export const UpcomingLeavesTable: React.FC<UpcomingLeavesTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {leaves.length > 0 && (
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={leaves.length}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          showPageSize={true}
+          pageSizeOptions={[5, 10, 20]}
+        />
+      )}
     </div>
   );
 };

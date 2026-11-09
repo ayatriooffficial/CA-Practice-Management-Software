@@ -12,7 +12,11 @@ import {
   Calendar,
   CreditCard,
   CheckCircle2,
+  PenTool,
+  Loader2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import { Quotation } from "@/services/quotationApi";
 import { Lead } from "@/data/crmData";
 import { ComposeModal } from "@/components/email/ComposeModal";
@@ -37,6 +41,26 @@ export const QuotationViewModal: React.FC<QuotationViewModalProps> = ({
     body: "",
   });
   const [sendingEmail, setSendingEmail] = useState(false);
+
+  const router = useRouter();
+  const [isSigningDsc, setIsSigningDsc] = useState(false);
+
+  const handleSignWithDsc = async () => {
+    setIsSigningDsc(true);
+    try {
+      await stageAndRedirectToPdfSigner(router, {
+        fileName: `${quotation.quotationNo || 'Quotation'}.pdf`,
+        clientId: quotation.leadId || (quotation as any).clientId || lead?.id,
+        clientName: (quotation as any).clientName || (quotation as any).leadName || lead?.fullName,
+      });
+      onClose();
+    } catch (err: any) {
+      console.error('Failed to stage quotation for DSC:', err);
+      alert(err?.message || 'Failed to stage quotation for DSC signing');
+    } finally {
+      setIsSigningDsc(false);
+    }
+  };
 
   const handlePrint = () => {
     // Remove any previous print frame if left over
@@ -534,6 +558,20 @@ Ayatrio Practice`;
                 className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSignWithDsc}
+                disabled={isSigningDsc}
+                title="Sign with DSC"
+                className="p-2 rounded-lg border border-[#31719B]/30 bg-blue-50/50 dark:bg-blue-950/20 text-[#31719B] hover:bg-blue-100 transition-colors cursor-pointer"
+              >
+                {isSigningDsc ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#31719B]" />
+                ) : (
+                  <PenTool className="w-4 h-4 text-[#31719B]" />
+                )}
               </button>
 
               <button

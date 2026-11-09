@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { ClientService } from './client.service';
+import { ServiceService } from '../service/service.service';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AppError } from '../../shared/utils/apiError';
@@ -294,6 +295,20 @@ export class ClientController {
     const settings = Array.isArray(req.body) ? req.body : req.body.serviceSettings;
     const client = await ClientService.updateServiceSettings(id, settings || []);
     return ApiResponse.success(res, client, 'Service settings updated successfully');
+  });
+
+  /**
+   * Toggle client service active/compliance status
+   * PATCH /api/v1/clients/:clientId/services/:serviceId
+   */
+  static toggleClientService = asyncHandler(async (req: Request, res: Response) => {
+    const clientId = (req.params.clientId || req.params.id) as string;
+    const serviceId = req.params.serviceId as string;
+    const isActive = req.body.isActive !== undefined
+      ? Boolean(req.body.isActive)
+      : (req.body.enabled !== undefined ? Boolean(req.body.enabled) : true);
+    const updatedClient = await ServiceService.toggleClientService(serviceId, clientId, isActive);
+    return ApiResponse.success(res, updatedClient, 'Client service status updated successfully');
   });
 
   /**

@@ -95,7 +95,6 @@ export function canAccess(
   if (!mod && normKey === 'ledger' && permissions['billing']) {
     mod = permissions['billing'];
   }
-
   if (!mod) return false;
 
   // Support boolean permission values: { billing: true }

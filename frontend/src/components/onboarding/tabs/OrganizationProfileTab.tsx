@@ -209,7 +209,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
         {/* Row 3 */}
         <div>
           <label className="block text-[13px] font-semibold text-[var(--text-main)] mb-1.5">
-            Address Line 1 <span className="text-red-500">*</span>
+            Address Line 1
           </label>
           <input
             type="text"
@@ -222,7 +222,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
 
         <div>
           <label className="block text-[13px] font-semibold text-[var(--text-main)] mb-1.5">
-            Address Line 2 <span className="text-red-500">*</span>
+            Address Line 2
           </label>
           <input
             type="text"
@@ -235,7 +235,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
 
         <div>
           <label className="block text-[13px] font-semibold text-[var(--text-main)] mb-1.5">
-            City <span className="text-red-500">*</span>
+            City
           </label>
           <input
             type="text"
@@ -249,7 +249,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
         {/* Row 4 */}
         <div>
           <label className="block text-[13px] font-semibold text-[var(--text-main)] mb-1.5">
-            Country <span className="text-red-500">*</span>
+            Country
           </label>
           <input
             type="text"
@@ -262,7 +262,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
 
         <div>
           <label className="block text-[13px] font-semibold text-[var(--text-main)] mb-1.5">
-            State <span className="text-red-500">*</span>
+            State
           </label>
           <select
             value={state}
@@ -279,7 +279,7 @@ export const OrganizationProfileTab: React.FC<OrganizationProfileTabProps> = ({
 
         <div>
           <label className="block text-[13px] font-semibold text-[var(--text-main)] mb-1.5">
-            Pin Code <span className="text-red-500">*</span>
+            Pin Code
           </label>
           <input
             type="text"

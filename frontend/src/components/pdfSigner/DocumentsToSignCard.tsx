@@ -15,6 +15,7 @@ import {
 import { SignedDocItem } from '@/services/pdfSignerApi';
 import { Client } from '@/data/crmData';
 import { DriveFilePickerModal } from './DriveFilePickerModal';
+import { Pagination } from '@/components/ui/Pagination';
 
 interface DocumentsToSignCardProps {
   documents: SignedDocItem[];
@@ -55,6 +56,8 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
   const formatFileSize = (bytes: number): string => {
     if (!bytes || bytes <= 0) return '0 KB';
@@ -266,7 +269,9 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
                   </td>
                 </tr>
               ) : (
-                documents.map((doc) => {
+                documents
+                  .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                  .map((doc) => {
                   const isChecked = selectedIds.includes(doc.id || (doc as any)._id);
                   const isActive = activeDocumentId === doc.id || activeDocumentId === (doc as any)._id;
 
@@ -415,6 +420,23 @@ export const DocumentsToSignCard: React.FC<DocumentsToSignCardProps> = ({
             </tbody>
           </table>
         </div>
+
+        {documents.length > 5 && (
+          <div className="border border-t-0 border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={documents.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              showPageSize={true}
+              pageSizeOptions={[5, 10, 20]}
+            />
+          </div>
+        )}
       </div>
 
       {onStageFromDrive && (

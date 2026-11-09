@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setSelectedClient } from "@/store/features/clients/clientSlice";
 import { navigationProgress } from "@/services/navigationProgress";
+import { pageStateCache } from "@/services/pageStateCache";
 
 export function getSectionKey(pathname: string | null): string {
   if (!pathname || pathname === "/") return "home";
@@ -116,8 +117,10 @@ export function useSectionNavigation() {
         }
       }
 
-      // Signal simulated progress bar start for section navigation
-      navigationProgress.start(targetFirstPage);
+      // Signal simulated progress bar start only if target section hasn't already loaded
+      if (!pageStateCache.isLoaded(targetFirstPage)) {
+        navigationProgress.start(targetFirstPage);
+      }
 
       activeSectionRef.current = targetSectionKey;
       router.replace(targetFirstPage);

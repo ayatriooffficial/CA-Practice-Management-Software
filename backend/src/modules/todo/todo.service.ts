@@ -1533,9 +1533,18 @@ export class TodoService {
 
   // --- Retain existing legacy personal to-dos for AdminWelcomeTodoCard compatibility ---
   static async listUserTodos(orgId: string, userId: string) {
-    const userObjId = mongoose.Types.ObjectId.isValid(userId)
-      ? new mongoose.Types.ObjectId(userId)
-      : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+    let userObjId: mongoose.Types.ObjectId;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userObjId = new mongoose.Types.ObjectId(userId);
+    } else {
+      const u = await UserModel.findOne({
+        $or: [
+          { email: userId },
+          { name: new RegExp(`^${String(userId).trim()}$`, 'i') },
+        ],
+      }).lean();
+      userObjId = u ? (u._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c8');
+    }
     const orgObjId = mongoose.Types.ObjectId.isValid(orgId)
       ? new mongoose.Types.ObjectId(orgId)
       : new mongoose.Types.ObjectId('6ad9e23bf460aa2e6102c0c6');
@@ -1551,11 +1560,16 @@ export class TodoService {
     return items.map((item) => ({
       id: String(item._id),
       title: item.title,
+      description: item.description || '',
+      category: item.category || 'General',
+      priority: item.priority || 'Medium',
+      clientName: item.clientName || '',
+      clientId: item.clientId || null,
       completed: item.completed,
       completedAt: item.completedAt ? item.completedAt.toISOString() : null,
       dueDate: item.dueDate || null,
-      createdAt: item.createdAt.toISOString(),
-      updatedAt: item.updatedAt.toISOString(),
+      createdAt: item.createdAt ? item.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: item.updatedAt ? item.updatedAt.toISOString() : new Date().toISOString(),
     }));
   }
 

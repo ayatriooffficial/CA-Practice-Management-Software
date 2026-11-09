@@ -6,6 +6,8 @@ import { teamStore } from './teamStore';
 import { financialApi, FinancialExpenseRecord } from '@/services/financialApi';
 import { taskApi } from '@/services/taskApi';
 import { TaskItem } from '@/data/taskData';
+import { Pagination } from '../ui/Pagination';
+import { useAuth } from '../auth/AuthContext';
 
 function expenseToClaim(expense: FinancialExpenseRecord): ReimbursementClaim {
   const employee = typeof expense.employeeId === 'string' ? null : expense.employeeId;
@@ -25,6 +27,11 @@ function expenseToClaim(expense: FinancialExpenseRecord): ReimbursementClaim {
 }
 
 export const ReimbursementView: React.FC = () => {
+  const { currentUser } = useAuth();
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const isEmployee = roleLower === 'employee';
+  const isAdmin = roleLower === 'admin';
+
   const [activeType, setActiveType] = useState<'internal' | 'task'>('internal');
   const [claims, setClaims] = useState<ReimbursementClaim[]>(() => teamStore.getReimbursements());
   const [taskClaims, setTaskClaims] = useState<ReimbursementClaim[]>([]);
@@ -36,13 +43,33 @@ export const ReimbursementView: React.FC = () => {
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
   const [expenseError, setExpenseError] = useState('');
   const [expenseLoading, setExpenseLoading] = useState(false);
+
+  // Internal claim submission form
+  const [showInternalForm, setShowInternalForm] = useState(false);
+  const [internalParticulars, setInternalParticulars] = useState('');
+  const [internalAmount, setInternalAmount] = useState('');
+  const [internalDate, setInternalDate] = useState(new Date().toISOString().slice(0, 10));
+  const [internalMethod, setInternalMethod] = useState('UPI');
+
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState('This FY');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const selectedClaims = activeType === 'task' ? taskClaims : claims.filter((claim) => claim.type === 'internal');
+
   const currentClaims = selectedClaims.filter((c) => {
+    if (isEmployee) {
+      const myName = (currentUser?.name || '').toLowerCase().trim();
+      const myId = String(currentUser?.id || '').trim();
+      const applicant = (c.applicant || '').toLowerCase().trim();
+      const empId = String(c.employeeId || '').trim();
+      const isMine = (myName && (applicant === myName || applicant.includes(myName))) || (myId && empId === myId);
+      if (!isMine) return false;
+    }
+
     const matchesSearch =
       !searchQuery.trim() ||
       c.applicant.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,6 +157,35 @@ export const ReimbursementView: React.FC = () => {
     }
   };
 
+  const submitInternalExpense = () => {
+    const amt = Number(internalAmount);
+    if (!internalParticulars.trim() || isNaN(amt) || amt <= 0 || !internalDate) {
+      setExpenseError('Enter particulars, date, and valid amount.');
+      return;
+    }
+    const myName = currentUser?.name || 'Employee';
+    const myId = currentUser?.id || 'emp_me';
+
+    teamStore.addReimbursement({
+      type: 'internal',
+      applicant: myName,
+      employeeId: myId,
+      particulars: internalParticulars.trim(),
+      date: internalDate,
+      amount: amt,
+      paidBy: myName,
+      status: 'Applied',
+      paid: false,
+      method: internalMethod || 'UPI',
+    });
+
+    setClaims(teamStore.getReimbursements());
+    setShowInternalForm(false);
+    setInternalParticulars('');
+    setInternalAmount('');
+    setExpenseError('');
+  };
+
   const ranges = [
     'Today',
     'This Week',
@@ -170,7 +226,7 @@ export const ReimbursementView: React.FC = () => {
           </button>
         </div>
 
-        {activeType === 'task' && (
+        {activeType === 'task' ? (
           <button
             type="button"
             onClick={() => void openExpenseForm()}
@@ -179,10 +235,86 @@ export const ReimbursementView: React.FC = () => {
           >
             + Add Task Expense
           </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowInternalForm(true)}
+            style={{ backgroundColor: 'var(--premium-blue-dark)' }}
+            className="h-10 px-4 rounded-md text-xs font-semibold text-white hover:opacity-90 cursor-pointer shadow-sm"
+          >
+            + Add Internal Claim
+          </button>
         )}
       </div>
 
       {expenseError && <div role="alert" className="rounded-md border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">{expenseError}</div>}
+      
+      {showInternalForm && (
+        <section className="grid grid-cols-1 gap-3 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-4 sm:grid-cols-2 shadow-sm animate-fadeIn" aria-label="Submit internal reimbursement">
+          <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">
+            Particulars / Description
+            <input
+              value={internalParticulars}
+              onChange={(e) => setInternalParticulars(e.target.value)}
+              placeholder="e.g. Office Stationery, Client Meeting Refreshments"
+              maxLength={300}
+              className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">
+            Payment Method
+            <select
+              value={internalMethod}
+              onChange={(e) => setInternalMethod(e.target.value)}
+              className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2"
+            >
+              <option value="UPI">UPI</option>
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Credit Card">Credit Card</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">
+            Expense Date
+            <input
+              type="date"
+              value={internalDate}
+              onChange={(e) => setInternalDate(e.target.value)}
+              className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">
+            Amount (₹)
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={internalAmount}
+              onChange={(e) => setInternalAmount(e.target.value)}
+              placeholder="0.00"
+              className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2"
+            />
+          </label>
+          <div className="flex justify-end gap-2 sm:col-span-2">
+            <button
+              type="button"
+              onClick={() => setShowInternalForm(false)}
+              className="h-9 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#162032] text-gray-700 dark:text-gray-300 text-xs hover:bg-gray-50 dark:hover:bg-[#334155] cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submitInternalExpense}
+              style={{ backgroundColor: 'var(--premium-blue-dark)' }}
+              className="h-9 px-3 rounded-md text-xs font-semibold text-white cursor-pointer"
+            >
+              Submit Internal Claim
+            </button>
+          </div>
+        </section>
+      )}
+
       {showExpenseForm && <section className="grid grid-cols-1 gap-3 rounded-none border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-4 sm:grid-cols-2 shadow-sm" aria-label="Submit task expense">
         <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">Task<select value={expenseTaskId} onChange={(event) => setExpenseTaskId(event.target.value)} className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2"><option value="">Select task</option>{expenseTasks.map((task) => <option key={task.taskId} value={task.taskId}>{task.taskId} · {task.clientName} · {task.serviceName}</option>)}</select></label>
         <label className="flex flex-col gap-1 text-xs text-gray-700 dark:text-gray-300">Particulars<input value={expenseParticulars} onChange={(event) => setExpenseParticulars(event.target.value)} maxLength={300} className="h-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white px-2" /></label>
@@ -299,7 +431,9 @@ export const ReimbursementView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                currentClaims.map((claim) => (
+                currentClaims
+                  .slice((page - 1) * pageSize, page * pageSize)
+                  .map((claim) => (
                   <tr key={claim.id} className="hover:bg-gray-50/60 dark:hover:bg-[#131d30] transition-colors">
                     <td className="py-2.5 px-3.5 border-r border-b border-[#dde2e8] dark:border-[#334155]">
                       <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600 accent-[#31719B] cursor-pointer" />
@@ -363,7 +497,7 @@ export const ReimbursementView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-2.5 px-3.5 border-b border-[#dde2e8] dark:border-[#334155] text-center">
-                      {claim.status === 'Applied' ? (
+                      {isAdmin && claim.status === 'Applied' ? (
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleApproveClaim(claim.id)}
@@ -394,6 +528,23 @@ export const ReimbursementView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {currentClaims.length > 0 && (
+          <div className="border border-t-0 border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+            <Pagination
+              currentPage={page}
+              pageSize={pageSize}
+              totalItems={currentClaims.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              showPageSize={true}
+              pageSizeOptions={[5, 10, 20, 50]}
+            />
+          </div>
+        )}
       </div>
   );
 };
