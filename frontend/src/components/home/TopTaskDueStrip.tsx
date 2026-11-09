@@ -24,6 +24,7 @@ import { usePermission } from '../team/usePermission';
 import { isRoleAdmin } from '@/store/permissions/roleSelectors';
 import { useAuth } from '../auth/AuthContext';
 import { pageStateCache } from '@/services/pageStateCache';
+import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
 
 export type TimeRangeFilter = 'today' | 'week' | 'month' | 'all';
 
@@ -59,8 +60,24 @@ export const TopTaskDueStrip: React.FC = () => {
 
   // Cached fallback state to prevent 0 counts during 1-2s revalidation
   const [cachedStrip, setCachedStrip] = useState(() => {
+    const snap = homeMetricsSnapshotApi.getCachedSnapshot();
+    if (snap?.stripMetrics) {
+      return snap.stripMetrics as any;
+    }
     return pageStateCache.get<any>('home_task_strip_data') || null;
   });
+
+  // Fast snapshot hydration from DB (under 5ms)
+  useEffect(() => {
+    homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
+      if (snapshot?.stripMetrics) {
+        setCachedStrip((prev: any) => ({
+          ...prev,
+          ...snapshot.stripMetrics,
+        }));
+      }
+    }).catch(() => {});
+  }, []);
 
   const taskData = rawTaskData || cachedStrip?.taskData;
   const invoicingData = rawInvoicingData || cachedStrip?.invoicingData;
@@ -200,10 +217,10 @@ export const TopTaskDueStrip: React.FC = () => {
     }
 
     return {
-      top: newLeads,
-      bottom: pendingLeads,
+      top: newLeads || cachedStrip?.leads?.top || 0,
+      bottom: pendingLeads || cachedStrip?.leads?.bottom || 0,
     };
-  }, [leadsList, leadStats, timeRange]);
+  }, [leadsList, leadStats, timeRange, cachedStrip]);
 
   // Card 2: Clients metrics (100% Truthful MongoDB Aggregation)
   const clientsMetrics = useMemo(() => {
@@ -223,10 +240,10 @@ export const TopTaskDueStrip: React.FC = () => {
     }
 
     return {
-      top: newClients,
-      bottom: onboarding,
+      top: newClients || cachedStrip?.clients?.top || 0,
+      bottom: onboarding || cachedStrip?.clients?.bottom || 0,
     };
-  }, [clientsList, clientData, timeRange]);
+  }, [clientsList, clientData, timeRange, cachedStrip]);
 
   // Card 3: Compliance metrics (100% Truthful MongoDB Aggregation)
   const complianceMetrics = useMemo(() => {
@@ -245,10 +262,10 @@ export const TopTaskDueStrip: React.FC = () => {
     }
 
     return {
-      top: newCompliance,
-      bottom: totalDue,
+      top: newCompliance || cachedStrip?.compliance?.top || 0,
+      bottom: totalDue || cachedStrip?.compliance?.bottom || 0,
     };
-  }, [complianceData, timeRange]);
+  }, [complianceData, timeRange, cachedStrip]);
 
   // Card 4: Task metrics (100% Truthful MongoDB Aggregation)
   const taskMetrics = useMemo(() => {
@@ -268,10 +285,10 @@ export const TopTaskDueStrip: React.FC = () => {
     }
 
     return {
-      top: taskAssigned,
-      bottom: dueAssigned,
+      top: taskAssigned || cachedStrip?.tasks?.top || 0,
+      bottom: dueAssigned || cachedStrip?.tasks?.bottom || 0,
     };
-  }, [taskData, timeRange]);
+  }, [taskData, timeRange, cachedStrip]);
 
   // Card 5: Invoice metrics (100% Truthful MongoDB Aggregation)
   const invoiceMetrics = useMemo(() => {
@@ -295,10 +312,27 @@ export const TopTaskDueStrip: React.FC = () => {
     }
 
     return {
-      top: newInvoice,
-      bottom: dueInvoice,
+      top: newInvoice || cachedStrip?.invoice?.top || 0,
+      bottom: dueInvoice || cachedStrip?.invoice?.bottom || 0,
     };
-  }, [invoicingData, invoicesList, timeRange]);
+  }, [invoicingData, invoicesList, timeRange, cachedStrip]);
+
+  // Synchronize numerical strip count labels with the central snapshot API first
+  useEffect(() => {
+    if (leadsMetrics.bottom > 0 || clientsMetrics.bottom > 0 || taskMetrics.bottom > 0 || complianceMetrics.bottom > 0 || invoiceMetrics.bottom > 0) {
+      const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+      const labels = {
+        leads: leadsMetrics,
+        clients: clientsMetrics,
+        compliance: complianceMetrics,
+        tasks: taskMetrics,
+        invoice: invoiceMetrics,
+      };
+      snap.countLabels = labels;
+      snap.stripMetrics = labels;
+      homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
+    }
+  }, [leadsMetrics, clientsMetrics, taskMetrics, complianceMetrics, invoiceMetrics]);
 
   // Determine displayed cards based on role/permissions
   const cardItems = useMemo(() => {

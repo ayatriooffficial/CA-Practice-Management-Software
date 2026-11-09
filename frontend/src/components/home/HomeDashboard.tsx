@@ -33,6 +33,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectDashboardLoading } from '@/store/features/dashboard/dashboardSelectors';
 import { navigationProgress } from '@/services/navigationProgress';
 import { pageStateCache } from '@/services/pageStateCache';
+import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
@@ -60,13 +61,52 @@ export const HomeDashboard: React.FC = () => {
   const cachedSummaryCards = useMemo(() => pageStateCache.get<SummaryCardData[]>('home_attendance_summary'), []);
   const cachedTodayRows = useMemo(() => pageStateCache.get<TodayAttendanceRow[]>('home_attendance_today_rows'), []);
   const cachedEmployeeRecords = useMemo(() => pageStateCache.get<MonthlyRecordItem[]>('home_attendance_employee_records'), []);
+  const cachedNumericalSnapshot = useMemo(() => homeMetricsSnapshotApi.getCachedSnapshot(), []);
 
   // Summary state
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [summaryCards, setSummaryCards] = useState<SummaryCardData[]>(() => {
+    if (cachedNumericalSnapshot?.summaryCards && cachedNumericalSnapshot.summaryCards.length > 0) {
+      return cachedNumericalSnapshot.summaryCards;
+    }
     return cachedSummaryCards?.length ? cachedSummaryCards : cachedHome?.summaryCards || [];
   });
-  const [isSummaryLoading, setIsSummaryLoading] = useState(!cachedHome && !cachedSummaryCards?.length);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(
+    !cachedHome && !cachedSummaryCards?.length && !cachedNumericalSnapshot?.summaryCards?.length
+  );
+
+  // Fast numerical snapshot retrieval from backend (<5ms)
+  useEffect(() => {
+    homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
+      if (snapshot?.summaryCards && snapshot.summaryCards.length > 0) {
+        setSummaryCards((prev) => (prev.length === 0 ? snapshot.summaryCards! : prev));
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Automatically persist latest numerical snapshot when window closes or tab is hidden
+  useEffect(() => {
+    const handleCloseOrHide = () => {
+      if (summaryCards.length > 0) {
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+        snap.summaryCards = summaryCards;
+        homeMetricsSnapshotApi.saveMetricsSnapshot(snap, true);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleCloseOrHide);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        handleCloseOrHide();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleCloseOrHide);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [summaryCards]);
 
   // Today Attendance (Admin) state
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -101,6 +141,9 @@ export const HomeDashboard: React.FC = () => {
       if (res.cards && res.cards.length > 0) {
         setSummaryCards(res.cards);
         pageStateCache.set('home_attendance_summary', res.cards);
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+        snap.summaryCards = res.cards;
+        homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
       }
     } catch {
       // Retain previous cards from cache

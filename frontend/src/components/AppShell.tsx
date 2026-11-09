@@ -60,8 +60,8 @@ const AppShellContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  // If client-side auth is finished checking and user is unauthenticated, redirecting
-  if (!isLoading && !currentUser) {
+  // On protected routes: if user is not authenticated (or auth is still initializing), never mount protected content
+  if (!currentUser) {
     return null;
   }
 
