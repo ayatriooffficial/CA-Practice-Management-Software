@@ -5,6 +5,7 @@ import { Send, FileText, Trash2, Calendar, User, Clock } from "lucide-react";
 import { Lead } from "@/data/crmData";
 import { useAddLeadNote, useDeleteLeadNote } from "@/hooks/useLeadsQuery";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import Button from "@/components/ui/Button";
 
 interface DetailNotesTabProps {
   lead: Lead;
@@ -63,15 +64,13 @@ export const DetailNotesTab = memo(({ lead }: DetailNotesTabProps) => {
           <span className="text-gray-400">
             Notes are visible to all firm team members.
           </span>
-          <button
+          <Button
             type="submit"
             disabled={!noteText.trim() || addNoteMutation.isPending}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
-            style={{ backgroundColor: "var(--premium-blue-dark)" }}
           >
             <Send className="w-3.5 h-3.5" />
             <span>{addNoteMutation.isPending ? "Posting..." : "Post Note"}</span>
-          </button>
+          </Button>
         </div>
       </form>
 

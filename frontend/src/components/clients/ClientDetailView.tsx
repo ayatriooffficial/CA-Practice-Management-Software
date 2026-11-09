@@ -214,12 +214,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const visibleTabs = useMemo(() => {
     return CLIENT_TABS.filter((tab) => {
       if (tab === "Contacts") return false;
-      if (tab === "Group") return hasGroupMembership && canView("groups");
-      if (tab === "Invoices") return canView("invoice");
-      if (tab === "DSC") return canView("digital_signature");
-      if (tab === "Documents") return canView("document_in_out");
-      if (tab === "Ledger") return canView("billing");
-      if (tab === "Compliance") return canView("compliance_tracker");
+      if (tab === "Group") return hasGroupMembership && (canView("groups") || canView("group"));
+      if (tab === "Invoices") return canView("invoice") || canView("invoices");
+      if (tab === "DSC") return canView("digital_signature") || canView("dsc");
+      if (tab === "Documents") return canView("document_in_out") || canView("documents");
+      if (tab === "Ledger") return canView("billing") || canView("ledger");
+      if (tab === "Compliance") return canView("compliance_tracker") || canView("compliance");
       return true;
     });
   }, [canView, hasGroupMembership]);
@@ -450,11 +450,15 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         const found = clientMap.get(svc.name.trim().toLowerCase());
         if (found) {
           const active = found.isActive !== undefined ? Boolean(found.isActive) : Boolean(found.compliance);
-          const profFee = found.professionalFee !== undefined ? found.professionalFee : (svc.professionalFee || found.amount || 0);
+          const profFee = (found.professionalFee && found.professionalFee > 0)
+            ? found.professionalFee
+            : (found.amount && found.amount > 0 ? found.amount : (svc.professionalFee || 0));
           const govtFee = found.governmentFee !== undefined ? found.governmentFee : (svc.governmentFee || 0);
           const other = found.otherCharges !== undefined ? found.otherCharges : 0;
-          const totalFee = found.totalServiceFee !== undefined ? found.totalServiceFee : (found.amount !== undefined ? found.amount : (svc.totalServiceFee || (profFee + govtFee + other)));
-          const amount = found.amount !== undefined ? found.amount : totalFee;
+          const totalFee = (found.totalServiceFee && found.totalServiceFee > 0)
+            ? found.totalServiceFee
+            : (found.amount && found.amount > 0 ? found.amount : (svc.totalServiceFee || (profFee + govtFee + other)));
+          const amount = (found.amount && found.amount > 0) ? found.amount : totalFee;
 
           return {
             ...found,
@@ -477,6 +481,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             governmentFee: govtFee,
             otherCharges: other,
             totalServiceFee: totalFee,
+            taxRate: found.taxRate || svc.taxRate || '18%',
           };
         }
 
@@ -504,6 +509,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           governmentFee: defaultGovtFee,
           otherCharges: 0,
           totalServiceFee: defaultTotalFee,
+          taxRate: svc.taxRate || '18%',
         };
       });
 

@@ -3,6 +3,7 @@
 import React, { memo, useState } from "react";
 import { Plus, Search, FileText, ExternalLink, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { Lead } from "@/data/crmData";
+import Button from "@/components/ui/Button";
 
 interface ProposalTabProps {
   lead: Lead;
@@ -94,15 +95,13 @@ export const ProposalTab = memo(({ lead }: ProposalTabProps) => {
           </div>
 
           {/* Add Proposal Button */}
-          <button
+          <Button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 h-8.5 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer"
-            style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create Proposal</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -149,13 +148,12 @@ export const ProposalTab = memo(({ lead }: ProposalTabProps) => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
+                      <Button
                         type="button"
                         onClick={() => alert(`Viewing ${item.proposalNo}`)}
-                        className="text-xs text-[#31719B] hover:underline font-semibold cursor-pointer"
                       >
                         View
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -176,15 +174,13 @@ export const ProposalTab = memo(({ lead }: ProposalTabProps) => {
               Draft and manage formal engagement proposals, service agreements, and fee terms for {lead.fullName || lead.businessName || "this lead"}.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90 shadow-sm cursor-pointer"
-            style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create First Proposal</span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -249,19 +245,18 @@ export const ProposalTab = memo(({ lead }: ProposalTabProps) => {
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                <button
+                <Button
+                  variant="outline"
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 rounded-md border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="px-4 py-2 rounded-md bg-[#31719B] text-white text-xs font-semibold hover:bg-[#285c7d] shadow-sm cursor-pointer"
                 >
                   Save Proposal
-                </button>
+                </Button>
               </div>
             </form>
           </div>

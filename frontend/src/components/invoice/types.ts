@@ -55,6 +55,7 @@ export interface ServiceItem {
   amount: number;
   governmentFee?: number;
   professionalFee?: number;
+  otherCharges?: number;
   totalServiceFee?: number; 
   tax?:string;
   total: number;

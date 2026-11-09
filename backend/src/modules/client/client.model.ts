@@ -81,6 +81,7 @@ export const serviceSettingSchema = new Schema(
     governmentFee: { type: Number, default: 0 },
     otherCharges: { type: Number, default: 0 },
     totalServiceFee: { type: Number, default: 0 },
+    taxRate: { type: String, default: '18%' },
     taskName: { type: String, default: '' },
     priority: { type: String, default: 'Medium' },
     assignee: { type: String, default: '' },

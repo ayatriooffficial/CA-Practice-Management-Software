@@ -418,8 +418,11 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                                     <div className="flex items-center justify-end gap-1.5">
                                       <span
                                         onClick={() => {
+                                          const effectiveProf = (svc.professionalFee && svc.professionalFee > 0)
+                                            ? svc.professionalFee
+                                            : (svc.amount || 0);
                                           setInlineEditingService(svc.serviceName);
-                                          setInlineProfVal(String(svc.professionalFee ?? svc.amount ?? 0));
+                                          setInlineProfVal(String(effectiveProf));
                                           setInlineGovtVal(String(svc.governmentFee ?? 0));
                                           setInlineOtherVal(String(svc.otherCharges ?? 0));
                                         }}
@@ -436,8 +439,11 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          const effectiveProf = (svc.professionalFee && svc.professionalFee > 0)
+                                            ? svc.professionalFee
+                                            : (svc.amount || 0);
                                           setInlineEditingService(svc.serviceName);
-                                          setInlineProfVal(String(svc.professionalFee ?? svc.amount ?? 0));
+                                          setInlineProfVal(String(effectiveProf));
                                           setInlineGovtVal(String(svc.governmentFee ?? 0));
                                           setInlineOtherVal(String(svc.otherCharges ?? 0));
                                         }}
@@ -448,7 +454,7 @@ export const ClientServiceSettingsTab: React.FC<ClientServiceSettingsTabProps> =
                                       </button>
                                     </div>
                                     <div className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">
-                                      Prof: ₹{Number(svc.professionalFee ?? svc.amount ?? 0).toLocaleString("en-IN")}
+                                      Prof: ₹{Number((svc.professionalFee && svc.professionalFee > 0) ? svc.professionalFee : (svc.amount || 0)).toLocaleString("en-IN")}
                                       {Number(svc.governmentFee ?? 0) > 0 ? ` | Govt: ₹${Number(svc.governmentFee).toLocaleString("en-IN")}` : ""}
                                     </div>
                                   </div>

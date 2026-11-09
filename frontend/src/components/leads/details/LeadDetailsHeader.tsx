@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Lead } from "@/data/crmData";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
+import Button from "@/components/ui/Button";
 
 interface LeadDetailsHeaderProps {
   lead: Lead;
@@ -46,9 +47,9 @@ export const LeadDetailsHeader = memo(
     const currentStatus = lead.status || "Active";
 
     return (
-      <div className="w-full bg-white dark:bg-[#1e293b] px-4 py-3.5 border-b border-[#e2e8f0] dark:border-[#334155] flex flex-wrap items-center justify-between gap-4">
+      <div className="w-full bg-white dark:bg-[#1e293b] px-4 pb-3.5 border-b border-[#e2e8f0] dark:border-[#334155] flex flex-wrap  justify-between gap-4">
         {/* Left Profile Info */}
-        <div className="flex items-center gap-3.5 min-w-0">
+        <div className="flex  gap-3.5 min-w-0">
           {lead.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -93,18 +94,19 @@ export const LeadDetailsHeader = memo(
         </div>
 
         {/* Right Actions Controls */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex  gap-2.5 flex-wrap">
           {/* Status Dropdown */}
           <div className="relative">
-            <button
+            <Button
+              variant="outline"
               type="button"
               onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+              className=" bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
               <span className="capitalize">{currentStatus}</span>
               <ChevronDown className="w-3 h-3 text-emerald-600 ml-0.5" />
-            </button>
+            </Button>
 
             {isStatusDropdownOpen && (
               <div className="absolute right-0 mt-1.5 w-40 bg-white dark:bg-[#1e293b] rounded-sm shadow-dropdown border border-gray-200 dark:border-gray-700 py-1 z-50 text-xs">
@@ -126,46 +128,46 @@ export const LeadDetailsHeader = memo(
           </div>
 
           {/* Lost Lead Button */}
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={onLostLead}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm text-xs font-semibold border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100 transition-colors cursor-pointer"
+            className=" border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100 transition-colors cursor-pointer"
           >
             <UserX className="w-3.5 h-3.5" />
             <span>Lost Lead</span>
-          </button>
+          </Button>
 
           {/* Convert to Client Button */}
-          <button
+          <Button
             type="button"
             onClick={onConvert}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-sm text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer"
             style={{ backgroundColor: "var(--premium-blue-dark)" }}
           >
             <UserCheck className="w-3.5 h-3.5" />
             <span>Register Company</span>
-          </button>
+          </Button>
 
           {/* Edit Lead Button */}
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={onEdit}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>Edit</span>
-          </button>
+          </Button>
 
           {/* 3-dots Menu Button */}
           <div className="relative">
-            <button
+            <Button
+              variant="outline"
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
               aria-label="More actions"
-              className="p-1.5 rounded-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
             >
               <MoreVertical className="w-4 h-4" />
-            </button>
+            </Button>
 
             {isMenuOpen && (
               <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#1e293b] rounded-sm shadow-dropdown border border-gray-200 dark:border-gray-700 py-1 z-50 text-xs">
@@ -199,14 +201,14 @@ export const LeadDetailsHeader = memo(
           </div>
 
           {/* Close Button X */}
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={onClose}
             aria-label="Close details"
-            className="p-1.5 rounded-sm border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
     );

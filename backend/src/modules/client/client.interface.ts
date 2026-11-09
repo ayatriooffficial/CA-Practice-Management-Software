@@ -111,6 +111,7 @@ export interface IClientServiceSetting {
   governmentFee?: number;
   otherCharges?: number;
   totalServiceFee?: number;
+  taxRate?: string;
   // Recurring Task Fields matching UI
   taskName?: string;
   priority?: string;

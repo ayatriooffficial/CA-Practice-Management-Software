@@ -79,6 +79,9 @@ export const normalizeModuleKey = (key: string): string => {
   if (k === 'attendance') return 'attendance_leave';
   if (k === 'to-do') return 'todo';
   if (k === 'whatsapp') return 'whatsapp_business';
+  if (k === 'ledger') return 'billing';
+  if (k === 'invoices') return 'invoice';
+  if (k === 'receipts' || k === 'receipt') return 'payments';
   return k;
 };
 

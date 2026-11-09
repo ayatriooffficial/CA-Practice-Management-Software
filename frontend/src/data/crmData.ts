@@ -179,6 +179,7 @@ export interface ClientServiceSetting {
   governmentFee?: number;
   otherCharges?: number;
   totalServiceFee?: number;
+  taxRate?: string;
   taskName?: string;
   priority?: string;
   assignee?: string;

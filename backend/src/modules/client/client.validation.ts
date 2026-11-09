@@ -107,6 +107,7 @@ export const serviceSettingItemSchema = z.object({
   governmentFee: z.coerce.number().optional().default(0),
   otherCharges: z.coerce.number().optional().default(0),
   totalServiceFee: z.coerce.number().optional().default(0),
+  taxRate: z.string().optional().default('18%'),
   // Recurring Task Fields
   taskName: z.string().optional(),
   priority: z.string().optional(),

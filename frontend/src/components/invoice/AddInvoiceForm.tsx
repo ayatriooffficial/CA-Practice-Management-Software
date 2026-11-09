@@ -230,38 +230,6 @@ tax:'18%',
     );
   }, [clientServiceSettings]);
 
-  const populateActiveClientServices = React.useCallback((settingsToUse?: ClientServiceSetting[]) => {
-    const active = (settingsToUse || activeClientServices);
-    if (!active || active.length === 0) return;
-
-    const mapped: ServiceItem[] = active.map((s, idx) => {
-      const prof = Number(s.professionalFee ?? s.amount ?? 0);
-      const govt = Number(s.governmentFee ?? 0);
-      const other = Number(s.otherCharges ?? 0);
-      const total = Number(s.totalServiceFee ?? (prof + govt + other || s.amount || 0));
-      const unitPrice = total || prof;
-
-      return {
-        id: `srv-${Date.now()}-${idx}`,
-        serviceName: s.serviceName,
-        description: `${s.serviceName} compliance & retainer (${s.frequency || 'Monthly'})`,
-        compliancePeriod: 'FY 2026-27',
-        frequency: (s.frequency as any) || 'Monthly',
-        periodLabel: s.frequency || 'Monthly Retainer',
-        quantity: 1,
-        price: unitPrice,
-        amount: unitPrice,
-        governmentFee: govt,
-        professionalFee: prof,
-        totalServiceFee: total,
-        tax: '18%',
-        total: unitPrice,
-      };
-    });
-
-    setServices(mapped);
-  }, [activeClientServices]);
-
   useEffect(() => {
     if (!selectedClientId) {
       setClientServiceSettings([]);
@@ -277,45 +245,6 @@ tax:'18%',
         const fetchedClient = res.data;
         const settings: ClientServiceSetting[] = fetchedClient?.serviceSettings || [];
         setClientServiceSettings(settings);
-
-        if (mode === 'create') {
-          const active = settings.filter(
-            (s) => s.isActive || s.compliance || s.recInvoice === 'Enabled'
-          );
-          if (active.length > 0) {
-            setServices((prev) => {
-              const isOnlyBlank =
-                prev.length === 1 && (!prev[0].serviceName || prev[0].serviceName.trim() === '');
-              if (isOnlyBlank || prev.length === 0) {
-                return active.map((s, idx) => {
-                  const prof = Number(s.professionalFee ?? s.amount ?? 0);
-                  const govt = Number(s.governmentFee ?? 0);
-                  const other = Number(s.otherCharges ?? 0);
-                  const total = Number(s.totalServiceFee ?? (prof + govt + other || s.amount || 0));
-                  const unitPrice = total || prof;
-
-                  return {
-                    id: `srv-${Date.now()}-${idx}`,
-                    serviceName: s.serviceName,
-                    description: `${s.serviceName} compliance & retainer (${s.frequency || 'Monthly'})`,
-                    compliancePeriod: 'FY 2026-27',
-                    frequency: (s.frequency as any) || 'Monthly',
-                    periodLabel: s.frequency || 'Monthly Retainer',
-                    quantity: 1,
-                    price: unitPrice,
-                    amount: unitPrice,
-                    governmentFee: govt,
-                    professionalFee: prof,
-                    totalServiceFee: total,
-                    tax: '18%',
-                    total: unitPrice,
-                  };
-                });
-              }
-              return prev;
-            });
-          }
-        }
       })
       .catch((err) => {
         console.warn("Failed to load client details for invoice:", err);
@@ -327,7 +256,7 @@ tax:'18%',
     return () => {
       isMounted = false;
     };
-  }, [selectedClientId, mode]);
+  }, [selectedClientId]);
 
   // Note
   const [note, setNote] = useState(() => initialData?.notes || '');
@@ -749,11 +678,40 @@ tax:'18%',
     }
   };
 
-  // Calculations (Subtotal, GST, and Total with GST added)
-  const subTotal = services.reduce((sum, s) => sum + (s.totalServiceFee || s.amount), 0);
-  const cgstAmount = Math.round((subTotal * 0.09) * 100) / 100;
-  const sgstAmount = Math.round((subTotal * 0.09) * 100) / 100;
-  const totalPayable = Math.round((subTotal + cgstAmount + sgstAmount) * 100) / 100;
+  // Helper to parse GST rate string like '18%', '12%', '5%', '0%', 'Exempt' to number
+  const parseItemGstRate = (taxValue?: string | number): number => {
+    if (taxValue === undefined || taxValue === null || taxValue === '') return 18;
+    if (typeof taxValue === 'number') return taxValue;
+    const cleaned = String(taxValue).replace('%', '').trim().toLowerCase();
+    if (cleaned === 'exempt' || cleaned === 'nil') return 0;
+    const num = parseFloat(cleaned);
+    return Number.isNaN(num) ? 18 : num;
+  };
+
+  // Calculations: Subtotal (Professional Fees), CGST, SGST, and Total Payable per service GST
+  const subTotal = services.reduce(
+    (sum, s) => sum + (Number(s.amount) || ((Number(s.quantity) || 1) * (Number(s.price) || 0))),
+    0
+  );
+
+  const cgstAmount = Math.round(
+    services.reduce((sum, s) => {
+      const itemTaxable = Number(s.amount) || ((Number(s.quantity) || 1) * (Number(s.price) || 0));
+      const rate = parseItemGstRate(s.tax);
+      return sum + (itemTaxable * ((rate / 2) / 100));
+    }, 0) * 100
+  ) / 100;
+
+  const sgstAmount = Math.round(
+    services.reduce((sum, s) => {
+      const itemTaxable = Number(s.amount) || ((Number(s.quantity) || 1) * (Number(s.price) || 0));
+      const rate = parseItemGstRate(s.tax);
+      return sum + (itemTaxable * ((rate / 2) / 100));
+    }, 0) * 100
+  ) / 100;
+
+  const totalGstAmount = Math.round((cgstAmount + sgstAmount) * 100) / 100;
+  const totalPayable = Math.round((subTotal + totalGstAmount) * 100) / 100;
 
   // Handlers for Services
   const handleServiceChange = (id: string, field: keyof ServiceItem, value: any) => {
@@ -762,62 +720,61 @@ tax:'18%',
         if (s.id !== id) return s;
         const updated = { ...s, [field]: value };
         if (field === 'serviceName') {
-          // 1. Check if client has a customized setting for this service
-          const matchedClientSetting = clientServiceSettings.find(
+          // Check if client has a customized setting for this active service
+          const matchedClientSetting = activeClientServices.find(
+            (c) => c.serviceName.toLowerCase() === String(value).toLowerCase() || c.id === value || c.serviceId === value
+          ) || clientServiceSettings.find(
             (c) => c.serviceName.toLowerCase() === String(value).toLowerCase() || c.id === value || c.serviceId === value
           );
+          const matchedCatalog = serviceCatalog.find(
+            (c) => c.name.toLowerCase() === String(value).toLowerCase() || c.id === value
+          );
+          const serviceGstRate = (matchedClientSetting as any)?.taxRate || matchedCatalog?.taxRate || '18%';
 
           if (matchedClientSetting) {
-            const prof = Number(matchedClientSetting.professionalFee ?? matchedClientSetting.amount ?? 0);
-            const govt = Number(matchedClientSetting.governmentFee ?? 0);
-            const other = Number(matchedClientSetting.otherCharges ?? 0);
-            const total = Number(matchedClientSetting.totalServiceFee ?? (prof + govt + other || matchedClientSetting.amount || 0));
-            const unitPrice = total || prof;
+            const prof = Number(
+              (matchedClientSetting.professionalFee && matchedClientSetting.professionalFee > 0)
+                ? matchedClientSetting.professionalFee
+                : (matchedClientSetting.amount || matchedClientSetting.totalServiceFee || 0)
+            );
+            const govt = Number(matchedClientSetting.governmentFee || 0);
+            const other = Number(matchedClientSetting.otherCharges || 0);
+            const qty = Number(updated.quantity) || 1;
+            const lineAmount = qty * prof;
+            const gstRate = parseItemGstRate(serviceGstRate);
+            const itemGst = Math.round((lineAmount * (gstRate / 100)) * 100) / 100;
 
             updated.serviceName = matchedClientSetting.serviceName;
-            updated.price = unitPrice;
-            updated.amount = (updated.quantity || 1) * unitPrice;
-            updated.governmentFee = govt;
+            updated.price = prof;
             updated.professionalFee = prof;
-            updated.totalServiceFee = total;
-            updated.total = updated.amount;
+            updated.governmentFee = govt;
+            updated.otherCharges = other;
+            updated.amount = lineAmount;
+            updated.totalServiceFee = lineAmount;
+            updated.tax = serviceGstRate;
+            updated.total = Math.round((lineAmount + itemGst) * 100) / 100;
             updated.frequency = (matchedClientSetting.frequency as any) || updated.frequency || 'Monthly';
             if (!updated.description || updated.description === 'Description') {
-              updated.description = `${matchedClientSetting.serviceName} compliance & retainer`;
+              updated.description = `${matchedClientSetting.serviceName} compliance & retainer (${matchedClientSetting.frequency || 'Monthly'})`;
             }
             return updated;
           }
-
-          // 2. Otherwise fall back to global service catalog
-          const matchedSrv = serviceCatalog.find(
-            (c) => c.name.toLowerCase() === String(value).toLowerCase() || c.id === value
-          );
-          if (matchedSrv) {
-            const prof = matchedSrv.professionalFee || 0;
-            const govt = matchedSrv.governmentFee || 0;
-            const total = matchedSrv.totalServiceFee || (prof + govt);
-            const unitPrice = total || prof;
-
-            updated.serviceName = matchedSrv.name;
-            updated.price = unitPrice;
-            updated.amount = (updated.quantity || 1) * unitPrice;
-            updated.governmentFee = govt;
-            updated.professionalFee = prof;
-            updated.totalServiceFee = total;
-            updated.total = updated.amount;
-            updated.tax = matchedSrv.taxRate || '18%';
-            if (matchedSrv.description && !updated.description) {
-              updated.description = matchedSrv.description;
-            }
-          }
         }
-        if (field === 'quantity' || field === 'price') {
+        if (field === 'quantity' || field === 'price' || field === 'tax') {
           const qty = field === 'quantity' ? Number(value) : (s.quantity || 1);
           const prc = field === 'price' ? Number(value) : (s.price || 0);
+          const taxStr = field === 'tax' ? value : (updated.tax || s.tax || '18%');
+          const lineAmount = (qty || 0) * (prc || 0);
+          const gstRate = parseItemGstRate(taxStr);
+          const itemGst = Math.round((lineAmount * (gstRate / 100)) * 100) / 100;
+
+          updated.quantity = qty;
           updated.price = prc;
-          updated.totalServiceFee = prc;
-          updated.amount = (qty || 0) * (prc || 0);
-          updated.total = updated.amount;
+          updated.professionalFee = prc;
+          updated.amount = lineAmount;
+          updated.totalServiceFee = lineAmount;
+          updated.tax = taxStr;
+          updated.total = Math.round((lineAmount + itemGst) * 100) / 100;
         }
         return updated;
       })
@@ -837,6 +794,7 @@ tax:'18%',
         quantity: 1,
         price: 0,
         amount: 0,
+        tax: '18%',
         total: 0,
       },
     ]);
@@ -956,9 +914,10 @@ tax:'18%',
       clientGstin={(selectedClient as any)?.gstin}
       clientPan={selectedClient?.pan}
       items={services.map((s, idx) => {
-        const taxable = s.amount || 0;
-        const itemCgst = Math.round((taxable * 0.09) * 100) / 100;
-        const itemSgst = Math.round((taxable * 0.09) * 100) / 100;
+        const taxable = Number(s.amount) || ((Number(s.quantity) || 1) * (Number(s.price) || 0));
+        const gstRate = parseItemGstRate(s.tax);
+        const itemCgst = printColumns.cgst ? Math.round((taxable * ((gstRate / 2) / 100)) * 100) / 100 : 0;
+        const itemSgst = printColumns.sgst ? Math.round((taxable * ((gstRate / 2) / 100)) * 100) / 100 : 0;
         return {
           id: s.id || String(idx + 1),
           name: s.serviceName || "Service Item",
@@ -967,7 +926,7 @@ tax:'18%',
           qty: s.quantity || 1,
           rate: s.price || 0,
           taxable,
-          gstRate: 18,
+          gstRate,
           cgst: itemCgst,
           sgst: itemSgst,
           total: taxable + itemCgst + itemSgst,
@@ -1659,174 +1618,195 @@ tax:'18%',
                   <div className="col-span-1 text-right">Total</div>
                 </div>
 
-                {/* Active Services Notification Banner */}
-                {selectedClientId && activeClientServices.length > 0 && (
-                  <div className="mx-6 mt-4 p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2 text-[#3D6A9E] dark:text-[#60a5fa]">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>
-                        <b>{activeClientServices.length}</b> active service{activeClientServices.length > 1 ? "s" : ""} linked from <b>{selectedClient?.name || "Client"}</b>'s settings.
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => populateActiveClientServices()}
-                      className="self-start sm:self-auto px-2.5 py-1 rounded bg-[#3D6A9E] hover:bg-[#325680] text-white text-[11px] font-semibold cursor-pointer transition-colors shadow-2xs"
-                    >
-                      Reload Active Services
-                    </button>
-                  </div>
-                )}
-
                 {/* Service Rows (20px top padding from header, 20px gap between rows) */}
                 <div className="flex flex-col divide-y divide-[#e5e7eb] dark:divide-[#334155] p-6 gap-5">
-                  {services.map((srv) => (
-                    <div key={srv.id} className="pt-5 first:pt-0 flex flex-col gap-4">
-                      {/* Main Row */}
-                      <div className="grid grid-cols-12 gap-3 items-center text-xs">
-                        {/* Service Name Dropdown */}
-                        <div className="col-span-5">
-                          <select
-                            value={srv.serviceName}
-                            onChange={(e) => handleServiceChange(srv.id, 'serviceName', e.target.value)}
-                            className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
-                          >
-                            <option value="">Select Service Name</option>
-                            {activeClientServices.length > 0 && (
-                              <optgroup label={`Active Client Services (${selectedClient?.name || 'Client'})`}>
-                                {activeClientServices.map((service) => (
-                                  <option key={service.id || service.serviceName} value={service.serviceName}>
-                                    ★ {service.serviceName} — ₹{service.totalServiceFee || service.amount || 0} ({service.frequency || 'Monthly'})
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                            <optgroup label="All Catalog Services">
-                              {serviceCatalog.map((service) => (
-                                <option key={service.id} value={service.name}>
-                                  {service.name} — ₹{service.totalServiceFee || service.professionalFee || 0}
-                                </option>
-                              ))}
-                            </optgroup>
-                          </select>
-                        </div>
+                  {services.map((srv) => {
+                    const lineAmount = (Number(srv.quantity) || 1) * (Number(srv.price) || 0);
+                    const itemGstRate = parseItemGstRate(srv.tax);
+                    const itemGstAmount = (itemGstRate > 0) ? Math.round((lineAmount * (itemGstRate / 100)) * 100) / 100 : 0;
+                    const itemTotalWithGst = Math.round((lineAmount + itemGstAmount) * 100) / 100;
 
-                        {/* Quantity */}
-                        <div className="col-span-2">
-                          <input
-                            type="number"
-                            min={1}
-                            value={srv.quantity}
-                            onChange={(e) => handleServiceChange(srv.id, 'quantity', e.target.value)}
-                            className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                          />
-                        </div>
-
-                        {/* Price (Empty by default) */}
-                        <div className="col-span-2">
-                          <input
-                            type="number"
-                            min={0}
-                            placeholder=""
-                            value={srv.totalServiceFee === 0 ? '' : srv.totalServiceFee}
-                            onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
-                            className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
-                          />
-                        </div>
-
-                        {/* Amount (read-only) */}
-                        <div className="col-span-2">
-                          <input
-                            type="text"
-                            disabled
-                            value={(srv.totalServiceFee== 0 ? '0' : srv.totalServiceFee || srv.amount === 0 ? '0' : srv.amount)}
-                            className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-gray-50 dark:bg-gray-800 text-xs text-gray-600 outline-none"
-                          />
-                        </div>
-
-                        {/* Total & Trash */}
-                        <div className="col-span-1 flex items-center justify-end gap-2 font-bold text-gray-900 dark:text-white">
-                          <span>₹{srv.totalServiceFee?.toFixed(2)}</span>
-                          {services.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveService(srv.id)}
-                              className="text-red-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
-                              title="Delete Service Row"
+                    return (
+                      <div key={srv.id} className="pt-5 first:pt-0 flex flex-col gap-4">
+                        {/* Main Row */}
+                        <div className="grid grid-cols-12 gap-3 items-center text-xs">
+                          {/* Service Name Dropdown - ONLY Active Client Services */}
+                          <div className="col-span-5">
+                            <select
+                              value={srv.serviceName}
+                              onChange={(e) => handleServiceChange(srv.id, 'serviceName', e.target.value)}
+                              className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                              <option value="">Select Active Service</option>
+                              {!selectedClientId ? (
+                                <option value="" disabled>Please select a client first</option>
+                              ) : activeClientServices.length === 0 ? (
+                                <option value="" disabled>No active services configured for this client</option>
+                              ) : (
+                                activeClientServices.map((service) => {
+                                  const prof = Number(
+                                    (service.professionalFee && service.professionalFee > 0)
+                                      ? service.professionalFee
+                                      : (service.amount || service.totalServiceFee || 0)
+                                  );
+                                  const matchedCat = serviceCatalog.find(
+                                    (c) => c.name.toLowerCase() === service.serviceName.trim().toLowerCase() || c.id === service.serviceId
+                                  );
+                                  const gstRate = (service as any).taxRate || matchedCat?.taxRate || '18%';
+                                  return (
+                                    <option key={service.id || service.serviceName} value={service.serviceName}>
+                                      {service.serviceName} — ₹{prof.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({service.frequency || 'Monthly'}) | GST {gstRate}
+                                    </option>
+                                  );
+                                })
+                              )}
+                            </select>
+                          </div>
 
-                      {/* Sub-Row: Description (with 0/300 counter) + Compliance Period */}
-                      <div className="grid grid-cols-12 gap-4 items-start text-xs pt-1">
-                        {/* Description Input with 8px label gap and 6px counter gap */}
-                        <div className="col-span-5 flex flex-col gap-2">
-                          <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
-                            Description
-                          </label>
-                          <div className="flex flex-col gap-1.5">
+                          {/* Quantity */}
+                          <div className="col-span-2">
                             <input
-                              type="text"
-                              maxLength={300}
-                              placeholder="Description"
-                              value={srv.description}
-                              onChange={(e) => handleServiceChange(srv.id, 'description', e.target.value)}
-                              className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                              type="number"
+                              min={1}
+                              value={srv.quantity}
+                              onChange={(e) => handleServiceChange(srv.id, 'quantity', e.target.value)}
+                              className="w-full h-10 text-center px-2 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-900 dark:text-gray-100 outline-none focus:border-[#3D6A9E]"
                             />
-                            <span className="text-[10px] text-gray-400 text-right">
-                              {srv.description.length}/300
+                          </div>
+
+                          {/* Price (Professional Fee) */}
+                          <div className="col-span-2">
+                            <div className="relative w-full">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-xs font-semibold">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                placeholder="0.00"
+                                value={srv.price !== undefined && srv.price !== null ? srv.price : ''}
+                                onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
+                                className="w-full h-10 pl-6 pr-2.5 text-right rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-900 dark:text-gray-100 outline-none focus:border-[#3D6A9E]"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Amount (read-only: Qty * Price) */}
+                          <div className="col-span-2">
+                            <div className="w-full h-10 px-3 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-gray-50 dark:bg-gray-800 flex items-center justify-end text-xs font-semibold text-gray-900 dark:text-gray-100">
+                              ₹{lineAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          </div>
+
+                          {/* Total (Amount + Service GST) & Trash */}
+                          <div className="col-span-1 flex flex-col items-end justify-center font-bold text-gray-900 dark:text-white">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs">₹{itemTotalWithGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              {services.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveService(srv.id)}
+                                  className="text-red-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
+                                  title="Delete Service Row"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+                              {itemGstRate > 0 ? `(incl. ${itemGstRate}% GST)` : `(0% GST)`}
                             </span>
                           </div>
                         </div>
 
-                        {/* Compliance Period Selects */}
-                        <div className="col-span-7 flex flex-col gap-2">
-                          <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
-                            Compliance Period
-                          </label>
-                          <div className="grid grid-cols-3 gap-2.5">
-                            <select
-                              value={srv.compliancePeriod}
-                              onChange={(e) => handleServiceChange(srv.id, 'compliancePeriod', e.target.value)}
-                              className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
-                            >
-                              <option value="FY 2026-27">FY 2026-27</option>
-                              <option value="FY 2025-26">FY 2025-26</option>
-                            </select>
+                        {/* Sub-Row: Description (with 0/300 counter) + Compliance Period & Service GST */}
+                        <div className="grid grid-cols-12 gap-4 items-start text-xs pt-1">
+                          {/* Description Input with 8px label gap and 6px counter gap */}
+                          <div className="col-span-5 flex flex-col gap-2">
+                            <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                              Description
+                            </label>
+                            <div className="flex flex-col gap-1.5">
+                              <input
+                                type="text"
+                                maxLength={300}
+                                placeholder="Description"
+                                value={srv.description}
+                                onChange={(e) => handleServiceChange(srv.id, 'description', e.target.value)}
+                                className="w-full h-10 px-3.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none focus:border-[#3D6A9E]"
+                              />
+                              <span className="text-[10px] text-gray-400 text-right">
+                                {srv.description.length}/300
+                              </span>
+                            </div>
+                          </div>
 
-                            <select
-                              value={srv.frequency}
-                              onChange={(e) => handleServiceChange(srv.id, 'frequency', e.target.value)}
-                              className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
-                            >
-                              <option value="One-Time">One-Time</option>
-                              <option value="Monthly">Monthly</option>
-                              <option value="Quarterly">Quarterly</option>
-                              <option value="Half Yearly">Half Yearly</option>
-                              <option value="Annual">Annual</option>
-                            </select>
+                          {/* Compliance Period & Service GST Selects */}
+                          <div className="col-span-7 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                                Compliance Period & Service GST
+                              </label>
+                              {itemGstRate > 0 && (
+                                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                                  GST ({itemGstRate}%): ₹{itemGstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-4 gap-2.5">
+                              <select
+                                value={srv.compliancePeriod}
+                                onChange={(e) => handleServiceChange(srv.id, 'compliancePeriod', e.target.value)}
+                                className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
+                              >
+                                <option value="FY 2026-27">FY 2026-27</option>
+                                <option value="FY 2025-26">FY 2025-26</option>
+                              </select>
 
-                            <select
-                              value={srv.periodLabel}
-                              onChange={(e) => handleServiceChange(srv.id, 'periodLabel', e.target.value)}
-                              className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
-                            >
-                              <option value="N/A - One-Time">N/A - One-Time</option>
-                              <option value="Q1 (Apr-Jun)">Q1 (Apr-Jun)</option>
-                              <option value="Q2 (Jul-Sep)">Q2 (Jul-Sep)</option>
-                              <option value="Q3 (Oct-Dec)">Q3 (Oct-Dec)</option>
-                              <option value="Q4 (Jan-Mar)">Q4 (Jan-Mar)</option>
-                              <option value="Annual">Annual</option>
-                            </select>
+                              <select
+                                value={srv.frequency}
+                                onChange={(e) => handleServiceChange(srv.id, 'frequency', e.target.value)}
+                                className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
+                              >
+                                <option value="One-Time">One-Time</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Quarterly">Quarterly</option>
+                                <option value="Half Yearly">Half Yearly</option>
+                                <option value="Annual">Annual</option>
+                              </select>
+
+                              <select
+                                value={srv.periodLabel}
+                                onChange={(e) => handleServiceChange(srv.id, 'periodLabel', e.target.value)}
+                                className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs outline-none"
+                              >
+                                <option value="N/A - One-Time">N/A - One-Time</option>
+                                <option value="Q1 (Apr-Jun)">Q1 (Apr-Jun)</option>
+                                <option value="Q2 (Jul-Sep)">Q2 (Jul-Sep)</option>
+                                <option value="Q3 (Oct-Dec)">Q3 (Oct-Dec)</option>
+                                <option value="Q4 (Jan-Mar)">Q4 (Jan-Mar)</option>
+                                <option value="Annual">Annual</option>
+                              </select>
+
+                              <select
+                                value={srv.tax || '18%'}
+                                onChange={(e) => handleServiceChange(srv.id, 'tax', e.target.value)}
+                                className="w-full h-10 px-2.5 rounded-lg border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-800 dark:text-gray-200 outline-none focus:border-[#3D6A9E]"
+                                title="Service GST Rate"
+                              >
+                                <option value="18%">GST 18%</option>
+                                <option value="12%">GST 12%</option>
+                                <option value="5%">GST 5%</option>
+                                <option value="28%">GST 28%</option>
+                                <option value="0%">GST 0% (Nil)</option>
+                                <option value="Exempt">Exempt</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  })}
+              </div>
 
                 {/* Outlined Add Service Buttons (20px top, 20px bottom, 12px gap) */}
                 <div className="p-5 border-t border-[#e5e7eb] dark:border-[#334155] flex items-center gap-3 bg-gray-50/50 dark:bg-[#0f172a]/20">
@@ -1936,38 +1916,52 @@ tax:'18%',
                 </div>
 
                 {/* Totals Card (Right 5 Cols) (24px-28px padding) */}
-                <div className="md:col-span-5 rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-4 shadow-2xs">
+                <div className="md:col-span-5 rounded-sm border border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b] p-6 sm:p-7 flex flex-col gap-3 shadow-2xs">
                   <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                    <span>Sub Total</span>
-                    <span className="font-medium text-gray-800 dark:text-gray-200">
-                      ₹{subTotal.toFixed(2)}
+                    <span>Professional Fees (Sub Total)</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">
+                      ₹{subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
 
-                  {printColumns.cgst && (
+                  {cgstAmount > 0 && (
                     <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                      <span>CGST (9%)</span>
+                      <span>CGST (Central Tax)</span>
                       <span className="font-medium text-gray-800 dark:text-gray-200">
-                        ₹{cgstAmount.toFixed(2)}
+                        ₹{cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   )}
 
-                  {printColumns.sgst && (
+                  {sgstAmount > 0 && (
                     <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                      <span>SGST (9%)</span>
+                      <span>SGST (State Tax)</span>
                       <span className="font-medium text-gray-800 dark:text-gray-200">
-                        ₹{sgstAmount.toFixed(2)}
+                        ₹{sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-dotted border-gray-300 dark:border-gray-700 flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">
-                      Total Payable
-                    </span>
+                  {totalGstAmount > 0 && (
+                    <div className="flex items-center justify-between text-xs text-[#3D6A9E] dark:text-[#60a5fa] font-semibold pt-1 border-t border-dashed border-gray-200 dark:border-gray-700">
+                      <span>Total GST</span>
+                      <span>
+                        ₹{totalGstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-dotted border-gray-300 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white block">
+                        Total Payable
+                      </span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                        (Professional Fees + Service GST)
+                      </span>
+                    </div>
                     <span className="text-xl font-bold text-gray-900 dark:text-white">
-                      ₹{totalPayable.toFixed(2)}
+                      ₹{totalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

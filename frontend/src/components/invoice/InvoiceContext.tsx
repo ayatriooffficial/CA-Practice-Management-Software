@@ -33,6 +33,7 @@ import {
   setActiveReport as sliceSetActiveReport,
   InvoiceSummaryStats,
 } from '@/store/features/invoices';
+import { generateNextInvoiceNumber } from '@/utils/invoiceNumberGenerator';
 
 export interface InvoiceContextType {
   activeTab: InvoiceTab;
@@ -215,24 +216,19 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     async (id: string): Promise<InvoiceRecord | null> => {
       const prof = invoiceState.proformas.find((p) => p.id === id);
 
-      let finalInvoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceState.invoices.length + 1).padStart(4, '0')}`;
+      // Generate continuous sequential Tax Invoice number matching direct invoices
+      let finalInvoiceNumber = generateNextInvoiceNumber(invoiceState.invoices);
 
       // Persist to backend MongoDB if it is a MongoDB record
       if (/^[a-f\d]{24}$/i.test(id)) {
         try {
-          const backendRes = await financialApi.convertProforma(id);
+          const backendRes = await financialApi.convertProforma(id, finalInvoiceNumber);
           if (backendRes && backendRes.number) {
             finalInvoiceNumber = backendRes.number;
           }
         } catch (err) {
           console.warn('Backend convertProforma failed, retained locally:', err);
         }
-      } else if (prof?.number) {
-        finalInvoiceNumber = prof.number.startsWith('PI-')
-          ? prof.number.replace(/^PI-/, 'INV-')
-          : prof.number.startsWith('PI')
-          ? prof.number.replace(/^PI/, 'INV')
-          : `INV-${new Date().getFullYear()}-${String(invoiceState.invoices.length + 1).padStart(4, '0')}`;
       }
 
       dispatch(sliceConvertProformaToInvoice({ id, newNumber: finalInvoiceNumber }));
@@ -247,7 +243,7 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       return null;
     },
-    [dispatch, invoiceState.proformas, invoiceState.invoices.length]
+    [dispatch, invoiceState.proformas, invoiceState.invoices]
   );
 
   const addReimbursement = useCallback(

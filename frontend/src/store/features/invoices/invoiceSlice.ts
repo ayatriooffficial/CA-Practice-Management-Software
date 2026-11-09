@@ -13,6 +13,7 @@ import {
   MOCK_RECURRING_INVOICES,
 } from '@/components/invoice/mockData';
 import { TaskAllocationInput } from '@/services/financialApi';
+import { generateNextInvoiceNumber } from '@/utils/invoiceNumberGenerator';
 
 export interface InvoiceSummaryStats {
   allCount: number;
@@ -507,13 +508,7 @@ export const invoiceSlice = createSlice({
     convertProformaToInvoice: (state, action: PayloadAction<{ id: string; newNumber?: string }>) => {
       const proforma = state.proformas.find((p) => p.id === action.payload.id);
       if (proforma) {
-        const generatedNumber =
-          action.payload.newNumber ||
-          (proforma.number.startsWith('PI-')
-            ? proforma.number.replace(/^PI-/, 'INV-')
-            : proforma.number.startsWith('PI')
-            ? proforma.number.replace(/^PI/, 'INV')
-            : `INV-2026-${String(state.invoices.length + 1).padStart(4, '0')}`);
+        const generatedNumber = action.payload.newNumber || generateNextInvoiceNumber(state.invoices);
 
         const converted: InvoiceRecord = {
           ...proforma,

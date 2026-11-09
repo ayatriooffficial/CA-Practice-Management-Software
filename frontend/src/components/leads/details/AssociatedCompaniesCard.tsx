@@ -5,6 +5,7 @@ import { Building2, Plus, ExternalLink, ShieldCheck } from "lucide-react";
 import { Lead } from "@/data/crmData";
 import { useLeadCompanies } from "@/hooks/useLeadsQuery";
 import Link from "next/link";
+import Button from "@/components/ui/Button";
 
 interface AssociatedCompaniesCardProps {
   lead: Lead;
@@ -20,8 +21,8 @@ export const AssociatedCompaniesCard = memo(
       fetchedCompanies.length > 0
         ? fetchedCompanies
         : Array.isArray(lead.companies)
-        ? lead.companies
-        : [];
+          ? lead.companies
+          : [];
 
     return (
       <div className="w-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#e2e8f0] dark:border-[#334155] p-4.5 shadow-sm space-y-3.5">
@@ -47,15 +48,13 @@ export const AssociatedCompaniesCard = memo(
           </div>
 
           {onRegisterCompany && (
-            <button
+            <Button
               type="button"
               onClick={onRegisterCompany}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Register Company</span>
-            </button>
+            </Button>
           )}
         </div>
 

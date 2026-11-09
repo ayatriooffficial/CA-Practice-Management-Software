@@ -4,49 +4,68 @@ import { logger } from './logger';
 
 type MongoFailureCategory = 'authentication' | 'DNS' | 'network access' | 'configuration' | 'unknown';
 
-function describeMongoFailure(error: unknown): { category: MongoFailureCategory; message: string } {
+function describeMongoFailure(error: unknown): { category: MongoFailureCategory; message: string; rawError: string } {
   const value = error instanceof Error ? error : new Error(String(error));
   const code = 'code' in value ? String(value.code) : '';
-  const diagnostic = `${value.name} ${code} ${value.message}`;
+  const name = value.name || '';
+  const rawError = value.message || String(error);
+  const diagnostic = `${name} ${code} ${rawError}`;
 
   if (code === '18' || /authentication failed|bad auth|auth failed|not authorized|sasl|scram/i.test(diagnostic)) {
-    return { category: 'authentication', message: 'MongoDB rejected authentication. Check the rotated Atlas database user credentials in backend/.env.' };
+    return {
+      category: 'authentication',
+      message: 'MongoDB rejected authentication. Check database username/password in MONGODB_URI in backend/.env.',
+      rawError,
+    };
   }
-  if (/ENOTFOUND|ENODATA|ESERVFAIL|querySrv|DNS|EAI_AGAIN|getaddrinfo/i.test(diagnostic)) {
-    return { category: 'DNS', message: 'MongoDB host lookup failed. Check the Atlas cluster hostname and the Mac network DNS configuration.' };
+  if (/ENOTFOUND|ENODATA|ESERVFAIL|querySrv|EAI_AGAIN|getaddrinfo/i.test(diagnostic)) {
+    return {
+      category: 'DNS',
+      message: 'MongoDB host DNS lookup failed. Atlas cluster hostname could not be resolved. Check your internet connection or cluster hostname.',
+      rawError,
+    };
   }
   if (/MongoParseError|ERR_INVALID_URL|Invalid scheme|URI malformed|MONGODB_URI/i.test(diagnostic)) {
-    return { category: 'configuration', message: 'MongoDB URI is missing or malformed. Check MONGODB_URI in backend/.env.' };
+    return {
+      category: 'configuration',
+      message: 'MongoDB URI is missing or malformed. Check MONGODB_URI in backend/.env.',
+      rawError,
+    };
   }
-  if (/server selection|ECONNREFUSED|ETIMEDOUT|ECONNRESET|network|no reachable servers/i.test(diagnostic)) {
-    return { category: 'network access', message: 'MongoDB could not be reached. Check Atlas Network Access and outbound connectivity.' };
+  if (/server selection|MongooseServerSelectionError|ECONNREFUSED|ETIMEDOUT|ECONNRESET|network|no reachable servers|whitelist/i.test(diagnostic)) {
+    return {
+      category: 'network access',
+      message: 'MongoDB Atlas could not be reached. Most common causes:\n  1) Your IP address is not whitelisted in MongoDB Atlas (Go to cloud.mongodb.com -> Network Access -> Add IP -> allow 0.0.0.0/0 or your current IP).\n  2) Your Atlas free tier cluster is paused (Go to cloud.mongodb.com -> click Resume).\n  3) Outbound connection to Atlas port 27017 or DNS is blocked by firewall/ISP.',
+      rawError,
+    };
   }
-  return { category: 'unknown', message: 'MongoDB connection failed. Check backend/.env and Atlas availability.' };
+  return {
+    category: 'unknown',
+    message: `MongoDB connection error: ${rawError}`,
+    rawError,
+  };
 }
 
 export const connectDatabase = async (): Promise<typeof mongoose> => {
-  try {
-    if (env.MONGODB_URI.startsWith('mongodb+srv://')) {
-      const dns = await import('dns');
-      dns.setServers(['8.8.8.8', '1.1.1.1']);
-    }
-
+  const tryConnect = async () => {
     mongoose.set('strictQuery', true);
-
-    const connection = await mongoose.connect(env.MONGODB_URI, {
+    return await mongoose.connect(env.MONGODB_URI, {
       dbName: 'ayatrio_crm',
-      autoIndex: env.NODE_ENV !== 'production', // Don't auto-build indexes in production for high performance
-      maxPoolSize: 50, // Optimal pool size for high concurrency
+      autoIndex: env.NODE_ENV !== 'production',
+      maxPoolSize: 50,
       minPoolSize: 10,
       serverSelectionTimeoutMS: 8000,
       socketTimeoutMS: 45000,
     });
+  };
 
+  try {
+    const connection = await tryConnect();
     logger.info('✅ MongoDB connected successfully.');
 
     mongoose.connection.on('error', (err) => {
       const failure = describeMongoFailure(err);
-      logger.error(`❌ MongoDB connection error (${failure.category}): ${failure.message}`);
+      logger.error(`❌ MongoDB error (${failure.category}): ${failure.message}\n🔍 Details: ${failure.rawError}`);
     });
 
     mongoose.connection.on('disconnected', () => {
@@ -58,9 +77,27 @@ export const connectDatabase = async (): Promise<typeof mongoose> => {
     });
 
     return connection;
-  } catch (error) {
-    const failure = describeMongoFailure(error);
+  } catch (firstError: any) {
+    // If connection failed on SRV DNS resolution, attempt fallback DNS
+    const isSrv = env.MONGODB_URI.startsWith('mongodb+srv://');
+    const isDnsError = /querySrv|ENOTFOUND|ESERVFAIL|getaddrinfo/i.test(String(firstError?.message || ''));
+
+    if (isSrv && isDnsError) {
+      try {
+        logger.warn('⚠️ MongoDB DNS SRV lookup failed with default DNS. Retrying with fallback DNS (8.8.8.8)...');
+        const dns = await import('dns');
+        dns.setServers(['8.8.8.8', '1.1.1.1']);
+        const connection = await tryConnect();
+        logger.info('✅ MongoDB connected successfully via fallback DNS.');
+        return connection;
+      } catch (fallbackError) {
+        // Fall through to failure logging below
+      }
+    }
+
+    const failure = describeMongoFailure(firstError);
     logger.error(`❌ MongoDB connection failed (${failure.category}): ${failure.message}`);
+    logger.error(`🔍 Details: ${failure.rawError}`);
     process.exit(1);
   }
 };

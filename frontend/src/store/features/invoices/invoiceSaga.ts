@@ -28,6 +28,7 @@ import {
 } from './invoiceSlice';
 import { showToast } from '../ui/uiSlice';
 import { RootState } from '../../rootReducer';
+import { generateNextInvoiceNumber, generateNextProformaNumber } from '@/utils/invoiceNumberGenerator';
 
 export function toIsoDate(value: string | undefined): string | null {
   if (!value) return null;
@@ -118,12 +119,7 @@ function* handleCreateInvoice(
   const state: RootState = yield select();
   const currentInvoices = state.invoices.invoices;
   const currentYear = new Date().getFullYear();
-
-  const maxNum = currentInvoices.reduce((max, inv) => {
-    const match = inv.number?.match(/INV-\d{4}-(\d+)/i) || inv.number?.match(/(\d+)$/);
-    return match ? Math.max(max, parseInt(match[1], 10)) : max;
-  }, 0);
-  const nextNumber = data.number || `INV-${currentYear}-${String(Math.max(currentInvoices.length + 1, maxNum + 1)).padStart(3, '0')}`;
+  const nextNumber = data.number || generateNextInvoiceNumber(currentInvoices, currentYear);
 
   const draftRecord: InvoiceRecord = {
     id: `inv-${Date.now()}`,
@@ -189,12 +185,7 @@ function* handleCreateProforma(
   const state: RootState = yield select();
   const currentProformas = state.invoices.proformas;
   const currentYear = new Date().getFullYear();
-
-  const maxNum = currentProformas.reduce((max, inv) => {
-    const match = inv.number?.match(/PI-\d{4}-(\d+)/i) || inv.number?.match(/(\d+)$/);
-    return match ? Math.max(max, parseInt(match[1], 10)) : max;
-  }, 0);
-  const nextNumber = data.number || `PI-${currentYear}-${String(Math.max(currentProformas.length + 1, maxNum + 1)).padStart(3, '0')}`;
+  const nextNumber = data.number || generateNextProformaNumber(currentProformas, currentYear);
 
   const draftRecord: InvoiceRecord = {
     id: `prof-${Date.now()}`,

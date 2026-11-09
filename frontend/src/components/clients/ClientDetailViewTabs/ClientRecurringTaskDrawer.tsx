@@ -104,7 +104,11 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
 }) => {
   const [isEditingRate, setIsEditingRate] = useState(false);
   const [profFee, setProfFee] = useState<string>(
-    String(editingService.professionalFee ?? editingService.amount ?? 0)
+    String(
+      (editingService.professionalFee && editingService.professionalFee > 0)
+        ? editingService.professionalFee
+        : (editingService.amount || 0)
+    )
   );
   const [govtFee, setGovtFee] = useState<string>(
     String(editingService.governmentFee ?? 0)
@@ -121,7 +125,13 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
   }, [profFee, govtFee, otherFee]);
 
   useEffect(() => {
-    setProfFee(String(editingService.professionalFee ?? editingService.amount ?? 0));
+    setProfFee(
+      String(
+        (editingService.professionalFee && editingService.professionalFee > 0)
+          ? editingService.professionalFee
+          : (editingService.amount || 0)
+      )
+    );
     setGovtFee(String(editingService.governmentFee ?? 0));
     setOtherFee(String(editingService.otherCharges ?? 0));
   }, [editingService.professionalFee, editingService.governmentFee, editingService.otherCharges, editingService.amount]);
@@ -312,7 +322,13 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                   type="button"
                   disabled={isSavingRate}
                   onClick={() => {
-                    setProfFee(String(editingService.professionalFee ?? editingService.amount ?? 0));
+                    setProfFee(
+                      String(
+                        (editingService.professionalFee && editingService.professionalFee > 0)
+                          ? editingService.professionalFee
+                          : (editingService.amount || 0)
+                      )
+                    );
                     setGovtFee(String(editingService.governmentFee ?? 0));
                     setOtherFee(String(editingService.otherCharges ?? 0));
                     setIsEditingRate(false);

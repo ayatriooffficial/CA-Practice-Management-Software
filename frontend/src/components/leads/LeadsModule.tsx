@@ -572,9 +572,9 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
       <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Top Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white py-2">
+      <div className="flex flex-wrap justify-between gap-4 px-1">
+        <div className="flex gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white ">
             Leads ({pagination?.totalDocs ?? leads.length})
           </h1>
           {isFetching && (
@@ -584,7 +584,7 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
           )}
         </div>
 
-        <div className="flex items-center gap-3 py-2">
+        <div className="flex gap-3">
           {/* Toggle Soft-Deleted Records */}
           {canDelete("leads") && (
             <Button
@@ -615,7 +615,7 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
                 setPage(1);
               }}
               placeholder="Search name, mobile, email..."
-              className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs md:text-sm text-[#000000] dark:text-white outline-none placeholder:text-gray-400 hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
+              className="h-8 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs md:text-sm text-[#000000] dark:text-white outline-none placeholder:text-gray-400 hover:border-gray-400 focus:border-[#31719B] focus:ring-1 focus:ring-[#31719B]"
             />
             {search && (
               <button

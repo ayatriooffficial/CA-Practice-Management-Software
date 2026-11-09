@@ -29,7 +29,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-white dark:bg-[#1e293b] text-gray-700 dark:text-gray-300 border border-[#dde2e8] dark:border-[#334155]",
   outline: "bg-transparent text-[#31719B] border border-[#31719B]",
   danger: "bg-[var(--premium-orange-dark)] text-white",
-  ghost: "bg-transparent text-gray-600 dark:text-gray-300",
+  ghost: "text-gray-600 dark:text-gray-300",
   success: "bg-emerald-600 text-white",
 };
 
@@ -70,6 +70,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   hover:scale-[1.01] active:scale-[0.99]
   whitespace-nowrap
   disabled:opacity-50 disabled:cursor-not-allowed
+  h-8
   ${variantStyles[variant]}
   ${sizeStyles[size]}
   ${className}

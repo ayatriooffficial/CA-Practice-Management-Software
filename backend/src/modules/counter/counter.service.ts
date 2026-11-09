@@ -95,19 +95,39 @@ export class CounterService {
     const counterKey = `invoiceCounter_${String(orgId)}_${currentYear}`;
 
     let seq = await this.getNextSequence(counterKey, 0);
-    let candidate = `INV-${currentYear}-${String(seq).padStart(4, '0')}`;
+    let padLen = 3;
 
     try {
       const { FinancialInvoice } = await import('../financials/financial.model');
-      while (await FinancialInvoice.exists({ orgId, number: candidate })) {
-        seq = await this.getNextSequence(counterKey);
-        candidate = `INV-${currentYear}-${String(seq).padStart(4, '0')}`;
-      }
-    } catch {
-      // Non-blocking fallback
-    }
+      const recentInvoices = await FinancialInvoice.find({ orgId, number: new RegExp(`^INV-${currentYear}-`, 'i') })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
 
-    return candidate;
+      let maxExistingNum = 0;
+      for (const inv of recentInvoices) {
+        const match = inv.number?.match(/INV-\d{4}-(\d+)/i);
+        if (match) {
+          const n = parseInt(match[1], 10);
+          if (!isNaN(n) && n > maxExistingNum) maxExistingNum = n;
+          if (match[1].length > padLen) padLen = match[1].length;
+        }
+      }
+
+      if (maxExistingNum >= seq) {
+        seq = maxExistingNum + 1;
+        await this.setCounter(counterKey as any, seq);
+      }
+
+      let candidate = `INV-${currentYear}-${String(seq).padStart(padLen, '0')}`;
+      while (await FinancialInvoice.exists({ orgId, number: candidate })) {
+        seq += 1;
+        candidate = `INV-${currentYear}-${String(seq).padStart(padLen, '0')}`;
+      }
+      return candidate;
+    } catch {
+      return `INV-${currentYear}-${String(seq).padStart(3, '0')}`;
+    }
   }
 
   /**
@@ -124,7 +144,7 @@ export class CounterService {
 
     try {
       const { FinancialReceipt } = await import('../financials/financial.model');
-      while (await FinancialReceipt.exists({ orgId, receiptNo: candidate })) {
+      while (await FinancialReceipt.exists({ receiptNo: candidate })) {
         seq = await this.getNextSequence(counterKey);
         candidate = `REC-${currentYear}-${String(seq).padStart(4, '0')}`;
       }
