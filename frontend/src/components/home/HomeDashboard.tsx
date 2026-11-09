@@ -34,6 +34,7 @@ import { selectDashboardLoading } from '@/store/features/dashboard/dashboardSele
 import { navigationProgress } from '@/services/navigationProgress';
 import { pageStateCache } from '@/services/pageStateCache';
 import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
+import { preloadHomeDashboardData } from '@/services/homePreloadService';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
@@ -75,14 +76,73 @@ export const HomeDashboard: React.FC = () => {
     !cachedHome && !cachedSummaryCards?.length && !cachedNumericalSnapshot?.summaryCards?.length
   );
 
-  // Fast numerical snapshot retrieval from backend (<5ms)
-  useEffect(() => {
-    homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
-      if (snapshot?.summaryCards && snapshot.summaryCards.length > 0) {
-        setSummaryCards((prev) => (prev.length === 0 ? snapshot.summaryCards! : prev));
-      }
-    }).catch(() => {});
+  // Check if Count Panel metrics and summary cards are already in cache
+  const cachedStripLeads = useMemo(() => {
+    const snap = homeMetricsSnapshotApi.getCachedSnapshot();
+    const cache = pageStateCache.get<any>('home_task_strip_data');
+    return cache?.leads || snap?.stripMetrics?.leads || snap?.countLabels?.leads;
   }, []);
+
+  const isAlreadyLoaded = pageStateCache.isLoaded('/');
+
+  const hasInitialData = Boolean(
+    isAlreadyLoaded ||
+    (summaryCards && summaryCards.length > 0 && cachedStripLeads)
+  );
+  const [isHomeReady, setIsHomeReady] = useState(() => hasInitialData);
+
+  // Parallel preloader & fast numerical snapshot retrieval from backend
+  useEffect(() => {
+    if (pageStateCache.isLoaded('/')) {
+      setIsHomeReady(true);
+      return;
+    }
+
+    if (!isHomeReady) {
+      preloadHomeDashboardData().then(() => {
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot();
+        if (snap?.summaryCards && snap.summaryCards.length > 0) {
+          setSummaryCards(snap.summaryCards);
+        }
+        setIsHomeReady(true);
+        navigationProgress.setLoading('home_dashboard', false);
+        pageStateCache.markLoaded('/');
+        navigationProgress.done();
+      }).catch(() => {
+        setIsHomeReady(true);
+        navigationProgress.setLoading('home_dashboard', false);
+        pageStateCache.markLoaded('/');
+        navigationProgress.done();
+      });
+    } else {
+      homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
+        if (snapshot?.summaryCards && snapshot.summaryCards.length > 0) {
+          setSummaryCards((prev) => (prev.length === 0 ? snapshot.summaryCards! : prev));
+        }
+      }).catch(() => {});
+    }
+  }, [isHomeReady]);
+
+  // UI reveal coordinator: never reveal Home UI until snapshot and count panel data are ready
+  useEffect(() => {
+    if (isHomeReady) {
+      navigationProgress.setLoading('home_dashboard', false);
+      pageStateCache.markLoaded('/');
+      return;
+    }
+
+    navigationProgress.setLoading('home_dashboard', true);
+
+    // Failsafe timer (max 600ms) to guarantee smooth reveal even on slow networks
+    const timer = setTimeout(() => {
+      setIsHomeReady(true);
+      navigationProgress.setLoading('home_dashboard', false);
+      pageStateCache.markLoaded('/');
+      navigationProgress.done();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [isHomeReady]);
 
   // Automatically persist latest numerical snapshot when window closes or tab is hidden
   useEffect(() => {
@@ -233,13 +293,15 @@ export const HomeDashboard: React.FC = () => {
     }
   }, [isAdmin, currentUser]);
 
-  // Parallel concurrent fetching (multithreading-like concurrent requests)
+  // Only fetch on first load in this session; do not re-fetch on revisit
   useEffect(() => {
-    Promise.allSettled([
-      fetchSummary(),
-      fetchTableData(),
-      fetchBottomData(),
-    ]);
+    if (!pageStateCache.isLoaded('/')) {
+      Promise.allSettled([
+        fetchSummary(),
+        fetchTableData(),
+        fetchBottomData(),
+      ]);
+    }
   }, [fetchSummary, fetchTableData, fetchBottomData]);
 
   // Save state to local cache whenever data loads
@@ -266,13 +328,13 @@ export const HomeDashboard: React.FC = () => {
     isDashboardLoading;
 
   useEffect(() => {
-    if (!pageStateCache.isLoaded('/')) {
+    if (!pageStateCache.isLoaded('/') && !isHomeReady) {
       navigationProgress.setLoading('home_dashboard', isAnyHomeLoading);
     }
     return () => {
       navigationProgress.setLoading('home_dashboard', false);
     };
-  }, [isAnyHomeLoading]);
+  }, [isAnyHomeLoading, isHomeReady]);
 
   // Punch Action Callback: Refresh summary & tables immediately
   const handlePunchChange = useCallback(() => {
@@ -281,7 +343,11 @@ export const HomeDashboard: React.FC = () => {
   }, [fetchSummary, fetchTableData]);
 
   return (
-    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1 sm:pt-1.5 pb-6 gap-3 sm:gap-4">
+    <div
+      className={`w-full flex flex-col min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1 sm:pt-1.5 pb-6 gap-3 sm:gap-4 transition-opacity duration-200 ${
+        isHomeReady ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+    >
       {/* Top Banner: Metrics Strip with Category Tabs */}
       {(isAdmin || showTasks || showInvoicing || showClients || showCompliance || showLeads) && (
         <TopTaskDueStrip />

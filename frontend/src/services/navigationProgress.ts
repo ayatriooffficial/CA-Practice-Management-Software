@@ -81,10 +81,15 @@ class NavigationProgressService {
   /**
    * Start a navigation cycle.
    * Jumps to random 10-15%, starts decaying trickle timer, and displays after showDelayTimer if still loading.
+   * If options.immediate is true, displays instantly with no delay timer.
+   * If options.force is true, runs even if the page was previously marked loaded in pageStateCache.
    */
-  public start(initialTarget?: string): void {
+  public start(
+    initialTarget?: string,
+    options?: { immediate?: boolean; force?: boolean }
+  ): void {
     const target = initialTarget || (typeof window !== 'undefined' ? window.location.pathname : '');
-    if (target && pageStateCache.isLoaded(target)) {
+    if (!options?.force && target && pageStateCache.isLoaded(target)) {
       // Page data and UI are already loaded; strictly skip progress bar on revisit
       return;
     }
@@ -101,22 +106,34 @@ class NavigationProgressService {
     this.routeCommitted = false;
     this.pendingRequests = 0;
 
-    const startVal = Math.floor(Math.random() * 6) + 10;
+    const startVal = options?.immediate
+      ? Math.floor(Math.random() * 8) + 18
+      : Math.floor(Math.random() * 6) + 10;
     const nextProgress = Math.max(this.state.progress, startVal);
 
-    this.updateState({
-      navigationId: this.state.navigationId + 1,
-      isNavigating: true,
-      progress: nextProgress,
-    });
+    if (options?.immediate) {
+      this.visibleTimestamp = Date.now();
+      this.updateState({
+        navigationId: this.state.navigationId + 1,
+        isNavigating: true,
+        isVisible: true,
+        progress: nextProgress,
+      });
+    } else {
+      this.updateState({
+        navigationId: this.state.navigationId + 1,
+        isNavigating: true,
+        progress: nextProgress,
+      });
 
-    // 180ms delay: fast loads and cached pages finish before this fires, keeping the bar 100% invisible
-    this.showDelayTimer = setTimeout(() => {
-      if (this.state.isNavigating) {
-        this.visibleTimestamp = Date.now();
-        this.updateState({ isVisible: true });
-      }
-    }, 180);
+      // 180ms delay: fast loads and cached pages finish before this fires, keeping the bar 100% invisible
+      this.showDelayTimer = setTimeout(() => {
+        if (this.state.isNavigating) {
+          this.visibleTimestamp = Date.now();
+          this.updateState({ isVisible: true });
+        }
+      }, 180);
+    }
 
     // If navigating to the exact page we are already on (e.g. clicking Home while on Home)
     if (
@@ -294,6 +311,10 @@ class NavigationProgressService {
   }
 
   public forceFinish(): void {
+    this.finish();
+  }
+
+  public done(): void {
     this.finish();
   }
 
