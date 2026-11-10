@@ -4,6 +4,7 @@ import type {
   ComplianceGridRow,
   ComplianceGridColumn,
   ComplianceEntry,
+  ComplianceCellStatus,
   GetComplianceGridParams,
 } from '@/types/compliance';
 
@@ -79,7 +80,7 @@ export const complianceSlice = createSlice({
       action: PayloadAction<{
         itemId: string;
         colKey: string;
-        status: any;
+        status: ComplianceCellStatus;
         entry: ComplianceEntry;
       }>
     ) => {

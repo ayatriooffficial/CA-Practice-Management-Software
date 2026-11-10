@@ -94,7 +94,7 @@ export const noticeApi = {
       groupBy: params.groupBy,
       sortBy: params.sortBy,
       page: params.page,
-      limit: params.pageSize,
+      limit: params.limit ?? params.pageSize,
     }));
     const data = (response.data ?? []).map((notice) => normalizeNotice(notice));
     const summary = (response as ApiResponse<unknown> & { summary?: NoticeSummary }).summary ?? emptySummary();

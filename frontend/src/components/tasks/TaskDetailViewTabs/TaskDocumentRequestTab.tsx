@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   FolderOpen,
   Plus,
@@ -11,11 +11,16 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
+  Mail,
 } from "lucide-react";
 import { TaskDocumentRequestItem } from "@/data/taskData";
 import { usePermission } from "../../team/usePermission";
+import { ComposeModal } from "@/components/email/ComposeModal";
+import { generateDocRequestEmailTemplate } from "@/lib/emailTemplates";
+import { clientApi } from "@/services/clientApi";
 
 interface TaskDocumentRequestTabProps {
+  task?: any;
   documentRequests: TaskDocumentRequestItem[];
   isAddDocInline: boolean;
   setIsAddDocInline: (open: boolean) => void;
@@ -31,6 +36,7 @@ interface TaskDocumentRequestTabProps {
 }
 
 export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
+  task,
   documentRequests,
   isAddDocInline,
   setIsAddDocInline,
@@ -50,6 +56,57 @@ export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
   const [isGeneralUploadOpen, setIsGeneralUploadOpen] = useState(false);
   const [selectedGeneralFile, setSelectedGeneralFile] = useState<File | null>(null);
   const [isUploadingGeneral, setIsUploadingGeneral] = useState(false);
+
+  // Email Compose State
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({ to: "", subject: "", body: "" });
+  const [resolvedEmail, setResolvedEmail] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchEmail = async () => {
+      const direct = task?.clientEmail || task?.email;
+      if (direct) {
+        if (isMounted) setResolvedEmail(direct);
+        return;
+      }
+      if (task?.clientId) {
+        try {
+          const res = await clientApi.getClientById(task.clientId);
+          if (res?.data?.email && isMounted) {
+            setResolvedEmail(res.data.email);
+          }
+        } catch {
+          // fallback
+        }
+      }
+    };
+    fetchEmail();
+    return () => {
+      isMounted = false;
+    };
+  }, [task?.clientId, task?.clientEmail, task?.email]);
+
+  // Only consider documents that have NOT yet been received and NOT uploaded
+  const pendingDocs = (documentRequests || []).filter(
+    (d) => d.status !== "Received" && !d.fileUrl
+  );
+
+  const handleOpenDocRequestEmail = (specificDoc?: TaskDocumentRequestItem) => {
+    let docsToSend: TaskDocumentRequestItem[] = [];
+
+    if (specificDoc) {
+      docsToSend = [specificDoc];
+    } else {
+      // Global email button at top: sends for all unreceived docs at once (or all if none pending)
+      docsToSend = pendingDocs.length > 0 ? pendingDocs : (documentRequests || []);
+    }
+
+    if (docsToSend.length === 0) return;
+    const { to, subject, body } = generateDocRequestEmailTemplate(task || {}, docsToSend, resolvedEmail);
+    setComposeData({ to, subject, body });
+    setIsComposeOpen(true);
+  };
 
   const handleGeneralSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +136,17 @@ export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
           <span>Required Documents ({documentRequests?.length || 0})</span>
         </h3>
         <div className="flex items-center space-x-2">
+          {documentRequests && documentRequests.length > 0 && (
+            <button
+              type="button"
+              onClick={() => handleOpenDocRequestEmail()}
+              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 flex items-center space-x-1.5 cursor-pointer transition-colors shadow-xs"
+              title="Draft email requesting all pending documents at once"
+            >
+              <Mail className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Email All Requests{pendingDocs.length > 0 ? ` (${pendingDocs.length})` : ""}</span>
+            </button>
+          )}
           {handleUploadGeneralFile && (
             <button
               type="button"
@@ -328,6 +396,19 @@ export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
                   </div>
                 )}
 
+                {/* Email single doc request (only visible beside documents that have NOT been received) */}
+                {!isReceived && !doc.fileUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDocRequestEmail(doc)}
+                    className="px-2 py-1 text-xs font-semibold rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 flex items-center space-x-1 cursor-pointer transition-colors"
+                    title="Draft email request for this document"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Email</span>
+                  </button>
+                )}
+
                 {/* Toggle status */}
                 <button
                   type="button"
@@ -366,6 +447,16 @@ export const TaskDocumentRequestTab: React.FC<TaskDocumentRequestTabProps> = ({
           </div>
         )}
       </div>
+
+      {isComposeOpen && (
+        <ComposeModal
+          initialTo={composeData.to}
+          initialSubject={composeData.subject}
+          initialHtmlBody={composeData.body}
+          onClose={() => setIsComposeOpen(false)}
+          zIndex={70}
+        />
+      )}
     </div>
   );
 };

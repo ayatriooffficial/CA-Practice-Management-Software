@@ -26,7 +26,6 @@ function* handleFetchCompliance(
       fetchComplianceSuccess({
         rows: data?.rows || [],
         columns: data?.columns || [],
-        entries: data?.entries,
         clients: data?.clients,
       })
     );
