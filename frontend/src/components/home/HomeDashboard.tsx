@@ -85,9 +85,16 @@ export const HomeDashboard: React.FC = () => {
 
   const isAlreadyLoaded = pageStateCache.isLoaded('/');
 
+  const hasFullCachedData = Boolean(
+    pageStateCache.get('home_task_summary') &&
+    pageStateCache.get('home_invoicing_summary') &&
+    pageStateCache.get('home_compliance_summary') &&
+    pageStateCache.get('home_client_stats')
+  );
+
   const hasInitialData = Boolean(
     isAlreadyLoaded ||
-    (summaryCards && summaryCards.length > 0 && cachedStripLeads)
+    (hasFullCachedData && summaryCards && summaryCards.length > 0 && cachedStripLeads)
   );
   const [isHomeReady, setIsHomeReady] = useState(() => hasInitialData);
 

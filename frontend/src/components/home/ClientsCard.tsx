@@ -10,17 +10,28 @@ import {
   selectDashboardClientStats,
   selectDashboardLoading,
 } from '@/store/features/dashboard/dashboardSelectors';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const ClientsCard: React.FC = () => {
   const dispatch = useAppDispatch();
   const reduxClientStats = useAppSelector(selectDashboardClientStats);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
 
-  const [fallbackStats, setFallbackStats] = useState<ClientStats | null>(null);
+  const [fallbackStats, setFallbackStats] = useState<ClientStats | null>(() => {
+    return pageStateCache.get<ClientStats>('home_client_stats') || null;
+  });
   const [error, setError] = useState<string | null>(null);
 
   const stats = reduxClientStats || fallbackStats;
   const isLoading = isReduxLoading && !stats;
+
+  // Persist updated client stats to session cache
+  useEffect(() => {
+    if (reduxClientStats) {
+      pageStateCache.set('home_client_stats', reduxClientStats);
+      setFallbackStats(reduxClientStats);
+    }
+  }, [reduxClientStats]);
 
   useEffect(() => {
     if (!reduxClientStats) {

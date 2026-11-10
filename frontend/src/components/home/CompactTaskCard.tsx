@@ -15,7 +15,6 @@ import {
   selectDashboardLoading,
 } from '@/store/features/dashboard/dashboardSelectors';
 import { pageStateCache } from '@/services/pageStateCache';
-import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
 
 type StatusTab = 'pending' | 'hold' | 'inProgress' | 'completed';
 
@@ -24,12 +23,8 @@ export const CompactTaskCard: React.FC = () => {
   const reduxTaskData = useAppSelector(selectDashboardTaskSummary);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
 
-  // Synchronously initialize fallback data from local session cache and numerical snapshot
+  // Synchronously initialize fallback data from session cache (same as other cards)
   const [fallbackData, setFallbackData] = useState<CompactTaskSummaryResponse | null>(() => {
-    const snap = homeMetricsSnapshotApi.getCachedSnapshot();
-    if (snap?.taskOverview) {
-      return snap.taskOverview as CompactTaskSummaryResponse;
-    }
     return pageStateCache.get<CompactTaskSummaryResponse>('home_task_summary') || null;
   });
   const [activeTab, setActiveTab] = useState<StatusTab>('pending');
@@ -38,23 +33,11 @@ export const CompactTaskCard: React.FC = () => {
   const data = reduxTaskData || fallbackData;
   const isLoading = isReduxLoading && !data;
 
-  // Instant numerical hydration from backend snapshot API (2-5ms)
-  useEffect(() => {
-    homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
-      if (snapshot?.taskOverview) {
-        setFallbackData((prev) => prev || (snapshot.taskOverview as CompactTaskSummaryResponse));
-      }
-    }).catch(() => {});
-  }, []);
-
-  // Persist updated task summary to cache and central snapshot immediately upon arrival
+  // Update session cache when fresh Redux data arrives
   useEffect(() => {
     if (reduxTaskData) {
       pageStateCache.set('home_task_summary', reduxTaskData);
       setFallbackData(reduxTaskData);
-      const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
-      snap.taskOverview = reduxTaskData;
-      homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
     }
   }, [reduxTaskData]);
 

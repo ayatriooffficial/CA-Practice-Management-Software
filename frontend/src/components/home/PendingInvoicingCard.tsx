@@ -21,17 +21,28 @@ import {
   selectDashboardInvoicingSummary,
   selectDashboardLoading,
 } from '@/store/features/dashboard/dashboardSelectors';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const PendingInvoicingCard: React.FC = () => {
   const dispatch = useAppDispatch();
   const reduxInvoicingData = useAppSelector(selectDashboardInvoicingSummary);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
 
-  const [fallbackData, setFallbackData] = useState<InvoicingSummaryResponse | null>(null);
+  const [fallbackData, setFallbackData] = useState<InvoicingSummaryResponse | null>(() => {
+    return pageStateCache.get<InvoicingSummaryResponse>('home_invoicing_summary') || null;
+  });
   const [error, setError] = useState<string | null>(null);
 
   const data = reduxInvoicingData || fallbackData;
   const isLoading = isReduxLoading && !data;
+
+  // Persist updated invoicing data to session cache
+  useEffect(() => {
+    if (reduxInvoicingData) {
+      pageStateCache.set('home_invoicing_summary', reduxInvoicingData);
+      setFallbackData(reduxInvoicingData);
+    }
+  }, [reduxInvoicingData]);
 
   useEffect(() => {
     if (!reduxInvoicingData) {

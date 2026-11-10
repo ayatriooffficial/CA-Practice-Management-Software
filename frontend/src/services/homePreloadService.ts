@@ -3,6 +3,7 @@ import { attendanceApi } from './attendanceApi';
 import { dashboardSummaryApi } from './dashboardSummaryApi';
 import { clientApi } from './clientApi';
 import { leadApi } from './leadApi';
+import { todoApi, TeamTaskItem } from './todoApi';
 import { pageStateCache } from './pageStateCache';
 
 /**
@@ -29,6 +30,8 @@ export async function preloadHomeDashboardData(): Promise<void> {
       attSummaryRes,
       holidaysRes,
       todayAttRes,
+      adminTasksRes,
+      todosRes,
     ] = await Promise.allSettled([
       homeMetricsSnapshotApi.getMetricsSnapshot(),
       dashboardSummaryApi.getCompactTaskSummary(),
@@ -39,6 +42,8 @@ export async function preloadHomeDashboardData(): Promise<void> {
       attendanceApi.getSummary('month'),
       attendanceApi.getUpcomingHolidays(),
       attendanceApi.getTodayAttendance(todayDate),
+      todoApi.getAdminTasks().catch(() => []),
+      todoApi.getTodos().catch(() => []),
     ]);
 
     // Store in pageStateCache for instant synchronous component hydration
@@ -65,6 +70,61 @@ export async function preloadHomeDashboardData(): Promise<void> {
     }
     if (todayAttRes.status === 'fulfilled' && (todayAttRes.value as any)?.rows) {
       pageStateCache.set('home_attendance_today_rows', (todayAttRes.value as any).rows);
+    }
+
+    // Pre-cache To-Do items
+    const adminTasks = adminTasksRes.status === 'fulfilled' && Array.isArray(adminTasksRes.value) ? adminTasksRes.value : [];
+    const personalTodos = todosRes.status === 'fulfilled' && Array.isArray(todosRes.value) ? todosRes.value : [];
+    if (adminTasks.length > 0 || personalTodos.length > 0) {
+      const merged: TeamTaskItem[] = [
+        ...personalTodos.map((pt: any) => ({
+          id: `pt_${pt.id}`,
+          taskId: pt.id,
+          taskName: pt.title,
+          description: pt.description || '',
+          category: pt.category || 'Personal',
+          clientName: pt.clientName || '',
+          clientId: pt.clientId,
+          assigneeId: 'me',
+          assigneeName: 'Me',
+          priority: pt.priority || 'Medium',
+          status: pt.completed ? 'Completed' : 'Pending',
+          targetDueDate: pt.dueDate || todayDate,
+          progress: pt.completed ? 100 : 0,
+          checklistTotal: 0,
+          checklistCompleted: 0,
+          checklist: [],
+          isOverdue: !pt.completed && Boolean(pt.dueDate && pt.dueDate < todayDate),
+          daysLeft: 0,
+          createdAt: pt.createdAt,
+          updatedAt: pt.updatedAt,
+          isPersonal: true,
+        } as any)),
+        ...adminTasks.map((at: any) => ({
+          id: at.dedupKey || at.id,
+          taskId: at.sourceId || at.id,
+          taskName: at.title,
+          description: at.description,
+          category: at.category || 'Administrative',
+          clientName: at.clientName || '',
+          clientId: at.clientId,
+          assigneeId: 'admin',
+          assigneeName: 'Admin',
+          priority: at.priority || 'Medium',
+          status: at.completed ? 'Completed' : at.status === 'Expired' ? 'Overdue' : 'Pending',
+          targetDueDate: at.dueDate,
+          progress: at.completed ? 100 : 0,
+          checklistTotal: 1,
+          checklistCompleted: at.completed ? 1 : 0,
+          checklist: [],
+          isOverdue: !at.completed && (at.daysLeft < 0 || at.status === 'Expired'),
+          daysLeft: at.daysLeft,
+          createdAt: at.createdAt,
+          updatedAt: at.updatedAt,
+          isAdministrative: true,
+        } as any)),
+      ];
+      pageStateCache.set('home_todo_tasks', merged);
     }
 
     const snapshot =

@@ -1,6 +1,5 @@
 import { request, API_BASE_URL } from './apiClient';
 import { SummaryCardData } from './attendanceApi';
-import { CompactTaskSummaryResponse } from './dashboardSummaryApi';
 
 export interface HomeStripMetrics {
   leads?: { top: number; bottom: number };
@@ -23,7 +22,6 @@ export interface HomeMetricsData {
   countLabels?: HomeStripMetrics;
   stripMetrics?: HomeStripMetrics;
   summaryCards?: SummaryCardData[];
-  taskOverview?: Partial<CompactTaskSummaryResponse>;
   todoMetrics?: HomeTodoMetrics;
 }
 
