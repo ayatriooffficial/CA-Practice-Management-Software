@@ -3,9 +3,12 @@ import {
   Agent,
   AgentConfigDraft,
   AgentDefinitions,
+  AgentDiagnosticSummary,
   AgentFilters,
+  AgentImpactPreview,
   AgentModule,
   AgentRun,
+  FollowUpRecord,
 } from '@/types/agentCenter';
 
 function filterQuery(filters: AgentFilters = {}) {
@@ -127,6 +130,24 @@ export const agentCenterApi = {
 
   async getHistory(limit = 100): Promise<AgentRun[]> {
     const response = await request<AgentRun[]>(`/agent-center/history?limit=${limit}`);
+    return response.data || [];
+  },
+
+  async getDiagnosticSummary(): Promise<AgentDiagnosticSummary> {
+    const response = await request<AgentDiagnosticSummary>('/agent-center/diagnostics/summary');
+    return response.data;
+  },
+
+  async previewAgentImpact(id: string): Promise<AgentImpactPreview> {
+    const response = await request<AgentImpactPreview>(`/agent-center/agents/${encodeURIComponent(id)}/preview-impact`, {
+      method: 'POST',
+    });
+    return response.data;
+  },
+
+  async listFollowUps(status?: string): Promise<FollowUpRecord[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    const response = await request<FollowUpRecord[]>(`/agent-center/follow-ups${query}`);
     return response.data || [];
   },
 };

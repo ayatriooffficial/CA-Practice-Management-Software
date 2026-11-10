@@ -219,3 +219,49 @@ export function useIntegrationsStatus() {
 
   return { data, isLoading };
 }
+
+export function useAgentDiagnostics() {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await agentCenterApi.getDiagnosticSummary();
+      setData(res);
+    } catch {
+      // keep null if error
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, refetch };
+}
+
+export function useAgentFollowUps(status?: string) {
+  const [data, setData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await agentCenterApi.listFollowUps(status);
+      setData(res);
+    } catch {
+      setData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, refetch };
+}

@@ -670,6 +670,21 @@ export class AgentSchedulerService {
         errors.push(...autoRemindersResult.errors);
       }
 
+      // Part 1b: Process active client follow-up reminder cycles and stop conditions
+      try {
+        const { FollowUpService } = await import('./followUp.service');
+        const followUpResults = await FollowUpService.processScheduledFollowUps({
+          nowDate,
+          forceRealSend: await isAutomaticRemindersRealSendEnabledAsync(),
+        });
+        dispatchedRuns += followUpResults.reminded;
+        if (followUpResults.errors.length) {
+          errors.push(...followUpResults.errors);
+        }
+      } catch (fErr: any) {
+        logger.warn(`Follow-up scheduler cycle error: ${fErr?.message || fErr}`);
+      }
+
       // Part 2: Load all published user agents across tenant organizations for user-defined task/dsc/license triggers
       const publishedAgents = await Agent.find({ status: 'published' }).exec();
       evaluatedAgents = publishedAgents.length;
