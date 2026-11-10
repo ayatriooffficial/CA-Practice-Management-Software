@@ -135,6 +135,7 @@ export const HomeDashboard: React.FC = () => {
     if (isHomeReady) {
       navigationProgress.setLoading('home_dashboard', false);
       pageStateCache.markLoaded('/');
+      navigationProgress.done();
       return;
     }
 
