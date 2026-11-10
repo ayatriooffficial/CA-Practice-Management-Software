@@ -13,6 +13,7 @@ import {
   MOCK_RECURRING_INVOICES,
 } from '@/components/invoice/mockData';
 import { TaskAllocationInput } from '@/services/financialApi';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export interface InvoiceSummaryStats {
   allCount: number;
@@ -125,26 +126,36 @@ function calculateStats(
   };
 }
 
-const initialState: InvoiceState = {
-  invoices: [],
-  proformas: [],
-  reimbursements: [],
-  receipts: MOCK_RECEIPTS,
-  recurringInvoices: MOCK_RECURRING_INVOICES,
-  bankAccounts: MOCK_BANK_ACCOUNTS,
-  activeTab: 'invoice',
-  financialYear: 'FY 2026-2027',
-  dateRange: 'This Month',
-  currencyFilter: 'All Currencies',
-  searchQuery: '',
-  statusFilter: 'All',
-  activeReport: 'dashboard',
-  loading: false,
-  mutating: false,
-  error: null,
-  isLoaded: false,
-  summaryStats: defaultStats,
+const getInitialInvoiceState = (): InvoiceState => {
+  const cached = typeof window !== 'undefined' ? pageStateCache.get<any>('invoices_page_data') : null;
+  const invoices = cached?.invoices || [];
+  const proformas = cached?.proformas || [];
+  const reimbursements = cached?.reimbursements || [];
+  const receipts = cached?.receipts || MOCK_RECEIPTS;
+
+  return {
+    invoices,
+    proformas,
+    reimbursements,
+    receipts,
+    recurringInvoices: MOCK_RECURRING_INVOICES,
+    bankAccounts: cached?.bankAccounts || MOCK_BANK_ACCOUNTS,
+    activeTab: 'invoice',
+    financialYear: 'FY 2026-2027',
+    dateRange: 'This Month',
+    currencyFilter: 'All Currencies',
+    searchQuery: '',
+    statusFilter: 'All',
+    activeReport: 'dashboard',
+    loading: false,
+    mutating: false,
+    error: null,
+    isLoaded: Boolean(invoices.length > 0 || proformas.length > 0),
+    summaryStats: calculateStats('invoice', invoices, proformas, reimbursements, receipts),
+  };
 };
+
+const initialState: InvoiceState = getInitialInvoiceState();
 
 export const invoiceSlice = createSlice({
   name: 'invoices',

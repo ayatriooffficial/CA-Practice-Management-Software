@@ -26,16 +26,25 @@ import {
   bulkDeleteTasksFailure,
 } from './taskSlice';
 import { showToast } from '../ui/uiSlice';
+import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchTasks(action: PayloadAction<TaskQueryParams | undefined>): Generator<any, void, any> {
   try {
     const response: ApiResponse<TaskItem[]> = yield call(taskApi.getTasks, action.payload || {});
+    const tasks = response.data || [];
     yield put(
       fetchTasksSuccess({
-        tasks: response.data || [],
+        tasks,
         pagination: response.pagination,
       })
     );
+    if (!action.payload || Object.keys(action.payload).length === 0) {
+      pageStateCache.set('tasks_list_data', {
+        tasks,
+        pagination: response.pagination,
+      });
+      pageStateCache.markLoaded('/task');
+    }
   } catch (error: any) {
     yield put(fetchTasksFailure(error.message || 'Failed to fetch tasks'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to fetch tasks' }));

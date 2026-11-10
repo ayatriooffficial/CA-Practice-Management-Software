@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Client } from '@/data/crmData';
 import { ClientQueryParams, ClientStats } from '@/services/clientApi';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export interface PaginationState {
   page: number;
@@ -23,24 +24,29 @@ export interface ClientState {
   isLoaded: boolean;
 }
 
-const initialState: ClientState = {
-  items: [],
-  selectedClient: null,
-  stats: null,
-  loading: false,
-  mutating: false,
-  error: null,
-  pagination: {
-    page: 1,
-    limit: 10,
-    totalDocs: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  },
-  currentParams: {},
-  isLoaded: false,
+const getInitialClientState = (): ClientState => {
+  const cached = typeof window !== 'undefined' ? pageStateCache.get<any>('clients_list_data') : null;
+  return {
+    items: cached?.clients || [],
+    selectedClient: null,
+    stats: null,
+    loading: false,
+    mutating: false,
+    error: null,
+    pagination: cached?.pagination || {
+      page: 1,
+      limit: 10,
+      totalDocs: cached?.clients?.length || 0,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+    currentParams: {},
+    isLoaded: Boolean(cached?.clients?.length),
+  };
 };
+
+const initialState: ClientState = getInitialClientState();
 
 export const clientSlice = createSlice({
   name: 'clients',

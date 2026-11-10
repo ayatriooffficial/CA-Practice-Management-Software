@@ -29,16 +29,25 @@ import {
   convertLeadFailure,
 } from './leadSlice';
 import { showToast } from '../ui/uiSlice';
+import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchLeads(action: PayloadAction<LeadQueryParams | undefined>): Generator<any, void, any> {
   try {
     const response: ApiResponse<Lead[]> = yield call(leadApi.getLeads, action.payload || {});
+    const leads = response.data || [];
     yield put(
       fetchLeadsSuccess({
-        leads: response.data || [],
+        leads,
         pagination: response.pagination,
       })
     );
+    if (!action.payload || Object.keys(action.payload).length === 0) {
+      pageStateCache.set('leads_list_data', {
+        leads,
+        pagination: response.pagination,
+      });
+      pageStateCache.markLoaded('/leads');
+    }
   } catch (error: any) {
     yield put(fetchLeadsFailure(error.message || 'Failed to fetch leads'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to fetch leads' }));
