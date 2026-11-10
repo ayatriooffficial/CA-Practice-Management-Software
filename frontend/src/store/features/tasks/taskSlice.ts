@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { TaskItem, TaskStats } from '@/data/taskData';
 import { TaskQueryParams } from '@/services/taskApi';
 import { PaginationState } from '../clients/clientSlice';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export interface TaskState {
   items: TaskItem[];
@@ -15,24 +16,29 @@ export interface TaskState {
   isLoaded: boolean;
 }
 
-const initialState: TaskState = {
-  items: [],
-  selectedTask: null,
-  stats: null,
-  loading: false,
-  mutating: false,
-  error: null,
-  pagination: {
-    page: 1,
-    limit: 10,
-    totalDocs: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  },
-  currentParams: {},
-  isLoaded: false,
+const getInitialTaskState = (): TaskState => {
+  const cached = typeof window !== 'undefined' ? pageStateCache.get<any>('tasks_list_data') : null;
+  return {
+    items: cached?.tasks || [],
+    selectedTask: null,
+    stats: null,
+    loading: false,
+    mutating: false,
+    error: null,
+    pagination: cached?.pagination || {
+      page: 1,
+      limit: 10,
+      totalDocs: cached?.tasks?.length || 0,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+    currentParams: {},
+    isLoaded: Boolean(cached?.tasks?.length),
+  };
 };
+
+const initialState: TaskState = getInitialTaskState();
 
 export const taskSlice = createSlice({
   name: 'tasks',

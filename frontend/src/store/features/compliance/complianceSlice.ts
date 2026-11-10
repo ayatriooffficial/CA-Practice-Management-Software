@@ -7,6 +7,7 @@ import type {
   ComplianceCellStatus,
   GetComplianceGridParams,
 } from '@/types/compliance';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export interface ComplianceState {
   categories: ComplianceCategory[];
@@ -20,17 +21,22 @@ export interface ComplianceState {
   isLoaded: boolean;
 }
 
-const initialState: ComplianceState = {
-  categories: [],
-  rows: [],
-  columns: [],
-  entries: [],
-  clients: [],
-  loading: false,
-  error: null,
-  currentParams: {},
-  isLoaded: false,
+const getInitialComplianceState = (): ComplianceState => {
+  const cached = typeof window !== 'undefined' ? pageStateCache.get<any>('compliance_grid_data') : null;
+  return {
+    categories: [],
+    rows: cached?.rows || [],
+    columns: cached?.columns || [],
+    entries: cached?.entries || [],
+    clients: cached?.clients || [],
+    loading: false,
+    error: null,
+    currentParams: {},
+    isLoaded: Boolean(cached?.rows?.length),
+  };
 };
+
+const initialState: ComplianceState = getInitialComplianceState();
 
 export const complianceSlice = createSlice({
   name: 'compliance',

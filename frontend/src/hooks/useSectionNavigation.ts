@@ -6,6 +6,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { setSelectedClient } from "@/store/features/clients/clientSlice";
 import { navigationProgress } from "@/services/navigationProgress";
 import { pageStateCache } from "@/services/pageStateCache";
+import { preloadHomeDashboardData } from "@/services/homePreloadService";
 
 export function getSectionKey(pathname: string | null): string {
   if (!pathname || pathname === "/") return "home";
@@ -89,7 +90,7 @@ export function useSectionNavigation() {
 
   // Rule 2: Whenever switching to another section, both old and new sections start at their first page.
   const switchSection = useCallback(
-    (targetSectionKey: string) => {
+    async (targetSectionKey: string) => {
       const oldSection = activeSectionRef.current;
       const targetFirstPage = getSectionFirstPage(targetSectionKey);
 
@@ -117,11 +118,34 @@ export function useSectionNavigation() {
         }
       }
 
-      // Signal simulated progress bar start only if target section hasn't already loaded
-      if (!pageStateCache.isLoaded(targetFirstPage)) {
-        navigationProgress.start(targetFirstPage);
+      // If the target section is ALREADY loaded in this session:
+      // Instantly switch pages without any progress bar or re-loading!
+      if (pageStateCache.isLoaded(targetFirstPage)) {
+        activeSectionRef.current = targetSectionKey;
+        router.replace(targetFirstPage);
+        return;
       }
 
+      // First-time visit in this session for Home:
+      if (targetSectionKey === "home" && oldSection !== "home") {
+        navigationProgress.start("/", { immediate: true, force: true });
+        navigationProgress.setLoading("home_prewarm", true);
+
+        try {
+          await Promise.race([
+            preloadHomeDashboardData(),
+            new Promise((resolve) => setTimeout(resolve, 600)),
+          ]);
+        } catch { }
+
+        navigationProgress.setLoading("home_prewarm", false);
+        activeSectionRef.current = "home";
+        router.replace("/");
+        return;
+      }
+
+      // First-time visit in this session for any other section: show progress bar
+      navigationProgress.start(targetFirstPage);
       activeSectionRef.current = targetSectionKey;
       router.replace(targetFirstPage);
     },

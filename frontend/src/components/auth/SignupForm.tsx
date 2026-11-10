@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { authService } from "./authService";
+import { navigationProgress } from "@/services/navigationProgress";
 
 export const SignupForm: React.FC = () => {
   const router = useRouter();
@@ -60,6 +61,8 @@ export const SignupForm: React.FC = () => {
     if (!isFormComplete || isSubmitting) return;
 
     setIsSubmitting(true);
+    navigationProgress.start("/signup", { immediate: true, force: true });
+    navigationProgress.setLoading("signup_submit", true);
 
     try {
       const res = await authService.requestEmployment({
@@ -80,6 +83,8 @@ export const SignupForm: React.FC = () => {
       setSubmitError(err?.message || "Failed to submit employment request. Please try again.");
     } finally {
       setIsSubmitting(false);
+      navigationProgress.setLoading("signup_submit", false);
+      navigationProgress.forceFinish();
     }
   };
 

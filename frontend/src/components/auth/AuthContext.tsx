@@ -6,6 +6,7 @@ import { authService } from "./authService";
 import { request } from "../../services/apiClient";
 
 import { getPresetPermissions } from "../team/permissionsConfig";
+import { pageStateCache } from "@/services/pageStateCache";
 
 export function computeInitials(name?: string | null): string {
   if (!name || !name.trim()) return "U";
@@ -110,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Ignore network errors
     } finally {
       setCurrentUser(null);
+      pageStateCache.clear();
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("turia_user_logged_out", "true");
@@ -276,16 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // In development mode, auto-fallback to DEFAULT_USER if not explicitly logged out
-      if (process.env.NODE_ENV === "development" && !isLoggedOut) {
-        setCurrentUser(DEFAULT_USER);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USER));
-          localStorage.setItem("turia_session_date", today);
-        } catch {}
-        return;
-      }
-
+      // Unauthenticated user - require explicit login
       setCurrentUser(null);
     } catch {
       setCurrentUser(null);

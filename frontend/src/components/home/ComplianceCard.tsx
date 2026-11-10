@@ -14,17 +14,28 @@ import {
   selectDashboardComplianceSummary,
   selectDashboardLoading,
 } from '@/store/features/dashboard/dashboardSelectors';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export const ComplianceCard: React.FC = () => {
   const dispatch = useAppDispatch();
   const reduxComplianceData = useAppSelector(selectDashboardComplianceSummary);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
 
-  const [fallbackData, setFallbackData] = useState<ComplianceSummaryResponse | null>(null);
+  const [fallbackData, setFallbackData] = useState<ComplianceSummaryResponse | null>(() => {
+    return pageStateCache.get<ComplianceSummaryResponse>('home_compliance_summary') || null;
+  });
   const [error, setError] = useState<string | null>(null);
 
   const data = reduxComplianceData || fallbackData;
   const isLoading = isReduxLoading && !data;
+
+  // Persist updated compliance data to session cache
+  useEffect(() => {
+    if (reduxComplianceData) {
+      pageStateCache.set('home_compliance_summary', reduxComplianceData);
+      setFallbackData(reduxComplianceData);
+    }
+  }, [reduxComplianceData]);
 
   useEffect(() => {
     if (!reduxComplianceData) {

@@ -12,6 +12,7 @@ import {
   fetchComplianceFailure,
 } from './complianceSlice';
 import { showToast } from '../ui/uiSlice';
+import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchCompliance(
   action: PayloadAction<GetComplianceGridParams | undefined>
@@ -22,13 +23,15 @@ function* handleFetchCompliance(
       action.payload || {}
     );
     const data = response.data;
-    yield put(
-      fetchComplianceSuccess({
-        rows: data?.rows || [],
-        columns: data?.columns || [],
-        clients: data?.clients,
-      })
-    );
+    const payload = {
+      rows: data?.rows || [],
+      columns: data?.columns || [],
+      entries: data?.entries,
+      clients: data?.clients,
+    };
+    yield put(fetchComplianceSuccess(payload));
+    pageStateCache.set('compliance_grid_data', payload);
+    pageStateCache.markLoaded('/compliance');
   } catch (error: any) {
     const errorMsg = error.message || 'Failed to fetch compliance grid';
     yield put(fetchComplianceFailure(errorMsg));

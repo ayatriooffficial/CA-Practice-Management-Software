@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { todoApi, TeamTaskItem, AdminTaskItem, TodoItem } from '../../services/todoApi';
 import { useAuth } from '../auth/AuthContext';
 import { pageStateCache } from '@/services/pageStateCache';
+import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
 import {
   getTodayKolkataYMD,
   getTomorrowKolkataYMD,
@@ -135,6 +136,14 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
 
         setTasks(merged);
         pageStateCache.set('home_todo_tasks', merged);
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+        snap.todoMetrics = {
+          totalCount: merged.length,
+          todayCount: merged.filter(t => t.targetDueDate === todayStr && t.status !== 'Completed').length,
+          overdueCount: merged.filter(t => t.isOverdue).length,
+          completedCount: merged.filter(t => t.status === 'Completed').length,
+        };
+        homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
       } else {
         const [myRes, personalRes] = await Promise.all([
           todoApi.getMyTasks().catch(() => []),
@@ -187,6 +196,14 @@ export const AdminWelcomeTodoCard: React.FC<AdminWelcomeTodoCardProps> = () => {
 
         setTasks(merged);
         pageStateCache.set('home_todo_tasks', merged);
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+        snap.todoMetrics = {
+          totalCount: merged.length,
+          todayCount: merged.filter(t => t.targetDueDate === todayStr && t.status !== 'Completed').length,
+          overdueCount: merged.filter(t => t.isOverdue).length,
+          completedCount: merged.filter(t => t.status === 'Completed').length,
+        };
+        homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
       }
     } catch (err: any) {
       console.error('Failed to load to-do list in home section:', err);

@@ -23,6 +23,7 @@ import dynamic from "next/dynamic";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth, computeInitials } from "./auth/AuthContext";
 import { usePermission } from "./team/usePermission";
+import { useSectionNavigation } from "../hooks/useSectionNavigation";
 
 const SearchModal = dynamic(
   () => import("./SearchModal").then((m) => m.SearchModal),
@@ -98,6 +99,7 @@ const HEADER_NAV_ITEMS: NavItem[] = [
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const pathname = usePathname();
+  const { switchSection } = useSectionNavigation();
   const { theme, toggleTheme } = useTheme();
   const { currentUser } = useAuth();
   const { canView } = usePermission();
@@ -134,6 +136,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
 
           <Link
             href="/"
+            onClick={(e) => {
+              if (pathname !== "/") {
+                e.preventDefault();
+                switchSection("home");
+              }
+            }}
             className="flex items-center gap-2.5 group focus:outline-hidden"
             title="Practice Management Home"
           >

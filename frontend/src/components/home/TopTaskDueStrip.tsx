@@ -24,6 +24,7 @@ import { usePermission } from '../team/usePermission';
 import { isRoleAdmin } from '@/store/permissions/roleSelectors';
 import { useAuth } from '../auth/AuthContext';
 import { pageStateCache } from '@/services/pageStateCache';
+import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
 
 export type TimeRangeFilter = 'today' | 'week' | 'month' | 'all';
 
@@ -57,10 +58,39 @@ export const TopTaskDueStrip: React.FC = () => {
   const isReduxLoading = useAppSelector(selectDashboardLoading);
   const isRefreshing = useAppSelector(selectDashboardRefreshing);
 
-  // Cached fallback state to prevent 0 counts during 1-2s revalidation
+  // Cached fallback state to prevent 0 counts during revalidation
   const [cachedStrip, setCachedStrip] = useState(() => {
-    return pageStateCache.get<any>('home_task_strip_data') || null;
+    const snap = homeMetricsSnapshotApi.getCachedSnapshot();
+    const cache = pageStateCache.get<any>('home_task_strip_data');
+    return {
+      ...(cache || {}),
+      ...(snap?.stripMetrics || {}),
+      ...(snap?.countLabels || {}),
+      leads: snap?.stripMetrics?.leads || snap?.countLabels?.leads || cache?.leads,
+      clients: snap?.stripMetrics?.clients || snap?.countLabels?.clients || cache?.clients,
+      compliance: snap?.stripMetrics?.compliance || snap?.countLabels?.compliance || cache?.compliance,
+      tasks: snap?.stripMetrics?.tasks || snap?.countLabels?.tasks || cache?.tasks,
+      invoice: snap?.stripMetrics?.invoice || snap?.countLabels?.invoice || cache?.invoice,
+    };
   });
+
+  // Fast snapshot hydration from DB (under 5ms)
+  useEffect(() => {
+    homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
+      if (snapshot?.stripMetrics || snapshot?.countLabels) {
+        const counts = snapshot.stripMetrics || snapshot.countLabels;
+        setCachedStrip((prev: any) => ({
+          ...prev,
+          ...counts,
+          leads: counts?.leads || prev?.leads,
+          clients: counts?.clients || prev?.clients,
+          compliance: counts?.compliance || prev?.compliance,
+          tasks: counts?.tasks || prev?.tasks,
+          invoice: counts?.invoice || prev?.invoice,
+        }));
+      }
+    }).catch(() => {});
+  }, []);
 
   const taskData = rawTaskData || cachedStrip?.taskData;
   const invoicingData = rawInvoicingData || cachedStrip?.invoicingData;
@@ -70,15 +100,14 @@ export const TopTaskDueStrip: React.FC = () => {
 
   useEffect(() => {
     if (rawTaskData || rawInvoicingData || rawComplianceData || rawClientData || rawLeadStats) {
-      const snap = {
-        taskData: rawTaskData || cachedStrip?.taskData,
-        invoicingData: rawInvoicingData || cachedStrip?.invoicingData,
-        complianceData: rawComplianceData || cachedStrip?.complianceData,
-        clientData: rawClientData || cachedStrip?.clientData,
-        leadStats: rawLeadStats || cachedStrip?.leadStats,
-      };
-      pageStateCache.set('home_task_strip_data', snap);
-      setCachedStrip(snap);
+      setCachedStrip((prev: any) => ({
+        ...prev,
+        taskData: rawTaskData || prev?.taskData,
+        invoicingData: rawInvoicingData || prev?.invoicingData,
+        complianceData: rawComplianceData || prev?.complianceData,
+        clientData: rawClientData || prev?.clientData,
+        leadStats: rawLeadStats || prev?.leadStats,
+      }));
     }
   }, [rawTaskData, rawInvoicingData, rawComplianceData, rawClientData, rawLeadStats]);
 
@@ -92,13 +121,16 @@ export const TopTaskDueStrip: React.FC = () => {
   const [clientsList, setClientsList] = useState<Client[]>([]);
   const [leadsList, setLeadsList] = useState<Lead[]>([]);
 
-  // Dispatch Redux fetch on mount (cached if within 5-min TTL)
+  // Dispatch Redux fetch on mount only if not already loaded in this session
   useEffect(() => {
-    dispatch(fetchDashboardRequest());
+    if (!pageStateCache.isLoaded('/')) {
+      dispatch(fetchDashboardRequest());
+    }
   }, [dispatch]);
 
-  // Fetch detailed list records for granular time-window filtering
+  // Fetch detailed list records only on first load in this session
   useEffect(() => {
+    if (pageStateCache.isLoaded('/')) return;
     let isMounted = true;
 
     if (isAdmin || canView('leads')) {
@@ -177,6 +209,7 @@ export const TopTaskDueStrip: React.FC = () => {
 
   // Card 1: Leads metrics (100% Truthful MongoDB Aggregation)
   const leadsMetrics = useMemo(() => {
+    const snapCount = cachedStrip?.leads;
     const totalPending = leadsList.filter((l) => {
       const st = (l.status || '').toLowerCase();
       return st !== 'converted' && st !== 'dropped';
@@ -186,95 +219,101 @@ export const TopTaskDueStrip: React.FC = () => {
       ? totalPending
       : leadStats
       ? Math.max(0, (leadStats.totalLeads || 0) - (leadStats.byStatus?.converted || 0) - (leadStats.byStatus?.dropped || 0))
-      : 0;
+      : (snapCount?.bottom ?? 0);
 
     let newLeads = 0;
     if (timeRange === 'today') {
-      newLeads = leadsList.filter((l) => isCreatedToday(l.createdAt)).length;
+      newLeads = leadsList.length > 0 ? leadsList.filter((l) => isCreatedToday(l.createdAt)).length : (snapCount?.top ?? 0);
     } else if (timeRange === 'week') {
-      newLeads = leadsList.filter((l) => isCreatedThisWeek(l.createdAt)).length;
+      newLeads = leadsList.length > 0 ? leadsList.filter((l) => isCreatedThisWeek(l.createdAt)).length : (snapCount?.top ?? 0);
     } else if (timeRange === 'month') {
-      newLeads = leadsList.filter((l) => isCreatedThisMonth(l.createdAt)).length;
+      newLeads = leadsList.length > 0 ? leadsList.filter((l) => isCreatedThisMonth(l.createdAt)).length : (snapCount?.top ?? 0);
     } else {
-      newLeads = leadStats?.totalLeads ?? leadsList.length;
+      newLeads = leadStats?.totalLeads ?? (leadsList.length > 0 ? leadsList.length : (snapCount?.top ?? 0));
     }
 
     return {
       top: newLeads,
       bottom: pendingLeads,
     };
-  }, [leadsList, leadStats, timeRange]);
+  }, [leadsList, leadStats, timeRange, cachedStrip]);
 
   // Card 2: Clients metrics (100% Truthful MongoDB Aggregation)
   const clientsMetrics = useMemo(() => {
-    let newClients = 0;
+    const snapCount = cachedStrip?.clients;
     const onboarding = clientData?.clientsToConvert ?? (
-      clientsList.filter((c) => c.tags?.includes('new-client') || !c.active).length
+      clientsList.length > 0
+        ? clientsList.filter((c) => c.tags?.includes('new-client') || !c.active).length
+        : (snapCount?.bottom ?? 0)
     );
 
+    let newClients = 0;
     if (timeRange === 'today') {
-      newClients = clientsList.filter((c) => isCreatedToday(c.createdAt)).length;
+      newClients = clientsList.length > 0 ? clientsList.filter((c) => isCreatedToday(c.createdAt)).length : (snapCount?.top ?? 0);
     } else if (timeRange === 'week') {
-      newClients = clientData?.newThisWeek ?? clientsList.filter((c) => isCreatedThisWeek(c.createdAt)).length;
+      newClients = clientData?.newThisWeek ?? (clientsList.length > 0 ? clientsList.filter((c) => isCreatedThisWeek(c.createdAt)).length : (snapCount?.top ?? 0));
     } else if (timeRange === 'month') {
-      newClients = clientData?.newThisMonth ?? clientsList.filter((c) => isCreatedThisMonth(c.createdAt)).length;
+      newClients = clientData?.newThisMonth ?? (clientsList.length > 0 ? clientsList.filter((c) => isCreatedThisMonth(c.createdAt)).length : (snapCount?.top ?? 0));
     } else {
-      newClients = clientData?.totalClients ?? clientsList.length;
+      newClients = clientData?.totalClients ?? (clientsList.length > 0 ? clientsList.length : (snapCount?.top ?? 0));
     }
 
     return {
       top: newClients,
       bottom: onboarding,
     };
-  }, [clientsList, clientData, timeRange]);
+  }, [clientsList, clientData, timeRange, cachedStrip]);
 
   // Card 3: Compliance metrics (100% Truthful MongoDB Aggregation)
   const complianceMetrics = useMemo(() => {
+    const snapCount = cachedStrip?.compliance;
     const c = complianceData;
     let newCompliance = 0;
-    const totalDue = (c?.pending ?? 0) + (c?.missed ?? 0);
+    const totalDue = c ? ((c?.pending ?? 0) + (c?.missed ?? 0)) : (snapCount?.bottom ?? 0);
 
     if (timeRange === 'today') {
-      newCompliance = c?.upcoming?.filter((item: any) => isCreatedToday(item?.date)).length ?? 0;
+      newCompliance = c?.upcoming?.filter((item: any) => isCreatedToday(item?.date)).length ?? (snapCount?.top ?? 0);
     } else if (timeRange === 'week') {
-      newCompliance = c?.upcoming?.filter((item: any) => isCreatedThisWeek(item?.date)).length ?? 0;
+      newCompliance = c?.upcoming?.filter((item: any) => isCreatedThisWeek(item?.date)).length ?? (snapCount?.top ?? 0);
     } else if (timeRange === 'month') {
-      newCompliance = c?.dueThisMonth ?? 0;
+      newCompliance = c?.dueThisMonth ?? (snapCount?.top ?? 0);
     } else {
-      newCompliance = c?.total ?? 0;
+      newCompliance = c?.total ?? (snapCount?.top ?? 0);
     }
 
     return {
       top: newCompliance,
       bottom: totalDue,
     };
-  }, [complianceData, timeRange]);
+  }, [complianceData, timeRange, cachedStrip]);
 
   // Card 4: Task metrics (100% Truthful MongoDB Aggregation)
   const taskMetrics = useMemo(() => {
+    const snapCount = cachedStrip?.tasks;
     const s = taskData?.dueStats;
     const summary = taskData?.statusSummary;
     let taskAssigned = 0;
-    const dueAssigned = (summary?.pending ?? 0) + (summary?.inProgress ?? 0);
+    const dueAssigned = summary ? ((summary?.pending ?? 0) + (summary?.inProgress ?? 0)) : (snapCount?.bottom ?? 0);
 
     if (timeRange === 'today') {
-      taskAssigned = s?.dueToday ?? 0;
+      taskAssigned = s?.dueToday ?? (snapCount?.top ?? 0);
     } else if (timeRange === 'week') {
-      taskAssigned = s?.dueIn7Days ?? 0;
+      taskAssigned = s?.dueIn7Days ?? (snapCount?.top ?? 0);
     } else if (timeRange === 'month') {
-      taskAssigned = s?.dueThisMonth ?? summary?.total ?? 0;
+      taskAssigned = s?.dueThisMonth ?? summary?.total ?? (snapCount?.top ?? 0);
     } else {
-      taskAssigned = summary?.total ?? 0;
+      taskAssigned = summary?.total ?? (snapCount?.top ?? 0);
     }
 
     return {
       top: taskAssigned,
       bottom: dueAssigned,
     };
-  }, [taskData, timeRange]);
+  }, [taskData, timeRange, cachedStrip]);
 
   // Card 5: Invoice metrics (100% Truthful MongoDB Aggregation)
   const invoiceMetrics = useMemo(() => {
+    const snapCount = cachedStrip?.invoice;
     const inv = invoicingData;
     const draftCount = inv?.draftInvoices?.count ?? 0;
     const overdueCount = inv?.overdueInvoices?.count ?? 0;
@@ -282,23 +321,40 @@ export const TopTaskDueStrip: React.FC = () => {
     const unbilledTasks = inv?.unbilledTasks?.count ?? 0;
 
     let newInvoice = 0;
-    const dueInvoice = totalReceivables > 0 ? totalReceivables : overdueCount;
+    const dueInvoice = totalReceivables > 0 ? totalReceivables : (overdueCount > 0 ? overdueCount : (snapCount?.bottom ?? 0));
 
     if (timeRange === 'today') {
-      newInvoice = invoicesList.filter((i) => isCreatedToday(i.issueDate)).length;
+      newInvoice = invoicesList.length > 0 ? invoicesList.filter((i) => isCreatedToday(i.issueDate)).length : (snapCount?.top ?? 0);
     } else if (timeRange === 'week') {
-      newInvoice = invoicesList.filter((i) => isCreatedThisWeek(i.issueDate)).length || (draftCount + unbilledTasks);
+      newInvoice = invoicesList.length > 0 ? invoicesList.filter((i) => isCreatedThisWeek(i.issueDate)).length : (draftCount + unbilledTasks || (snapCount?.top ?? 0));
     } else if (timeRange === 'month') {
-      newInvoice = invoicesList.filter((i) => isCreatedThisMonth(i.issueDate)).length || (draftCount + unbilledTasks);
+      newInvoice = invoicesList.length > 0 ? invoicesList.filter((i) => isCreatedThisMonth(i.issueDate)).length : (draftCount + unbilledTasks || (snapCount?.top ?? 0));
     } else {
-      newInvoice = invoicesList.length || (draftCount + unbilledTasks);
+      newInvoice = invoicesList.length > 0 ? invoicesList.length : (draftCount + unbilledTasks || (snapCount?.top ?? 0));
     }
 
     return {
       top: newInvoice,
       bottom: dueInvoice,
     };
-  }, [invoicingData, invoicesList, timeRange]);
+  }, [invoicingData, invoicesList, timeRange, cachedStrip]);
+
+  // Synchronize numerical strip count labels with the central snapshot API first
+  useEffect(() => {
+    if (leadsMetrics.bottom > 0 || clientsMetrics.bottom > 0 || taskMetrics.bottom > 0 || complianceMetrics.bottom > 0 || invoiceMetrics.bottom > 0) {
+      const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+      const labels = {
+        leads: leadsMetrics,
+        clients: clientsMetrics,
+        compliance: complianceMetrics,
+        tasks: taskMetrics,
+        invoice: invoiceMetrics,
+      };
+      snap.countLabels = labels;
+      snap.stripMetrics = labels;
+      homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
+    }
+  }, [leadsMetrics, clientsMetrics, taskMetrics, complianceMetrics, invoiceMetrics]);
 
   // Determine displayed cards based on role/permissions
   const cardItems = useMemo(() => {
@@ -458,7 +514,7 @@ export const TopTaskDueStrip: React.FC = () => {
               <span
                 className={`text-2xl sm:text-[26px] font-bold tracking-tight font-sans transition-transform duration-150 group-hover:scale-105 shrink-0 ${card.topColorClass}`}
               >
-                {isReduxLoading ? '-' : card.topCount}
+                {card.topCount}
               </span>
               <span className="text-[11px] sm:text-xs font-normal text-gray-600 dark:text-slate-300 truncate self-end pb-0.5">
                 {card.topLabel}
@@ -468,7 +524,7 @@ export const TopTaskDueStrip: React.FC = () => {
             {/* Row 2: Secondary Metric */}
             <div className="flex items-baseline gap-2 min-w-0 leading-none">
               <span className="text-sm sm:text-base font-semibold tracking-tight text-gray-800 dark:text-slate-200 shrink-0">
-                {isReduxLoading ? '-' : card.bottomCount}
+                {card.bottomCount}
               </span>
               <span className="text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate self-end pb-0.5">
                 {card.bottomLabel}

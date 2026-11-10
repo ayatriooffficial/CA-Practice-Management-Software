@@ -1009,7 +1009,7 @@ export class FinancialService {
   /**
    * Asynchronously dispatches an automated invoice email notification to the client
    */
-  private static async dispatchInvoiceEmail(
+  public static async dispatchInvoiceEmail(
     invoice: InstanceType<typeof FinancialInvoice>,
     input: {
       details?: Record<string, unknown>;
@@ -1118,7 +1118,7 @@ export class FinancialService {
   /**
    * Asynchronously dispatches an automated payment receipt acknowledgment email to the client
    */
-  private static async dispatchReceiptEmail(
+  public static async dispatchReceiptEmail(
     receipt: any,
     input: {
       clientId?: string;

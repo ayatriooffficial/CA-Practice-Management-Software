@@ -33,6 +33,8 @@ import { useAppSelector } from '@/store/hooks';
 import { selectDashboardLoading } from '@/store/features/dashboard/dashboardSelectors';
 import { navigationProgress } from '@/services/navigationProgress';
 import { pageStateCache } from '@/services/pageStateCache';
+import { homeMetricsSnapshotApi } from '@/services/homeMetricsSnapshotApi';
+import { preloadHomeDashboardData } from '@/services/homePreloadService';
 
 export const HomeDashboard: React.FC = () => {
   const { currentUser } = useAuth();
@@ -60,13 +62,119 @@ export const HomeDashboard: React.FC = () => {
   const cachedSummaryCards = useMemo(() => pageStateCache.get<SummaryCardData[]>('home_attendance_summary'), []);
   const cachedTodayRows = useMemo(() => pageStateCache.get<TodayAttendanceRow[]>('home_attendance_today_rows'), []);
   const cachedEmployeeRecords = useMemo(() => pageStateCache.get<MonthlyRecordItem[]>('home_attendance_employee_records'), []);
+  const cachedNumericalSnapshot = useMemo(() => homeMetricsSnapshotApi.getCachedSnapshot(), []);
 
   // Summary state
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [summaryCards, setSummaryCards] = useState<SummaryCardData[]>(() => {
+    if (cachedNumericalSnapshot?.summaryCards && cachedNumericalSnapshot.summaryCards.length > 0) {
+      return cachedNumericalSnapshot.summaryCards;
+    }
     return cachedSummaryCards?.length ? cachedSummaryCards : cachedHome?.summaryCards || [];
   });
-  const [isSummaryLoading, setIsSummaryLoading] = useState(!cachedHome && !cachedSummaryCards?.length);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(
+    !cachedHome && !cachedSummaryCards?.length && !cachedNumericalSnapshot?.summaryCards?.length
+  );
+
+  // Check if Count Panel metrics and summary cards are already in cache
+  const cachedStripLeads = useMemo(() => {
+    const snap = homeMetricsSnapshotApi.getCachedSnapshot();
+    const cache = pageStateCache.get<any>('home_task_strip_data');
+    return cache?.leads || snap?.stripMetrics?.leads || snap?.countLabels?.leads;
+  }, []);
+
+  const isAlreadyLoaded = pageStateCache.isLoaded('/');
+
+  const hasFullCachedData = Boolean(
+    pageStateCache.get('home_task_summary') &&
+    pageStateCache.get('home_invoicing_summary') &&
+    pageStateCache.get('home_compliance_summary') &&
+    pageStateCache.get('home_client_stats')
+  );
+
+  const hasInitialData = Boolean(
+    isAlreadyLoaded ||
+    (hasFullCachedData && summaryCards && summaryCards.length > 0 && cachedStripLeads)
+  );
+  const [isHomeReady, setIsHomeReady] = useState(() => hasInitialData);
+
+  // Parallel preloader & fast numerical snapshot retrieval from backend
+  useEffect(() => {
+    if (pageStateCache.isLoaded('/')) {
+      setIsHomeReady(true);
+      return;
+    }
+
+    if (!isHomeReady) {
+      preloadHomeDashboardData().then(() => {
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot();
+        if (snap?.summaryCards && snap.summaryCards.length > 0) {
+          setSummaryCards(snap.summaryCards);
+        }
+        setIsHomeReady(true);
+        navigationProgress.setLoading('home_dashboard', false);
+        pageStateCache.markLoaded('/');
+        navigationProgress.done();
+      }).catch(() => {
+        setIsHomeReady(true);
+        navigationProgress.setLoading('home_dashboard', false);
+        pageStateCache.markLoaded('/');
+        navigationProgress.done();
+      });
+    } else {
+      homeMetricsSnapshotApi.getMetricsSnapshot().then((snapshot) => {
+        if (snapshot?.summaryCards && snapshot.summaryCards.length > 0) {
+          setSummaryCards((prev) => (prev.length === 0 ? snapshot.summaryCards! : prev));
+        }
+      }).catch(() => {});
+    }
+  }, [isHomeReady]);
+
+  // UI reveal coordinator: never reveal Home UI until snapshot and count panel data are ready
+  useEffect(() => {
+    if (isHomeReady) {
+      navigationProgress.setLoading('home_dashboard', false);
+      pageStateCache.markLoaded('/');
+      navigationProgress.done();
+      return;
+    }
+
+    navigationProgress.setLoading('home_dashboard', true);
+
+    // Failsafe timer (max 600ms) to guarantee smooth reveal even on slow networks
+    const timer = setTimeout(() => {
+      setIsHomeReady(true);
+      navigationProgress.setLoading('home_dashboard', false);
+      pageStateCache.markLoaded('/');
+      navigationProgress.done();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [isHomeReady]);
+
+  // Automatically persist latest numerical snapshot when window closes or tab is hidden
+  useEffect(() => {
+    const handleCloseOrHide = () => {
+      if (summaryCards.length > 0) {
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+        snap.summaryCards = summaryCards;
+        homeMetricsSnapshotApi.saveMetricsSnapshot(snap, true);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleCloseOrHide);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        handleCloseOrHide();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleCloseOrHide);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [summaryCards]);
 
   // Today Attendance (Admin) state
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -101,6 +209,9 @@ export const HomeDashboard: React.FC = () => {
       if (res.cards && res.cards.length > 0) {
         setSummaryCards(res.cards);
         pageStateCache.set('home_attendance_summary', res.cards);
+        const snap = homeMetricsSnapshotApi.getCachedSnapshot() || {};
+        snap.summaryCards = res.cards;
+        homeMetricsSnapshotApi.saveMetricsSnapshot(snap, false);
       }
     } catch {
       // Retain previous cards from cache
@@ -190,13 +301,15 @@ export const HomeDashboard: React.FC = () => {
     }
   }, [isAdmin, currentUser]);
 
-  // Parallel concurrent fetching (multithreading-like concurrent requests)
+  // Only fetch on first load in this session; do not re-fetch on revisit
   useEffect(() => {
-    Promise.allSettled([
-      fetchSummary(),
-      fetchTableData(),
-      fetchBottomData(),
-    ]);
+    if (!pageStateCache.isLoaded('/')) {
+      Promise.allSettled([
+        fetchSummary(),
+        fetchTableData(),
+        fetchBottomData(),
+      ]);
+    }
   }, [fetchSummary, fetchTableData, fetchBottomData]);
 
   // Save state to local cache whenever data loads
@@ -223,13 +336,13 @@ export const HomeDashboard: React.FC = () => {
     isDashboardLoading;
 
   useEffect(() => {
-    if (!pageStateCache.isLoaded('/')) {
+    if (!pageStateCache.isLoaded('/') && !isHomeReady) {
       navigationProgress.setLoading('home_dashboard', isAnyHomeLoading);
     }
     return () => {
       navigationProgress.setLoading('home_dashboard', false);
     };
-  }, [isAnyHomeLoading]);
+  }, [isAnyHomeLoading, isHomeReady]);
 
   // Punch Action Callback: Refresh summary & tables immediately
   const handlePunchChange = useCallback(() => {
@@ -238,7 +351,11 @@ export const HomeDashboard: React.FC = () => {
   }, [fetchSummary, fetchTableData]);
 
   return (
-    <div className="w-full flex flex-col transition-colors min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1 sm:pt-1.5 pb-6 gap-3 sm:gap-4">
+    <div
+      className={`w-full flex flex-col min-h-screen bg-white dark:bg-[#0f172a] text-[#111827] dark:text-[#f8fafc] px-3 sm:px-6 pt-1 sm:pt-1.5 pb-6 gap-3 sm:gap-4 transition-opacity duration-200 ${
+        isHomeReady ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+    >
       {/* Top Banner: Metrics Strip with Category Tabs */}
       {(isAdmin || showTasks || showInvoicing || showClients || showCompliance || showLeads) && (
         <TopTaskDueStrip />

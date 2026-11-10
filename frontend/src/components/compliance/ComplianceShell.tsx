@@ -117,7 +117,7 @@ export const ComplianceShell: React.FC = () => {
   const searchParams = useSearchParams();
 
   const dispatch = useAppDispatch();
-  const { rows, columns, loading } = useAppSelector(
+  const { rows, columns, loading, isLoaded, currentParams } = useAppSelector(
     (state) => state.compliance
   );
 
@@ -145,16 +145,19 @@ export const ComplianceShell: React.FC = () => {
   const searchInput = localSearch !== null ? localSearch : searchParam || "";
 
   useEffect(() => {
-    dispatch(
-      fetchComplianceRequest({
-        category: activeCategoryId,
-        categoryId: activeCategoryId,
-        fy: activeFy,
-        frequency: activeFrequency,
-        search: searchInput || undefined,
-      })
-    );
-  }, [dispatch, activeCategoryId, activeFy, activeFrequency, searchInput]);
+    const params = {
+      category: activeCategoryId,
+      categoryId: activeCategoryId,
+      fy: activeFy,
+      frequency: activeFrequency,
+      search: searchInput || undefined,
+    };
+    const isSame = JSON.stringify(currentParams) === JSON.stringify(params);
+    if (isLoaded && isSame && rows.length > 0) {
+      return;
+    }
+    dispatch(fetchComplianceRequest(params));
+  }, [dispatch, activeCategoryId, activeFy, activeFrequency, searchInput, isLoaded, currentParams, rows.length]);
 
   const updateUrlParams = useCallback(
     (updates: Record<string, string | null>) => {

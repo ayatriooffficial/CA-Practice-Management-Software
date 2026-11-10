@@ -1643,7 +1643,7 @@ export class TaskService {
   /**
    * Dispatches an asynchronous "Action Required: Document Request" email to the client
    */
-  private static async dispatchDocumentRequestEmail(
+  public static async dispatchDocumentRequestEmail(
     task: ITaskDocument,
     activeDoc: any
   ): Promise<void> {

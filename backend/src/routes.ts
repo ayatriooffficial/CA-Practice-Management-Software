@@ -24,6 +24,7 @@ import { workdoneRoutes } from './modules/workdone/workdone.routes';
 import { todoRoutes } from './modules/todo/todo.routes';
 import { groupRoutes } from './modules/group/group.routes';
 import { communicationRoutes } from './modules/client/communication.routes';
+import { homeDashboardRoutes } from './modules/homeDashboard/homeDashboard.routes';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.use('/auth', authRoutes);
 // Attendance & Home Dashboard Module
 router.use('/attendance', attendanceRoutes);
 router.use('/home/attendance', attendanceRoutes);
+router.use('/home', optionalAuthenticate, homeDashboardRoutes);
 
 // Feature Modules (with optional authentication to support both authenticated and development/guest modes)
 router.use('/clients', optionalAuthenticate, clientRoutes);
