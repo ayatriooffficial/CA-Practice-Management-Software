@@ -83,7 +83,7 @@ export const envSchema = z.object({
   // WhatsApp Cloud API
   WHATSAPP_API_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
-  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().default('ayatrio_practice_whatsapp_verify_token'),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   WHATSAPP_APP_SECRET: z.string().optional(),
   WHATSAPP_GRAPH_API_VERSION: z.string().default('v21.0'),
   // AI Integration (Groq / OpenAI compatible)

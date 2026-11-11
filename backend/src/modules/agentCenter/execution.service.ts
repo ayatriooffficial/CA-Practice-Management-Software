@@ -794,9 +794,28 @@ export class AgentExecutionService {
                       error: 'Client has opted out of reminders on this channel.',
                     };
                   }
+                } else if (process.env.NODE_ENV === 'production') {
+                  return {
+                    provider: String(config.channel).toLowerCase(),
+                    mode: 'real' as const,
+                    status: 'skipped' as const,
+                    simulated: false,
+                    recipient: recipientLabel,
+                    renderedMessage: 'Suppressed: database connection unavailable to verify client opt-out status.',
+                    error: 'Database connection unavailable to verify client opt-out status.',
+                  };
                 }
-              } catch {
-                // If model lookup fails, proceed with normal execution
+              } catch (err: any) {
+                logger.error('Failed to verify client opt-out status; suppressing real dispatch to fail closed:', err);
+                return {
+                  provider: String(config.channel).toLowerCase(),
+                  mode: 'real' as const,
+                  status: 'skipped' as const,
+                  simulated: false,
+                  recipient: recipientLabel,
+                  renderedMessage: 'Suppressed: unable to safely verify client opt-out status.',
+                  error: `Opt-out check failure: ${err?.message || err}`,
+                };
               }
             }
 
@@ -924,6 +943,48 @@ export class AgentExecutionService {
       try {
         const { FollowUpService } = await import('./followUp.service');
         const channelType = config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email';
+        const providerMessageId = (clientResult as any)?.executionId ? String((clientResult as any).executionId) : undefined;
+
+        let originalExpiryDate: string | undefined;
+        let originalAssetId: string | undefined;
+        let originalAssetName: string | undefined;
+
+        if (agent.module === 'DSC') {
+          const dscObj = (event.dsc || triggerData.dsc || {}) as any;
+          originalExpiryDate = dscObj.expiryDate || event.expiryDate;
+          originalAssetId = String(dscObj.dscId || dscObj.id || sourceId);
+          originalAssetName = dscObj.name;
+        } else if (agent.module === 'License') {
+          const licObj = (event.license || triggerData.license || {}) as any;
+          originalExpiryDate = licObj.expiryDate || event.expiryDate;
+          originalAssetId = String(licObj.licenseNo || licObj.id || sourceId);
+          originalAssetName = licObj.name;
+        }
+
+        // Handle multiple pending document items on Task module
+        if (agent.module === 'Task' && Array.isArray((event as any).pendingDocs) && (event as any).pendingDocs.length > 0) {
+          for (const doc of (event as any).pendingDocs) {
+            if (!doc.id) continue;
+            await FollowUpService.recordFollowUpRequest({
+              orgId: context.orgId!,
+              agentId: String(agent._id),
+              agentName: agent.name,
+              clientId: resolvedClientId,
+              clientName: clientRecord.name,
+              clientEmail: clientRecord.email,
+              clientMobile: clientRecord.mobile,
+              module: 'Task',
+              sourceId,
+              sourceName: String(event.taskName || ''),
+              documentRequestId: String(doc.id),
+              documentTitle: String(doc.title || ''),
+              channel: channelType,
+              providerMessageId,
+            });
+          }
+          return;
+        }
+
         await FollowUpService.recordFollowUpRequest({
           orgId: context.orgId!,
           agentId: String(agent._id),
@@ -938,7 +999,12 @@ export class AgentExecutionService {
           documentRequestId: typeof event.documentRequestId === 'string' ? event.documentRequestId : undefined,
           documentTitle: typeof event.documentTitle === 'string' ? event.documentTitle : undefined,
           channel: channelType,
-          providerMessageId: (clientResult as any)?.executionId ? String((clientResult as any).executionId) : undefined,
+          providerMessageId,
+          metadata: {
+            originalExpiryDate,
+            originalAssetId,
+            originalAssetName,
+          },
         });
       } catch (err) {
         logger.warn('Error recording follow-up request:', err);

@@ -1,8 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { FollowUpService } from './followUp.service';
 import { FollowUpState } from './followUp.model';
+import { InboundMessageLog } from './inboundMessage.model';
 import { WhatsAppService, WHATSAPP_GRAPH_API_VERSION } from '../../shared/utils/whatsAppService';
 import { Task } from '../task/task.model';
 import { Client } from '../client/client.model';
@@ -411,6 +413,327 @@ describe('Phase 16 Master Lifecycle & Automation Regression Suite', () => {
       assert.strictEqual(res.errors.length, 0);
 
       process.env.GMAIL_INBOUND_ENABLED = origEnv;
+    });
+  });
+
+  describe('8. Inbound WhatsApp & Gmail Deduplication and Security', () => {
+    it('deduplicates inbound WhatsApp message using InboundMessageLog', async () => {
+      const origReady = mongoose.connection.readyState;
+      Object.defineProperty(mongoose.connection, 'readyState', { value: 1, configurable: true });
+
+      const origExists = InboundMessageLog.exists;
+      InboundMessageLog.exists = (async () => true) as any;
+
+      try {
+        const outcome = await FollowUpService.handleIncomingWhatsAppMessage({
+          from: '919876543210',
+          id: 'wamid_already_processed_123',
+          text: { body: 'Here is my document' },
+        });
+
+        assert.strictEqual(outcome.handled, true);
+        assert.strictEqual(outcome.actionTaken, 'Duplicate message already processed');
+      } finally {
+        Object.defineProperty(mongoose.connection, 'readyState', { value: origReady, configurable: true });
+        InboundMessageLog.exists = origExists;
+      }
+    });
+
+    it('rejects WhatsApp context reply ID if sender phone number mismatches client', async () => {
+      const origReady = mongoose.connection.readyState;
+      Object.defineProperty(mongoose.connection, 'readyState', { value: 1, configurable: true });
+
+      const origExists = InboundMessageLog.exists;
+      InboundMessageLog.exists = (async () => false) as any;
+
+      const origFollowUpFindOne = FollowUpState.findOne;
+      const origClientFind = Client.find;
+
+      // Mock quoted context belonging to client with phone ending in 1111
+      const mockContextFollowUp: any = {
+        _id: 'fu-context-1',
+        providerMessageId: 'quoted_msg_id_999',
+        clientMobile: '+919999901111',
+        clientId: 'client_legit',
+        status: 'waiting_client',
+      };
+
+      FollowUpState.findOne = ((filter: any) => ({
+        exec: async () => (filter.providerMessageId === 'quoted_msg_id_999' ? mockContextFollowUp : null),
+      })) as any;
+
+      // Unrelated phone number attempts to reply quoting that message
+      Client.find = (() => ({
+        lean: () => ({ exec: async () => [] }),
+      })) as any;
+
+      try {
+        const outcome = await FollowUpService.handleIncomingWhatsAppMessage({
+          from: '918888802222', // Mismatched phone
+          id: 'wamid_forged_quote_1',
+          context: { id: 'quoted_msg_id_999' },
+          text: { body: 'Unauthorized reply' },
+        });
+
+        // Must reject quoted context and since no registered client matches sender phone, report no registered client
+        assert.strictEqual(outcome.handled, false);
+        assert.strictEqual(outcome.actionTaken, 'No registered client found for sender phone number');
+      } finally {
+        Object.defineProperty(mongoose.connection, 'readyState', { value: origReady, configurable: true });
+        InboundMessageLog.exists = origExists;
+        FollowUpState.findOne = origFollowUpFindOne;
+        Client.find = origClientFind;
+      }
+    });
+
+    it('routes ambiguous WhatsApp sender with multiple active follow-ups to manual review', async () => {
+      const origExists = InboundMessageLog.exists;
+      InboundMessageLog.exists = (async () => false) as any;
+
+      const origClientFind = Client.find;
+      const origFollowUpFind = FollowUpState.find;
+
+      Client.find = (() => ({
+        lean: () => ({
+          exec: async () => [
+            { _id: 'client_multi_fu', orgId: 'org_multi', mobile: '919876500000' },
+          ],
+        }),
+      })) as any;
+
+      // Two active follow-ups for the same client (e.g. Task A and Task B)
+      FollowUpState.find = (() => ({
+        sort: () => ({
+          exec: async () => [
+            { _id: 'fu_1', documentTitle: 'Bank Statements', sourceName: 'Audit 2025' },
+            { _id: 'fu_2', documentTitle: 'PAN Card', sourceName: 'GST Filing' },
+          ],
+        }),
+      })) as any;
+
+      // Sender sends generic text that doesn't mention either document
+      const outcome = await FollowUpService.handleIncomingWhatsAppMessage({
+        from: '919876500000',
+        id: 'wamid_ambiguous_text',
+        text: { body: 'Hello, I have a question about my filing' },
+      });
+
+      assert.strictEqual(outcome.handled, false);
+      assert.ok(outcome.actionTaken.includes('Ambiguous request: sender has 2 active follow-ups'));
+
+      InboundMessageLog.exists = origExists;
+      Client.find = origClientFind;
+      FollowUpState.find = origFollowUpFind;
+    });
+  });
+
+  describe('9. Follow-Up Scheduling, Retries & Dry-Runs', () => {
+    it('dry-run (forceRealSend=false) does not increment attemptCount or advance nextReminderAt', async () => {
+      const origFind = FollowUpState.find;
+
+      const initialReminderAt = new Date('2026-10-25T10:00:00Z');
+      const mockFollowUp: any = {
+        _id: 'fu-dryrun-1',
+        orgId: 'org_test',
+        module: 'Task',
+        sourceId: 'task-1',
+        clientId: 'client-1',
+        clientEmail: 'test@example.com',
+        channel: 'Email',
+        status: 'waiting_client',
+        attemptCount: 1,
+        maxAttempts: 4,
+        nextReminderAt: initialReminderAt,
+        responseHistory: [],
+        save: async () => {},
+      };
+
+      FollowUpState.find = (() => ({
+        limit: () => ({
+          exec: async () => [mockFollowUp],
+        }),
+      })) as any;
+
+      const origTaskFind = Task.findOne;
+      Task.findOne = (() => ({
+        lean: () => ({
+          exec: async () => ({ _id: 'task-1', status: 'In Progress', isDeleted: false }),
+        }),
+      })) as any;
+
+      const res = await FollowUpService.processScheduledFollowUps({
+        nowDate: new Date('2026-10-25T11:00:00Z'),
+        forceRealSend: false, // Dry run
+      });
+
+      assert.strictEqual(res.reminded, 1);
+      // Under dry-run, attemptCount and nextReminderAt MUST NOT be changed
+      assert.strictEqual(mockFollowUp.attemptCount, 1);
+      assert.strictEqual(mockFollowUp.nextReminderAt, initialReminderAt);
+
+      FollowUpState.find = origFind;
+      Task.findOne = origTaskFind;
+    });
+
+    it('failed delivery applies capped exponential backoff to nextReminderAt without incrementing attemptCount', async () => {
+      const origFind = FollowUpState.find;
+
+      const mockFollowUp: any = {
+        _id: 'fu-retry-1',
+        orgId: 'org_test',
+        module: 'Task',
+        sourceId: 'task-1',
+        clientId: 'client-1',
+        clientMobile: '919876543210',
+        channel: 'WhatsApp',
+        status: 'waiting_client',
+        attemptCount: 1,
+        maxAttempts: 4,
+        nextReminderAt: new Date('2026-10-25T10:00:00Z'),
+        responseHistory: [],
+        metadata: { deliveryRetryCount: 1 },
+        save: async () => {},
+      };
+
+      FollowUpState.find = (() => ({
+        limit: () => ({
+          exec: async () => [mockFollowUp],
+        }),
+      })) as any;
+
+      const origTaskFind = Task.findOne;
+      Task.findOne = (() => ({
+        lean: () => ({
+          exec: async () => ({ _id: 'task-1', status: 'In Progress', isDeleted: false }),
+        }),
+      })) as any;
+
+      // Force WhatsApp to fail live delivery
+      const origSendMsg = WhatsAppService.sendMessage;
+      WhatsAppService.sendMessage = async () => ({
+        status: 'failed',
+        error: 'Network connection timeout to Meta Graph API',
+      });
+
+      const now = new Date('2026-10-25T10:00:00Z');
+      const res = await FollowUpService.processScheduledFollowUps({
+        nowDate: now,
+        forceRealSend: true,
+      });
+
+      assert.strictEqual(res.reminded, 0);
+      // Attempt count remains 1 (delivery failure != client reminder attempt)
+      assert.strictEqual(mockFollowUp.attemptCount, 1);
+      assert.strictEqual(mockFollowUp.metadata.deliveryRetryCount, 2);
+
+      // Backoff for retry #2: 15 * 2^(2-1) = 30 minutes
+      const expectedBackoffMs = 30 * 60 * 1000;
+      assert.strictEqual(mockFollowUp.nextReminderAt.getTime(), now.getTime() + expectedBackoffMs);
+
+      FollowUpState.find = origFind;
+      Task.findOne = origTaskFind;
+      WhatsAppService.sendMessage = origSendMsg;
+    });
+
+    it('escalates follow-up to practice team after 5 delivery retry failures', async () => {
+      const origFind = FollowUpState.find;
+
+      const mockFollowUp: any = {
+        _id: 'fu-retry-escalate',
+        orgId: 'org_test',
+        module: 'Task',
+        sourceId: 'task-1',
+        clientId: 'client-1',
+        clientMobile: '919876543210',
+        channel: 'WhatsApp',
+        status: 'waiting_client',
+        attemptCount: 1,
+        maxAttempts: 4,
+        nextReminderAt: new Date('2026-10-25T10:00:00Z'),
+        responseHistory: [],
+        metadata: { deliveryRetryCount: 4 }, // 5th failure incoming
+        save: async () => {},
+      };
+
+      FollowUpState.find = (() => ({
+        limit: () => ({
+          exec: async () => [mockFollowUp],
+        }),
+      })) as any;
+
+      const origTaskFind = Task.findOne;
+      Task.findOne = (() => ({
+        lean: () => ({
+          exec: async () => ({ _id: 'task-1', status: 'In Progress', isDeleted: false }),
+        }),
+      })) as any;
+
+      const origSendMsg = WhatsAppService.sendMessage;
+      WhatsAppService.sendMessage = async () => ({
+        status: 'failed',
+        error: 'Permanent delivery failure: Recipient number invalid',
+      });
+
+      const res = await FollowUpService.processScheduledFollowUps({
+        nowDate: new Date('2026-10-25T10:00:00Z'),
+        forceRealSend: true,
+      });
+
+      assert.strictEqual(res.escalated, 1);
+      assert.strictEqual(mockFollowUp.status, 'escalated');
+      assert.strictEqual(mockFollowUp.nextReminderAt, null);
+      assert.ok(mockFollowUp.resolutionNotes.includes('Delivery failed permanently after 5 retries'));
+
+      FollowUpState.find = origFind;
+      Task.findOne = origTaskFind;
+      WhatsAppService.sendMessage = origSendMsg;
+    });
+  });
+
+  describe('10. Multi-Document Task Follow-Up Matching', () => {
+    it('completeFollowUpForDocument closes all active follow-ups for matching documentRequestId', async () => {
+      const origFind = FollowUpState.find;
+
+      const mockFollowUps = [
+        {
+          _id: 'fu_email_item1',
+          channel: 'Email',
+          status: 'waiting_client',
+          documentRequestId: 'doc_item_123',
+          nextReminderAt: new Date(),
+          responseHistory: [] as any[],
+          save: async () => {},
+        },
+        {
+          _id: 'fu_wa_item1',
+          channel: 'WhatsApp',
+          status: 'waiting_client',
+          documentRequestId: 'doc_item_123',
+          nextReminderAt: new Date(),
+          responseHistory: [] as any[],
+          save: async () => {},
+        },
+      ];
+
+      FollowUpState.find = (() => ({
+        exec: async () => mockFollowUps,
+      })) as any;
+
+      const resolved = await FollowUpService.completeFollowUpForDocument({
+        orgId: 'org_test',
+        taskId: 'task-999',
+        documentRequestId: 'doc_item_123',
+        fileUrl: '/api/v1/drive/doc_item_123.pdf',
+        receivedAt: new Date(),
+      });
+
+      assert.strictEqual(resolved, true);
+      assert.strictEqual(mockFollowUps[0].status, 'document_received');
+      assert.strictEqual(mockFollowUps[0].nextReminderAt, null);
+      assert.strictEqual(mockFollowUps[1].status, 'document_received');
+      assert.strictEqual(mockFollowUps[1].nextReminderAt, null);
+
+      FollowUpState.find = origFind;
     });
   });
 });

@@ -74,5 +74,7 @@ followUpStateSchema.index({ orgId: 1, status: 1, nextReminderAt: 1 });
 followUpStateSchema.index({ orgId: 1, sourceId: 1, documentRequestId: 1 });
 followUpStateSchema.index({ orgId: 1, clientMobile: 1, status: 1 });
 followUpStateSchema.index({ orgId: 1, emailThreadId: 1 });
+followUpStateSchema.index({ orgId: 1, clientId: 1, module: 1, sourceId: 1, documentRequestId: 1, channel: 1 });
+followUpStateSchema.index({ orgId: 1, clientId: 1, channel: 1, status: 1 });
 
 export const FollowUpState = model<IFollowUpStateDocument>('FollowUpState', followUpStateSchema);

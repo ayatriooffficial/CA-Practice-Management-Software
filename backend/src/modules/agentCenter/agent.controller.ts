@@ -165,9 +165,17 @@ export class AgentCenterController {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    const expectedToken = env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'ayatrio_practice_whatsapp_verify_token';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const configuredToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
 
-    if (mode === 'subscribe' && token === expectedToken) {
+    if (isProduction && (!configuredToken || configuredToken === 'ayatrio_practice_whatsapp_verify_token')) {
+      logger.error('❌ WHATSAPP_WEBHOOK_VERIFY_TOKEN is missing or set to insecure default in production.');
+      return res.status(500).json({ error: 'WHATSAPP_WEBHOOK_VERIFY_TOKEN must be securely configured in production' });
+    }
+
+    const expectedToken = configuredToken || (isProduction ? undefined : 'ayatrio_practice_whatsapp_verify_token');
+
+    if (mode === 'subscribe' && expectedToken && token === expectedToken) {
       logger.info('WhatsApp webhook verified successfully');
       return res.status(200).send(challenge);
     }
@@ -176,19 +184,26 @@ export class AgentCenterController {
 
   /**
    * POST /api/v1/agent-center/whatsapp/webhook
-   * Meta WhatsApp Cloud API delivery status webhook.
-   * Transitions agent runs to 'delivered', 'read', or 'failed'.
-   */
-  /**
-   * POST /api/v1/agent-center/whatsapp/webhook
    * Meta WhatsApp Cloud API delivery status & incoming client message webhook.
    * Handles delivery updates, client text messages, and uploaded document attachments.
    */
   static handleWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) => {
-    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
-    const signature = req.headers['x-hub-signature-256'] as string | undefined;
+    const rawBody = (req as any).rawBody;
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    if (!FollowUpService.verifyWhatsAppSignature(rawBody, signature)) {
+    if (isProduction && !rawBody) {
+      logger.warn('Unauthorized WhatsApp webhook: raw request buffer is unavailable in production.');
+      return res.status(401).json({ error: 'Missing raw request buffer for signature verification' });
+    }
+
+    const signature = req.headers['x-hub-signature-256'] as string | undefined;
+    if (isProduction && !signature) {
+      logger.warn('Unauthorized WhatsApp webhook: missing X-Hub-Signature-256 header in production.');
+      return res.status(401).json({ error: 'Missing signature header' });
+    }
+
+    const bodyToVerify = rawBody || JSON.stringify(req.body);
+    if (!FollowUpService.verifyWhatsAppSignature(bodyToVerify, signature)) {
       logger.warn('Unauthorized WhatsApp webhook: signature verification failed.');
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }

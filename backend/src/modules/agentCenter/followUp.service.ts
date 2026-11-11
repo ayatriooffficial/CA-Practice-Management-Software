@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import mongoose, { Types } from 'mongoose';
 import { FollowUpState } from './followUp.model';
+import { InboundMessageLog } from './inboundMessage.model';
+import { IntegrationModel } from '../integration/integration.model';
 import { IFollowUpStateDocument, FollowUpModule } from './followUp.interface';
 import { Task } from '../task/task.model';
 import { Client } from '../client/client.model';
@@ -63,7 +65,12 @@ export class FollowUpService {
     const filter: any = {
       orgId: params.orgId,
       sourceId: params.sourceId,
+      module: params.module,
+      channel: params.channel,
     };
+    if (params.clientId) {
+      filter.clientId = params.clientId;
+    }
     if (params.documentRequestId) {
       filter.documentRequestId = params.documentRequestId;
     }
@@ -166,29 +173,40 @@ export class FollowUpService {
         documentRequestId: params.documentRequestId,
         ...(isTaskObjId ? { $or: [{ sourceId: params.taskId }] } : { sourceId: params.taskId }),
       };
-      const followUp = await FollowUpState.findOne(filter).exec();
-      if (followUp) {
-        followUp.status = 'document_received';
-        followUp.nextReminderAt = null;
-        followUp.resolvedAt = params.receivedAt || new Date();
-        followUp.resolutionNotes = `Document received via application upload (${params.fileUrl || 'file uploaded'}).`;
-        if (params.fileUrl) {
-          followUp.responseHistory.push({
-            receivedAt: params.receivedAt || new Date(),
-            channel: followUp.channel,
-            rawText: 'Document uploaded via task interface',
-            attachmentUrl: params.fileUrl,
-            aiClassification: {
-              intent: 'document_submitted',
-              confidence: 1.0,
-              notes: 'Direct application upload',
-              requiresHumanReview: false,
-              actionSuggested: 'mark_received',
-            },
-          });
+      let followUps: any[] = [];
+      if (typeof FollowUpState.find === 'function' && (mongoose.connection.readyState === 1 || FollowUpState.find !== mongoose.Model.find)) {
+        const queryRes = await FollowUpState.find(filter).exec();
+        followUps = Array.isArray(queryRes) ? queryRes : (queryRes ? [queryRes] : []);
+      }
+      if (followUps.length === 0 && typeof FollowUpState.findOne === 'function' && (mongoose.connection.readyState === 1 || FollowUpState.findOne !== mongoose.Model.findOne)) {
+        const single = await FollowUpState.findOne(filter).exec();
+        if (single) followUps = [single];
+      }
+
+      if (followUps && followUps.length > 0) {
+        for (const followUp of followUps) {
+          followUp.status = 'document_received';
+          followUp.nextReminderAt = null;
+          followUp.resolvedAt = params.receivedAt || new Date();
+          followUp.resolutionNotes = `Document received via application upload (${params.fileUrl || 'file uploaded'}).`;
+          if (params.fileUrl) {
+            followUp.responseHistory.push({
+              receivedAt: params.receivedAt || new Date(),
+              channel: followUp.channel,
+              rawText: 'Document uploaded via task interface',
+              attachmentUrl: params.fileUrl,
+              aiClassification: {
+                intent: 'document_submitted',
+                confidence: 1.0,
+                notes: 'Direct application upload',
+                requiresHumanReview: false,
+                actionSuggested: 'mark_received',
+              },
+            });
+          }
+          await followUp.save();
+          logger.info(`✅ Closed active follow-up (${followUp._id}) for task document ${params.documentRequestId}`);
         }
-        await followUp.save();
-        logger.info(`✅ Closed active follow-up (${followUp._id}) for task document ${params.documentRequestId}`);
         return true;
       }
       return false;
@@ -222,15 +240,38 @@ export class FollowUpService {
       return { handled: false, actionTaken: 'Missing sender phone number' };
     }
 
+    // Phase 6: Deduplicate incoming WhatsApp messages using InboundMessageLog
+    if (mongoose.connection.readyState === 1 && messagePayload.id) {
+      const alreadyProcessed = await InboundMessageLog.exists({
+        provider: 'whatsapp',
+        messageId: messagePayload.id,
+      });
+      if (alreadyProcessed) {
+        logger.info(`Duplicate WhatsApp message ${messagePayload.id} already processed. Skipping.`);
+        return { handled: true, actionTaken: 'Duplicate message already processed' };
+      }
+    }
+
     // 1. Resolve matching clients and enforce tenant safety
     let primaryFollowUp: IFollowUpStateDocument | null = null;
 
     // Check context reply message ID first if client quoted our outbound WhatsApp message
     if (messagePayload.context?.id) {
-      primaryFollowUp = await FollowUpState.findOne({
+      const candidateContext = await FollowUpState.findOne({
         providerMessageId: messagePayload.context.id,
         status: { $in: ['waiting_client', 'response_received', 'pending'] },
       }).exec();
+
+      if (candidateContext) {
+        // Phase 6: Cross-verify context reply ID against sender client phone to prevent forged quote routing
+        const clientMobileDigits = (candidateContext.clientMobile || '').replace(/[^\d]/g, '').slice(-10);
+        const senderDigits = cleanDigits.slice(-10);
+        if (clientMobileDigits && senderDigits && clientMobileDigits !== senderDigits) {
+          logger.warn(`WhatsApp context reply ID ${messagePayload.context.id} sender mismatch (${senderDigits} vs expected ${clientMobileDigits}). Rejecting quoted context.`);
+        } else {
+          primaryFollowUp = candidateContext;
+        }
+      }
     }
 
     if (!primaryFollowUp) {
@@ -269,7 +310,27 @@ export class FollowUpService {
         return { handled: false, actionTaken: 'No active follow-up waiting for sender' };
       }
 
-      primaryFollowUp = activeFollowUps[0];
+      if (activeFollowUps.length === 1) {
+        primaryFollowUp = activeFollowUps[0];
+      } else {
+        // Disambiguate if message text or filename matches a specific document title or task name
+        const candidateMatch = activeFollowUps.find((fu: any) => {
+          const docTitle = (fu.documentTitle || '').toLowerCase();
+          const taskName = (fu.sourceName || '').toLowerCase();
+          const incomingText = (textBody || messagePayload.document?.filename || '').toLowerCase();
+          return (docTitle && incomingText.includes(docTitle)) || (taskName && incomingText.includes(taskName));
+        });
+
+        if (candidateMatch) {
+          primaryFollowUp = candidateMatch;
+        } else {
+          logger.warn(`Ambiguous WhatsApp sender ${cleanDigits} has ${activeFollowUps.length} active follow-ups. Routing to manual review.`);
+          return {
+            handled: false,
+            actionTaken: `Ambiguous request: sender has ${activeFollowUps.length} active follow-ups; manual review required`,
+          };
+        }
+      }
     }
 
     const orgId = primaryFollowUp.orgId;
@@ -464,28 +525,85 @@ export class FollowUpService {
         if (updatedDocItem) {
           targetTask.markModified('documentRequests');
           await targetTask.save();
+
+          primaryFollowUp.status = 'document_received';
+          primaryFollowUp.nextReminderAt = null;
+          primaryFollowUp.lastResponseAt = new Date();
+          primaryFollowUp.resolvedAt = new Date();
+          primaryFollowUp.resolutionNotes = `Attachment verified and linked: ${filename} (Confidence: ${matchResult.confidence})`;
+          primaryFollowUp.responseHistory.push(responseRecord);
+          await primaryFollowUp.save();
+
+          if (messagePayload.id && mongoose.connection.readyState === 1) {
+            try {
+              await InboundMessageLog.create({
+                provider: 'whatsapp',
+                messageId: messagePayload.id,
+                sender: cleanDigits,
+                orgId,
+                followUpId: primaryFollowUp._id,
+                status: 'processed',
+                rawPayloadSnippet: `Verified attachment: ${filename}`,
+              });
+            } catch {}
+          }
+
+          logger.info(`✅ Successfully matched attachment "${filename}" to request "${matchResult.matchedRequestId}" for Task ${targetTask.taskId}`);
+          return {
+            handled: true,
+            matchedRequestId: matchResult.matchedRequestId,
+            actionTaken: `Document verified and received: ${matchResult.matchedDocumentName}`,
+          };
+        } else {
+          // Phase 8: Never close follow-up if updatedDocItem === false
+          primaryFollowUp.status = 'response_received';
+          primaryFollowUp.lastResponseAt = new Date();
+          primaryFollowUp.resolutionNotes = `Attachment received but matching task document request could not be updated: ${filename}`;
+          responseRecord.aiClassification.requiresHumanReview = true;
+          responseRecord.aiClassification.actionSuggested = 'manual_review';
+          primaryFollowUp.responseHistory.push(responseRecord);
+          await primaryFollowUp.save();
+
+          if (messagePayload.id && mongoose.connection.readyState === 1) {
+            try {
+              await InboundMessageLog.create({
+                provider: 'whatsapp',
+                messageId: messagePayload.id,
+                sender: cleanDigits,
+                orgId,
+                followUpId: primaryFollowUp._id,
+                status: 'processed',
+                rawPayloadSnippet: `Attachment unlinked: ${filename}`,
+              });
+            } catch {}
+          }
+
+          return {
+            handled: true,
+            matchedRequestId: null,
+            actionTaken: 'Attachment received; task item update failed; marked for human review',
+          };
         }
-
-        primaryFollowUp.status = 'document_received';
-        primaryFollowUp.nextReminderAt = null;
-        primaryFollowUp.lastResponseAt = new Date();
-        primaryFollowUp.resolvedAt = new Date();
-        primaryFollowUp.resolutionNotes = `Attachment verified and linked: ${filename} (Confidence: ${matchResult.confidence})`;
-        primaryFollowUp.responseHistory.push(responseRecord);
-        await primaryFollowUp.save();
-
-        logger.info(`✅ Successfully matched attachment "${filename}" to request "${matchResult.matchedRequestId}" for Task ${targetTask.taskId}`);
-        return {
-          handled: true,
-          matchedRequestId: matchResult.matchedRequestId,
-          actionTaken: `Document verified and received: ${matchResult.matchedDocumentName}`,
-        };
       } else {
         primaryFollowUp.status = 'response_received';
         primaryFollowUp.lastResponseAt = new Date();
         primaryFollowUp.resolutionNotes = `Attachment received but requires human verification: ${filename}`;
         primaryFollowUp.responseHistory.push(responseRecord);
         await primaryFollowUp.save();
+
+        if (messagePayload.id && mongoose.connection.readyState === 1) {
+          try {
+            await InboundMessageLog.create({
+              provider: 'whatsapp',
+              messageId: messagePayload.id,
+              sender: cleanDigits,
+              orgId,
+              followUpId: primaryFollowUp._id,
+              status: 'processed',
+              rawPayloadSnippet: `Attachment unverified: ${filename}`,
+            });
+          } catch {}
+        }
 
         return {
           handled: true,
@@ -559,6 +677,21 @@ export class FollowUpService {
       }
 
       await primaryFollowUp.save();
+
+      if (messagePayload.id && mongoose.connection.readyState === 1) {
+        try {
+          await InboundMessageLog.create({
+            provider: 'whatsapp',
+            messageId: messagePayload.id,
+            sender: cleanDigits,
+            orgId,
+            followUpId: primaryFollowUp._id,
+            status: 'processed',
+            rawPayloadSnippet: textBody.slice(0, 200),
+          });
+        } catch {}
+      }
+
       return {
         handled: true,
         matchedRequestId: classification.matchedRequestId,
@@ -773,27 +906,56 @@ export class FollowUpService {
           simulateFailure: false,
         });
 
-        if (sendResult.status === 'failed' && isRealSend) {
-          logger.warn(`Failed follow-up dispatch to ${recipientAddress}: ${sendResult.error}`);
+        if (!isRealSend) {
+          // Phase 13: Dry-run / preview only: DO NOT increment attemptCount and DO NOT advance nextReminderAt
+          logger.info(`[Dry-Run] Follow-up reminder preview generated for ${recipientAddress} (${followUp.channel}).`);
+          result.reminded++;
+        } else if (sendResult.status === 'failed') {
+          // Phase 13: Delivery retry handling with capped exponential backoff (15m, 30m, 60m, 120m, 240m)
+          const currentRetries = Number(followUp.metadata?.deliveryRetryCount || 0) + 1;
+          logger.warn(`Failed follow-up dispatch to ${recipientAddress} (delivery retry #${currentRetries}): ${sendResult.error}`);
+
+          if (currentRetries >= 5) {
+            followUp.status = 'escalated';
+            followUp.nextReminderAt = null;
+            followUp.resolutionNotes = `Delivery failed permanently after ${currentRetries} retries: ${sendResult.error}`;
+            followUp.metadata = {
+              ...(followUp.metadata || {}),
+              deliveryRetryCount: currentRetries,
+              lastDeliveryError: sendResult.error,
+            };
+            await followUp.save();
+            result.escalated++;
+            continue;
+          }
+
+          const backoffMinutes = Math.min(15 * Math.pow(2, currentRetries - 1), 240);
+          followUp.nextReminderAt = new Date(now.getTime() + backoffMinutes * 60 * 1000);
           followUp.metadata = {
             ...(followUp.metadata || {}),
-            deliveryRetryCount: Number(followUp.metadata?.deliveryRetryCount || 0) + 1,
+            deliveryRetryCount: currentRetries,
             lastDeliveryError: sendResult.error,
           };
+          await followUp.save();
         } else {
+          // Phase 13: Successful real send: increment attemptCount, clear delivery retry count, schedule next reminder
           followUp.attemptCount += 1;
           followUp.lastReminderAt = now;
           if (sendResult.executionId) {
             followUp.providerMessageId = sendResult.executionId;
           }
+          followUp.metadata = {
+            ...(followUp.metadata || {}),
+            deliveryRetryCount: 0,
+            lastDeliveryError: undefined,
+          };
 
           const nextIntervalIndex = Math.min(followUp.attemptCount - 1, intervals.length - 1);
           const nextIntervalHours = intervals[nextIntervalIndex] || 48;
           followUp.nextReminderAt = new Date(now.getTime() + nextIntervalHours * 3600 * 1000);
+          await followUp.save();
           result.reminded++;
         }
-
-        await followUp.save();
       } catch (err: any) {
         const errMsg = `Error processing follow-up (${followUp._id}): ${err?.message || err}`;
         logger.error(errMsg);
@@ -821,6 +983,30 @@ export class FollowUpService {
       return { processed: 0, matched: 0, errors: [] };
     }
 
+    // Phase 3: Check Google OAuth integration read scopes and retrieve connected practice email
+    let practiceEmail = '';
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const integration = await IntegrationModel.findOne({ provider: 'google' }).lean().exec();
+        if (integration) {
+          practiceEmail = (integration.email || '').trim().toLowerCase();
+          const scope = (integration.scope || '').toLowerCase();
+          const hasReadScope =
+            scope.includes('gmail.readonly') ||
+            scope.includes('mail.google.com') ||
+            scope.includes('gmail.modify') ||
+            scope.includes('gmail');
+          if (!hasReadScope) {
+            const scopeErr = 'Google OAuth credentials missing Gmail read scope (e.g. gmail.readonly or mail.google.com). Inbound processing halted.';
+            logger.warn(`⚠️ [FollowUpService] ${scopeErr}`);
+            return { processed: 0, matched: 0, errors: [scopeErr] };
+          }
+        }
+      } catch (err: any) {
+        logger.warn(`Could not check Google Integration scopes: ${err?.message || err}`);
+      }
+    }
+
     const auth = await GmailSyncService.getOAuth2Client();
     if (!auth) {
       return { processed: 0, matched: 0, errors: ['Google OAuth client not configured or missing refresh token.'] };
@@ -843,6 +1029,18 @@ export class FollowUpService {
       const messages = listRes.data.messages || [];
       for (const msgSummary of messages) {
         if (!msgSummary.id) continue;
+
+        // Phase 3: Deduplicate using InboundMessageLog
+        if (mongoose.connection.readyState === 1) {
+          const alreadyProcessed = await InboundMessageLog.exists({
+            provider: 'gmail',
+            messageId: msgSummary.id,
+          });
+          if (alreadyProcessed) {
+            continue;
+          }
+        }
+
         processed++;
 
         try {
@@ -860,6 +1058,7 @@ export class FollowUpService {
             headers.find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
 
           const fromValue = getHeader('From');
+          const subjectValue = getHeader('Subject');
           const inReplyToHeader = getHeader('In-Reply-To');
           const referencesHeader = getHeader('References');
           const threadId = detail.data.threadId || msgSummary.threadId;
@@ -868,6 +1067,11 @@ export class FollowUpService {
             fromValue.match(/<([^>]+)>/) ||
             fromValue.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
           const senderEmail = emailMatch ? emailMatch[1].trim().toLowerCase() : fromValue.trim().toLowerCase();
+
+          // Phase 3: Filter out self-sent practice emails
+          if (practiceEmail && senderEmail === practiceEmail) {
+            continue;
+          }
 
           // 1. Correlation order:
           // Priority A: Exact stored emailThreadId
@@ -901,8 +1105,32 @@ export class FollowUpService {
             if (candidateFollowUps.length === 1) {
               followUp = candidateFollowUps[0];
             } else if (candidateFollowUps.length > 1) {
-              logger.warn(`Ambiguous Gmail reply from ${senderEmail}: matches ${candidateFollowUps.length} active follow-ups. Marking for review.`);
-              continue;
+              // Disambiguate if subject or snippet matches documentTitle or sourceName
+              const candidateMatch = candidateFollowUps.find((fu: any) => {
+                const docTitle = (fu.documentTitle || '').toLowerCase();
+                const taskName = (fu.sourceName || '').toLowerCase();
+                const textContent = `${subjectValue} ${detail.data.snippet || ''}`.toLowerCase();
+                return (docTitle && textContent.includes(docTitle)) || (taskName && textContent.includes(taskName));
+              });
+
+              if (candidateMatch) {
+                followUp = candidateMatch;
+              } else {
+                logger.warn(`Ambiguous Gmail reply from ${senderEmail}: matches ${candidateFollowUps.length} active follow-ups. Routing for manual review.`);
+                if (mongoose.connection.readyState === 1) {
+                  try {
+                    await InboundMessageLog.create({
+                      provider: 'gmail',
+                      messageId: msgSummary.id,
+                      sender: senderEmail,
+                      orgId: options?.orgId,
+                      status: 'failed',
+                      rawPayloadSnippet: `Ambiguous reply matching ${candidateFollowUps.length} active follow-ups`,
+                    });
+                  } catch {}
+                }
+                continue;
+              }
             }
           }
 
@@ -991,6 +1219,7 @@ export class FollowUpService {
                     : { taskId: followUp.sourceId }),
                 }).exec();
 
+                let updatedDocItem = false;
                 if (targetTask && followUp.documentRequestId) {
                   const docReq = (targetTask.documentRequests || []).find((d: any) => d.id === followUp.documentRequestId);
                   if (docReq) {
@@ -999,31 +1228,85 @@ export class FollowUpService {
                     docReq.receivedAt = new Date();
                     targetTask.markModified('documentRequests');
                     await targetTask.save();
+                    updatedDocItem = true;
                   }
                 }
 
-                followUp.status = 'document_received';
-                followUp.nextReminderAt = null;
-                followUp.resolvedAt = new Date();
-                followUp.resolutionNotes = `Attachment downloaded from Gmail and stored: ${att.filename}`;
-                followUp.responseHistory.push({
-                  receivedAt: new Date(),
-                  channel: 'Email',
-                  providerMessageId: msgSummary.id,
-                  senderAddress: senderEmail,
-                  rawText: bodyText,
-                  attachmentName: att.filename,
-                  attachmentUrl: fileUrl,
-                  aiClassification: {
-                    intent: 'document_submitted',
-                    confidence: 0.95,
-                    notes: 'Genuine Gmail attachment verified and saved to Drive',
-                    requiresHumanReview: false,
-                    actionSuggested: 'mark_received',
-                  },
-                });
-                await followUp.save();
-                continue;
+                if (updatedDocItem) {
+                  followUp.status = 'document_received';
+                  followUp.nextReminderAt = null;
+                  followUp.resolvedAt = new Date();
+                  followUp.resolutionNotes = `Attachment downloaded from Gmail and verified: ${att.filename}`;
+                  followUp.responseHistory.push({
+                    receivedAt: new Date(),
+                    channel: 'Email',
+                    providerMessageId: msgSummary.id,
+                    senderAddress: senderEmail,
+                    rawText: bodyText,
+                    attachmentName: att.filename,
+                    attachmentUrl: fileUrl,
+                    aiClassification: {
+                      intent: 'document_submitted',
+                      confidence: 0.95,
+                      notes: 'Genuine Gmail attachment verified and saved to Drive',
+                      requiresHumanReview: false,
+                      actionSuggested: 'mark_received',
+                    },
+                  });
+                  await followUp.save();
+
+                  if (mongoose.connection.readyState === 1) {
+                    try {
+                      await InboundMessageLog.create({
+                        provider: 'gmail',
+                        messageId: msgSummary.id,
+                        sender: senderEmail,
+                        orgId: followUp.orgId,
+                        followUpId: followUp._id,
+                        status: 'processed',
+                        rawPayloadSnippet: `Verified attachment: ${att.filename}`,
+                      });
+                    } catch {}
+                  }
+                  continue;
+                } else {
+                  // Phase 5: Never mark document_received if task item was not updated
+                  followUp.status = 'response_received';
+                  followUp.lastResponseAt = new Date();
+                  followUp.resolutionNotes = `Attachment downloaded from Gmail (${att.filename}), but task document request item was not updated. Routed for manual review.`;
+                  followUp.responseHistory.push({
+                    receivedAt: new Date(),
+                    channel: 'Email',
+                    providerMessageId: msgSummary.id,
+                    senderAddress: senderEmail,
+                    rawText: bodyText,
+                    attachmentName: att.filename,
+                    attachmentUrl: fileUrl,
+                    aiClassification: {
+                      intent: 'document_submitted',
+                      confidence: 0.5,
+                      notes: 'Attachment downloaded to Drive, but no matching task document request item found or updated.',
+                      requiresHumanReview: true,
+                      actionSuggested: 'manual_review',
+                    },
+                  });
+                  await followUp.save();
+
+                  if (mongoose.connection.readyState === 1) {
+                    try {
+                      await InboundMessageLog.create({
+                        provider: 'gmail',
+                        messageId: msgSummary.id,
+                        sender: senderEmail,
+                        orgId: followUp.orgId,
+                        followUpId: followUp._id,
+                        status: 'processed',
+                        rawPayloadSnippet: `Unlinked attachment: ${att.filename}`,
+                      });
+                    } catch {}
+                  }
+                  continue;
+                }
               }
             } catch (attErr: any) {
               logger.warn(`Failed to process Gmail attachment for message ${msgSummary.id}:`, attErr?.message || attErr);
@@ -1082,6 +1365,20 @@ export class FollowUpService {
             }
 
             await followUp.save();
+
+            if (mongoose.connection.readyState === 1) {
+              try {
+                await InboundMessageLog.create({
+                  provider: 'gmail',
+                  messageId: msgSummary.id,
+                  sender: senderEmail,
+                  orgId: followUp.orgId,
+                  followUpId: followUp._id,
+                  status: 'processed',
+                  rawPayloadSnippet: bodyText.slice(0, 200),
+                });
+              } catch {}
+            }
           }
         } catch (msgErr: any) {
           logger.warn(`Error processing Gmail message ${msgSummary.id}:`, msgErr?.message || msgErr);
