@@ -12,6 +12,8 @@ import workdoneReducer from './features/workdone/workdoneSlice';
 import groupReducer from './features/groups/groupSlice';
 import noticeReducer from './features/notices/noticeSlice';
 import complianceReducer from './features/compliance/complianceSlice';
+import agentCenterReducer from './features/agentCenter/agentCenterSlice';
+import todoReducer from './features/todo/todoSlice';
 
 export const rootReducer = combineReducers({
   auth: authSlice.reducer,
@@ -27,6 +29,8 @@ export const rootReducer = combineReducers({
   workdone: workdoneReducer,
   notices: noticeReducer,
   compliance: complianceReducer,
+  agentCenter: agentCenterReducer,
+  todo: todoReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

@@ -855,6 +855,34 @@ export class AgentExecutionService {
       existingRun.errorMessage = failed.length ? `${failed.length} of ${results.length} provider operation(s) failed.` : null;
       existingRun.executionMode = executionMode;
       await existingRun.save();
+
+      if (isRealRun && (status === 'success' || status === 'partial-failed') && context.orgId) {
+        try {
+          const sourceId = String(event.id || event.taskId || (event.dsc as any)?.id || (event.license as any)?.id || '');
+          if (sourceId) {
+            const { FollowUpService } = await import('./followUp.service');
+            await FollowUpService.recordFollowUpRequest({
+              orgId: context.orgId,
+              agentId: String(agent._id),
+              agentName: agent.name,
+              clientId: String(event.clientId || clientRecord.id || ''),
+              clientName: clientRecord.name,
+              clientEmail: clientRecord.email,
+              clientMobile: clientRecord.mobile,
+              module: agent.module,
+              sourceId,
+              sourceName: String(event.taskName || (event.dsc as any)?.name || (event.license as any)?.name || ''),
+              documentRequestId: typeof event.documentRequestId === 'string' ? event.documentRequestId : undefined,
+              documentTitle: typeof event.documentTitle === 'string' ? event.documentTitle : undefined,
+              channel: (config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email'),
+              providerMessageId: results[0]?.executionId ? String(results[0].executionId) : undefined,
+            });
+          }
+        } catch {
+          // ignore error in recording follow-up
+        }
+      }
+
       return existingRun;
     }
 
@@ -872,6 +900,34 @@ export class AgentExecutionService {
         executionMode,
         runKey,
       });
+
+      if (isRealRun && (status === 'success' || status === 'partial-failed') && context.orgId) {
+        try {
+          const sourceId = String(event.id || event.taskId || (event.dsc as any)?.id || (event.license as any)?.id || '');
+          if (sourceId) {
+            const { FollowUpService } = await import('./followUp.service');
+            await FollowUpService.recordFollowUpRequest({
+              orgId: context.orgId,
+              agentId: String(agent._id),
+              agentName: agent.name,
+              clientId: String(event.clientId || clientRecord.id || ''),
+              clientName: clientRecord.name,
+              clientEmail: clientRecord.email,
+              clientMobile: clientRecord.mobile,
+              module: agent.module,
+              sourceId,
+              sourceName: String(event.taskName || (event.dsc as any)?.name || (event.license as any)?.name || ''),
+              documentRequestId: typeof event.documentRequestId === 'string' ? event.documentRequestId : undefined,
+              documentTitle: typeof event.documentTitle === 'string' ? event.documentTitle : undefined,
+              channel: (config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email'),
+              providerMessageId: results[0]?.executionId ? String(results[0].executionId) : undefined,
+            });
+          }
+        } catch {
+          // ignore error in recording follow-up
+        }
+      }
+
       return run;
     } catch (createErr: any) {
       if (createErr?.code === 11000) {

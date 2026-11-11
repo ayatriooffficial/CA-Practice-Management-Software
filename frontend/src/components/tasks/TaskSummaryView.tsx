@@ -8,6 +8,7 @@ import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "../auth/AuthContext";
+import { pageStateCache } from "@/services/pageStateCache";
 
 interface TaskSummaryViewProps {
   onSelectGroupFilter?: (groupKey: string, status?: string) => void;
@@ -23,8 +24,14 @@ export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
   const [groupBy, setGroupBy] = useState<string>(isEmployee ? "Category" : "Assigned To");
   const [search, setSearch] = useState<string>("");
   const [isHeatMap, setIsHeatMap] = useState<boolean>(false);
-  const [rows, setRows] = useState<TaskSummaryRow[]>([]);
-  const [grandTotal, setGrandTotal] = useState<TaskSummaryRow | null>(null);
+
+  const cacheKey = `task_summary_matrix_${groupBy}_${isEmployee ? employeeName : "all"}`;
+  const [rows, setRows] = useState<TaskSummaryRow[]>(() => {
+    return pageStateCache.get<any>(`task_summary_matrix_${isEmployee ? "Category" : "Assigned To"}_${isEmployee ? employeeName : "all"}`)?.rows || [];
+  });
+  const [grandTotal, setGrandTotal] = useState<TaskSummaryRow | null>(() => {
+    return pageStateCache.get<any>(`task_summary_matrix_${isEmployee ? "Category" : "Assigned To"}_${isEmployee ? employeeName : "all"}`)?.grandTotal || null;
+  });
 
   const GROUP_OPTIONS = isEmployee
     ? ["Category", "Client", "Service", "Priority", "Task Type", "Month"]
@@ -39,7 +46,10 @@ export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
         "Financial Year",
       ];
 
-  const fetchMatrix = async () => {
+  const fetchMatrix = async (force = false) => {
+    if (!force && pageStateCache.has(cacheKey) && rows.length > 0 && !search) {
+      return;
+    }
     try {
       const res = await taskApi.getTaskSummaryMatrix(
         groupBy,
@@ -49,6 +59,10 @@ export const TaskSummaryView: React.FC<TaskSummaryViewProps> = ({
       if (res.data) {
         setRows(res.data.rows);
         setGrandTotal(res.data.grandTotal);
+        if (!search) {
+          pageStateCache.set(cacheKey, res.data);
+        }
+        pageStateCache.markLoaded('/task');
       }
     } catch {
       // Handled in api

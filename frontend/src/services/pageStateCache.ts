@@ -173,6 +173,25 @@ export class PageStateCache {
     return false;
   }
 
+  public delete(key: string): void {
+    if (!key) return;
+    this.cache.delete(key);
+    const section = getCanonicalSection(key);
+    this.cache.delete(section);
+    this.loadedSections.delete(section);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem(`turia_cache_key_${key}`);
+        sessionStorage.removeItem(`turia_cache_${section}`);
+        sessionStorage.removeItem(`turia_loaded_${section}`);
+        localStorage.removeItem(`turia_cache_key_${key}`);
+        localStorage.removeItem(`turia_cache_${section}`);
+        const list = Array.from(this.loadedSections);
+        sessionStorage.setItem('turia_loaded_sections', JSON.stringify(list));
+      } catch {}
+    }
+  }
+
   public clear(): void {
     this.cache.clear();
     this.loadedSections.clear();

@@ -17,6 +17,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { authService } from "./authService";
 import { useAuth } from "./AuthContext";
+import { navigationProgress } from "@/services/navigationProgress";
+import { pageStateCache } from "@/services/pageStateCache";
+import { homeMetricsSnapshotApi } from "@/services/homeMetricsSnapshotApi";
+import { preloadHomeDashboardData } from "@/services/homePreloadService";
 
 type LoginStep = "email" | "password";
 
@@ -24,9 +28,10 @@ export const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser, login, workdaySession, resumeWorkdaySession, switchToUser } = useAuth();
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !isSubmittingRef.current) {
       router.push("/");
     }
   }, [currentUser, router]);
@@ -69,7 +74,7 @@ export const LoginForm: React.FC = () => {
     cleanEmail === workdaySession.user.email.toLowerCase()
   );
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsUserNotFound(false);
@@ -81,15 +86,26 @@ export const LoginForm: React.FC = () => {
 
     // If an active workday session exists for this email on this device, log in immediately without asking password!
     if (isWorkdayMatched) {
+      isSubmittingRef.current = true;
       setIsLoading(true);
+      navigationProgress.start("/", { immediate: true, force: true });
+      navigationProgress.setLoading("auth_submit", true);
       try {
         const success = resumeWorkdaySession();
         if (success) {
-          router.push("/");
+          try {
+            await preloadHomeDashboardData();
+          } catch {}
+          navigationProgress.setLoading("auth_submit", false);
+          router.replace("/");
           return;
         }
+      } catch {
+        navigationProgress.forceFinish();
       } finally {
         setIsLoading(false);
+        navigationProgress.setLoading("auth_submit", false);
+        isSubmittingRef.current = false;
       }
     }
 
@@ -104,17 +120,37 @@ export const LoginForm: React.FC = () => {
 
     if (!password.trim() || isLoading) return;
 
+    isSubmittingRef.current = true;
     setIsLoading(true);
+    navigationProgress.start("/", { immediate: true, force: true });
+    navigationProgress.setLoading("auth_submit", true);
 
     try {
       const res = await authService.loginWithPassword(cleanEmail, password);
 
       if (res.success && res.user) {
+        // 1. Immediately store the authenticated user so apiClient has valid auth headers
         login(res.user);
-        router.push("/");
+
+        // 2. Clear outdated cache
+        pageStateCache.delete("home_dashboard_data");
+        pageStateCache.delete("home_attendance_summary");
+        pageStateCache.delete("home_attendance_today_rows");
+        pageStateCache.delete("home_attendance_employee_records");
+        pageStateCache.delete("/");
+
+        // 3. User remains on login page while progress bar runs & all Home screen data is preloaded in parallel
+        try {
+          await preloadHomeDashboardData();
+        } catch {}
+
+        // 4. Release auth loader and commit navigation to Home; progress bar completes on Home as it reveals
+        navigationProgress.setLoading("auth_submit", false);
+        router.replace("/");
         return;
       }
 
+      navigationProgress.forceFinish();
       if (res.notFound) {
         setIsUserNotFound(true);
         setErrorMessage("No account found with this email. Please verify your email or create an organization.");
@@ -122,6 +158,7 @@ export const LoginForm: React.FC = () => {
         setErrorMessage(res.message || "Incorrect password. Please verify and try again.");
       }
     } catch (err: any) {
+      navigationProgress.forceFinish();
       const msg = err?.message || "";
       const notFound =
         err?.statusCode === 404 ||
@@ -136,6 +173,8 @@ export const LoginForm: React.FC = () => {
       }
     } finally {
       setIsLoading(false);
+      navigationProgress.setLoading("auth_submit", false);
+      isSubmittingRef.current = false;
     }
   };
 

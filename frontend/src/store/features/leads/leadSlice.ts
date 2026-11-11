@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Lead } from '@/data/crmData';
 import { LeadQueryParams, LeadStats, ConvertLeadPayload } from '@/services/leadApi';
 import { PaginationState } from '../clients/clientSlice';
+import { pageStateCache } from '@/services/pageStateCache';
 
 export interface LeadState {
   items: Lead[];
@@ -15,24 +16,29 @@ export interface LeadState {
   isLoaded: boolean;
 }
 
-const initialState: LeadState = {
-  items: [],
-  selectedLead: null,
-  stats: null,
-  loading: false,
-  mutating: false,
-  error: null,
-  pagination: {
-    page: 1,
-    limit: 10,
-    totalDocs: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  },
-  currentParams: {},
-  isLoaded: false,
+const getInitialLeadState = (): LeadState => {
+  const cached = typeof window !== 'undefined' ? pageStateCache.get<any>('leads_list_data') : null;
+  return {
+    items: cached?.leads || [],
+    selectedLead: null,
+    stats: null,
+    loading: false,
+    mutating: false,
+    error: null,
+    pagination: cached?.pagination || {
+      page: 1,
+      limit: 10,
+      totalDocs: cached?.leads?.length || 0,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+    currentParams: {},
+    isLoaded: Boolean(cached?.leads?.length),
+  };
 };
+
+const initialState: LeadState = getInitialLeadState();
 
 export const leadSlice = createSlice({
   name: 'leads',

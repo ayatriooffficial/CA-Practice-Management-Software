@@ -6,6 +6,7 @@ import {
   TaskAllocationInput,
 } from '@/services/financialApi';
 import { InvoiceRecord } from '@/components/invoice/types';
+import { pageStateCache } from '@/services/pageStateCache';
 import {
   fetchInvoicesRequest,
   fetchInvoicesSuccess,
@@ -101,6 +102,8 @@ function* handleFetchInvoices(): Generator<any, void, any> {
       invoiceNumber: r.invoiceNumber,
     }));
     yield put(fetchInvoicesSuccess({ invoices, proformas, receipts }));
+    pageStateCache.set('invoices_page_data', { invoices, proformas, receipts });
+    pageStateCache.markLoaded('/invoice');
   } catch (error: any) {
     const errorMsg = error?.message || 'Could not load saved invoices from server.';
     yield put(fetchInvoicesFailure(errorMsg));

@@ -26,16 +26,25 @@ import {
   bulkDeleteClientsFailure,
 } from './clientSlice';
 import { showToast } from '../ui/uiSlice';
+import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchClients(action: PayloadAction<ClientQueryParams | undefined>): Generator<any, void, any> {
   try {
     const response: ApiResponse<Client[]> = yield call(clientApi.getClients, action.payload || {});
+    const clients = response.data || [];
     yield put(
       fetchClientsSuccess({
-        clients: response.data || [],
+        clients,
         pagination: response.pagination,
       })
     );
+    if (!action.payload || Object.keys(action.payload).length === 0) {
+      pageStateCache.set('clients_list_data', {
+        clients,
+        pagination: response.pagination,
+      });
+      pageStateCache.markLoaded('/client');
+    }
   } catch (error: any) {
     yield put(fetchClientsFailure(error.message || 'Failed to fetch clients'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to fetch clients' }));

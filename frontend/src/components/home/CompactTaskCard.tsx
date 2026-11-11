@@ -23,7 +23,7 @@ export const CompactTaskCard: React.FC = () => {
   const reduxTaskData = useAppSelector(selectDashboardTaskSummary);
   const isReduxLoading = useAppSelector(selectDashboardLoading);
 
-  // Synchronously initialize fallback data from local session cache
+  // Synchronously initialize fallback data from session cache (same as other cards)
   const [fallbackData, setFallbackData] = useState<CompactTaskSummaryResponse | null>(() => {
     return pageStateCache.get<CompactTaskSummaryResponse>('home_task_summary') || null;
   });
@@ -33,7 +33,7 @@ export const CompactTaskCard: React.FC = () => {
   const data = reduxTaskData || fallbackData;
   const isLoading = isReduxLoading && !data;
 
-  // Persist updated task summary to cache immediately upon arrival
+  // Update session cache when fresh Redux data arrives
   useEffect(() => {
     if (reduxTaskData) {
       pageStateCache.set('home_task_summary', reduxTaskData);
