@@ -36,12 +36,35 @@ export const BACKEND_API_URL =
   'http://localhost:5001/api/v1';
 
 export function getRedirectUri(request?: NextRequest): string {
+  // 1. Detect dynamic origin from request if available (Vercel, custom domain, production)
+  if (request) {
+    const proto = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+    const headerOrigin = host ? `${proto}://${host}` : null;
+    const origin = request.nextUrl?.origin || headerOrigin;
+
+    if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+      return `${origin}/api/auth/google/callback`;
+    }
+  }
+
+  // 2. Explicit environment variable (if not stale localhost on a live request)
   if (process.env.GOOGLE_REDIRECT_URI) {
+    if (
+      request?.nextUrl?.origin &&
+      !request.nextUrl.origin.includes('localhost') &&
+      process.env.GOOGLE_REDIRECT_URI.includes('localhost')
+    ) {
+      return `${request.nextUrl.origin}/api/auth/google/callback`;
+    }
     return process.env.GOOGLE_REDIRECT_URI;
   }
+
+  // 3. Fallback to request origin
   if (request?.nextUrl?.origin) {
     return `${request.nextUrl.origin}/api/auth/google/callback`;
   }
+
   return 'http://localhost:3000/api/auth/google/callback';
 }
 
@@ -113,14 +136,20 @@ export async function exchangeCodeForTokens(
   provider: string;
   connected: boolean;
 }> {
-  const res = await fetch(`${BACKEND_API_URL}/integrations/google/exchange`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      code,
-      redirectUri: redirectUri || getRedirectUri(),
-    }),
-  });
+  const effectiveRedirectUri = redirectUri || getRedirectUri();
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND_API_URL}/integrations/google/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        redirectUri: effectiveRedirectUri,
+      }),
+    });
+  } catch (err: any) {
+    throw new Error(`Unable to reach backend at ${BACKEND_API_URL}: ${err?.message || 'Connection error'}. Ensure NEXT_PUBLIC_API_URL is configured in your deployment.`);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.success) {

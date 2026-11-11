@@ -14,7 +14,17 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   try {
     const authConfig = await fetchBackendAuthConfig();
-    const redirectUri = authConfig.redirectUri || getRedirectUri(request);
+    const dynamicRedirectUri = getRedirectUri(request);
+    const isLiveRequest =
+      request.nextUrl.origin &&
+      !request.nextUrl.origin.includes('localhost') &&
+      !request.nextUrl.origin.includes('127.0.0.1');
+
+    const redirectUri = isLiveRequest
+      ? dynamicRedirectUri
+      : (authConfig.redirectUri && !authConfig.redirectUri.includes('localhost')
+          ? authConfig.redirectUri
+          : dynamicRedirectUri);
 
     if (!authConfig.configured && !authConfig.clientId) {
       return NextResponse.json(
