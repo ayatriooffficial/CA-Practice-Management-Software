@@ -36,6 +36,7 @@ import { setSelectedClient, fetchClientByIdSuccess } from "@/store/features/clie
 import { ComposeModal } from "@/components/email/ComposeModal";
 import { generateInvoiceEmailTemplate, generateReceiptEmailTemplate } from "@/lib/emailTemplates";
 import { clientApi } from "@/services/clientApi";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 
 interface InvoiceReceiptDetailViewProps {
   receipt?: ReceiptRecord | null;
@@ -373,19 +374,19 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
         if (onViewClientLedger) {
           onViewClientLedger(finalId);
         } else {
-          router.push(`/client?clientId=${finalId}&tab=Ledger`);
+          void navigateWithTransition(`/client?clientId=${finalId}&tab=Ledger`, router);
         }
       } else {
         // Fallback: If no client object found, still navigate with ID or default to /client
         if (rawClientId) {
-          router.push(`/client?clientId=${rawClientId}&tab=Ledger`);
+          void navigateWithTransition(`/client?clientId=${rawClientId}&tab=Ledger`, router);
         } else {
-          router.push(`/client`);
+          void navigateWithTransition(`/client`, router);
         }
       }
     } catch (err) {
       console.error("Error navigating to client ledger:", err);
-      router.push(`/client`);
+      void navigateWithTransition(`/client`, router);
     } finally {
       setIsOpeningLedger(false);
     }

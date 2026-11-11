@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { HomeDashboardService } from './homeDashboard.service';
 import { ApiResponse } from '../../shared/utils/apiResponse';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
+import { cacheService } from '../../shared/services/cache.service';
 
 function resolveAccountKey(req: Request): {
   accountKey: string;
@@ -37,7 +38,18 @@ export class HomeDashboardController {
    */
   static getMetricsSnapshot = asyncHandler(async (req: Request, res: Response) => {
     const { accountKey, role } = resolveAccountKey(req);
+    const cacheKey = `home:snapshot:${accountKey}`;
+
+    // Sub-millisecond Redis / in-memory cache lookup
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return ApiResponse.success(res, cached, 'Home numerical metrics snapshot (cache hit)');
+    }
+
     const metrics = await HomeDashboardService.getSnapshot(accountKey, role);
+    if (metrics) {
+      await cacheService.set(cacheKey, metrics, 300); // 5 min TTL
+    }
 
     return ApiResponse.success(
       res,
@@ -65,6 +77,9 @@ export class HomeDashboardController {
       { userId, userEmail, role, orgId },
       metrics
     );
+
+    // Invalidate Redis/memory cache immediately
+    await cacheService.del(`home:snapshot:${accountKey}`);
 
     return ApiResponse.success(
       res,

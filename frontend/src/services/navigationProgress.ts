@@ -86,7 +86,7 @@ class NavigationProgressService {
    */
   public start(
     initialTarget?: string,
-    options?: { immediate?: boolean; force?: boolean }
+    options?: { immediate?: boolean; force?: boolean; reset?: boolean }
   ): void {
     const target = initialTarget || (typeof window !== 'undefined' ? window.location.pathname : '');
     if (!options?.force && target && pageStateCache.isLoaded(target)) {
@@ -109,7 +109,8 @@ class NavigationProgressService {
     const startVal = options?.immediate
       ? Math.floor(Math.random() * 8) + 18
       : Math.floor(Math.random() * 6) + 10;
-    const nextProgress = Math.max(this.state.progress, startVal);
+    // Task 4: When starting or interrupting navigation, cleanly reset progress to startVal
+    const nextProgress = (options?.reset || this.state.isNavigating) ? startVal : Math.max(this.state.progress, startVal);
 
     if (options?.immediate) {
       this.visibleTimestamp = Date.now();
@@ -269,16 +270,16 @@ class NavigationProgressService {
       ) {
         this.finish();
       }
-    }, 400);
+    }, 80);
   }
 
   /**
    * Complete the progress bar cleanly:
    * - If not yet visible (finished in <200ms), cancel show delay and reset silently.
-   * - If visible, ensure min 500ms display to eliminate flicker.
-   * - Snap to 100% (~200ms), hold briefly (~150ms), fade out (~300ms), and reset to 0 invisibly.
+   * - If visible, ensure brief smooth display (~100ms) to eliminate flicker without adding artificial latency.
+   * - Snap to 100% (~120ms), hold briefly (~100ms), fade out (~200ms), and reset to 0 invisibly.
    */
-  private finish(): void {
+  public finish(): void {
     this.updateState({ isNavigating: false });
     if (this.trickleTimer) clearTimeout(this.trickleTimer);
     if (this.failsafeTimer) clearTimeout(this.failsafeTimer);
@@ -290,9 +291,9 @@ class NavigationProgressService {
       return;
     }
 
-    // Minimum visible time guard (500ms from visible timestamp)
+    // Lean visible time guard (100ms from visible timestamp)
     const elapsed = Date.now() - this.visibleTimestamp;
-    const minHoldRemaining = Math.max(0, 500 - elapsed);
+    const minHoldRemaining = Math.max(0, 100 - elapsed);
 
     setTimeout(() => {
       // Snap to 100%
@@ -305,13 +306,29 @@ class NavigationProgressService {
         // Reset to 0 while invisible (no backward animation)
         this.resetTimer = setTimeout(() => {
           this.updateState({ progress: 0 });
-        }, 300);
-      }, 200);
+        }, 200);
+      }, 120);
     }, minHoldRemaining);
   }
 
   public forceFinish(): void {
     this.finish();
+  }
+
+  public cancel(): void {
+    if (this.abortController) {
+      try {
+        this.abortController.abort();
+      } catch {}
+    }
+    this.clearTimers();
+    this.externalLoaders.clear();
+    this.pendingRequests = 0;
+    this.updateState({
+      isNavigating: false,
+      isVisible: false,
+      progress: 0,
+    });
   }
 
   public done(): void {

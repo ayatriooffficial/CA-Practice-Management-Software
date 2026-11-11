@@ -1,8 +1,9 @@
-import { call, put, takeLatest, all } from 'redux-saga/effects';
+import { call, put, select, takeLatest, all } from 'redux-saga/effects';
 import { PayloadAction } from '@reduxjs/toolkit';
 import { leadApi, LeadQueryParams, LeadStats, ConvertLeadPayload } from '@/services/leadApi';
 import { ApiResponse } from '@/services/apiClient';
 import { Lead } from '@/data/crmData';
+import { RootState } from '../../rootReducer';
 import {
   fetchLeadsRequest,
   fetchLeadsSuccess,
@@ -33,6 +34,12 @@ import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchLeads(action: PayloadAction<LeadQueryParams | undefined>): Generator<any, void, any> {
   try {
+    const isLoaded: boolean = yield select((state: RootState) => state.leads.isLoaded);
+    const hasParams = Boolean(action.payload && Object.keys(action.payload).length > 0);
+    if (isLoaded && !hasParams) {
+      return;
+    }
+
     const response: ApiResponse<Lead[]> = yield call(leadApi.getLeads, action.payload || {});
     const leads = response.data || [];
     yield put(
@@ -69,6 +76,10 @@ function* handleFetchLeadById(action: PayloadAction<string>): Generator<any, voi
 
 function* handleFetchLeadStats(): Generator<any, void, any> {
   try {
+    const existingStats = yield select((state: RootState) => state.leads.stats);
+    if (existingStats && Object.keys(existingStats).length > 0) {
+      return;
+    }
     const response: ApiResponse<LeadStats> = yield call(leadApi.getLeadStats);
     if (response.data) {
       yield put(fetchLeadStatsSuccess(response.data));

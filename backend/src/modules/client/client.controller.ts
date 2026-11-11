@@ -6,6 +6,8 @@ import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
 import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
+import { realtimeService } from '../../shared/services/realtime.service';
+import { cacheService } from '../../shared/services/cache.service';
 
 export class ClientController {
   /**
@@ -15,6 +17,10 @@ export class ClientController {
   static createClient = asyncHandler(async (req: Request, res: Response) => {
     const userCtx = getUserContextFromRequest(req);
     const client = await ClientService.createClient(req.body, userCtx);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('client:*');
+    void realtimeService.publishChange('client', 'create', { entityId: (client as any)?._id || (client as any)?.id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.created(res, client, ResponseMessages.CLIENT_CREATED);
   });
 
@@ -56,6 +62,10 @@ export class ClientController {
   static updateClient = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const updatedClient = await ClientService.updateClientById(id, req.body);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('client:*');
+    void realtimeService.publishChange('client', 'update', { entityId: id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, updatedClient, ResponseMessages.CLIENT_UPDATED);
   });
 
@@ -67,6 +77,10 @@ export class ClientController {
     const id = req.params.id as string;
     const deletedBy = (req.headers['x-user-id'] as string) || 'system';
     const result = await ClientService.softDeleteClient(id, deletedBy);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('client:*');
+    void realtimeService.publishChange('client', 'delete', { entityId: id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, result, ResponseMessages.CLIENT_DELETED);
   });
 
@@ -77,6 +91,10 @@ export class ClientController {
   static restoreClient = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const restored = await ClientService.restoreClient(id);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('client:*');
+    void realtimeService.publishChange('client', 'update', { entityId: id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, restored, ResponseMessages.CLIENT_RESTORED);
   });
 
@@ -87,6 +105,10 @@ export class ClientController {
   static permanentDeleteClient = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     await ClientService.permanentDeleteClient(id);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('client:*');
+    void realtimeService.publishChange('client', 'delete', { entityId: id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, null, ResponseMessages.PERMANENT_DELETED);
   });
 

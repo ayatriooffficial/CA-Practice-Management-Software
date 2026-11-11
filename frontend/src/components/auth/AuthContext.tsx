@@ -7,6 +7,8 @@ import { request } from "../../services/apiClient";
 
 import { getPresetPermissions } from "../team/permissionsConfig";
 import { pageStateCache } from "@/services/pageStateCache";
+import { getStore } from "@/store";
+import { resetAllSessionState } from "@/store/features/navigation/navigationOrchestratorSlice";
 
 export function computeInitials(name?: string | null): string {
   if (!name || !name.trim()) return "U";
@@ -112,6 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setCurrentUser(null);
       pageStateCache.clear();
+      try {
+        getStore().dispatch(resetAllSessionState());
+      } catch {}
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("turia_user_logged_out", "true");
@@ -270,6 +275,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setCurrentUser(parsed);
           setIsLoading(false);
           localStorage.setItem("x-org-id", parsed.orgId);
+
+          // Task 2: Validate JWT expiration upfront to prevent morning 401 retry storms
+          if (parsed.token) {
+            try {
+              const parts = parsed.token.split('.');
+              if (parts.length === 3) {
+                const payload = JSON.parse(atob(parts[1]));
+                if (payload.exp && Date.now() >= payload.exp * 1000) {
+                  // Token expired overnight - clear stale storage and require clean login
+                  localStorage.removeItem(STORAGE_KEY);
+                  localStorage.removeItem("turia_workday_device_session");
+                  setCurrentUser(null);
+                  setIsLoading(false);
+                  return;
+                }
+              }
+            } catch {}
+          }
 
           if (parsed.token) {
             refreshProfile().catch(() => {});

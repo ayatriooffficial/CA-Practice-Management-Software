@@ -38,6 +38,7 @@ import {
 } from "@/store/features/groups/groupSelectors";
 import { GroupRecord, GroupEntity } from "@/services/groupApi";
 import { AddEditGroupModal } from "./AddEditGroupModal";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { usePermission } from "@/components/team/usePermission";
 import { Button } from "@/components/ui/Button";
@@ -585,7 +586,7 @@ export const GroupListView: React.FC = () => {
                             {
                               label: "Generate Invoice",
                               icon: FileText,
-                              onClick: () => router.push(`/invoice?groupId=${grp.id}`),
+                              onClick: () => void navigateWithTransition(`/invoice?groupId=${grp.id}`, router),
                             },
                             ...(canDelete("clients")
                               ? [

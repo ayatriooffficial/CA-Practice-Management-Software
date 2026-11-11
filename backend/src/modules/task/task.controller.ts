@@ -9,6 +9,8 @@ import { AppError } from '../../shared/utils/apiError';
 import { DocumentCategory } from '../drive/drive.interface';
 import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
 import { FinancialService } from '../financials/financial.service';
+import { realtimeService } from '../../shared/services/realtime.service';
+import { cacheService } from '../../shared/services/cache.service';
 
 export class TaskController {
   static getAllTasks = asyncHandler(async (req: Request, res: Response) => {
@@ -87,21 +89,32 @@ export class TaskController {
   });
 
   static createTask = asyncHandler(async (req: Request, res: Response) => {
-
     const userCtx = getUserContextFromRequest(req);
     const task = await TaskService.createTask(req.body, userCtx);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('task:*');
+    void realtimeService.publishChange('task', 'create', { entityId: (task as any)?._id || (task as any)?.id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, task, ResponseMessages.TASK_CREATED, HttpStatus.CREATED);
   });
 
   static updateTask = asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id);
     const task = await TaskService.updateTaskById(id, req.body);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('task:*');
+    void realtimeService.publishChange('task', 'update', { entityId: id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, task, ResponseMessages.TASK_UPDATED);
   });
 
   static deleteTask = asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id);
     await TaskService.deleteTaskById(id);
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('task:*');
+    void realtimeService.publishChange('task', 'delete', { entityId: id });
+    void realtimeService.publishChange('home', 'invalidate');
     return ApiResponse.success(res, null, ResponseMessages.TASK_DELETED);
   });
 

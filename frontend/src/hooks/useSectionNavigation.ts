@@ -4,8 +4,10 @@ import { useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setSelectedClient } from "@/store/features/clients/clientSlice";
+import { startNavigation, finishNavigation } from "@/store/features/navigation/navigationOrchestratorSlice";
+import { getStore } from "@/store";
 import { navigationProgress } from "@/services/navigationProgress";
-import { pageStateCache } from "@/services/pageStateCache";
+import { pageStateCache, getCanonicalSection } from "@/services/pageStateCache";
 import { preloadSectionData } from "@/services/sectionPreloadService";
 
 export function getSectionKey(pathname: string | null): string {
@@ -54,6 +56,46 @@ export function getSectionFirstPage(sectionKey: string): string {
   }
 }
 
+/**
+ * Universal navigation helper that routes any navigation (programmatic or link)
+ * through the central orchestrator and gated progress bar.
+ */
+export async function navigateWithTransition(
+  targetUrl: string,
+  router: { push: (url: string) => void },
+  signal?: AbortSignal
+): Promise<void> {
+  const targetSection = getCanonicalSection(targetUrl);
+
+  // If destination is already loaded in this session, navigate immediately with 0ms and NO progress bar
+  if (pageStateCache.isLoaded(targetUrl) || pageStateCache.isLoaded(targetSection)) {
+    router.push(targetUrl);
+    return;
+  }
+
+  // First visit: Show progress bar on current page, preload in background, transition only when ready
+  navigationProgress.start(targetUrl, { immediate: true, force: true, reset: true });
+  navigationProgress.setLoading("prog_nav", true);
+
+  const store = typeof window !== "undefined" ? getStore() : null;
+  if (store) {
+    store.dispatch(startNavigation({ targetSection }));
+  }
+
+  try {
+    await preloadSectionData(targetSection, signal);
+  } catch {}
+
+  if (signal?.aborted) return;
+
+  if (store) {
+    store.dispatch(finishNavigation({ targetSection }));
+  }
+  navigationProgress.setLoading("prog_nav", false);
+  navigationProgress.finish();
+  router.push(targetUrl);
+}
+
 export function useSectionNavigation() {
   const pathname = usePathname();
   const router = useRouter();
@@ -88,11 +130,19 @@ export function useSectionNavigation() {
     };
   }, [router]);
 
+  const inFlightSectionRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Rule 2: Whenever switching to another section, both old and new sections start at their first page.
   const switchSection = useCallback(
     async (targetSectionKey: string) => {
       const oldSection = activeSectionRef.current;
       const targetFirstPage = getSectionFirstPage(targetSectionKey);
+
+      // Task 4: Duplicate click guard - clicking the same target again while it is already loading must NOT restart or duplicate
+      if (inFlightSectionRef.current === targetSectionKey) {
+        return;
+      }
 
       // Reset old section view state
       if (oldSection === "client") {
@@ -121,34 +171,61 @@ export function useSectionNavigation() {
       // If the target section is ALREADY loaded in this session:
       // Instantly switch pages without any progress bar or re-loading!
       if (pageStateCache.isLoaded(targetFirstPage)) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+        inFlightSectionRef.current = null;
         activeSectionRef.current = targetSectionKey;
-        router.replace(targetFirstPage);
+        router.push(targetFirstPage);
         return;
       }
 
-      // First-time visit for ANY section:
-      // 1. Progress bar starts immediately on the current page (Page 1):
-      navigationProgress.start(targetFirstPage, { immediate: true, force: true });
-      navigationProgress.setLoading(`prewarm_${targetSectionKey}`, true);
+      // Task 4: Interruptible Navigation (Latest Click Wins):
+      // 1. Immediately abort previous in-flight task
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      inFlightSectionRef.current = targetSectionKey;
 
-      // 2. User stays on Page 1 while Page 2 loads in the background:
+      // 2. Progress bar cleanly restarts from the beginning on the current page:
+      navigationProgress.start(targetFirstPage, { immediate: true, force: true, reset: true });
+      navigationProgress.setLoading(`section_nav`, true);
+      dispatch(startNavigation({ targetSection: targetSectionKey }));
+
+      // 3. User stays on Page 1 while Page 2 loads in the background:
       try {
-        await Promise.race([
-          preloadSectionData(targetSectionKey),
-          new Promise((resolve) => setTimeout(resolve, 800)),
-        ]);
-      } catch {}
+        await preloadSectionData(targetSectionKey, controller.signal);
+      } catch {
+        if (controller.signal.aborted) return;
+      }
 
-      // 3. Page 2 is now loaded in local memory & Redux!
-      navigationProgress.setLoading(`prewarm_${targetSectionKey}`, false);
+      // 4. If interrupted by a newer navigation, drop this cycle completely and do not show page
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      dispatch(finishNavigation({ targetSection: targetSectionKey }));
+      navigationProgress.setLoading(`section_nav`, false);
+      navigationProgress.finish();
+      inFlightSectionRef.current = null;
       activeSectionRef.current = targetSectionKey;
 
-      // 4. Immediately switch to Page 2 (now fully loaded with all data):
-      router.replace(targetFirstPage);
+      // 5. Commit transition to Page 2 (now fully loaded):
+      router.push(targetFirstPage);
     },
     [dispatch, router]
   );
 
-  return { switchSection, activeSection: activeSectionRef.current };
+  const navigate = useCallback(
+    (targetUrl: string) => {
+      void navigateWithTransition(targetUrl, router);
+    },
+    [router]
+  );
+
+  return { switchSection, navigate, activeSection: activeSectionRef.current };
 }
 

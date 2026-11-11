@@ -36,6 +36,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "./auth/AuthContext";
 import { usePermission } from "./team/usePermission";
 import { useSectionNavigation } from "../hooks/useSectionNavigation";
+import { preloadSectionData } from "@/services/sectionPreloadService";
 import { useAppDispatch } from "@/store/hooks";
 import { setSelectedClient } from "@/store/features/clients/clientSlice";
 
@@ -75,6 +76,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
   const { currentUser, logout } = useAuth();
   const { canView } = usePermission();
   const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
+
+  const hoverTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const hoverAbortRef = React.useRef<AbortController | null>(null);
+
+  const handleHoverPreload = (id: string) => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+    // Debounce hover preloading by 150ms to prevent network socket starvation on mouse movement
+    hoverTimerRef.current = setTimeout(() => {
+      if (hoverAbortRef.current) {
+        hoverAbortRef.current.abort();
+      }
+      hoverAbortRef.current = new AbortController();
+      void preloadSectionData(id, hoverAbortRef.current.signal, { isHover: true });
+    }, 150);
+  };
+
+  const handleHoverLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  };
+
+  const handleItemClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    if (hoverAbortRef.current) {
+      hoverAbortRef.current.abort();
+      hoverAbortRef.current = null;
+    }
+    switchSection(id);
+  };
 
   const isItemVisible = (id: string) => {
     if (id === "home") return true;
@@ -121,12 +159,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <Link
                 key={item.id}
                 href={item.href}
-prefetch={false}
-                replace={true}
-                onClick={(e) => {
-                  e.preventDefault();
-                  switchSection(item.id);
-                }}
+                prefetch={false}
+                data-section-nav="true"
+                onMouseEnter={() => handleHoverPreload(item.id)}
+                onMouseLeave={handleHoverLeave}
+                onClick={(e) => handleItemClick(e, item.id)}
                 className={`w-full flex flex-col items-center justify-center py-1.5 px-0.5 text-center transition-all group relative cursor-pointer font-semibold ${isActive
                   ? ""
                   : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"
@@ -330,11 +367,12 @@ prefetch={false}
                   <Link
                     key={item.id}
                     href={item.href}
-                    prefetch={true}
-                    replace={true}
+                    prefetch={false}
+                    data-section-nav="true"
+                    onMouseEnter={() => handleHoverPreload(item.id)}
+                    onMouseLeave={handleHoverLeave}
                     onClick={(e) => {
-                      e.preventDefault();
-                      switchSection(item.id);
+                      handleItemClick(e, item.id);
                       if (onCloseMobile) onCloseMobile();
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-colors ${isActive

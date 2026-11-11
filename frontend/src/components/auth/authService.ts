@@ -296,6 +296,27 @@ export const authService = {
   },
 
   /**
+   * Retrieves quick-login demo accounts in dev/staging environments.
+   * Returns enabled: false in production builds.
+   */
+  async getDemoCredentials(): Promise<{
+    enabled: boolean;
+    accounts: Array<{ id: string; label: string; email: string; password: string; role: string }>;
+  }> {
+    try {
+      const res = await request<{
+        enabled: boolean;
+        accounts: Array<{ id: string; label: string; email: string; password: string; role: string }>;
+      }>("/auth/demo-credentials", {
+        method: "GET",
+      });
+      return res.data || { enabled: false, accounts: [] };
+    } catch {
+      return { enabled: false, accounts: [] };
+    }
+  },
+
+  /**
    * Primary Login: Authenticate with Email and Password
    */
   async loginWithPassword(

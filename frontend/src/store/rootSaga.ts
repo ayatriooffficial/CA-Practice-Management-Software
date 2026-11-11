@@ -14,6 +14,7 @@ import { complianceSaga } from './features/compliance/complianceSaga';
 import { agentCenterSaga } from './features/agentCenter/agentCenterSaga';
 import { todoSaga } from './features/todo/todoSaga';
 import { emailSaga } from './features/email/emailSaga';
+import { navigationOrchestratorSaga } from './features/navigation/navigationOrchestratorSaga';
 
 export function* rootSaga() {
   yield all([
@@ -32,5 +33,6 @@ export function* rootSaga() {
     fork(agentCenterSaga),
     fork(todoSaga),
     fork(emailSaga),
+    fork(navigationOrchestratorSaga),
   ]);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { InvoiceProvider, useInvoice } from './InvoiceContext';
 import { InvoiceTabsHeader } from './InvoiceTabsHeader';
 import { InvoiceToolbar } from './InvoiceToolbar';
@@ -228,8 +228,10 @@ const InvoiceContent: React.FC = () => {
 
 export const InvoiceModule: React.FC = () => {
   return (
-    <InvoiceProvider>
-      <InvoiceContent />
-    </InvoiceProvider>
+    <Suspense fallback={<div className="p-4 text-xs text-gray-400">Loading billing modules...</div>}>
+      <InvoiceProvider>
+        <InvoiceContent />
+      </InvoiceProvider>
+    </Suspense>
   );
 };

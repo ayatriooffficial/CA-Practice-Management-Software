@@ -27,7 +27,7 @@ type LoginStep = "email" | "password";
 export const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentUser, login, workdaySession, resumeWorkdaySession, switchToUser } = useAuth();
+  const { currentUser, login, workdaySession, resumeWorkdaySession } = useAuth();
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
@@ -39,12 +39,29 @@ export const LoginForm: React.FC = () => {
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [quickAccounts, setQuickAccounts] = useState<Array<{ id: string; label: string; email: string; password: string }>>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUserNotFound, setIsUserNotFound] = useState(false);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  // Task 2: Backend & Database Warm-Up Ping on Login Mount
+  // Wakes up sleeping Render instances and MongoDB connection pool in parallel while user prepares credentials
+  useEffect(() => {
+    void homeMetricsSnapshotApi.getMetricsSnapshot();
+    // Task 3: Load development quick-login credentials into memory only (safe, returns empty in production)
+    authService.getDemoCredentials().then((res) => {
+      if (res && res.enabled && Array.isArray(res.accounts)) {
+        setQuickAccounts(res.accounts);
+      } else {
+        setQuickAccounts([]);
+      }
+    }).catch(() => {
+      setQuickAccounts([]);
+    });
+  }, []);
 
   // Check for prefilled email from signup redirection or active workday session on this device
   useEffect(() => {
@@ -113,12 +130,8 @@ export const LoginForm: React.FC = () => {
     setStep("password");
   };
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setIsUserNotFound(false);
-
-    if (!password.trim() || isLoading) return;
+  const executePasswordLogin = async (targetEmail: string, targetPass: string) => {
+    if (!targetPass.trim() || isLoading) return;
 
     isSubmittingRef.current = true;
     setIsLoading(true);
@@ -126,10 +139,10 @@ export const LoginForm: React.FC = () => {
     navigationProgress.setLoading("auth_submit", true);
 
     try {
-      const res = await authService.loginWithPassword(cleanEmail, password);
+      const res = await authService.loginWithPassword(targetEmail, targetPass);
 
       if (res.success && res.user) {
-        // 1. Immediately store the authenticated user so apiClient has valid auth headers
+        // 1. Store authenticated user and sync Redux / cookies
         login(res.user);
 
         // 2. Clear outdated cache
@@ -146,7 +159,7 @@ export const LoginForm: React.FC = () => {
 
         // 4. Release auth loader and commit navigation to Home; progress bar completes on Home as it reveals
         navigationProgress.setLoading("auth_submit", false);
-        router.replace("/");
+        router.push("/");
         return;
       }
 
@@ -176,6 +189,24 @@ export const LoginForm: React.FC = () => {
       navigationProgress.setLoading("auth_submit", false);
       isSubmittingRef.current = false;
     }
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setIsUserNotFound(false);
+    await executePasswordLogin(cleanEmail, password);
+  };
+
+  const handleQuickLogin = async (acc: { email: string; password: string }) => {
+    setErrorMessage(null);
+    setIsUserNotFound(false);
+    // Visibly fill the inputs so the form state matches manual entry
+    setEmail(acc.email);
+    setPassword(acc.password);
+    setStep("password");
+    // Run the exact same authenticated login pipeline
+    await executePasswordLogin(acc.email.trim().toLowerCase(), acc.password);
   };
 
   return (
@@ -381,39 +412,31 @@ export const LoginForm: React.FC = () => {
           Request Employment
         </Link>
       </div>
-      {/* Quick-Fill Helpers for testing */}
-      <aside
-        aria-label="Demo credentials helper"
-        className="fixed bottom-4 right-4 z-30 max-w-xs bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-lg text-[11px] text-gray-500"
-      >
-        <span className="font-semibold text-gray-700 dark:text-gray-200 block mb-1">
-          Quick-Fill:
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            id="quick-fill-admin"
-            type="button"
-            onClick={() => {
-              switchToUser?.('admin');
-              router.push("/leads");
-            }}
-            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#3D6A9E] hover:bg-purple-50 font-medium cursor-pointer"
-          >
-            Admin (Dipak)
-          </button>
-          <button
-            id="quick-fill-employee"
-            type="button"
-            onClick={() => {
-              switchToUser?.('employee');
-              router.push("/leads");
-            }}
-            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#3D6A9E] hover:bg-purple-50 font-medium cursor-pointer"
-          >
-            Employee (Vikram)
-          </button>
-        </div>
-      </aside>
+      {/* Quick-Fill Helpers for testing (Shown only in dev/staging when accounts exist) */}
+      {quickAccounts.length > 0 && (
+        <aside
+          aria-label="Demo credentials helper"
+          className="fixed bottom-4 right-4 z-30 max-w-xs bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-lg text-[11px] text-gray-500"
+        >
+          <span className="font-semibold text-gray-700 dark:text-gray-200 block mb-1">
+            Quick-Fill:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {quickAccounts.map((acc) => (
+              <button
+                key={acc.id}
+                id={`quick-fill-${acc.id}`}
+                type="button"
+                disabled={isLoading}
+                onClick={() => handleQuickLogin(acc)}
+                className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[#3D6A9E] hover:bg-purple-50 font-medium cursor-pointer transition-colors disabled:opacity-50"
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
     </div>
   );
 };

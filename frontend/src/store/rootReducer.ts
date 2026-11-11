@@ -15,6 +15,7 @@ import complianceReducer from './features/compliance/complianceSlice';
 import agentCenterReducer from './features/agentCenter/agentCenterSlice';
 import todoReducer from './features/todo/todoSlice';
 import emailReducer from './features/email/emailSlice';
+import navigationOrchestratorReducer from './features/navigation/navigationOrchestratorSlice';
 
 export const rootReducer = combineReducers({
   auth: authSlice.reducer,
@@ -33,6 +34,7 @@ export const rootReducer = combineReducers({
   agentCenter: agentCenterReducer,
   todo: todoReducer,
   emails: emailReducer,
+  navigation: navigationOrchestratorReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

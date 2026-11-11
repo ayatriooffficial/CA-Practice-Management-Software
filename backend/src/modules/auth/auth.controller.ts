@@ -26,6 +26,11 @@ function clearRefreshCookie(res: Response): void {
 }
 
 export class AuthController {
+  public static async getDemoCredentials(_req: Request, res: Response): Promise<void> {
+    const creds = AuthService.getDemoCredentials();
+    ApiResponse.success(res, creds, 'Demo credentials retrieved');
+  }
+
   public static async register(_req: Request, res: Response): Promise<void> {
     ApiResponse.error(
       res,

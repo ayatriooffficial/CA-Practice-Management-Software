@@ -30,15 +30,54 @@ function computeInitials(name: string): string {
 export class AuthService {
   public static readonly DEFAULT_ADMIN_EMAIL = 'info.openstreem@gmail.com';
   public static readonly DEFAULT_ADMIN_PASSWORD_NUMERIC = '482916';
+  public static readonly DEFAULT_EMPLOYEE_EMAIL = 'aniketsingh886909@gmail.com';
+  public static readonly DEFAULT_EMPLOYEE_PASSWORD = '123456';
 
   /**
-   * Seed/Ensure Admin Account with 6-digit numerical password
+   * Retrieves quick-login demo accounts in non-production environments.
+   * In production, this returns enabled: false with an empty array for security.
+   */
+  public static getDemoCredentials(): {
+    enabled: boolean;
+    accounts: Array<{ id: string; label: string; email: string; password: string; role: string }>;
+  } {
+    const isProd = process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_CREDENTIALS !== 'true';
+    if (isProd) {
+      return { enabled: false, accounts: [] };
+    }
+    return {
+      enabled: true,
+      accounts: [
+        {
+          id: 'admin',
+          label: 'Admin (Dipak)',
+          email: this.DEFAULT_ADMIN_EMAIL,
+          password: this.DEFAULT_ADMIN_PASSWORD_NUMERIC,
+          role: 'admin',
+        },
+        {
+          id: 'employee',
+          label: 'Employee (Vikram)',
+          email: this.DEFAULT_EMPLOYEE_EMAIL,
+          password: this.DEFAULT_EMPLOYEE_PASSWORD,
+          role: 'employee',
+        },
+      ],
+    };
+  }
+
+  /**
+   * Seed/Ensure Admin and Demo Employee Accounts
    */
   public static async ensureSeedData(): Promise<void> {
     try {
       const adminEmail = this.DEFAULT_ADMIN_EMAIL.toLowerCase().trim();
       const adminPasswordNumeric = this.DEFAULT_ADMIN_PASSWORD_NUMERIC;
-      const passwordHash = await bcrypt.hash(adminPasswordNumeric, 10);
+      const adminPasswordHash = await bcrypt.hash(adminPasswordNumeric, 10);
+
+      const employeeEmail = this.DEFAULT_EMPLOYEE_EMAIL.toLowerCase().trim();
+      const employeePassword = this.DEFAULT_EMPLOYEE_PASSWORD;
+      const employeePasswordHash = await bcrypt.hash(employeePassword, 10);
 
       let org = await OrganizationModel.findOne({ email: adminEmail });
       if (!org) {
@@ -54,6 +93,7 @@ export class AuthService {
         });
       }
 
+      // Ensure Admin
       const existingAdmin = await UserModel.findOne({ email: adminEmail }).select('+passwordHash');
       if (!existingAdmin) {
         await UserModel.create({
@@ -62,20 +102,18 @@ export class AuthService {
           name: 'Ayatrio Admin',
           email: adminEmail,
           mobile: '4000000000',
-          passwordHash,
+          passwordHash: adminPasswordHash,
           role: 'admin',
           initials: 'AY',
           status: 'active',
           tokenVersion: 0,
           isEmailVerified: true,
         });
-        logger.info(`✅ Seeded Admin Account: ${adminEmail} with numerical password: ${adminPasswordNumeric}`);
+        logger.info(`✅ Seeded Admin Account: ${adminEmail}`);
       } else {
-        // Only set seed password if no password has ever been set!
-        // DO NOT overwrite if user or admin has set or updated their password
         let needsSave = false;
         if (!existingAdmin.passwordHash) {
-          existingAdmin.passwordHash = passwordHash;
+          existingAdmin.passwordHash = adminPasswordHash;
           needsSave = true;
         }
         if (existingAdmin.status !== 'active') {
@@ -88,6 +126,44 @@ export class AuthService {
         }
         if (needsSave) {
           await existingAdmin.save();
+        }
+      }
+
+      // Ensure Employee
+      const existingEmployee = await UserModel.findOne({ email: employeeEmail }).select('+passwordHash');
+      if (!existingEmployee) {
+        await UserModel.create({
+          orgId: org._id,
+          firmName: org.name,
+          name: 'Aniketsingh886909',
+          email: employeeEmail,
+          mobile: '8869090000',
+          passwordHash: employeePasswordHash,
+          role: 'employee',
+          initials: 'AN',
+          department: 'Audit & Taxation',
+          designation: 'Staff',
+          status: 'active',
+          tokenVersion: 0,
+          isEmailVerified: true,
+        });
+        logger.info(`✅ Seeded Employee Account: ${employeeEmail}`);
+      } else {
+        let empNeedsSave = false;
+        if (!existingEmployee.passwordHash) {
+          existingEmployee.passwordHash = employeePasswordHash;
+          empNeedsSave = true;
+        }
+        if (existingEmployee.status !== 'active') {
+          existingEmployee.status = 'active';
+          empNeedsSave = true;
+        }
+        if (!existingEmployee.orgId) {
+          existingEmployee.orgId = org._id as any;
+          empNeedsSave = true;
+        }
+        if (empNeedsSave) {
+          await existingEmployee.save();
         }
       }
     } catch (err) {

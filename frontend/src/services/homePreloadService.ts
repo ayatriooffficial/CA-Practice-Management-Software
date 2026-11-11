@@ -11,7 +11,8 @@ import { pageStateCache } from './pageStateCache';
  * Ensures the Count Panel (all 5 metrics: leads, clients, compliance, tasks, invoice),
  * Task Overview, Invoicing, and Attendance Cards are loaded TOGETHER before the page is revealed.
  */
-export async function preloadHomeDashboardData(): Promise<void> {
+export async function preloadHomeDashboardData(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return;
   try {
     const todayDate = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Kolkata',
@@ -45,6 +46,9 @@ export async function preloadHomeDashboardData(): Promise<void> {
       todoApi.getAdminTasks().catch(() => []),
       todoApi.getTodos().catch(() => []),
     ]);
+
+    // If navigation was cancelled/interrupted mid-flight, exit without storing or committing
+    if (signal?.aborted) return;
 
     // Store in pageStateCache for instant synchronous component hydration
     if (taskRes.status === 'fulfilled' && taskRes.value) {
@@ -186,7 +190,6 @@ export async function preloadHomeDashboardData(): Promise<void> {
       holidays: holidaysRes.status === 'fulfilled' ? holidaysRes.value || [] : [],
       leaves: [],
     });
-    pageStateCache.markLoaded('/');
   } catch (err) {
     console.warn('Home preload encountered error, proceeding with cache fallback', err);
   }

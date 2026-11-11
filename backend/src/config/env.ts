@@ -48,6 +48,9 @@ export const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // 15 mins
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(500),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+  // Redis Caching, Invalidation & Realtime Pub/Sub
+  REDIS_URL: z.string().optional(),
+  REDIS_ENABLED: strictBoolean(false),
   // Google Drive & Uploads
   GOOGLE_DRIVE_CREDENTIALS_PATH: z.string().optional(),
   GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: z.string().optional(),

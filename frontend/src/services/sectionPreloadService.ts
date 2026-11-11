@@ -1,4 +1,5 @@
 import { getStore } from '@/store';
+import { markSectionLoaded } from '@/store/features/navigation/navigationOrchestratorSlice';
 import { hydrateTasks } from '@/store/features/tasks/taskSlice';
 import { hydrateClients } from '@/store/features/clients/clientSlice';
 import { hydrateLeads } from '@/store/features/leads/leadSlice';
@@ -21,9 +22,20 @@ import { pageStateCache, getCanonicalSection } from './pageStateCache';
  * Preloads all data for an upcoming target section before the UI transitions.
  * Ensures the user stays on Page 1 while Page 2 loads in the background,
  * and only transitions once Page 2 is 100% full-fledged loaded with data.
+ *
+ * NOTE: Data is hydrated into Redux and pageStateCache. Data preloading does NOT
+ * prematurely mark the section as "loaded" in the session lifecycle; the section
+ * is officially marked loaded only when the route mounts in the UI.
  */
-export async function preloadSectionData(sectionKey: string): Promise<void> {
+export async function preloadSectionData(
+  sectionKey: string,
+  signal?: AbortSignal,
+  options?: { isHover?: boolean }
+): Promise<void> {
   const canonical = getCanonicalSection(sectionKey);
+
+  // If signal is already aborted, exit immediately
+  if (signal?.aborted) return;
 
   // If section is already loaded in pageStateCache, skip network calls
   if (pageStateCache.isLoaded(canonical)) {
@@ -35,7 +47,7 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
   try {
     switch (canonical) {
       case 'home':
-        await preloadHomeDashboardData();
+        await preloadHomeDashboardData(signal);
         break;
 
       case 'client': {
@@ -51,7 +63,6 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
         if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
           pageStateCache.set('clients_stats_data', statsRes.value.data);
         }
-        pageStateCache.markLoaded('/client');
 
         if (store) {
           store.dispatch(hydrateClients({ clients, pagination }));
@@ -80,7 +91,6 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
         if (matrixAssignedRes.status === 'fulfilled' && matrixAssignedRes.value?.data) {
           pageStateCache.set('task_summary_matrix_Assigned To_all', matrixAssignedRes.value.data);
         }
-        pageStateCache.markLoaded('/task');
 
         if (store) {
           store.dispatch(hydrateTasks({ tasks, pagination }));
@@ -119,7 +129,6 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
         }));
 
         pageStateCache.set('invoices_page_data', { invoices, proformas, receipts });
-        pageStateCache.markLoaded('/invoice');
 
         if (store) {
           store.dispatch(hydrateInvoices({ invoices, proformas, receipts }));
@@ -140,7 +149,6 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
         if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
           pageStateCache.set('leads_stats_data', statsRes.value.data);
         }
-        pageStateCache.markLoaded('/leads');
 
         if (store) {
           store.dispatch(hydrateLeads({ leads, pagination }));
@@ -158,7 +166,6 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
         };
 
         pageStateCache.set('compliance_grid_data', gridData);
-        pageStateCache.markLoaded('/compliance');
 
         if (store) {
           store.dispatch(fetchComplianceSuccess(gridData));
@@ -168,7 +175,6 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
 
       case 'team': {
         await teamStore.loadEmployeesFromBackend().catch(() => []);
-        pageStateCache.markLoaded('/team');
         break;
       }
 
@@ -178,12 +184,9 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
           const items = res.data || [];
           const pagination = res.pagination || { page: 1, limit: 25, totalDocs: items.length, totalPages: 1 };
           pageStateCache.set('groups_list_data', items);
-          pageStateCache.markLoaded('/groups');
           if (store) {
             store.dispatch(fetchGroupsSuccess({ items, pagination }));
           }
-        } else {
-          pageStateCache.markLoaded('/groups');
         }
         break;
       }
@@ -193,17 +196,21 @@ export async function preloadSectionData(sectionKey: string): Promise<void> {
         if (res?.data) {
           pageStateCache.set('services_list_data', res.data);
         }
-        pageStateCache.markLoaded('/services');
         break;
       }
 
       default:
-        pageStateCache.markLoaded(canonical);
         break;
     }
+
+    if (signal?.aborted) {
+      return;
+    }
   } catch (err) {
+    if (signal?.aborted) {
+      return;
+    }
     console.warn(`[SectionPreload] Preload warning for section "${canonical}":`, err);
-    pageStateCache.markLoaded(canonical);
   }
 }
 

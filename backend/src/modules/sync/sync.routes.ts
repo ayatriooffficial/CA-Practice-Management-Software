@@ -3,8 +3,22 @@ import { SyncController } from './sync.controller';
 import { validateRequest } from '../../middlewares/validateRequest';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
 import { syncClientsSchema, syncJobQuerySchema, activityQuerySchema } from './sync.validation';
+import { realtimeService } from '../../shared/services/realtime.service';
 
 const router = Router();
+
+/**
+ * GET /sync/events - Realtime SSE stream for Redis entity changes & cross-tab sync
+ */
+router.get('/events', (_req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (res.flushHeaders) {
+    res.flushHeaders();
+  }
+  realtimeService.registerSseClient(res);
+});
 
 /** GET /sync/entitlement */
 router.get('/entitlement', SyncController.getEntitlement);
