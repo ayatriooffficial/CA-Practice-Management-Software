@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/Input";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { getDirectFilePreviewUrl } from "@/utils/filePreview";
+import Button from "../ui/Button";
 
 interface LeadFormModalProps {
   lead?: Lead | null;
@@ -1111,25 +1112,18 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
           {/* Bottom Actions Bar - Docked at the bottom with 0 space below */}
           <div className="shrink-0 px-6 py-3.5 border-t border-[#dde2e8] dark:border-[#334155] flex items-center justify-end gap-3 bg-white dark:bg-[#1e293b] z-10">
-            <button
+            <Button
+              variant="outline"
               type="button"
               onClick={handleCloseAttempt}
-              className="h-10 rounded-md border border-[#31719B] bg-white dark:bg-[#1e293b] px-6 text-sm font-semibold text-[#31719B] hover:bg-[#31719B]/5 transition-colors cursor-pointer"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               form="lead-form"
               disabled={isSubmitting}
-              className="h-10 rounded-md px-7 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 cursor-pointer flex items-center gap-2"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
-              }
+
             >
               {isSubmitting ? (
                 <>
@@ -1139,7 +1133,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({
               ) : (
                 <span>Save</span>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -47,29 +47,28 @@ function invoiceSubmissionMatches(prior: InstanceType<typeof FinancialInvoice>, 
 }
 
 export class FinancialService {
-  private static async assertTasks(taskIds: string[], orgId: string) {
+  private static async assertTasks(taskIds: string[], _orgId?: string) {
     const tasks = await Task.find({
       taskId: { $in: taskIds },
-      orgId,
       isDeleted: false,
     }).select('taskId clientId').lean();
     const found = new Set(tasks.map((task) => task.taskId));
     if (taskIds.some((taskId) => !found.has(taskId))) {
-      throw AppError.badRequest('Every task allocation must reference a task in your organization');
+      throw AppError.badRequest('Every task allocation must reference a valid task');
     }
     return tasks;
   }
 
-  private static async assertEmployee(employeeId: string, orgId: string): Promise<{
+  private static async assertEmployee(employeeId: string, _orgId?: string): Promise<{
     _id: mongoose.Types.ObjectId;
     name?: string;
     internalCostRatePaisePerHour?: number | null;
   }> {
     if (!mongoose.Types.ObjectId.isValid(employeeId)) throw AppError.badRequest('A valid employee is required');
-    const employee = await UserModel.findOne({ _id: employeeId, orgId, status: 'active' })
+    const employee = await UserModel.findOne({ _id: employeeId, status: { $nin: ['pending', 'rejected', 'suspended', 'deactivated'] } })
       .select('_id name +internalCostRatePaisePerHour')
       .lean();
-    if (!employee) throw AppError.badRequest('Employee is not active in your organization');
+    if (!employee) throw AppError.badRequest('Employee is not active');
     return employee;
   }
 
@@ -209,21 +208,20 @@ export class FinancialService {
     }
   }
 
-  static async listInvoices(ctx: FinancialUserContext) {
-    const userRole = (ctx.role || '').toLowerCase();
-    const isAdmin = userRole === 'admin' || userRole === 'partner' || userRole === 'owner';
-    const query = isAdmin ? {} : { orgId: ctx.orgId };
-    return FinancialInvoice.find(query).sort({ createdAt: -1 }).lean();
+  static async listInvoices(_ctx?: FinancialUserContext) {
+    return FinancialInvoice.find({}).sort({ createdAt: -1 }).lean();
   }
 
-  static async voidInvoice(id: string, reason: string, ctx: FinancialUserContext) {
-    if (!['admin', 'partner'].includes((ctx.role || '').toLowerCase())) {
+  static async voidInvoice(id: string, reason: string, ctx?: FinancialUserContext) {
+    const userRole = (ctx?.role || '').toLowerCase();
+    const isAdmin = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole);
+    if (!isAdmin) {
       throw AppError.forbidden('Only an organization admin or partner can void an issued invoice');
     }
     if (!mongoose.Types.ObjectId.isValid(id)) throw AppError.badRequest('Invalid invoice identifier');
-    const invoice = await FinancialInvoice.findOne({ _id: id, orgId: ctx.orgId, kind: 'invoice', state: 'issued' });
-    if (!invoice) throw AppError.notFound('Issued invoice not found in your organization');
-    const hasCredits = await FinancialInvoice.exists({ orgId: ctx.orgId, originalInvoiceId: invoice._id, kind: 'credit_note', state: 'issued' });
+    const invoice = await FinancialInvoice.findOne({ _id: id, kind: 'invoice', state: 'issued' });
+    if (!invoice) throw AppError.notFound('Issued invoice not found');
+    const hasCredits = await FinancialInvoice.exists({ originalInvoiceId: invoice._id, kind: 'credit_note', state: 'issued' });
     if (hasCredits) throw AppError.conflict('An invoice with issued credit notes cannot be voided; issue a correcting credit note instead');
     invoice.state = 'void';
     invoice.details = { ...invoice.details, voidReason: reason, voidedAt: new Date().toISOString() };
@@ -240,11 +238,11 @@ export class FinancialService {
       allocations?: IInvoiceAllocation[];
       state?: InvoiceState;
     },
-    ctx: FinancialUserContext
+    ctx?: FinancialUserContext
   ) {
     if (!mongoose.Types.ObjectId.isValid(id)) throw AppError.badRequest('Invalid invoice identifier');
-    const invoice = await FinancialInvoice.findOne({ _id: id, orgId: ctx.orgId });
-    if (!invoice) throw AppError.notFound('Invoice not found in your organization');
+    const invoice = await FinancialInvoice.findOne({ _id: id });
+    if (!invoice) throw AppError.notFound('Invoice not found');
     if (invoice.state === 'void') throw AppError.badRequest('Voided invoices cannot be modified');
 
     if (updates.details) {
@@ -265,7 +263,7 @@ export class FinancialService {
         if (allocatedTotalPaise !== invoiceTotalPaise) {
           throw AppError.badRequest('Task allocations must exactly equal the invoice total');
         }
-        await this.assertTasks(taskIds, ctx.orgId);
+        await this.assertTasks(taskIds, ctx?.orgId);
       }
       invoice.allocations = updates.allocations as any;
     }
@@ -296,19 +294,21 @@ export class FinancialService {
   static async convertProformaToInvoice(
     id: string,
     newNumber: string | undefined,
-    ctx: FinancialUserContext
+    ctx?: FinancialUserContext
   ) {
     if (!mongoose.Types.ObjectId.isValid(id)) throw AppError.badRequest('Invalid invoice identifier');
-    const invoice = await FinancialInvoice.findOne({ _id: id, orgId: ctx.orgId });
-    if (!invoice) throw AppError.notFound('Invoice not found in your organization');
+    const invoice = await FinancialInvoice.findOne({ _id: id });
+    if (!invoice) throw AppError.notFound('Invoice not found');
 
     const originalProformaNo = invoice.number;
 
     // Check if client/system provided a sequential candidate number
     const preferred: string | undefined = newNumber?.trim();
 
+    const orgId = ctx?.orgId || '6adb442c6ceca77f153c0ba3';
+
     // Allocate guaranteed collision-free sequence number via Atomic Counter
-    let finalNumber = await this.getNextInvoiceNumber(ctx.orgId, preferred);
+    let finalNumber = await this.getNextInvoiceNumber(orgId, preferred);
 
     invoice.state = 'issued';
     invoice.number = finalNumber;
@@ -334,7 +334,7 @@ export class FinancialService {
       } catch (err: any) {
         if (isDuplicateKey(err)) {
           attempts += 1;
-          finalNumber = await CounterService.getNextInvoiceNumber(ctx.orgId);
+          finalNumber = await CounterService.getNextInvoiceNumber(orgId);
           invoice.number = finalNumber;
         } else {
           throw err;
@@ -478,13 +478,7 @@ export class FinancialService {
     return { receipt, linkedInvoice: linkedInvoiceDoc };
   }
 
-  static async listReceipts(ctx: FinancialUserContext) {
-    const orgFilter = mongoose.Types.ObjectId.isValid(ctx.orgId)
-      ? { $or: [{ orgId: ctx.orgId }, { orgId: new mongoose.Types.ObjectId(ctx.orgId) }] }
-      : { orgId: ctx.orgId };
-    const receipts = await FinancialReceipt.find(orgFilter).sort({ paymentDate: -1, createdAt: -1 }).lean();
-    if (receipts && receipts.length > 0) return receipts;
-    // Single org fallback: if no receipts found with strict orgFilter, return all receipts
+  static async listReceipts(_ctx?: FinancialUserContext) {
     return FinancialReceipt.find({}).sort({ paymentDate: -1, createdAt: -1 }).lean();
   }
 
@@ -642,17 +636,17 @@ export class FinancialService {
   static async getProfitabilityReport(
     from: string,
     to: string,
-    ctx: FinancialUserContext,
+    _ctx?: FinancialUserContext,
     filters?: { clientId?: string; view?: 'list' | 'client' | 'employee'; search?: string }
   ) {
     const start = toDate(from);
     const end = new Date(toDate(to).getTime() + 86_400_000);
     const [invoices, timeEntries, expenses] = await Promise.all([
-      FinancialInvoice.find({ orgId: ctx.orgId, state: 'issued', issueDate: { $gte: start, $lt: end } })
+      FinancialInvoice.find({ state: 'issued', issueDate: { $gte: start, $lt: end } })
         .select('kind allocations issueDate').lean(),
-      FinancialTimeEntry.find({ orgId: ctx.orgId, workDate: { $gte: start, $lt: end } })
+      FinancialTimeEntry.find({ workDate: { $gte: start, $lt: end } })
         .select('taskId employeeId workDate costPaise').populate('employeeId', 'name').lean(),
-      TaskExpense.find({ orgId: ctx.orgId, state: 'approved', incurredDate: { $gte: start, $lt: end } })
+      TaskExpense.find({ state: 'approved', incurredDate: { $gte: start, $lt: end } })
         .select('taskId incurredDate amountPaise').lean(),
     ]);
 
@@ -700,12 +694,7 @@ export class FinancialService {
       if (entry) markDate(entry, expense.incurredDate);
     });
 
-    const orgFilter = mongoose.Types.ObjectId.isValid(ctx.orgId)
-      ? { $or: [{ orgId: ctx.orgId }, { orgId: new mongoose.Types.ObjectId(ctx.orgId) }] }
-      : { orgId: ctx.orgId };
-
     const orgTasks = await Task.find({
-      ...orgFilter,
       isDeleted: false,
     }).select('taskId clientId clientName serviceName assigneeName billingType startDate targetDueDate endDate createdAt').lean();
 
@@ -833,46 +822,29 @@ export class FinancialService {
    * Pending Invoicing Summary for Home Dashboard
    * Aggregates unbilled tasks, pending retainers, overdue invoices, and drafts
    */
-  static async getInvoicingSummary(ctx: FinancialUserContext) {
-    const orgObjId = new mongoose.Types.ObjectId(ctx.orgId);
-    const orgStr = String(ctx.orgId);
-    const userRole = (ctx.role || '').toLowerCase();
-    const isAdmin = userRole === 'admin' || userRole === 'partner' || userRole === 'owner';
-    const orgCondition = isAdmin ? {} : { $or: [{ orgId: orgStr }, { orgId: orgObjId }] };
-
+  static async getInvoicingSummary(_ctx?: FinancialUserContext) {
     // 1. Unbilled Tasks: billable tasks not marked as 'Billed'
     const unbilledTasksCount = await Task.countDocuments({
-      ...orgCondition,
       isDeleted: false,
       billingType: 'Billable',
       billingStatus: { $ne: 'Billed' },
     });
 
     // 2. Pending Retainer Invoices: recurring retainer tasks pending billing or active clients with recurring agreements
-    const retainerConditions: any[] = [
-      {
-        $or: [
-          { category: /retainer/i },
-          { serviceName: /retainer/i },
-          { taskType: 'Recurring Task' },
-        ],
-      },
-    ];
-    if (!isAdmin) {
-      retainerConditions.push({ $or: [{ orgId: orgStr }, { orgId: orgObjId }] });
-    }
-
     const pendingRetainerTasks = await Task.countDocuments({
       isDeleted: false,
       billingType: 'Billable',
       billingStatus: { $ne: 'Billed' },
-      $and: retainerConditions,
+      $or: [
+        { category: /retainer/i },
+        { serviceName: /retainer/i },
+        { taskType: 'Recurring Task' },
+      ],
     });
 
     let recurringClientsCount = 0;
     try {
       recurringClientsCount = await Client.countDocuments({
-        ...orgCondition,
         isDeleted: false,
         status: { $in: ['Active', 'active'] },
         'customerFiles.recurring.0': { $exists: true },
@@ -891,9 +863,6 @@ export class FinancialService {
       kind: 'invoice',
       state: 'issued',
     };
-    if (!isAdmin) {
-      invoiceQuery.orgId = orgObjId;
-    }
 
     const issuedInvoices = await FinancialInvoice.find(invoiceQuery).lean();
 
@@ -916,7 +885,6 @@ export class FinancialService {
 
     // 4. Draft Invoices
     const draftQuery: any = { state: 'draft' };
-    if (!isAdmin) draftQuery.orgId = orgObjId;
     const draftInvoices = await FinancialInvoice.find(draftQuery).lean();
 
     const draftCount = draftInvoices.length;

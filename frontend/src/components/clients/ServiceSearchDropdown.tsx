@@ -412,11 +412,16 @@ export const ServiceSearchDropdown: React.FC<ServiceSearchDropdownProps> = ({
                                                     {svc.frequency && (
                                                         <span>• {svc.frequency}</span>
                                                     )}
-                                                    {svc.totalServiceFee > 0 && (
-                                                        <span className="text-emerald-600 font-medium">
-                                                            • ₹{svc.totalServiceFee.toLocaleString()}
-                                                        </span>
-                                                    )}
+                                                    {(() => {
+                                                        const fee = Number(svc.totalServiceFee) > 0
+                                                            ? Number(svc.totalServiceFee)
+                                                            : (Number(svc.professionalFee) || 0) + (Number(svc.governmentFee) || 0);
+                                                        return fee > 0 ? (
+                                                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                                                • Total: ₹{fee.toLocaleString('en-IN')}
+                                                            </span>
+                                                        ) : null;
+                                                    })()}
                                                 </div>
                                             </div>
                                             {isSelected && (

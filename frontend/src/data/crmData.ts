@@ -245,8 +245,8 @@ export interface Client {
   active: boolean;
   status?: string;
   legalName?: string;
-  services: string[];
-  users: string[];
+  services?: string[];
+  users?: string[];
   pan?: string;
   dob?: string;
   referredBy?: string;

@@ -46,6 +46,7 @@ import { usePermission } from "@/components/team/usePermission";
 import { useToggleClientServiceMutation } from "@/hooks/useServicesQuery";
 import { useAppDispatch } from "@/store/hooks";
 import { mergeClientSectionData } from "@/store/features/clients/clientSlice";
+import Button from "../ui/Button";
 
 const AddLicenseModal = dynamic(
   () => import("./modals/AddLicenseModal").then((m) => m.AddLicenseModal),
@@ -272,6 +273,46 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<ClientServiceSetting | null>(null);
   const [isSavingServiceOptions, setIsSavingServiceOptions] = useState(false);
+
+  // menue items
+  const addMenuItems = [
+    {
+      label: "Add License",
+      icon: Award,
+      iconColor: "text-purple-600",
+      onClick: () => setIsAddLicenseOpen(true),
+    },
+    {
+      label: "Record Document Movement",
+      icon: ArrowLeftRight,
+      iconColor: "text-emerald-600",
+      onClick: () => setIsAddDocInOutOpen(true),
+    },
+    {
+      label: "Add Digital Signature (DSC)",
+      icon: KeyRound,
+      iconColor: "text-amber-600",
+      onClick: () => setIsAddDscOpen(true),
+    },
+    {
+      label: "Add Portal Credential",
+      icon: ShieldCheck,
+      iconColor: "text-blue-600",
+      onClick: () => setIsAddPasswordOpen(true),
+    },
+    {
+      label: "Add Client Note",
+      icon: StickyNote,
+      iconColor: "text-rose-600",
+      onClick: () => setIsAddNoteOpen(true),
+    },
+    {
+      label: "Add Key Contact",
+      icon: UserCheck,
+      iconColor: "text-purple-600",
+      onClick: () => handleTabClick("Master"),
+    },
+  ];
 
   // Client Tasks State
   const [clientTasks, setClientTasks] = useState<TaskItem[]>([]);
@@ -870,98 +911,47 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
           {/* Edit Button */}
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={() => onEdit(client)}
-            className="h-9 px-4 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
           >
             Edit
-          </button>
+          </Button>
 
           {/* + Add Dropdown */}
           <div className="relative">
-            <button
+            <Button
               type="button"
               onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
-              className="h-9 px-3.5 rounded-md text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add</span>
               <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
-            </button>
+            </Button>
 
             {isAddMenuOpen && (
               <div
                 className="absolute right-0 mt-1 w-52 rounded-xl shadow-xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] py-1.5 z-40 text-xs font-medium text-gray-700 dark:text-gray-300 animate-in fade-in zoom-in-95"
                 onMouseLeave={() => setIsAddMenuOpen(false)}
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    setIsAddLicenseOpen(true);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <Award className="w-4 h-4 text-purple-600" />
-                  <span>Add License</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    setIsAddDocInOutOpen(true);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <ArrowLeftRight className="w-4 h-4 text-emerald-600" />
-                  <span>Record Document Movement</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    setIsAddDscOpen(true);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <KeyRound className="w-4 h-4 text-amber-600" />
-                  <span>Add Digital Signature (DSC)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    setIsAddPasswordOpen(true);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-blue-600" />
-                  <span>Add Portal Credential</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    setIsAddNoteOpen(true);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <StickyNote className="w-4 h-4 text-rose-600" />
-                  <span>Add Client Note</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    handleTabClick("Master");
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <UserCheck className="w-4 h-4 text-purple-600" />
-                  <span>Add Key Contact</span>
-                </button>
+                {addMenuItems.map((item, index) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => {
+                        setIsAddMenuOpen(false);
+                        item.onClick();
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
+                    >
+                      <IconComponent className={`w-4 h-4 ${item.iconColor}`} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

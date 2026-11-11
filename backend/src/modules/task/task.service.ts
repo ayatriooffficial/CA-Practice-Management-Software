@@ -60,23 +60,14 @@ export class TaskService {
     const filter: Record<string, any> = { isDeleted: false };
     const andClauses: any[] = [];
 
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
     const userEmail = typeof userCtx === 'object' ? userCtx?.email : undefined;
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
 
-    // Org data isolation filter (employees isolated to org; admins see all practice tasks)
-    if (orgId && !isAdminRole) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-      andClauses.push({ $or: orgConditions });
-    }
+    // Single organization practice: all tasks are accessible across the practice
 
     // For employees, strictly restrict to tasks assigned to or reviewed by them
     if (isEmployeeRole) {
@@ -108,25 +99,6 @@ export class TaskService {
       if (assignedConditions.length) {
         andClauses.push({ $or: assignedConditions });
       }
-    } else if (!orgId && userId) {
-      const userConditions: any[] = [
-        { userId },
-        { createdBy: userId },
-        { adminId: userId },
-        { assigneeId: userId },
-        { reviewerId: userId },
-      ];
-
-      if (userName && userName.trim()) {
-        const nameRegex = new RegExp(`^${userName.trim()}$`, 'i');
-        userConditions.push(
-          { assigneeName: nameRegex },
-          { reviewerName: nameRegex },
-          { creatorName: nameRegex }
-        );
-      }
-
-      andClauses.push({ $or: userConditions });
     }
 
     // Client filter (supports clientId, clientFileNo, or clientName)
@@ -388,20 +360,11 @@ export class TaskService {
     if (category && category !== 'All Categories') {
       matchFilter.category = category;
     }
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
-
-    if (orgId && !isAdminRole) {
-      matchFilter.$or = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-    }
 
     if (isEmployeeRole) {
       const assignedConditions: any[] = [];
@@ -423,16 +386,6 @@ export class TaskService {
       if (assignedConditions.length) {
         matchFilter.$and = [{ $or: assignedConditions }];
       }
-    } else if (!orgId && userId) {
-      const userConditions: any[] = [
-        { userId },
-        { createdBy: userId },
-        { adminId: userId },
-        { assigneeId: userId },
-        { reviewerId: userId },
-      ];
-
-      matchFilter.$or = userConditions;
     }
 
     const tasks = await Task.find(matchFilter).lean();
@@ -648,20 +601,11 @@ export class TaskService {
     await this.seedInitialTasksIfNeeded();
 
     const matchFilter: Record<string, any> = { isDeleted: false };
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
-    const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
     const userName = typeof userCtx === 'object' ? userCtx?.name : undefined;
-
-    if (orgId && !isAdminRole) {
-      matchFilter.$or = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-    }
 
     if (isEmployeeRole) {
       const assignedConditions: any[] = [];
@@ -683,16 +627,6 @@ export class TaskService {
       if (assignedConditions.length) {
         matchFilter.$and = [{ $or: assignedConditions }];
       }
-    } else if (!orgId && userId) {
-      const userConditions: any[] = [
-        { userId },
-        { createdBy: userId },
-        { adminId: userId },
-        { assigneeId: userId },
-        { reviewerId: userId },
-      ];
-
-      matchFilter.$or = userConditions;
     }
 
     const tasks = await Task.find(matchFilter).lean();
@@ -1506,16 +1440,10 @@ export class TaskService {
    */
   static async getAllTemplates(
     query: { search?: string; category?: string; frequency?: string } = {},
-    userCtx?: { userId?: string | null; orgId?: string | null } | null
+    _userCtx?: { userId?: string | null; orgId?: string | null } | null
   ): Promise<ITaskTemplateDocument[]> {
     const andClauses: any[] = [{ isDeleted: false }];
 
-    const orgId = userCtx?.orgId;
-    if (orgId) {
-      andClauses.push({
-        $or: [{ orgId }, { orgId: null }, { orgId: { $exists: false } }],
-      });
-    }
     if (query.category && query.category !== 'All' && query.category !== 'All Categories') {
       andClauses.push({ category: query.category });
     }
@@ -1543,20 +1471,12 @@ export class TaskService {
    */
   static async getTemplateById(
     id: string,
-    userCtx?: { userId?: string | null; orgId?: string | null } | null
+    _userCtx?: { userId?: string | null; orgId?: string | null } | null
   ): Promise<ITaskTemplateDocument> {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       throw AppError.notFound('Task template not found');
     }
-    const andClauses: any[] = [{ _id: id, isDeleted: false }];
-    const orgId = userCtx?.orgId;
-    if (orgId) {
-      andClauses.push({
-        $or: [{ orgId }, { orgId: null }, { orgId: { $exists: false } }],
-      });
-    }
-    const filter = andClauses.length > 1 ? { $and: andClauses } : andClauses[0];
-    const template = await TaskTemplate.findOne(filter);
+    const template = await TaskTemplate.findOne({ _id: id, isDeleted: false });
     if (!template) {
       throw AppError.notFound('Task template not found');
     }

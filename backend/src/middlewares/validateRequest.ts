@@ -29,10 +29,14 @@ export const validateRequest = (schema: ValidationSchema) => {
           code: err.code,
         }));
 
+        const detailSummary = formattedErrors
+          .map((e) => (e.field ? `${e.field}: ${e.message}` : e.message))
+          .join(', ');
+
         res.status(HttpStatus.UNPROCESSABLE_ENTITY).json({
           success: false,
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          message: 'Validation failed for request data',
+          message: detailSummary ? `Validation failed (${detailSummary})` : 'Validation failed for request data',
           errors: formattedErrors,
         });
         return;

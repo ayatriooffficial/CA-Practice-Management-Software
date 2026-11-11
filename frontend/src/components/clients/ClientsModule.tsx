@@ -429,7 +429,10 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         setViewMode("list");
         setEditingClient(null);
       } catch (err: any) {
-        showToast(err.message || "Failed to save client.");
+        const errorDetail = err.errors && Array.isArray(err.errors) && err.errors.length > 0
+          ? err.errors.map((e: any) => (e.field ? `${e.field}: ${e.message}` : e.message)).join(", ")
+          : (err.message || "Failed to save client.");
+        showToast(errorDetail);
         throw err;
       }
     },
@@ -736,8 +739,8 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
       <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
-        <div className="flex items-center gap-3 py-2 min-h-[40px]">
+      <div className="flex flex-wrap justify-between gap-4 px-1 min-h-[48px]">
+        <div className="flex  gap-3  min-h-[40px]">
           <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white">
             Clients ({pagination?.totalDocs ?? clients.length})
           </h1>
@@ -748,7 +751,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-3 py-2">
+        <div className="flex  gap-3 ">
           {/* Toggle Trash / Active View */}
           {canDelete("clients") && (
             <Button

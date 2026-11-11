@@ -28,6 +28,10 @@ export interface IRecurringFile {
   category: string;
   service: string;
   tariff: string;
+  professionalFee?: number;
+  governmentFee?: number;
+  otherCharges?: number;
+  totalServiceFee?: number;
 }
 
 export interface ICustomerFiles {
@@ -169,10 +173,6 @@ export interface IClient {
   mobile: string;
   secondaryMobile?: string;
   email?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
   addressDetails?: IAddress;
   paymentDetails?: IPaymentDetails;
   group: string;
@@ -180,16 +180,12 @@ export interface IClient {
   active: boolean;
   status?: string;
   legalName?: string;
-  services: string[];
-  users: string[];
   pan?: string;
   dob?: string;
   referredBy?: string;
   photo?: string | null;
-  leadId?: Types.ObjectId | null;
   customerFiles: ICustomerFiles;
   promoters?: any[];
-  contacts?: IClientContact[];
   licenses?: IClientLicense[];
   dscs?: IClientDsc[];
   documentsInOut?: IClientDocumentInOut[];
@@ -197,10 +193,20 @@ export interface IClient {
   passwords?: IClientPassword[];
   notes?: IClientNote[];
   orgId?: string | null;
-  userId?: string | null;
   createdBy?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
+
+  // Backward-compatible virtual/legacy fields (consolidated into addressDetails / ClientServiceSetting / Leads)
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  services?: string[];
+  users?: string[];
+  leadId?: Types.ObjectId | string | null;
+  contacts?: IClientContact[];
+  userId?: string | null;
 }
 
 export interface IClientDocument extends IClient, ISoftDeleteDocument {}

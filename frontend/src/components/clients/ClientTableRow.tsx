@@ -21,7 +21,6 @@ export const CLIENT_COLUMNS: ClientColumnDef[] = [
   { id: "group", label: "GROUP", sortable: true },
   { id: "tags", label: "TAGS" },
   { id: "status", label: "STATUS" },
-  { id: "users", label: "USERS" },
 ];
 
 export const INITIAL_CLIENT_COLUMN_WIDTHS: Record<string, number> = {
@@ -33,7 +32,6 @@ export const INITIAL_CLIENT_COLUMN_WIDTHS: Record<string, number> = {
   group: 150,
   tags: 160,
   status: 110,
-  users: 140,
 };
 
 interface ClientTableRowProps {

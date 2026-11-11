@@ -16,23 +16,27 @@ export const promoterItemSchema = z.object({
   designation: z.string().optional().default(''),
   mcaId: z.string().optional().default(''),
   mcaPassword: z.string().optional(),
-});
+}).passthrough();
 
 export const statutoryItemSchema = z.object({
   key: z.number().optional(),
-  type: z.string().min(1, 'Statutory type is required'),
-  idNo: z.string().min(1, 'ID number is required'),
+  type: z.string().optional().default(''),
+  idNo: z.string().optional().default(''),
   userId: z.string().optional().default(''),
   password: z.string().optional(),
   attachment: z.string().nullable().optional(),
-});
+}).passthrough();
 
 export const recurringItemSchema = z.object({
   key: z.number().optional(),
   category: z.string().min(1, 'Service category is required'),
   service: z.string().min(1, 'Service name is required'),
   tariff: z.string().optional().default('0.00'),
-});
+  professionalFee: z.coerce.number().optional().default(0),
+  governmentFee: z.coerce.number().optional().default(0),
+  otherCharges: z.coerce.number().optional().default(0),
+  totalServiceFee: z.coerce.number().optional().default(0),
+}).passthrough();
 
 export const licenseItemSchema = z.object({
   id: z.string().optional(),
@@ -182,7 +186,7 @@ export const createClientSchema = z.object({
   leadId: z.string().regex(OBJECT_ID_REGEX, 'Invalid Lead ID').optional().or(z.literal('')).nullable(),
   customerFiles: z
     .object({
-      promoter: z.array(promoterItemSchema).min(1, 'At least 1 director or promoter (lead) is required to create a company.'),
+      promoter: z.array(promoterItemSchema).optional().default([]),
       statutory: z.array(statutoryItemSchema).optional().default([]),
       recurring: z.array(recurringItemSchema).optional().default([]),
     })
@@ -194,7 +198,9 @@ export const createClientSchema = z.object({
   serviceSettings: z.array(serviceSettingItemSchema).optional().default([]),
   passwords: z.array(z.any()).optional().default([]),
   notes: z.array(z.any()).optional().default([]),
-});
+  contacts: z.array(z.any()).optional().default([]),
+  userId: z.string().optional().nullable(),
+}).passthrough();
 
 export const updateClientSchema = createClientSchema.partial();
 
