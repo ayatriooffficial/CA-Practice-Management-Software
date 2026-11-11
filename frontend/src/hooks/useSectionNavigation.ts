@@ -6,7 +6,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { setSelectedClient } from "@/store/features/clients/clientSlice";
 import { navigationProgress } from "@/services/navigationProgress";
 import { pageStateCache } from "@/services/pageStateCache";
-import { preloadHomeDashboardData } from "@/services/homePreloadService";
+import { preloadSectionData } from "@/services/sectionPreloadService";
 
 export function getSectionKey(pathname: string | null): string {
   if (!pathname || pathname === "/") return "home";
@@ -126,27 +126,24 @@ export function useSectionNavigation() {
         return;
       }
 
-      // First-time visit in this session for Home:
-      if (targetSectionKey === "home" && oldSection !== "home") {
-        navigationProgress.start("/", { immediate: true, force: true });
-        navigationProgress.setLoading("home_prewarm", true);
+      // First-time visit for ANY section:
+      // 1. Progress bar starts immediately on the current page (Page 1):
+      navigationProgress.start(targetFirstPage, { immediate: true, force: true });
+      navigationProgress.setLoading(`prewarm_${targetSectionKey}`, true);
 
-        try {
-          await Promise.race([
-            preloadHomeDashboardData(),
-            new Promise((resolve) => setTimeout(resolve, 600)),
-          ]);
-        } catch { }
+      // 2. User stays on Page 1 while Page 2 loads in the background:
+      try {
+        await Promise.race([
+          preloadSectionData(targetSectionKey),
+          new Promise((resolve) => setTimeout(resolve, 800)),
+        ]);
+      } catch {}
 
-        navigationProgress.setLoading("home_prewarm", false);
-        activeSectionRef.current = "home";
-        router.replace("/");
-        return;
-      }
-
-      // First-time visit in this session for any other section: show progress bar
-      navigationProgress.start(targetFirstPage);
+      // 3. Page 2 is now loaded in local memory & Redux!
+      navigationProgress.setLoading(`prewarm_${targetSectionKey}`, false);
       activeSectionRef.current = targetSectionKey;
+
+      // 4. Immediately switch to Page 2 (now fully loaded with all data):
       router.replace(targetFirstPage);
     },
     [dispatch, router]

@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useEffect, useState, useSyncExternalStore } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { navigationProgress, ProgressState } from "@/services/navigationProgress";
-import { pageStateCache } from "@/services/pageStateCache";
+import { pageStateCache, getCanonicalSection } from "@/services/pageStateCache";
+import { preloadSectionData } from "@/services/sectionPreloadService";
 
 export const TopLoadingBar: React.FC = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Subscribe to navigation progress micro-store with cached snapshot
   const state: ProgressState = useSyncExternalStore(
@@ -78,11 +80,32 @@ export const TopLoadingBar: React.FC = () => {
         const isSamePageHash = isSameOrigin && url.pathname === window.location.pathname && url.search === window.location.search && url.hash !== "";
 
         if (isSameOrigin && !isSamePageHash) {
+          const targetSection = getCanonicalSection(url.pathname);
+          const currentSection = getCanonicalSection(window.location.pathname);
+
           // If destination page/section is already loaded: DO NOT show progress bar on revisit!
-          if (pageStateCache.isLoaded(url.pathname)) {
+          if (pageStateCache.isLoaded(url.pathname) || pageStateCache.isLoaded(targetSection)) {
             return;
           }
-          navigationProgress.start(url.pathname);
+
+          // If moving to a new section that is not loaded yet:
+          // Stay on Page 1 while Page 2 loads in the background!
+          e.preventDefault();
+          e.stopPropagation();
+
+          // 1. Show progress bar on Page 1 immediately:
+          navigationProgress.start(url.pathname, { immediate: true, force: true });
+          navigationProgress.setLoading("cross_nav", true);
+
+          // 2. Preload Page 2's data in the background while user is still on Page 1:
+          Promise.race([
+            preloadSectionData(targetSection),
+            new Promise((resolve) => setTimeout(resolve, 800)),
+          ]).finally(() => {
+            navigationProgress.setLoading("cross_nav", false);
+            // 3. Page 2 is now loaded in local memory, transition cleanly to Page 2:
+            router.replace(url.pathname + url.search + url.hash);
+          });
         }
       } catch {}
     };
@@ -91,7 +114,7 @@ export const TopLoadingBar: React.FC = () => {
     return () => {
       document.removeEventListener("click", handleDocumentClick, { capture: true });
     };
-  }, []);
+  }, [router]);
 
   const { progress, isVisible } = state;
 
