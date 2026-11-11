@@ -175,6 +175,11 @@ export interface ClientServiceSetting {
   invFreq?: string;
   invDay?: number | string;
   amount: number;
+  professionalFee?: number;
+  governmentFee?: number;
+  otherCharges?: number;
+  totalServiceFee?: number;
+  taxRate?: string;
   taskName?: string;
   priority?: string;
   assignee?: string;
@@ -240,8 +245,8 @@ export interface Client {
   active: boolean;
   status?: string;
   legalName?: string;
-  services: string[];
-  users: string[];
+  services?: string[];
+  users?: string[];
   pan?: string;
   dob?: string;
   referredBy?: string;

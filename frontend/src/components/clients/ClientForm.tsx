@@ -44,6 +44,7 @@ import { useLeads } from "@/hooks/useLeadsQuery";
 import { PromoterSearchDropdown, PromoterItem } from "./PromoterSearchDropdown";
 import { ServiceSearchDropdown } from "./ServiceSearchDropdown";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
+import Button from "../ui/Button";
 
 interface ClientFormProps {
   initialClient?: Client | null;
@@ -74,7 +75,10 @@ interface RecurringRow {
   key: number;
   category: string;
   service: string;
-  tariff: string;
+  professionalFee: string;
+  governmentFee: string;
+  otherCharges: string;
+  tariff: string; // Total Service Fee / Charge
 }
 
 const createEmptyPromoterRow = (key: number): PromoterRow => ({
@@ -135,6 +139,9 @@ const createEmptyRecurringRow = (key: number): RecurringRow => ({
   key,
   category: "",
   service: "",
+  professionalFee: "0.00",
+  governmentFee: "0.00",
+  otherCharges: "0.00",
   tariff: "0.00",
 });
 
@@ -204,7 +211,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [pan, setPan] = useState(initialClient?.pan || "");
   const [mobile, setMobile] = useState(initialClient?.mobile || "");
   const [email, setEmail] = useState(initialClient?.email || "");
-  const [city, setCity] = useState(initialClient?.city || "");
+  const [city, setCity] = useState(initialClient?.addressDetails?.city || initialClient?.city || "");
 
   const [isActive, setIsActive] = useState(initialClient?.active ?? true);
   const [dob, setDob] = useState(initialClient?.dob || "");
@@ -213,8 +220,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [secondaryMobile, setSecondaryMobile] = useState(
     initialClient?.secondaryMobile || ""
   );
-  const [address, setAddress] = useState(initialClient?.address || "");
-  const [pincode, setPincode] = useState(initialClient?.pincode || "");
+  const [address, setAddress] = useState(initialClient?.addressDetails?.addressLine1 || initialClient?.address || "");
+  const [pincode, setPincode] = useState(initialClient?.addressDetails?.pincode || initialClient?.pincode || "");
   const [photo, setPhoto] = useState<string | null>(initialClient?.photo || null);
 
   // Customer Files Grid State (Load from initialClient if editing, always ensures at least 1 trailing empty row)
@@ -251,11 +258,33 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   const [recurringRows, setRecurringRows] = useState<RecurringRow[]>(() => {
     if (initialClient?.customerFiles?.recurring && initialClient.customerFiles.recurring.length > 0) {
-      const mapped = initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
-        key: r.key || idx + 1,
-        category: r.category || "",
-        service: r.service || "",
-        tariff: r.tariff || "0.00",
+      const mapped = initialClient.customerFiles.recurring.map((r: any, idx: number) => {
+        const s = (initialClient?.serviceSettings || []).find((st: any) => st.serviceName === r.service);
+        const prof = r.professionalFee ?? s?.professionalFee ?? "0.00";
+        const govt = r.governmentFee ?? s?.governmentFee ?? "0.00";
+        const other = r.otherCharges ?? s?.otherCharges ?? "0.00";
+        const total = r.totalServiceFee ?? s?.totalServiceFee ?? r.tariff ?? s?.amount ?? "0.00";
+        return {
+          key: r.key || idx + 1,
+          category: r.category || s?.category || "",
+          service: r.service || s?.serviceName || "",
+          professionalFee: String(prof),
+          governmentFee: String(govt),
+          otherCharges: String(other),
+          tariff: String(total),
+        };
+      });
+      return ensureTrailingEmptyRecurring(mapped);
+    }
+    if (initialClient?.serviceSettings && initialClient.serviceSettings.length > 0) {
+      const mapped = initialClient.serviceSettings.map((s: any, idx: number) => ({
+        key: idx + 1,
+        category: s.category || "",
+        service: s.serviceName || "",
+        professionalFee: String(s.professionalFee ?? "0.00"),
+        governmentFee: String(s.governmentFee ?? "0.00"),
+        otherCharges: String(s.otherCharges ?? "0.00"),
+        tariff: String(s.totalServiceFee ?? s.amount ?? "0.00"),
       }));
       return ensureTrailingEmptyRecurring(mapped);
     }
@@ -310,11 +339,32 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       }
 
       if (initialClient.customerFiles?.recurring && initialClient.customerFiles.recurring.length > 0) {
-        const mapped = initialClient.customerFiles.recurring.map((r: any, idx: number) => ({
-          key: r.key || idx + 1,
-          category: r.category || "",
-          service: r.service || "",
-          tariff: r.tariff || "0.00",
+        const mapped = initialClient.customerFiles.recurring.map((r: any, idx: number) => {
+          const s = (initialClient?.serviceSettings || []).find((st: any) => st.serviceName === r.service);
+          const prof = r.professionalFee ?? s?.professionalFee ?? "0.00";
+          const govt = r.governmentFee ?? s?.governmentFee ?? "0.00";
+          const other = r.otherCharges ?? s?.otherCharges ?? "0.00";
+          const total = r.totalServiceFee ?? s?.totalServiceFee ?? r.tariff ?? s?.amount ?? "0.00";
+          return {
+            key: r.key || idx + 1,
+            category: r.category || s?.category || "",
+            service: r.service || s?.serviceName || "",
+            professionalFee: String(prof),
+            governmentFee: String(govt),
+            otherCharges: String(other),
+            tariff: String(total),
+          };
+        });
+        setRecurringRows(ensureTrailingEmptyRecurring(mapped));
+      } else if (initialClient.serviceSettings && initialClient.serviceSettings.length > 0) {
+        const mapped = initialClient.serviceSettings.map((s: any, idx: number) => ({
+          key: idx + 1,
+          category: s.category || "",
+          service: s.serviceName || "",
+          professionalFee: String(s.professionalFee ?? "0.00"),
+          governmentFee: String(s.governmentFee ?? "0.00"),
+          otherCharges: String(s.otherCharges ?? "0.00"),
+          tariff: String(s.totalServiceFee ?? s.amount ?? "0.00"),
         }));
         setRecurringRows(ensureTrailingEmptyRecurring(mapped));
       } else {
@@ -542,13 +592,47 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     setRecurringRows((prev) => {
       const updated = prev.map((row) => {
         if (row.key === key) {
-          return { ...row, [field]: val };
+          const newRow = { ...row, [field]: val };
+          // If breakdown fields are edited, recalculate Total Service Charge (tariff)
+          if (field === "professionalFee" || field === "governmentFee" || field === "otherCharges") {
+            const p = parseFloat(field === "professionalFee" ? val : newRow.professionalFee) || 0;
+            const g = parseFloat(field === "governmentFee" ? val : newRow.governmentFee) || 0;
+            const o = parseFloat(field === "otherCharges" ? val : newRow.otherCharges) || 0;
+            newRow.tariff = (p + g + o).toFixed(2);
+          }
+          return newRow;
         }
         return row;
       });
       return ensureTrailingEmptyRecurring(updated);
     });
   };
+
+  // Service breakdown totals
+  const { totalProfessionalFees, totalGovtFees, totalOtherCharges, grandTotalServiceCharges } = useMemo(() => {
+    let prof = 0;
+    let govt = 0;
+    let other = 0;
+    let grand = 0;
+    recurringRows.forEach((r) => {
+      if (!isRecurringRowEmpty(r)) {
+        const p = parseFloat(r.professionalFee) || 0;
+        const g = parseFloat(r.governmentFee) || 0;
+        const o = parseFloat(r.otherCharges) || 0;
+        const t = parseFloat(r.tariff) || (p + g + o) || 0;
+        prof += p;
+        govt += g;
+        other += o;
+        grand += t;
+      }
+    });
+    return {
+      totalProfessionalFees: prof,
+      totalGovtFees: govt,
+      totalOtherCharges: other,
+      grandTotalServiceCharges: grand,
+    };
+  }, [recurringRows]);
 
   const removeRecurringRow = (key: number) => {
     setRecurringRows((prev) => {
@@ -713,13 +797,23 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
       const cleanRecurring = recurringRows
         .filter((r) => r.category.trim() !== "" && r.service.trim() !== "")
-        .map((r, i) => ({
-          ...r,
-          key: r.key || i + 1,
-          category: r.category.trim(),
-          service: r.service.trim(),
-          tariff: r.tariff.trim() || "0.00",
-        }));
+        .map((r, i) => {
+          const prof = parseFloat(r.professionalFee) || 0;
+          const govt = parseFloat(r.governmentFee) || 0;
+          const other = parseFloat(r.otherCharges) || 0;
+          const total = parseFloat(r.tariff) || (prof + govt + other) || 0;
+          return {
+            ...r,
+            key: r.key || i + 1,
+            category: r.category.trim(),
+            service: r.service.trim(),
+            professionalFee: prof,
+            governmentFee: govt,
+            otherCharges: other,
+            tariff: total.toFixed(2),
+            totalServiceFee: total,
+          };
+        });
 
       const recurringServiceNames = cleanRecurring.map((r) => r.service.trim());
       const allServices = Array.from(
@@ -742,7 +836,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           start: existing?.start || "Day 1",
           target: existing?.target || "Day 15",
           end: existing?.end || "Day 20",
-          amount: parseFloat(r.tariff) || 0,
+          amount: r.totalServiceFee,
+          professionalFee: r.professionalFee,
+          governmentFee: r.governmentFee,
+          otherCharges: r.otherCharges,
+          totalServiceFee: r.totalServiceFee,
         };
       });
 
@@ -834,8 +932,16 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         email: email.trim() || undefined,
         address: address.trim() || undefined,
         city: city.trim() || undefined,
-        state: "Maharashtra",
+        state: initialClient?.addressDetails?.state || "Maharashtra",
         pincode: pincode.trim() || undefined,
+        addressDetails: {
+          addressLine1: address.trim() || undefined,
+          city: city.trim() || undefined,
+          state: initialClient?.addressDetails?.state || "Maharashtra",
+          pincode: pincode.trim() || undefined,
+          country: "India",
+        },
+        paymentDetails: initialClient?.paymentDetails,
         group: group.trim() || "Accounting",
         tags: initialClient?.tags || ["new-client"],
         active: isActive,
@@ -845,7 +951,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         licenses: allLicenses,
         passwords: allPasswords,
         documentsInOut: allDocumentsInOut,
-        users: initialClient?.users || ["Aarav"],
         pan: pan.trim().toUpperCase() || undefined,
         dob: dob || undefined,
         referredBy: referredBy.trim() || undefined,
@@ -957,7 +1062,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   return (
     <div className="w-full space-y-5 animate-in fade-in duration-150">
       {/* 1. Breadcrumb & Top Autofill Button Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
+      <div className="flex flex-wrap justify-between gap-4 px-1">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-base md:text-lg">
           <button
             type="button"
@@ -985,21 +1090,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           </span>
         </nav>
 
-        <button
+        <Button
           type="button"
           onClick={() => setShowGstinModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-          style={{ backgroundColor: "var(--premium-blue-dark)" }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
-          }
+
         >
           <Plus className="w-4 h-4" />
           <span>Autofill Using GSTIN</span>
-        </button>
+        </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 py-2">
@@ -1849,28 +1947,38 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             </button>
           </div>
 
-          {/* Section C: Recurring Service Obtained */}
-          <div className="space-y-2 pt-2">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              Recurring Service Obtained
-            </h3>
+          {/* Section C: Recurring Service Obtained & Cost Breakdown */}
+          <div className="space-y-3 pt-2">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Recurring Service Obtained & Cost Breakdown
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Configure professional fees, government fees, and charges breakdown for recurring client services.
+              </p>
+            </div>
             <div className="overflow-x-auto rounded-lg border border-[#dde2e8] dark:border-[#334155]">
-              <table className="w-full min-w-max border-collapse text-xs">
+              <table className="w-full min-w-[780px] border-collapse text-xs">
                 <thead>
                   <tr
                     className="border-b border-[#dde2e8] dark:border-[#334155] text-left text-gray-700 dark:text-gray-300"
                     style={{ backgroundColor: "var(--orange-havy-light)" }}
                   >
                     <th className="w-10 px-2.5 py-2.5 text-center font-medium">#</th>
-                    <th className="px-3 py-2.5 font-medium w-52">Service Category</th>
-                    <th className="px-3 py-2.5 font-medium w-64">Service Name</th>
-                    <th className="px-3 py-2.5 font-medium w-40 text-right pr-4">Tariff</th>
+                    <th className="px-3 py-2.5 font-medium w-44">Service Category</th>
+                    <th className="px-3 py-2.5 font-medium min-w-[200px]">Service Name</th>
+                    <th className="px-2 py-2.5 font-medium w-28 text-right">Prof. Fee (₹)</th>
+                    <th className="px-2 py-2.5 font-medium w-28 text-right">Govt. Fee (₹)</th>
+                    <th className="px-2 py-2.5 font-medium w-24 text-right">Other (₹)</th>
+                    <th className="px-3 py-2.5 font-semibold w-36 text-right pr-3 text-[#31719B] dark:text-[#60a5fa]">
+                      Total Service Fee (₹)
+                    </th>
                     <th className="w-10 px-2 py-2.5 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#dde2e8] dark:divide-[#334155]">
                   {recurringRows.map((row, idx) => (
-                    <tr key={row.key} className="bg-white dark:bg-[#1e293b]">
+                    <tr key={row.key} className="bg-white dark:bg-[#1e293b] hover:bg-gray-50/60 dark:hover:bg-gray-800/40">
                       <td className="px-2.5 py-2 text-center text-gray-400 font-medium">
                         {idx + 1}
                       </td>
@@ -1882,14 +1990,28 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           aria-label={`Recurring Service ${idx + 1} Category`}
                           value={row.category}
                           onChange={(e) => {
-                            updateRecurringRow(row.key, "category", e.target.value);
-                            // reset service when category changes
-                            updateRecurringRow(row.key, "service", "");
-                            updateRecurringRow(row.key, "tariff", "0.00");
+                            const newCategory = e.target.value;
+                            setRecurringRows((prev) => {
+                              const updated = prev.map((r) => {
+                                if (r.key === row.key) {
+                                  return {
+                                    ...r,
+                                    category: newCategory,
+                                    service: "",
+                                    professionalFee: "0.00",
+                                    governmentFee: "0.00",
+                                    otherCharges: "0.00",
+                                    tariff: "0.00",
+                                  };
+                                }
+                                return r;
+                              });
+                              return ensureTrailingEmptyRecurring(updated);
+                            });
                           }}
                           className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs outline-none focus:border-[#31719B] cursor-pointer"
                         >
-                          <option value="">Select</option>
+                          <option value="">Select Category</option>
                           {/* Merge store categories with static fallback */}
                           {Array.from(
                             new Set([
@@ -1918,23 +2040,96 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                           onFetchServices={handleFetchServices}
                           onLoadMoreServices={handleLoadMoreServices}
                           filterCategory={row.category || undefined}
-                          onSelect={(svc) => {
-                            updateRecurringRow(row.key, "category", svc.category);
-                            updateRecurringRow(row.key, "service", svc.name);
-                            updateRecurringRow(row.key, "tariff", String(svc.totalServiceFee ?? "0.00"));
+                          onSelect={(svc: any) => {
+                            const prof = Number(svc.professionalFee) || 0;
+                            const govt = Number(svc.governmentFee) || 0;
+                            const rawTotal = Number(svc.totalServiceFee) || 0;
+                            const total = rawTotal > 0 ? rawTotal : (prof + govt);
+                            const effectiveProf = prof > 0 ? prof : (govt === 0 && total > 0 ? total : 0);
+                            setRecurringRows((prev) => {
+                              const updated = prev.map((r) => {
+                                if (r.key === row.key) {
+                                  return {
+                                    ...r,
+                                    category: svc.category || r.category,
+                                    service: svc.name,
+                                    professionalFee: effectiveProf.toFixed(2),
+                                    governmentFee: govt.toFixed(2),
+                                    otherCharges: "0.00",
+                                    tariff: total.toFixed(2),
+                                  };
+                                }
+                                return r;
+                              });
+                              return ensureTrailingEmptyRecurring(updated);
+                            });
                           }}
                           onClear={() => {
-                            updateRecurringRow(row.key, "service", "");
-                            updateRecurringRow(row.key, "tariff", "0.00");
+                            setRecurringRows((prev) => {
+                              const updated = prev.map((r) => {
+                                if (r.key === row.key) {
+                                  return {
+                                    ...r,
+                                    service: "",
+                                    professionalFee: "0.00",
+                                    governmentFee: "0.00",
+                                    otherCharges: "0.00",
+                                    tariff: "0.00",
+                                  };
+                                }
+                                return r;
+                              });
+                              return ensureTrailingEmptyRecurring(updated);
+                            });
                           }}
                           placeholder="Select Service"
                         />
                       </td>
+                      {/* Professional Fee (Editable) */}
+                      <td className="px-2 py-2">
+                        <input
+                          id={`recurring-prof-${row.key}`}
+                          name={`recurringProfFee-${row.key}`}
+                          aria-label={`Recurring Service ${idx + 1} Professional Fee`}
+                          type="text"
+                          value={row.professionalFee}
+                          onChange={(e) => updateRecurringRow(row.key, "professionalFee", e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs text-right font-mono outline-none focus:border-[#31719B]"
+                        />
+                      </td>
+                      {/* Government Fee (Editable) */}
+                      <td className="px-2 py-2">
+                        <input
+                          id={`recurring-govt-${row.key}`}
+                          name={`recurringGovtFee-${row.key}`}
+                          aria-label={`Recurring Service ${idx + 1} Government Fee`}
+                          type="text"
+                          value={row.governmentFee}
+                          onChange={(e) => updateRecurringRow(row.key, "governmentFee", e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs text-right font-mono outline-none focus:border-[#31719B]"
+                        />
+                      </td>
+                      {/* Other Charges (Editable) */}
+                      <td className="px-2 py-2">
+                        <input
+                          id={`recurring-other-${row.key}`}
+                          name={`recurringOtherFee-${row.key}`}
+                          aria-label={`Recurring Service ${idx + 1} Other Charges`}
+                          type="text"
+                          value={row.otherCharges}
+                          onChange={(e) => updateRecurringRow(row.key, "otherCharges", e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2 text-xs text-right font-mono outline-none focus:border-[#31719B]"
+                        />
+                      </td>
+                      {/* Total Service Charge (Editable & Auto-calculated) */}
                       <td className="px-2 py-2">
                         <input
                           id={`recurring-tariff-${row.key}`}
                           name={`recurringTariff-${row.key}`}
-                          aria-label={`Recurring Service ${idx + 1} Tariff`}
+                          aria-label={`Recurring Service ${idx + 1} Total Service Charge`}
                           type="text"
                           value={row.tariff}
                           onChange={(e) => updateRecurringRow(row.key, "tariff", e.target.value)}
@@ -1945,7 +2140,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             }
                           }}
                           placeholder="0.00"
-                          className="h-9 w-full rounded border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] px-2.5 text-xs text-right font-mono outline-none focus:border-[#31719B]"
+                          className="h-9 w-full rounded border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 px-2 text-xs text-right font-mono font-semibold text-blue-900 dark:text-blue-200 outline-none focus:border-[#31719B]"
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -1966,6 +2161,25 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {/* Total Service Charges Summary Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-gray-50 dark:bg-[#0f172a] px-3.5 py-2.5 rounded-lg border border-[#dde2e8] dark:border-[#334155] text-xs">
+              <div className="flex flex-wrap items-center gap-4 text-gray-600 dark:text-gray-400">
+                <span>Selected Services: <strong className="text-gray-900 dark:text-white">{recurringRows.filter((r) => !isRecurringRowEmpty(r)).length}</strong></span>
+                <span>Total Prof. Fees: <strong className="text-gray-900 dark:text-white">₹{totalProfessionalFees.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                <span>Total Govt. Fees: <strong className="text-gray-900 dark:text-white">₹{totalGovtFees.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                {totalOtherCharges > 0 && (
+                  <span>Total Other: <strong className="text-gray-900 dark:text-white">₹{totalOtherCharges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-700 dark:text-gray-300">Total Service Fees:</span>
+                <span className="text-sm font-bold text-[#31719B] dark:text-[#60a5fa] px-3 py-1 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800">
+                  ₹{grandTotalServiceCharges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={() => setRecurringRows((prev) => ensureTrailingEmptyRecurring(prev))}
@@ -1992,25 +2206,18 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             )}
 
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 onClick={handleCancelAttempt}
                 disabled={isSubmitting}
-                className="h-11 rounded-md border border-[#31719B] bg-white dark:bg-[#1e293b] px-6 text-sm font-semibold text-[#31719B] transition-colors hover:bg-[#31719B]/5 cursor-pointer disabled:opacity-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-11 rounded-md px-7 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-60 flex items-center gap-2"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "var(--premium-blue-light)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "var(--premium-blue-dark)")
-                }
+
               >
                 {isSubmitting ? (
                   <>
@@ -2020,7 +2227,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 ) : (
                   <span>{isEditing ? "Save Changes" : "Save Client"}</span>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -2111,21 +2318,20 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               className="px-6 py-4 border-t border-[#dde2e8] dark:border-[#334155] flex items-center justify-end gap-3"
               style={{ backgroundColor: "var(--orange-havy-light)" }}
             >
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => setShowGstinModal(false)}
-                className="h-10 rounded-md bg-[#e9ebee] dark:bg-[#334155] px-4 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-[#dcdfe3]"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => handleAutofillGstin()}
-                className="h-10 rounded-md px-5 text-xs font-semibold text-white shadow-xs"
-                style={{ backgroundColor: "var(--premium-blue-dark)" }}
+
               >
                 Autofill
-              </button>
+              </Button>
             </div>
           </div>
         </div>

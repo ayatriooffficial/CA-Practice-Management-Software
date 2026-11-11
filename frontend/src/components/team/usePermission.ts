@@ -22,7 +22,7 @@ export function usePermission() {
   const role = useMemo(() => normalizeRole(user?.role), [user?.role]);
   const isAdmin = useMemo(() => isRoleAdmin(role), [role]);
 
-  const permissions = useMemo((): RolePermissionsMap | null => {
+  const permissions = useMemo((): RolePermissionsMap | string[] | any | null => {
     if (!user) return null;
 
     // Full Admin always has complete permissions
@@ -30,9 +30,14 @@ export function usePermission() {
       return getPresetPermissions('Admin');
     }
 
-    // 1. If user object has permissions directly from server
-    if (user.permissions && Object.keys(user.permissions).length > 0) {
-      return user.permissions as RolePermissionsMap;
+    // 1. If user object has permissions directly from server (array or object)
+    if (user.permissions) {
+      if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+        return user.permissions;
+      }
+      if (typeof user.permissions === 'object' && Object.keys(user.permissions).length > 0) {
+        return user.permissions as RolePermissionsMap;
+      }
     }
 
     // 2. Check teamStore by email / mobile for employees

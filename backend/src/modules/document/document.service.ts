@@ -379,7 +379,8 @@ export class DocumentService {
 
     // 3. Statutory Tax Registrations (GSTIN, TAN)
     const gstStat = (client.customerFiles?.statutory || []).find((s: any) => s.type === 'GSTIN');
-    const hasGstService = (client.services || []).some((s: string) => /gst/i.test(s));
+    const complianceServices: string[] = client.services || (client.serviceSettings || []).map((s: any) => s.serviceName) || [];
+    const hasGstService = complianceServices.some((s: string) => /gst/i.test(s));
     if (gstStat?.idNo || hasGstService) {
       const gstDoc = findMatchingDriveDoc([/gst/i, /reg[_\-\s]?06/i], DocumentCategory.KYC_IDENTITY);
       if (gstDoc) {
@@ -496,7 +497,7 @@ export class DocumentService {
     }
 
     // 4. Subscribed Services & Periodic Compliance Documents
-    const clientServices: string[] = client.services || [];
+    const clientServices: string[] = client.services || (client.serviceSettings || []).map((s: any) => s.serviceName) || [];
     for (const service of clientServices) {
       const sLower = service.toLowerCase();
       if (sLower.includes('tax audit') || sLower.includes('3cd')) {
@@ -1249,11 +1250,11 @@ export class DocumentService {
           group: client.group || 'General',
           department: 'Client Portfolio',
           status: client.status || (client.active ? 'Active' : 'Inactive'),
-          city: client.city || '',
-          state: client.state || '',
-          pincode: client.pincode || '',
-          address: client.address || '',
-          services: client.services || [],
+          city: client.addressDetails?.city || client.city || '',
+          state: client.addressDetails?.state || client.state || '',
+          pincode: client.addressDetails?.pincode || client.pincode || '',
+          address: client.addressDetails?.addressLine1 || client.address || '',
+          services: client.services || (client.serviceSettings || []).map((s: any) => s.serviceName) || [],
           promoters: client.customerFiles?.promoter || [],
           statutory: client.customerFiles?.statutory || [],
           licenses: client.licenses || [],

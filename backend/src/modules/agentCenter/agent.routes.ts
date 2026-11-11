@@ -24,6 +24,9 @@ router.post('/whatsapp/webhook', AgentCenterController.handleWhatsAppWebhook);
 // Tenant-scoped endpoints require an organization context:
 router.use((req, _res, next) => req.user?.orgId ? next() : next(AppError.unauthorized('Sign in to access Agent Center.')));
 
+router.get('/diagnostics/summary', AgentCenterController.diagnosticSummary);
+router.get('/follow-ups', AgentCenterController.listFollowUps);
+router.post('/follow-ups/process-tick', mutationRateLimiter, AgentCenterController.processFollowUpTick);
 router.get('/history', validateRequest({ query: historyQuerySchema }), AgentCenterController.globalHistory);
 router.get('/agents', validateRequest({ query: queryAgentsSchema }), AgentCenterController.list);
 router.post('/agents', mutationRateLimiter, validateRequest({ body: createAgentSchema }), AgentCenterController.create);
@@ -32,6 +35,7 @@ router.post('/agents/:id/publish', mutationRateLimiter, validateRequest({ params
 router.post('/agents/:id/disable', mutationRateLimiter, validateRequest({ params: agentIdParamSchema }), AgentCenterController.disable);
 router.delete('/agents/:id', mutationRateLimiter, validateRequest({ params: agentIdParamSchema }), AgentCenterController.deleteDraft);
 router.post('/agents/:id/test-run', mutationRateLimiter, validateRequest({ params: agentIdParamSchema, body: testRunSchema }), AgentCenterController.testRun);
+router.post('/agents/:id/preview-impact', validateRequest({ params: agentIdParamSchema }), AgentCenterController.previewAgentImpact);
 router.get('/agents/:id', validateRequest({ params: agentIdParamSchema }), AgentCenterController.get);
 router.put('/agents/:id', mutationRateLimiter, validateRequest({ params: agentIdParamSchema, body: updateAgentSchema }), AgentCenterController.update);
 

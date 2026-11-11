@@ -167,3 +167,73 @@ export interface AgentFilters {
   status?: AgentStatus | 'All';
   search?: string;
 }
+
+export interface FollowUpRecord {
+  _id: string;
+  clientId: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientMobile?: string;
+  module: AgentModule;
+  sourceId: string;
+  sourceName?: string;
+  documentRequestId?: string;
+  documentTitle?: string;
+  channel: 'Email' | 'WhatsApp';
+  status:
+    | 'pending'
+    | 'waiting_client'
+    | 'response_received'
+    | 'document_received'
+    | 'verified'
+    | 'escalated'
+    | 'cancelled'
+    | 'completed'
+    | 'opt_out';
+  attemptCount: number;
+  maxAttempts: number;
+  lastReminderAt?: string;
+  nextReminderAt?: string | null;
+  lastResponseAt?: string | null;
+  resolutionNotes?: string;
+  updatedAt: string;
+}
+
+export interface AgentDiagnosticSummary {
+  databaseConnected: boolean;
+  lastDatabaseScan: string;
+  totalTasksInspected: number;
+  dueTasksCount: number;
+  pendingDocumentsCount: number;
+  receivedDocumentsCount: number;
+  activeDscCount: number;
+  expiringDscCount: number;
+  activeLicensesCount: number;
+  expiringLicensesCount: number;
+  waitingClientsCount: number;
+  activeFollowUpsCount: number;
+  escalatedFollowUpsCount: number;
+  resolvedFollowUpsCount: number;
+  nextScheduledExecution: string;
+  recentFollowUps: FollowUpRecord[];
+}
+
+export interface AgentImpactPreview {
+  agentName: string;
+  module: string;
+  recordsInspected: number;
+  matchingCount: number;
+  records: Array<{
+    id: string;
+    title: string;
+    clientName: string;
+    clientEmail: string;
+    clientMobile: string;
+    dueOrExpiryDate: string;
+    status: string;
+    missingItems: string[];
+    channel: string;
+    recipientStatus: 'valid' | 'missing_email' | 'missing_mobile';
+    messagePreview: string;
+  }>;
+}

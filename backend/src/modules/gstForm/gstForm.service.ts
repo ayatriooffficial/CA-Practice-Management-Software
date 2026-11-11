@@ -21,6 +21,7 @@ import {
   GstImportBatchModel,
 } from './gstForm.model';
 import { Client } from '../client/client.model';
+import { ClientServiceSetting } from '../client/clientServiceSetting.model';
 import {
   validateGstForms,
 } from './gstForm.validation';
@@ -118,10 +119,12 @@ export class GstFormService {
 
     // Verify client has GST return service active if serviceSettings exist
     try {
-      const clientDoc = await Client.findById(clientId).select('serviceSettings services').lean();
-      if (clientDoc) {
-        const settings: any[] = (clientDoc as any).serviceSettings || [];
-        if (settings.length > 0) {
+      let settings: any[] = await ClientServiceSetting.find({ clientId, isDeleted: false }).lean();
+      if (settings.length === 0) {
+        const clientDoc = await Client.findById(clientId).select('serviceSettings services').lean();
+        settings = (clientDoc as any)?.serviceSettings || [];
+      }
+      if (settings.length > 0) {
           const gstServices = settings.filter((s: any) => {
             const n = (s.serviceName || s.name || '').toLowerCase();
             const c = (s.category || '').toLowerCase().replace(/[\.\s]/g, '');
@@ -145,7 +148,6 @@ export class GstFormService {
             }
           }
         }
-      }
     } catch (err: any) {
       if (err.statusCode) throw err;
     }
@@ -399,7 +401,10 @@ export class GstFormService {
 
     // Fetch Client settings
     const client = await Client.findById(link.client_id).select('serviceSettings name legalName').lean();
-    const serviceSettings = (client as any)?.serviceSettings || [];
+    let serviceSettings = await ClientServiceSetting.find({ clientId: link.client_id, isDeleted: false }).lean();
+    if (serviceSettings.length === 0) {
+      serviceSettings = (client as any)?.serviceSettings || [];
+    }
     const gstr1Enabled =
       serviceSettings.length === 0 ||
       serviceSettings.some((s: any) => s.isActive && (s.serviceName?.includes('GSTR-1') || s.category === 'G.S.T'));

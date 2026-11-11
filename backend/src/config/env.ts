@@ -84,6 +84,16 @@ export const envSchema = z.object({
   WHATSAPP_API_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().default('ayatrio_practice_whatsapp_verify_token'),
+  WHATSAPP_APP_SECRET: z.string().optional(),
+  // AI Integration (Groq / OpenAI compatible)
+  AI_PROVIDER_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
+  AI_PROVIDER_API_KEY: z.string().optional(),
+  AI_PROVIDER_MODEL: z.string().default('openai/gpt-oss-120b'),
+  AI_TIMEOUT_MS: z.coerce.number().default(15000),
+  // Agent Follow-up & Automation Safeguards
+  AGENT_FOLLOWUP_INTERVAL_HOURS: z.string().default('24,48,72'),
+  AGENT_FOLLOWUP_MAX_ATTEMPTS: z.coerce.number().default(4),
+  GMAIL_INBOUND_ENABLED: strictBoolean(false),
   // PDF Signer
   PDF_SIGNER_PROVIDER: z.enum(['software', 'token']).default('software'),
   PDF_SIGNER_PFX_PATH: z.string().default('./certs/dev-signer.pfx'),
@@ -122,4 +132,23 @@ export function parseExpiryMilestones(raw?: string | null): number[] {
 export function getConfiguredExpiryMilestones(): number[] {
   const raw = process.env.AUTOMATIC_EXPIRY_MILESTONES ?? env.AUTOMATIC_EXPIRY_MILESTONES;
   return parseExpiryMilestones(raw);
+}
+
+/**
+ * Safely parses comma-separated follow-up reminder intervals in hours (e.g. "24,48,72").
+ * Returns [24, 48, 72] by default.
+ */
+export function parseFollowUpIntervals(raw?: string | null): number[] {
+  const fallback = [24, 48, 72];
+  if (!raw || typeof raw !== 'string') return fallback;
+  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+  const parsed = parts
+    .map((p) => Number(p))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  return parsed.length ? parsed : fallback;
+}
+
+export function getConfiguredFollowUpIntervals(): number[] {
+  const raw = process.env.AGENT_FOLLOWUP_INTERVAL_HOURS ?? env.AGENT_FOLLOWUP_INTERVAL_HOURS;
+  return parseFollowUpIntervals(raw);
 }

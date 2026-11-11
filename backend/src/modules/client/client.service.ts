@@ -1,4 +1,5 @@
 import { Client } from './client.model';
+import { ClientServiceSetting } from './clientServiceSetting.model';
 import { IClient, IClientDocument } from './client.interface';
 import { QueryBuilder, QueryOptions } from '../../shared/utils/queryBuilder';
 import { AppError } from '../../shared/utils/apiError';
@@ -32,10 +33,27 @@ export class ClientService {
       data.orgId = orgId;
     }
     if (userId) {
-      data.userId = userId;
       data.createdBy = userId;
-      if (!data.users) data.users = [];
-      if (!data.users.includes(userId)) data.users.push(userId);
+    }
+
+    // Consolidate Address into addressDetails
+    if (!data.addressDetails) {
+      data.addressDetails = {};
+    }
+    if (data.address && !data.addressDetails.addressLine1) {
+      data.addressDetails.addressLine1 = data.address;
+    }
+    if (data.city && !data.addressDetails.city) {
+      data.addressDetails.city = data.city;
+    }
+    if (data.state && !data.addressDetails.state) {
+      data.addressDetails.state = data.state;
+    }
+    if (data.pincode && !data.addressDetails.pincode) {
+      data.addressDetails.pincode = data.pincode;
+    }
+    if (!data.addressDetails.country) {
+      data.addressDetails.country = 'India';
     }
     let fileNo = data.fileNo?.trim();
     if (!fileNo) {
@@ -107,26 +125,28 @@ export class ClientService {
       }
     }
 
-    // Sync services array and serviceSettings from customerFiles.recurring if present
+    // Sync serviceSettings from customerFiles.recurring if present
     if (data.customerFiles?.recurring && Array.isArray(data.customerFiles.recurring)) {
-      const recurringServiceNames = data.customerFiles.recurring
-        .map((r) => r.service?.trim())
-        .filter((s): s is string => Boolean(s));
-
-      if (!data.services) {
-        data.services = [];
-      }
-      for (const sName of recurringServiceNames) {
-        if (!data.services.includes(sName)) {
-          data.services.push(sName);
-        }
-      }
-
       if (!data.serviceSettings) {
         data.serviceSettings = [];
       }
       for (const r of data.customerFiles.recurring) {
-        if (r.service && !data.serviceSettings.some((s) => s.serviceName === r.service)) {
+        const prof = Number(r.professionalFee) || 0;
+        const govt = Number(r.governmentFee) || 0;
+        const other = Number(r.otherCharges) || 0;
+        const total = Number(r.totalServiceFee) || (prof + govt + other) || parseFloat(r.tariff) || 0;
+
+        const existingIdx = data.serviceSettings.findIndex((s) => s.serviceName === r.service);
+        if (existingIdx >= 0) {
+          data.serviceSettings[existingIdx] = {
+            ...data.serviceSettings[existingIdx],
+            professionalFee: prof || data.serviceSettings[existingIdx].professionalFee || 0,
+            governmentFee: govt || data.serviceSettings[existingIdx].governmentFee || 0,
+            otherCharges: other || data.serviceSettings[existingIdx].otherCharges || 0,
+            totalServiceFee: total || data.serviceSettings[existingIdx].totalServiceFee || 0,
+            amount: total || data.serviceSettings[existingIdx].amount || 0,
+          };
+        } else {
           data.serviceSettings.push({
             serviceName: r.service,
             category: r.category || 'General',
@@ -138,32 +158,22 @@ export class ClientService {
             start: 'Day 1',
             target: 'Day 15',
             end: 'Day 20',
-            amount: parseFloat(r.tariff) || 0,
+            amount: total,
+            professionalFee: prof,
+            governmentFee: govt,
+            otherCharges: other,
+            totalServiceFee: total,
           });
         }
       }
     }
 
-    // Sync contacts from customerFiles.promoter
-    if (data.customerFiles?.promoter && Array.isArray(data.customerFiles.promoter)) {
-      if (!data.contacts) data.contacts = [];
-      const existingContactNames = new Set(data.contacts.map((c: any) => c.name?.toLowerCase()));
-      data.customerFiles.promoter.forEach((p, i) => {
-        if (p.name && !existingContactNames.has(p.name.toLowerCase())) {
-          data.contacts!.push({
-            name: p.name,
-            isPrimary: i === 0 && data.contacts!.length === 0,
-            designation: p.designation || 'Director',
-            pan: p.pan || undefined,
-            din: p.mcaId || undefined,
-            mcaId: p.mcaId || undefined,
-            mcaPassword: p.mcaPassword || undefined,
-            dinStatus: 'Active',
-          });
-          existingContactNames.add(p.name.toLowerCase());
-        }
-      });
-    }
+    const serviceSettingsToSave = data.serviceSettings ? [...data.serviceSettings] : [];
+    delete (data as any).serviceSettings;
+    delete (data as any).services;
+    delete (data as any).users;
+    delete (data as any).contacts;
+    delete (data as any).userId;
 
     // Sync licenses, passwords, and documentsInOut from customerFiles.statutory
     if (data.customerFiles?.statutory && Array.isArray(data.customerFiles.statutory)) {
@@ -240,6 +250,34 @@ export class ClientService {
     });
 
     const savedClient = await client.save();
+
+    // Persist service settings into dedicated collection
+    if (serviceSettingsToSave.length > 0) {
+      try {
+        await ClientServiceSetting.insertMany(
+          serviceSettingsToSave.map((s: any) => {
+            const prof = Number(s.professionalFee) || 0;
+            const govt = Number(s.governmentFee) || 0;
+            const other = Number(s.otherCharges) || 0;
+            const total = Number(s.totalServiceFee) || (prof + govt + other) || Number(s.amount) || 0;
+            return {
+              ...s,
+              clientId: savedClient._id,
+              orgId: savedClient.orgId || null,
+              createdBy: userId || null,
+              amount: total,
+              professionalFee: prof,
+              governmentFee: govt,
+              otherCharges: other,
+              totalServiceFee: total,
+            };
+          })
+        );
+      } catch (err) {
+        console.error('Failed to save ClientServiceSetting:', err);
+      }
+    }
+    (savedClient as any).serviceSettings = serviceSettingsToSave;
 
     // Link company to matching lead(s)
     try {
@@ -495,70 +533,29 @@ export class ClientService {
    */
   static async getAllClients(
     queryOptions: QueryOptions,
-    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ items: IClientDocument[]; pagination: PaginationMeta }> {
-    const searchableFields = ['name', 'fileNo', 'mobile', 'email', 'pan', 'city', 'tags'];
+    const searchableFields = ['name', 'fileNo', 'mobile', 'email', 'pan', 'addressDetails.city', 'tags'];
     const parsedQuery = QueryBuilder.parse<IClientDocument>(queryOptions, searchableFields);
 
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
-    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
-
-    if (orgId) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-        { orgId: null },
-        { orgId: { $exists: false } },
-      ];
-      if (userId) {
-        orgConditions.push({ userId }, { createdBy: userId }, { users: userId });
-      }
-      const orgFilter = { $or: orgConditions };
-
-      if (parsedQuery.filter.$or) {
-        const existingOr = parsedQuery.filter.$or;
-        delete parsedQuery.filter.$or;
-        parsedQuery.filter.$and = [
-          { $or: existingOr },
-          orgFilter,
-        ];
-      } else {
-        Object.assign(parsedQuery.filter, orgFilter);
-      }
-    } else if (userId) {
-      const userCondition = { $or: [{ userId }, { createdBy: userId }, { users: userId }] };
-      if (parsedQuery.filter.$or) {
-        const existingOr = parsedQuery.filter.$or;
-        delete parsedQuery.filter.$or;
-        parsedQuery.filter.$and = [
-          { $or: existingOr },
-          userCondition,
-        ];
-      } else {
-        Object.assign(parsedQuery.filter, userCondition);
-      }
-    }
-
+    // Single organization practice: all clients are accessible across the practice
     // Lightweight table projection: only fetch fields required for table view.
-    // Heavy sub-documents (serviceSettings, customerFiles, passwords, licenses, dscs, documentsInOut, contacts, notes)
+    // Heavy sub-documents (serviceSettings, customerFiles, passwords, licenses, dscs, documentsInOut, notes)
     // are excluded to keep payload size tiny and table rendering instant.
     const defaultTableFields = [
       'name',
       'fileNo',
       'type',
       'mobile',
+      'secondaryMobile',
       'email',
       'group',
       'tags',
       'active',
-      'users',
       'photo',
       'pan',
-      'city',
-      'state',
-      'leadId',
+      'addressDetails',
       'orgId',
-      'userId',
       'createdBy',
       'isDeleted',
       'deletedAt',
@@ -593,19 +590,110 @@ export class ClientService {
 
     if (section === 'master') {
       // Exclude heavy sub-sections not needed for Master view
-      query.select('-serviceSettings -documentsInOut -dscs -recurringTaskConfigs');
+      query.select('-documentsInOut -dscs -recurringTaskConfigs');
     } else if (section === 'service-settings' || section === 'services') {
-      query.select('name fileNo serviceSettings recurringTaskConfigs');
+      query.select('name fileNo recurringTaskConfigs');
     } else if (section === 'documents') {
       query.select('name fileNo documentsInOut');
     } else if (section === 'dsc' || section === 'dscs') {
       query.select('name fileNo dscs');
     }
 
-    const client = await query.populate('leadId').exec();
+    const client = await query.exec();
     if (!client) {
       throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
     }
+
+    // Populate serviceSettings from dedicated collection
+    let serviceSettings = await ClientServiceSetting.find({
+      clientId: client._id,
+      isDeleted: false,
+    }).lean();
+
+    // Auto-migrate legacy embedded service settings if collection has none
+    if (serviceSettings.length === 0 && Array.isArray((client as any)._doc?.serviceSettings) && (client as any)._doc.serviceSettings.length > 0) {
+      try {
+        const legacy = (client as any)._doc.serviceSettings.map((s: any) => ({
+          ...s,
+          clientId: client._id,
+          orgId: client.orgId || null,
+        }));
+        await ClientServiceSetting.insertMany(legacy);
+        serviceSettings = await ClientServiceSetting.find({ clientId: client._id, isDeleted: false }).lean();
+      } catch {}
+    }
+    (client as any).serviceSettings = serviceSettings;
+
+    // Contact/director resolution from associated leads & customerFiles.promoter
+    try {
+      const leads = await Lead.find({
+        $or: [
+          { convertedToClientId: client._id },
+          { associatedClientIds: client._id },
+          ...(client.name ? [{ businessName: client.name }] : []),
+        ],
+        isDeleted: false,
+      }).lean();
+
+      const seenContacts = new Set<string>();
+      const synthesizedContacts: any[] = [];
+
+      leads.forEach((l: any, i: number) => {
+        const name = l.fullName || l.name;
+        if (!name) return;
+        const key = `${name.toLowerCase()}-${l.pan?.toLowerCase() || ''}`;
+        if (seenContacts.has(key)) return;
+        seenContacts.add(key);
+
+        synthesizedContacts.push({
+          id: l._id?.toString(),
+          name,
+          isPrimary: i === 0,
+          designation: l.designation || 'Director',
+          din: l.din || '',
+          dinStatus: 'Active',
+          mcaId: l.mcaId || l.din || '',
+          mcaPassword: l.mcaPassword || '',
+          appointmentDate: l.appointmentDate || '',
+          dob: l.dob || '',
+          email: l.email || '',
+          mobile: l.mobile || '',
+          pan: l.pan || '',
+          aadhar: l.aadhaar || '',
+          passport: l.passport || '',
+          fatherName: l.fatherName || '',
+          address: l.address || '',
+          leadId: l._id?.toString(),
+        });
+      });
+
+      if (client.customerFiles?.promoter && Array.isArray(client.customerFiles.promoter)) {
+        client.customerFiles.promoter.forEach((p: any, i: number) => {
+          if (!p.name) return;
+          const key = `${p.name.toLowerCase()}-${p.pan?.toLowerCase() || ''}`;
+          if (seenContacts.has(key)) return;
+          seenContacts.add(key);
+
+          synthesizedContacts.push({
+            id: `promoter-${p.key || i + 1}`,
+            name: p.name,
+            isPrimary: synthesizedContacts.length === 0,
+            designation: p.designation || 'Director',
+            pan: p.pan || '',
+            din: p.mcaId || '',
+            mcaId: p.mcaId || '',
+            mcaPassword: p.mcaPassword || '',
+            dinStatus: 'Active',
+            leadId: p.leadId || '',
+          });
+        });
+      }
+
+      (client as any).contacts = synthesizedContacts;
+    } catch {
+      (client as any).contacts = [];
+    }
+
     return client;
   }
 
@@ -664,6 +752,25 @@ export class ClientService {
       }
     }
 
+    // Consolidate Address into addressDetails
+    if (updateData.address || updateData.city || updateData.state || updateData.pincode) {
+      if (!updateData.addressDetails) {
+        updateData.addressDetails = client.addressDetails ? { ...client.addressDetails } : {};
+      }
+      if (updateData.address) updateData.addressDetails.addressLine1 = updateData.address;
+      if (updateData.city) updateData.addressDetails.city = updateData.city;
+      if (updateData.state) updateData.addressDetails.state = updateData.state;
+      if (updateData.pincode) updateData.addressDetails.pincode = updateData.pincode;
+      if (!updateData.addressDetails.country) updateData.addressDetails.country = 'India';
+    }
+
+    const serviceSettingsToSave = updateData.serviceSettings;
+    delete (updateData as any).serviceSettings;
+    delete (updateData as any).services;
+    delete (updateData as any).users;
+    delete (updateData as any).contacts;
+    delete (updateData as any).userId;
+
     Object.assign(client, updateData);
     if (updateData.pan) {
       client.pan = updateData.pan.toUpperCase();
@@ -675,48 +782,8 @@ export class ClientService {
           .map((r: any) => r.service?.trim())
           .filter((s: any): s is string => Boolean(s));
         if (recurringNames.length > 0) {
-          const currentServices = Array.isArray(client.services) ? [...client.services] : [];
-          for (const sName of recurringNames) {
-            if (!currentServices.includes(sName)) {
-              currentServices.push(sName);
-            }
-          }
-          client.services = currentServices;
-          client.markModified('services');
+          // Keep customerFiles.recurring in sync
         }
-      }
-
-      if (Array.isArray(updateData.customerFiles.promoter)) {
-        const currentContacts = Array.isArray(client.contacts) ? [...client.contacts] : [];
-        const existingNames = new Set(currentContacts.map((c: any) => c.name?.toLowerCase()));
-        updateData.customerFiles.promoter.forEach((p: any, i: number) => {
-          if (p.name && !existingNames.has(p.name.toLowerCase())) {
-            currentContacts.push({
-              name: p.name,
-              isPrimary: i === 0 && currentContacts.length === 0,
-              designation: p.designation || 'Director',
-              pan: p.pan || undefined,
-              din: p.mcaId || undefined,
-              mcaId: p.mcaId || undefined,
-              mcaPassword: p.mcaPassword || undefined,
-              dinStatus: 'Active',
-            });
-            existingNames.add(p.name.toLowerCase());
-          } else if (p.name) {
-            const existingIdx = currentContacts.findIndex((c: any) => c.name?.toLowerCase() === p.name.toLowerCase());
-            if (existingIdx >= 0) {
-              if (p.mcaId) {
-                currentContacts[existingIdx].mcaId = p.mcaId;
-                currentContacts[existingIdx].din = currentContacts[existingIdx].din || p.mcaId;
-              }
-              if (p.mcaPassword) {
-                currentContacts[existingIdx].mcaPassword = p.mcaPassword;
-              }
-            }
-          }
-        });
-        client.contacts = currentContacts;
-        client.markModified('contacts');
       }
 
       if (Array.isArray(updateData.customerFiles.statutory)) {
@@ -775,22 +842,32 @@ export class ClientService {
         client.markModified('documentsInOut');
       }
     }
-    if (updateData.serviceSettings) {
-      client.markModified('serviceSettings');
-      updateData.serviceSettings = updateData.serviceSettings.map((s: any) => {
+    if (serviceSettingsToSave) {
+      const normalizedSettings = serviceSettingsToSave.map((s: any) => {
         const active = s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance);
+        const prof = Number(s.professionalFee) || 0;
+        const govt = Number(s.governmentFee) || 0;
+        const other = Number(s.otherCharges) || 0;
+        const total = Number(s.totalServiceFee) || (prof + govt + other) || Number(s.amount) || 0;
         return {
           ...s,
+          clientId: client._id,
+          orgId: client.orgId || null,
           isActive: active,
           compliance: active,
           recTask: active ? (s.recTask === 'Disabled' ? 'Enabled' : s.recTask || 'Enabled') : 'Disabled',
+          amount: total,
+          professionalFee: prof,
+          governmentFee: govt,
+          otherCharges: other,
+          totalServiceFee: total,
         };
       });
-      const activeNames = updateData.serviceSettings
-        .filter((s: any) => s.isActive || s.compliance)
-        .map((s: any) => s.serviceName);
-      client.services = activeNames;
-      client.markModified('services');
+      await ClientServiceSetting.deleteMany({ clientId: client._id });
+      if (normalizedSettings.length > 0) {
+        await ClientServiceSetting.insertMany(normalizedSettings);
+      }
+      (client as any).serviceSettings = normalizedSettings;
     }
     if (updateData.licenses) client.markModified('licenses');
     if (updateData.documentsInOut) client.markModified('documentsInOut');
@@ -995,35 +1072,10 @@ export class ClientService {
    * Aggregate client summary statistics
    */
   static async getClientStats(
-    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<Record<string, unknown>> {
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
-    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
-
     const baseMatch: Record<string, any> = { isDeleted: false };
     const deletedMatch: Record<string, any> = { isDeleted: true };
-
-    if (orgId) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-        { orgId: null },
-        { orgId: { $exists: false } },
-      ];
-      if (userId) {
-        orgConditions.push({ userId }, { createdBy: userId }, { users: userId });
-      }
-      baseMatch.$or = orgConditions;
-      deletedMatch.$or = orgConditions;
-    } else if (userId) {
-      const orClauses: any[] = [
-        { userId },
-        { createdBy: userId },
-        { users: userId },
-      ];
-      baseMatch.$or = orClauses;
-      deletedMatch.$or = orClauses;
-    }
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -1355,17 +1407,12 @@ export class ClientService {
    * Fetch all global DSCs across all clients using an aggregation pipeline
    */
   static async getAllGlobalDscs(
-    userCtx?: { userId: string | null; orgId?: string | null } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; role?: string } | string | null
   ): Promise<any[]> {
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
     const matchStage: Record<string, any> = {
       isDeleted: { $ne: true },
       dscs: { $exists: true, $not: { $size: 0 } },
     };
-
-    if (orgId) {
-      matchStage.$or = [{ orgId }, { orgId: String(orgId) }];
-    }
 
     return await Client.aggregate([
       { $match: matchStage },
@@ -1450,35 +1497,68 @@ export class ClientService {
   }
 
   /**
+   * Get Service Settings for Client
+   */
+  static async getServiceSettings(id: string): Promise<any[]> {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    const client = isObjectId
+      ? await Client.findById(id).lean()
+      : await Client.findOne({ $or: [{ fileNo: id }, { name: id }] }).lean();
+    if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+
+    let settings = await ClientServiceSetting.find({
+      clientId: client._id,
+      isDeleted: false,
+    }).lean();
+
+    if (settings.length === 0 && Array.isArray((client as any).serviceSettings) && (client as any).serviceSettings.length > 0) {
+      try {
+        const legacy = (client as any).serviceSettings.map((s: any) => ({
+          ...s,
+          clientId: client._id,
+          orgId: client.orgId || null,
+        }));
+        await ClientServiceSetting.insertMany(legacy);
+        settings = await ClientServiceSetting.find({ clientId: client._id, isDeleted: false }).lean();
+      } catch {}
+    }
+    return settings;
+  }
+
+  /**
    * Update Service Settings for Client
    */
-  static async updateServiceSettings(id: string, settings: any[]): Promise<IClientDocument> {
+  static async updateServiceSettings(id: string, settings: any[]): Promise<any> {
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
     const client = isObjectId
       ? await Client.findById(id)
       : await Client.findOne({ $or: [{ fileNo: id }, { name: id }] });
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
+
     const normalizedSettings = (settings || []).map((s: any) => {
       const active = s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.compliance);
       return {
         ...s,
+        clientId: client._id,
+        orgId: client.orgId || null,
         isActive: active,
         compliance: active,
         recTask: active ? (s.recTask === 'Disabled' ? 'Enabled' : s.recTask || 'Enabled') : 'Disabled',
       };
     });
 
-    client.serviceSettings = normalizedSettings;
+    await ClientServiceSetting.deleteMany({ clientId: client._id });
+    if (normalizedSettings.length > 0) {
+      await ClientServiceSetting.insertMany(normalizedSettings);
+    }
 
-    // Keep client.services in sync with enabled services
-    const activeNames = normalizedSettings
-      .filter((s: any) => s.isActive || s.compliance)
-      .map((s: any) => s.serviceName);
-    client.services = activeNames;
+    const savedSettings = await ClientServiceSetting.find({
+      clientId: client._id,
+      isDeleted: false,
+    }).lean();
 
-    client.markModified('serviceSettings');
-    client.markModified('services');
-    return await client.save();
+    (client as any).serviceSettings = savedSettings;
+    return client;
   }
 
   /**
@@ -1713,62 +1793,46 @@ export class ClientService {
   }
 
   /**
-   * Search existing contacts across all clients for autocomplete
+   * Search existing contacts across leads for autocomplete
    */
   static async getExistingContactsDirectory(search?: string): Promise<any[]> {
-    const clients = await Client.find({ isDeleted: false, 'contacts.0': { $exists: true } })
-      .select('name contacts')
-      .lean();
-
-    const result: any[] = [];
-    const seen = new Set<string>();
-    const searchLower = (search || '').toLowerCase().trim();
-
-    clients.forEach((c: any) => {
-      (c.contacts || []).forEach((ct: any) => {
-        if (!ct.name) return;
-        const key = `${ct.name.toLowerCase()}-${ct.pan?.toLowerCase() || ''}-${ct.din?.toLowerCase() || ''}`;
-        if (seen.has(key)) return;
-
-        if (
-          !searchLower ||
-          ct.name.toLowerCase().includes(searchLower) ||
-          (ct.email && ct.email.toLowerCase().includes(searchLower)) ||
-          (ct.mobile && ct.mobile.includes(searchLower)) ||
-          (ct.din && ct.din.toLowerCase().includes(searchLower)) ||
-          (ct.pan && ct.pan.toLowerCase().includes(searchLower))
-        ) {
-          seen.add(key);
-          result.push({
-            id: ct.id || ct._id?.toString(),
-            name: ct.name,
-            firstName: ct.firstName || ct.name.split(' ')[0] || '',
-            middleName: ct.middleName || (ct.name.split(' ').length > 2 ? ct.name.split(' ')[1] : ''),
-            lastName: ct.lastName || ct.name.split(' ').slice(1).join(' ') || '',
-            designation: ct.designation || 'Director',
-            din: ct.din || '',
-            dinStatus: ct.dinStatus || 'Active',
-            appointmentDate: ct.appointmentDate || '',
-            dob: ct.dob || '',
-            email: ct.email || '',
-            mobile: ct.mobile || '',
-            countryCode: ct.countryCode || '+91',
-            pan: ct.pan || '',
-            aadhar: ct.aadhar || '',
-            passport: ct.passport || '',
-            passportExpiry: ct.passportExpiry || '',
-            fatherName: ct.fatherName || '',
-            addressLine1: ct.addressLine1 || ct.address || '',
-            addressLine2: ct.addressLine2 || '',
-            city: ct.city || '',
-            state: ct.state || '',
-            pincode: ct.pincode || '',
-            clientName: c.name,
-          });
-        }
-      });
-    });
-
-    return result.slice(0, 50);
+    const searchLower = (search || '').trim();
+    const leadFilter: any = { isDeleted: false };
+    if (searchLower) {
+      leadFilter.$or = [
+        { fullName: { $regex: searchLower, $options: 'i' } },
+        { email: { $regex: searchLower, $options: 'i' } },
+        { mobile: { $regex: searchLower, $options: 'i' } },
+        { pan: { $regex: searchLower, $options: 'i' } },
+        { din: { $regex: searchLower, $options: 'i' } },
+      ];
+    }
+    const leads = await Lead.find(leadFilter).limit(50).lean();
+    return leads.map((l: any) => ({
+      id: l._id?.toString(),
+      name: l.fullName || l.name || '',
+      firstName: (l.fullName || '').split(' ')[0] || '',
+      middleName: (l.fullName || '').split(' ').length > 2 ? (l.fullName || '').split(' ')[1] : '',
+      lastName: (l.fullName || '').split(' ').slice(1).join(' ') || '',
+      designation: l.designation || 'Director',
+      din: l.din || '',
+      dinStatus: 'Active',
+      appointmentDate: l.appointmentDate || '',
+      dob: l.dob || '',
+      email: l.email || '',
+      mobile: l.mobile || '',
+      countryCode: '+91',
+      pan: l.pan || '',
+      aadhar: l.aadhaar || '',
+      passport: l.passport || '',
+      passportExpiry: '',
+      fatherName: l.fatherName || '',
+      addressLine1: l.addressDetails?.addressLine1 || l.address || '',
+      addressLine2: l.addressDetails?.addressLine2 || '',
+      city: l.addressDetails?.city || l.city || '',
+      state: l.addressDetails?.state || l.state || '',
+      pincode: l.addressDetails?.pincode || l.pincode || '',
+      clientName: l.businessName || '',
+    }));
   }
 }

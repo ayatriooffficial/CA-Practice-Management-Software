@@ -11,6 +11,8 @@ import { teamSaga } from './features/team/teamSaga';
 import { workdoneSaga } from './features/workdone/workdoneSaga';
 import { noticeSaga } from './features/notices/noticeSaga';
 import { complianceSaga } from './features/compliance/complianceSaga';
+import { agentCenterSaga } from './features/agentCenter/agentCenterSaga';
+import { todoSaga } from './features/todo/todoSaga';
 
 export function* rootSaga() {
   yield all([
@@ -26,5 +28,7 @@ export function* rootSaga() {
     fork(workdoneSaga),
     fork(noticeSaga),
     fork(complianceSaga),
+    fork(agentCenterSaga),
+    fork(todoSaga),
   ]);
 }

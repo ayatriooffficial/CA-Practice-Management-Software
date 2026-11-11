@@ -25,6 +25,7 @@ interface RecordPaymentModalProps {
   mode?: "create" | "edit" | "view";
   initialData?: ReceiptRecord | null;
   targetInvoice?: InvoiceRecord | null;
+  targetClient?: { id: string; name: string; legalName?: string; group?: string };
   onPaymentSaved?: (receipt: ReceiptRecord) => void;
 }
 
@@ -59,6 +60,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   mode = "create",
   initialData,
   targetInvoice,
+  targetClient,
   onPaymentSaved,
 }) => {
   const { invoices, bankAccounts, addReceipt, updateReceipt, addInvoice, setActiveTab } = useInvoice();
@@ -334,19 +336,19 @@ const calculatedService = calculateServiceWithGST(amountForService);
       let linkedInvNumber = !isStandalone && invoiceNumber !== "N/A" ? invoiceNumber : undefined;
 
       const finalBillingOrg =
-        activeInvoice?.billingOrg || initialData?.billingOrg || FIRM_DETAILS.name || "Krishna Associates";
+        activeInvoice?.billingOrg || initialData?.billingOrg || FIRM_DETAILS.name || "Ayatrio Practice";
       const finalClientId =
-        activeInvoice?.clientId || initialData?.clientId || "client-1";
+        activeInvoice?.clientId || targetClient?.id || initialData?.clientId || "client-1";
       const finalClientName =
-        clientName && clientName !== "N/A" ? clientName : standaloneClientName.trim() || "Valued Client";
+        clientName && clientName !== "N/A" ? clientName : targetClient?.name || standaloneClientName.trim() || "Valued Client";
 
       const created = addReceipt(
   {
     billingOrg: finalBillingOrg,
     clientId: finalClientId,
     businessName: finalClientName,
-    legalName: finalClientName,
-    group: activeInvoice?.clientGroup || "Customer",
+    legalName: targetClient?.legalName || finalClientName,
+    group: activeInvoice?.clientGroup || targetClient?.group || "Customer",
     amount: payingNow,
     paymentDate,
     amountForService: calculatedService,
@@ -412,11 +414,22 @@ const calculatedService = calculateServiceWithGST(amountForService);
                   className="text-xs font-bold rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 focus:ring-1 focus:ring-[#31719B] max-w-xs truncate"
                 >
                   <option value="standalone">⭐ Advance / Standalone Payment (No Invoice)</option>
-                  {invoices.map((inv) => (
-                    <option key={inv.id} value={inv.id}>
-                      {inv.number} - {inv.clientBusinessName || inv.clientLegalName || "Client"} (Due: ₹{(inv.balanceAmount ?? inv.totalPayable ?? 0).toLocaleString()})
-                    </option>
-                  ))}
+                  {(() => {
+                    const clientInvs = targetClient
+                      ? invoices.filter(
+                          (i) =>
+                            i.clientId === targetClient.id ||
+                            (i.clientBusinessName &&
+                              i.clientBusinessName.toLowerCase() === targetClient.name.toLowerCase())
+                        )
+                      : [];
+                    const displayInvs = clientInvs.length > 0 ? clientInvs : invoices;
+                    return displayInvs.map((inv) => (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.number} - {inv.clientBusinessName || inv.clientLegalName || "Client"} (Due: ₹{(inv.balanceAmount ?? inv.totalPayable ?? 0).toLocaleString()})
+                      </option>
+                    ));
+                  })()}
                 </select>
                 {selectedInvoiceId === "standalone" && (
                   <input

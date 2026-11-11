@@ -3,6 +3,7 @@ import { Lead } from './lead.model';
 import { LeadTask } from './leadTask.model';
 import { ILead, ILeadDocument } from './lead.interface';
 import { Client } from '../client/client.model';
+import { ClientServiceSetting } from '../client/clientServiceSetting.model';
 import { QueryBuilder, QueryOptions } from '../../shared/utils/queryBuilder';
 import { AppError } from '../../shared/utils/apiError';
 import { ResponseMessages } from '../../constants/messages';
@@ -150,51 +151,12 @@ export class LeadService {
    */
   static async getAllLeads(
     queryOptions: QueryOptions,
-    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ items: ILeadDocument[]; pagination: PaginationMeta }> {
     const searchableFields = ['fullName', 'mobile', 'email', 'pan', 'notes'];
     const parsedQuery = QueryBuilder.parse<ILeadDocument>(queryOptions, searchableFields);
 
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
-    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
-
-    if (orgId) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-      if (Types.ObjectId.isValid(orgId)) {
-        orgConditions.push({ orgId: new Types.ObjectId(orgId) });
-      }
-      if (userId) {
-        orgConditions.push({ userId }, { createdBy: userId });
-      }
-      const orgFilter = { $or: orgConditions };
-
-      if (parsedQuery.filter.$or) {
-        const existingOr = parsedQuery.filter.$or;
-        delete parsedQuery.filter.$or;
-        parsedQuery.filter.$and = [
-          { $or: existingOr },
-          orgFilter,
-        ];
-      } else {
-        Object.assign(parsedQuery.filter, orgFilter);
-      }
-    } else if (userId) {
-      const userCondition = { $or: [{ userId }, { createdBy: userId }] };
-      if (parsedQuery.filter.$or) {
-        const existingOr = parsedQuery.filter.$or;
-        delete parsedQuery.filter.$or;
-        parsedQuery.filter.$and = [
-          { $or: existingOr },
-          userCondition,
-        ];
-      } else {
-        Object.assign(parsedQuery.filter, userCondition);
-      }
-    }
-
+    // Single organization practice: all leads are accessible across the practice
     // Lightweight table projection: only fetch fields required for table view.
     const defaultLeadTableFields = [
       'fullName',
@@ -620,26 +582,26 @@ export class LeadService {
       mobile: lead.mobile,
       secondaryMobile: lead.aadhaarMobile || '',
       email: lead.email || '',
-      address: lead.address || '',
-      state: lead.state || '',
-      pincode: lead.pincode || '',
+
+
+
       pan: lead.pan || '',
       dob: lead.dob || '',
       referredBy: lead.referredBy || '',
       photo: lead.photo || null,
       active: conversionData.active ?? true,
-      services: conversionData.services || [],
-      users: conversionData.users || [],
+
+
       addressDetails: lead.addressDetails || {
         addressLine1: lead.address || '',
-        state: lead.state || '',
-        pincode: lead.pincode || '',
+
+
         country: lead.country || 'India',
       },
       paymentDetails: lead.paymentDetails || {},
-      leadId: lead._id,
+
       orgId: userCtx?.orgId || (lead as any).orgId || null,
-      userId: userCtx?.userId || null,
+
       createdBy: userCtx?.userId || null,
       customerFiles: {
         promoter: promoterFiles,
@@ -649,6 +611,24 @@ export class LeadService {
     });
 
     const savedClient = await newClient.save();
+    if (Array.isArray(conversionData.services) && conversionData.services.length > 0) {
+      try {
+        await ClientServiceSetting.insertMany(
+          conversionData.services.map((sName: string) => ({
+            clientId: savedClient._id,
+            orgId: savedClient.orgId || null,
+            serviceName: sName,
+            category: 'General',
+            isActive: true,
+            compliance: true,
+            recTask: 'Enabled',
+            frequency: 'Monthly',
+            amount: 0,
+            createdBy: userCtx?.userId || null,
+          }))
+        );
+      } catch { }
+    }
 
     // Link company to lead & update lead status
     lead.status = 'converted';
@@ -672,35 +652,10 @@ export class LeadService {
    * Aggregate lead status statistics
    */
   static async getLeadStats(
-    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<Record<string, unknown>> {
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
-    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
-
     const baseMatch: Record<string, any> = { isDeleted: false };
     const deletedMatch: Record<string, any> = { isDeleted: true };
-
-    if (orgId) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-      if (Types.ObjectId.isValid(orgId)) {
-        orgConditions.push({ orgId: new Types.ObjectId(orgId) });
-      }
-      if (userId) {
-        orgConditions.push({ userId }, { createdBy: userId });
-      }
-      baseMatch.$or = orgConditions;
-      deletedMatch.$or = orgConditions;
-    } else if (userId) {
-      const orClauses: any[] = [
-        { userId },
-        { createdBy: userId },
-      ];
-      baseMatch.$or = orClauses;
-      deletedMatch.$or = orClauses;
-    }
 
     const stats = await Lead.aggregate([
       { $match: baseMatch },

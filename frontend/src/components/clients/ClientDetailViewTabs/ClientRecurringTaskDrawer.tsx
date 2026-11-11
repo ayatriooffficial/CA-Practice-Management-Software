@@ -103,9 +103,38 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
   availableUsers,
 }) => {
   const [isEditingRate, setIsEditingRate] = useState(false);
-  const [tempRate, setTempRate] = useState<string>(
-    String(editingService.amount ?? 0)
+  const [profFee, setProfFee] = useState<string>(
+    String(
+      (editingService.professionalFee && editingService.professionalFee > 0)
+        ? editingService.professionalFee
+        : (editingService.amount || 0)
+    )
   );
+  const [govtFee, setGovtFee] = useState<string>(
+    String(editingService.governmentFee ?? 0)
+  );
+  const [otherFee, setOtherFee] = useState<string>(
+    String(editingService.otherCharges ?? 0)
+  );
+
+  const computedTotal = useMemo(() => {
+    const p = parseFloat(profFee) || 0;
+    const g = parseFloat(govtFee) || 0;
+    const o = parseFloat(otherFee) || 0;
+    return p + g + o;
+  }, [profFee, govtFee, otherFee]);
+
+  useEffect(() => {
+    setProfFee(
+      String(
+        (editingService.professionalFee && editingService.professionalFee > 0)
+          ? editingService.professionalFee
+          : (editingService.amount || 0)
+      )
+    );
+    setGovtFee(String(editingService.governmentFee ?? 0));
+    setOtherFee(String(editingService.otherCharges ?? 0));
+  }, [editingService.professionalFee, editingService.governmentFee, editingService.otherCharges, editingService.amount]);
 
   // Load real team members from store and backend API
   const [teamMembers, setTeamMembers] = useState<TeamUserOption[]>(() => {
@@ -209,11 +238,17 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
   const [isSavingRate, setIsSavingRate] = useState(false);
 
   const handleConfirmRate = async () => {
-    const parsed = parseFloat(tempRate);
-    const newAmount = isNaN(parsed) ? 0 : parsed;
+    const p = parseFloat(profFee) || 0;
+    const g = parseFloat(govtFee) || 0;
+    const o = parseFloat(otherFee) || 0;
+    const total = p + g + o;
     const updated: ClientServiceSetting = {
       ...editingService,
-      amount: newAmount,
+      professionalFee: p,
+      governmentFee: g,
+      otherCharges: o,
+      totalServiceFee: total,
+      amount: total,
     };
     setEditingService(updated);
     setIsEditingRate(false);
@@ -239,18 +274,19 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
   };
 
   const handleSaveAll = async () => {
-    let finalAmount = editingService.amount ?? 0;
-    if (isEditingRate || tempRate !== String(editingService.amount ?? 0)) {
-      const parsed = parseFloat(tempRate);
-      if (!isNaN(parsed)) {
-        finalAmount = parsed;
-      }
-    }
+    const p = parseFloat(profFee) || 0;
+    const g = parseFloat(govtFee) || 0;
+    const o = parseFloat(otherFee) || 0;
+    const total = p + g + o;
 
     const isRecTaskEnabled = editingService.recTask !== "Disabled";
     const updated: ClientServiceSetting = {
       ...editingService,
-      amount: finalAmount,
+      amount: total,
+      professionalFee: p,
+      governmentFee: g,
+      otherCharges: o,
+      totalServiceFee: total,
       taskName,
       frequency,
       priority,
@@ -270,14 +306,14 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 text-xs">
-      {/* CARD 1: SERVICE RATE (Left ~2.5 cols) */}
-      <div className="lg:col-span-3 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/30 dark:bg-blue-950/20 p-5 flex flex-col justify-between shadow-2xs">
+      {/* CARD 1: CLIENT CHARGES & BREAKDOWN */}
+      <div className="lg:col-span-4 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/30 dark:bg-blue-950/20 p-5 flex flex-col justify-between shadow-2xs">
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3 border-b border-blue-200/50 dark:border-blue-900/40 pb-2.5">
             <div className="flex items-center gap-1.5 text-[#31719B] dark:text-[#6db0db]">
               <Tag className="w-3.5 h-3.5" />
               <span className="text-[11px] font-bold tracking-wider uppercase">
-                SERVICE RATE
+                CHARGES BREAKDOWN
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -286,10 +322,18 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                   type="button"
                   disabled={isSavingRate}
                   onClick={() => {
-                    setTempRate(String(editingService.amount ?? 0));
+                    setProfFee(
+                      String(
+                        (editingService.professionalFee && editingService.professionalFee > 0)
+                          ? editingService.professionalFee
+                          : (editingService.amount || 0)
+                      )
+                    );
+                    setGovtFee(String(editingService.governmentFee ?? 0));
+                    setOtherFee(String(editingService.otherCharges ?? 0));
                     setIsEditingRate(false);
                   }}
-                  title="Cancel rate edit"
+                  title="Cancel edit"
                   className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -302,11 +346,10 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
                   if (isEditingRate) {
                     handleConfirmRate();
                   } else {
-                    setTempRate(String(editingService.amount ?? 0));
                     setIsEditingRate(true);
                   }
                 }}
-                title={isEditingRate ? "Save rate for this client" : "Edit rate"}
+                title={isEditingRate ? "Save charges breakdown for this client" : "Edit charges breakdown"}
                 className="p-1 rounded-md text-[#31719B] dark:text-[#6db0db] hover:bg-blue-100/50 dark:hover:bg-blue-900/40 cursor-pointer transition-colors"
               >
                 {isSavingRate ? (
@@ -321,45 +364,99 @@ export const ClientRecurringTaskDrawer: React.FC<ClientRecurringTaskDrawerProps>
           </div>
 
           {isEditingRate ? (
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="text-lg font-bold text-gray-500">₹</span>
-              <input
-                type="number"
-                min={0}
-                value={tempRate}
-                onChange={(e) => setTempRate(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleConfirmRate();
-                  else if (e.key === "Escape") {
-                    setTempRate(String(editingService.amount ?? 0));
-                    setIsEditingRate(false);
-                  }
-                }}
-                autoFocus
-                className="w-full h-9 px-2.5 rounded-md border border-[#31719B] bg-white dark:bg-gray-900 font-bold text-lg text-gray-900 dark:text-white outline-none"
-              />
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="text-[10.5px] font-semibold text-gray-600 dark:text-gray-300 block mb-1">
+                  Professional Fee (₹)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={profFee}
+                  onChange={(e) => setProfFee(e.target.value)}
+                  className="w-full h-8 px-2.5 rounded-md border border-[#31719B] bg-white dark:bg-gray-900 font-semibold text-xs text-gray-900 dark:text-white outline-none"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10.5px] font-semibold text-gray-600 dark:text-gray-300 block mb-1">
+                  Government / Statutory Fee (₹)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={govtFee}
+                  onChange={(e) => setGovtFee(e.target.value)}
+                  className="w-full h-8 px-2.5 rounded-md border border-[#31719B] bg-white dark:bg-gray-900 font-semibold text-xs text-gray-900 dark:text-white outline-none"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10.5px] font-semibold text-gray-600 dark:text-gray-300 block mb-1">
+                  Other Charges / Out of Pocket (₹)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={otherFee}
+                  onChange={(e) => setOtherFee(e.target.value)}
+                  className="w-full h-8 px-2.5 rounded-md border border-[#31719B] bg-white dark:bg-gray-900 font-semibold text-xs text-gray-900 dark:text-white outline-none"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-blue-200/50 dark:border-blue-900/40 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Total Fee:</span>
+                <span className="text-sm font-extrabold text-[#31719B] dark:text-[#6db0db]">
+                  ₹ {computedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
           ) : (
             <div
-              onClick={() => {
-                setTempRate(String(editingService.amount ?? 0));
-                setIsEditingRate(true);
-              }}
-              title="Click to edit rate for this client"
-              className="text-2xl lg:text-3xl font-extrabold text-[#31719B] dark:text-[#6db0db] tracking-tight mt-1 cursor-pointer hover:opacity-85 transition-opacity"
+              onClick={() => setIsEditingRate(true)}
+              title="Click to edit breakdown charges for this client"
+              className="cursor-pointer group space-y-3 pt-1"
             >
-              ₹ {editingService.amount ? editingService.amount.toLocaleString() : "0"}
+              <div>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider block">
+                  Total Service Fee
+                </span>
+                <div className="text-2xl font-extrabold text-[#31719B] dark:text-[#6db0db] tracking-tight group-hover:opacity-85 transition-opacity">
+                  ₹ {computedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-2 border-t border-blue-200/50 dark:border-blue-900/40 text-[11px]">
+                <div className="flex items-center justify-between text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-500">Professional Fee:</span>
+                  <span className="font-semibold">₹ {Number(profFee || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex items-center justify-between text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-500">Government Fee:</span>
+                  <span className="font-semibold">₹ {Number(govtFee || 0).toLocaleString('en-IN')}</span>
+                </div>
+                {Number(otherFee || 0) > 0 && (
+                  <div className="flex items-center justify-between text-gray-700 dark:text-gray-300">
+                    <span className="text-gray-500">Other Charges:</span>
+                    <span className="font-semibold">₹ {Number(otherFee).toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        <div className="pt-4 text-[11px] text-gray-400 dark:text-gray-500">
-          Base fee billed to client for this service
+        <div className="pt-3 text-[10.5px] text-gray-400 dark:text-gray-500 flex items-center justify-between">
+          <span>Client customized fee</span>
+          <span className="font-medium text-[#31719B] dark:text-[#6db0db]">Click edit to change</span>
         </div>
       </div>
 
-      {/* CARD 2: RECURRING TASK (Middle ~6 cols matching Screenshot) */}
-      <div className="lg:col-span-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-xs space-y-4">
+      {/* CARD 2: RECURRING TASK (Middle ~5 cols) */}
+      <div className="lg:col-span-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-xs space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
           <div className="flex items-center gap-2.5">

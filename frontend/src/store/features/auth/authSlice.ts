@@ -9,7 +9,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   role: string;
   isAdmin: boolean;
-  permissions: RolePermissionsMap | null;
+  permissions: RolePermissionsMap | string[] | any | null;
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -43,7 +43,9 @@ export const authSlice = createSlice({
       const isAdmin = isRoleAdmin(role);
       const permissions = isAdmin
         ? getPermissionsForRole('admin')
-        : (u.permissions && Object.keys(u.permissions).length > 0)
+        : (Array.isArray(u.permissions) && u.permissions.length > 0)
+        ? u.permissions
+        : (u.permissions && typeof u.permissions === 'object' && Object.keys(u.permissions).length > 0)
         ? u.permissions
         : getPermissionsForRole(role);
 
@@ -100,7 +102,9 @@ export const authSlice = createSlice({
       const isAdmin = isRoleAdmin(role);
       const permissions = isAdmin
         ? getPermissionsForRole('admin')
-        : (u.permissions && Object.keys(u.permissions).length > 0)
+        : (Array.isArray(u.permissions) && u.permissions.length > 0)
+        ? u.permissions
+        : (u.permissions && typeof u.permissions === 'object' && Object.keys(u.permissions).length > 0)
         ? u.permissions
         : getPermissionsForRole(role);
 

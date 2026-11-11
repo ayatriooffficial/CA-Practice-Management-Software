@@ -198,7 +198,7 @@ export async function request<T>(
     navigationProgress.incrementRequests();
   }
 
-  const signal = options.signal || (isNavRequest ? navigationProgress.getAbortSignal() || undefined : undefined);
+  const signal = options.signal;
 
   try {
     let response: Response;
@@ -253,8 +253,15 @@ export async function request<T>(
       if (isJson) {
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
           errors = errorData.errors;
+          if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+            const detailMsg = errorData.errors
+              .map((e: any) => (e.field ? `${e.field}: ${e.message}` : e.message))
+              .join(', ');
+            errorMessage = errorData.message?.includes('(') ? errorData.message : `Validation failed (${detailMsg})`;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
         } catch {
           // Fallback to text
         }

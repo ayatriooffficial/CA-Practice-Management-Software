@@ -77,6 +77,11 @@ export const serviceSettingSchema = new Schema(
     invFreq: { type: String, default: 'Monthly' },
     invDay: { type: Schema.Types.Mixed, default: 1 },
     amount: { type: Number, default: 0 },
+    professionalFee: { type: Number, default: 0 },
+    governmentFee: { type: Number, default: 0 },
+    otherCharges: { type: Number, default: 0 },
+    totalServiceFee: { type: Number, default: 0 },
+    taxRate: { type: String, default: '18%' },
     taskName: { type: String, default: '' },
     priority: { type: String, default: 'Medium' },
     assignee: { type: String, default: '' },
@@ -122,26 +127,6 @@ const clientSchema = new Schema<IClientDocument>(
       lowercase: true,
       default: '',
     },
-    address: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    city: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    state: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    pincode: {
-      type: String,
-      trim: true,
-      default: '',
-    },
     addressDetails: {
       type: addressSchema,
       default: () => ({}),
@@ -163,14 +148,6 @@ const clientSchema = new Schema<IClientDocument>(
       type: Boolean,
       default: true,
     },
-    services: {
-      type: [String],
-      default: [],
-    },
-    users: {
-      type: [String],
-      default: [],
-    },
     pan: {
       type: String,
       trim: true,
@@ -191,11 +168,6 @@ const clientSchema = new Schema<IClientDocument>(
       type: String,
       default: null,
     },
-    leadId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Lead',
-      default: null,
-    },
     customerFiles: {
       promoter: { type: [promoterSchema], default: [] },
       statutory: { type: [statutorySchema], default: [] },
@@ -211,10 +183,6 @@ const clientSchema = new Schema<IClientDocument>(
       trim: true,
       default: '',
     },
-    contacts: {
-      type: [Schema.Types.Mixed],
-      default: [],
-    },
     licenses: {
       type: [licenseSchema],
       default: [],
@@ -227,10 +195,6 @@ const clientSchema = new Schema<IClientDocument>(
       type: [Schema.Types.Mixed],
       default: [],
     },
-    serviceSettings: {
-      type: [serviceSettingSchema],
-      default: [],
-    },
     passwords: {
       type: [Schema.Types.Mixed],
       default: [],
@@ -240,10 +204,6 @@ const clientSchema = new Schema<IClientDocument>(
       default: [],
     },
     orgId: {
-      type: String,
-      default: null,
-    },
-    userId: {
       type: String,
       default: null,
     },
@@ -269,6 +229,52 @@ const clientSchema = new Schema<IClientDocument>(
   }
 );
 
+// Virtual getters & setters for address consolidation (backward-compatibility)
+clientSchema.virtual('address').get(function (this: any) {
+  return this.addressDetails?.addressLine1 || '';
+}).set(function (this: any, val: string) {
+  if (!this.addressDetails) this.addressDetails = {};
+  this.addressDetails.addressLine1 = val;
+});
+
+clientSchema.virtual('city').get(function (this: any) {
+  return this.addressDetails?.city || '';
+}).set(function (this: any, val: string) {
+  if (!this.addressDetails) this.addressDetails = {};
+  this.addressDetails.city = val;
+});
+
+clientSchema.virtual('state').get(function (this: any) {
+  return this.addressDetails?.state || '';
+}).set(function (this: any, val: string) {
+  if (!this.addressDetails) this.addressDetails = {};
+  this.addressDetails.state = val;
+});
+
+clientSchema.virtual('pincode').get(function (this: any) {
+  return this.addressDetails?.pincode || '';
+}).set(function (this: any, val: string) {
+  if (!this.addressDetails) this.addressDetails = {};
+  this.addressDetails.pincode = val;
+});
+
+// Virtual populate for separated client service settings collection
+clientSchema.virtual('serviceSettings', {
+  ref: 'ClientServiceSetting',
+  localField: '_id',
+  foreignField: 'clientId',
+});
+
+// Virtual services array derived from active service names
+clientSchema.virtual('services').get(function (this: any) {
+  if (Array.isArray(this.serviceSettings)) {
+    return this.serviceSettings
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => s.serviceName);
+  }
+  return [];
+});
+
 // Apply Soft Delete Plugin
 clientSchema.plugin(softDeletePlugin);
 
@@ -291,7 +297,7 @@ clientSchema.index(
     mobile: 'text',
     email: 'text',
     pan: 'text',
-    city: 'text',
+    'addressDetails.city': 'text',
   },
   {
     weights: {
@@ -300,7 +306,7 @@ clientSchema.index(
       pan: 7,
       mobile: 6,
       email: 5,
-      city: 3,
+      'addressDetails.city': 3,
     },
     name: 'ClientTextSearchIndex',
   }

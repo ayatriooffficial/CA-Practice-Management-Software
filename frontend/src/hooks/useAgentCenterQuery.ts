@@ -1,221 +1,401 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { agentCenterApi } from '@/services/agentCenterApi';
+import { useEffect, useCallback, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchAgentsRequest,
+  fetchAgentByIdRequest,
+  createAgentRequest,
+  updateAgentRequest,
+  publishAgentRequest,
+  disableAgentRequest,
+  deleteAgentRequest,
+  testRunAgentRequest,
+  fetchHistoryRequest,
+  fetchAgentHistoryRequest,
+  fetchIntegrationsStatusRequest,
+  fetchDiagnosticsRequest,
+  fetchFollowUpsRequest,
+} from '@/store/features/agentCenter/agentCenterSlice';
+import {
+  selectAllAgents,
+  selectSelectedAgent,
+  selectAgentLoading,
+  selectAgentMutating,
+  selectAgentError,
+  selectAgentHistory,
+  selectAgentDetailHistory,
+  selectAgentHistoryLoading,
+  selectAgentIntegrations,
+  selectAgentDiagnostics,
+  selectAgentDiagnosticsLoading,
+  selectAgentFollowUps,
+  selectAgentFollowUpsLoading,
+  selectFilteredAgents,
+} from '@/store/features/agentCenter/agentCenterSelectors';
 import { Agent, AgentConfigDraft, AgentFilters, AgentModule, AgentRun } from '@/types/agentCenter';
 
+/**
+ * useAgents - fetches list of agents through Redux Saga and subscribes to Redux state
+ */
 export function useAgents(filters: AgentFilters = {}, enabled = true) {
-  const [data, setData] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(enabled);
-  const [error, setError] = useState<any>(null);
+  const dispatch = useAppDispatch();
+  const allAgents = useAppSelector(selectAllAgents);
+  const isLoading = useAppSelector(selectAgentLoading);
+  const error = useAppSelector(selectAgentError);
 
   const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(() => {
     if (!enabled) return;
-    setIsLoading(true);
-    try {
-      const res = await agentCenterApi.listAgents(filters);
-      setData(res);
-      setError(null);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled, filtersKey]);
+    dispatch(fetchAgentsRequest(filters));
+  }, [dispatch, enabled, filtersKey]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
+  // Apply filters locally if module / status / search are provided
+  const data = useMemo(() => {
+    if (!filters || (!filters.module && !filters.status && !filters.search)) {
+      return allAgents;
+    }
+    return allAgents.filter((agent) => {
+      if (filters.module && filters.module !== 'All' && agent.module !== filters.module) {
+        return false;
+      }
+      if (filters.status && filters.status !== 'All' && agent.status !== filters.status) {
+        return false;
+      }
+      if (filters.search && filters.search.trim()) {
+        const q = filters.search.trim().toLowerCase();
+        const matches =
+          agent.name.toLowerCase().includes(q) ||
+          agent.description?.toLowerCase().includes(q) ||
+          (typeof agent.config?.trigger === 'string' && agent.config.trigger.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [allAgents, filtersKey]);
+
+  const errorObj = useMemo(() => (error ? new Error(error) : null), [error]);
+
+  return {
+    data,
+    isLoading: isLoading && data.length === 0,
+    isFetching: isLoading,
+    error: errorObj,
+    isError: Boolean(error),
+    refetch,
+  };
 }
 
+/**
+ * useAgent - fetches single agent by ID
+ */
 export function useAgent(id: string) {
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(id));
-  const [error, setError] = useState<any>(null);
+  const dispatch = useAppDispatch();
+  const selectedAgent = useAppSelector(selectSelectedAgent);
+  const allAgents = useAppSelector(selectAllAgents);
+  const isLoading = useAppSelector(selectAgentLoading);
+  const error = useAppSelector(selectAgentError);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(() => {
     if (!id) return;
-    setIsLoading(true);
-    try {
-      const res = await agentCenterApi.getAgent(id);
-      setData(res);
-      setError(null);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
+    dispatch(fetchAgentByIdRequest(id));
+  }, [dispatch, id]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
+  const data = useMemo(() => {
+    if (selectedAgent && selectedAgent.id === id) return selectedAgent;
+    return allAgents.find((a) => a.id === id) || null;
+  }, [selectedAgent, allAgents, id]);
+
+  return {
+    data,
+    isLoading: isLoading && !data,
+    isFetching: isLoading,
+    error: error ? new Error(error) : null,
+    isError: Boolean(error),
+    refetch,
+  };
 }
 
+/**
+ * useAgentHistory - execution runs for a single agent
+ */
 export function useAgentHistory(id: string) {
-  const [data, setData] = useState<AgentRun[]>([]);
-  const [isLoading, setIsLoading] = useState(Boolean(id));
-  const [error, setError] = useState<any>(null);
+  const dispatch = useAppDispatch();
+  const data = useAppSelector(selectAgentDetailHistory);
+  const isLoading = useAppSelector(selectAgentHistoryLoading);
+  const error = useAppSelector(selectAgentError);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(() => {
     if (!id) return;
-    setIsLoading(true);
-    try {
-      const res = await agentCenterApi.getAgentHistory(id);
-      setData(res);
-      setError(null);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
+    dispatch(fetchAgentHistoryRequest(id));
+  }, [dispatch, id]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
+  return {
+    data,
+    isLoading: isLoading && data.length === 0,
+    isFetching: isLoading,
+    error: error ? new Error(error) : null,
+    isError: Boolean(error),
+    refetch,
+  };
 }
 
+/**
+ * useAgentGlobalHistory - global execution history
+ */
 export function useAgentGlobalHistory(limit = 100) {
-  const [data, setData] = useState<AgentRun[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+  const dispatch = useAppDispatch();
+  const data = useAppSelector(selectAgentHistory);
+  const isLoading = useAppSelector(selectAgentHistoryLoading);
+  const error = useAppSelector(selectAgentError);
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await agentCenterApi.getHistory(limit);
-      setData(res);
-      setError(null);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [limit]);
+  const refetch = useCallback(() => {
+    dispatch(fetchHistoryRequest(limit));
+  }, [dispatch, limit]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  return { data, isLoading, isFetching: isLoading, error, isError: Boolean(error), refetch };
+  return {
+    data,
+    isLoading: isLoading && data.length === 0,
+    isFetching: isLoading,
+    error: error ? new Error(error) : null,
+    isError: Boolean(error),
+    refetch,
+  };
 }
 
+/**
+ * useCreateAgent - mutation hook with Redux dispatch
+ */
 export function useCreateAgent() {
-  const [isPending, setIsPending] = useState(false);
-  return {
-    mutateAsync: async (payload: { name: string; module: AgentModule; description: string; config: AgentConfigDraft; saveDraft?: boolean }) => {
-      setIsPending(true);
-      try {
-        return await agentCenterApi.createAgent(payload);
-      } finally {
-        setIsPending(false);
-      }
+  const dispatch = useAppDispatch();
+  const isPending = useAppSelector(selectAgentMutating);
+
+  const mutateAsync = useCallback(
+    async (payload: {
+      name: string;
+      module: AgentModule;
+      description: string;
+      config: AgentConfigDraft;
+      saveDraft?: boolean;
+    }): Promise<Agent> => {
+      return new Promise<Agent>((resolve) => {
+        dispatch(
+          createAgentRequest({
+            ...payload,
+            onSuccess: (agent) => resolve(agent),
+          })
+        );
+      });
     },
-    isPending,
-  };
+    [dispatch]
+  );
+
+  return { mutateAsync, isPending };
 }
 
+/**
+ * useUpdateAgent - mutation hook with Redux dispatch
+ */
 export function useUpdateAgent() {
-  const [isPending, setIsPending] = useState(false);
-  return {
-    mutateAsync: async ({ id, payload }: { id: string; payload: Partial<{ name: string; module: AgentModule; description: string; config: AgentConfigDraft; saveDraft: boolean }> }) => {
-      setIsPending(true);
-      try {
-        return await agentCenterApi.updateAgent(id, payload);
-      } finally {
-        setIsPending(false);
-      }
+  const dispatch = useAppDispatch();
+  const isPending = useAppSelector(selectAgentMutating);
+
+  const mutateAsync = useCallback(
+    async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<{
+        name: string;
+        module: AgentModule;
+        description: string;
+        config: AgentConfigDraft;
+        saveDraft: boolean;
+      }>;
+    }): Promise<Agent> => {
+      return new Promise<Agent>((resolve) => {
+        dispatch(
+          updateAgentRequest({
+            id,
+            payload,
+            onSuccess: (agent) => resolve(agent),
+          })
+        );
+      });
     },
-    isPending,
-  };
+    [dispatch]
+  );
+
+  return { mutateAsync, isPending };
 }
 
+/**
+ * usePublishAgent - mutation hook with Redux dispatch
+ */
 export function usePublishAgent() {
-  const [isPending, setIsPending] = useState(false);
-  return {
-    mutateAsync: async (id: string) => {
-      setIsPending(true);
-      try {
-        return await agentCenterApi.publishAgent(id);
-      } finally {
-        setIsPending(false);
-      }
+  const dispatch = useAppDispatch();
+  const isPending = useAppSelector(selectAgentMutating);
+
+  const mutateAsync = useCallback(
+    async (id: string): Promise<any> => {
+      dispatch(publishAgentRequest(id));
+      return { id, status: 'Active' };
     },
-    isPending,
-  };
+    [dispatch]
+  );
+
+  return { mutateAsync, isPending };
 }
 
+/**
+ * useDisableAgent - mutation hook with Redux dispatch
+ */
 export function useDisableAgent() {
-  const [isPending, setIsPending] = useState(false);
-  return {
-    mutateAsync: async (id: string) => {
-      setIsPending(true);
-      try {
-        return await agentCenterApi.disableAgent(id);
-      } finally {
-        setIsPending(false);
-      }
+  const dispatch = useAppDispatch();
+  const isPending = useAppSelector(selectAgentMutating);
+
+  const mutateAsync = useCallback(
+    async (id: string): Promise<any> => {
+      dispatch(disableAgentRequest(id));
+      return { id, status: 'Draft' };
     },
-    isPending,
-  };
+    [dispatch]
+  );
+
+  return { mutateAsync, isPending };
 }
 
+/**
+ * useDeleteAgent - mutation hook with Redux dispatch
+ */
 export function useDeleteAgent() {
-  const [isPending, setIsPending] = useState(false);
-  return {
-    mutateAsync: async (id: string) => {
-      setIsPending(true);
-      try {
-        return await agentCenterApi.deleteAgent(id);
-      } finally {
-        setIsPending(false);
-      }
+  const dispatch = useAppDispatch();
+  const isPending = useAppSelector(selectAgentMutating);
+
+  const mutateAsync = useCallback(
+    async (id: string): Promise<any> => {
+      dispatch(deleteAgentRequest(id));
+      return { id };
     },
-    isPending,
-  };
+    [dispatch]
+  );
+
+  return { mutateAsync, isPending };
 }
 
+/**
+ * useTestRunAgent - mutation hook with Redux dispatch
+ */
 export function useTestRunAgent() {
-  const [isPending, setIsPending] = useState(false);
-  return {
-    mutateAsync: async (variables: string | { id: string; testEmail?: string; mode?: 'test' | 'live'; failRecipient?: string; messageId?: string }) => {
-      setIsPending(true);
-      try {
-        const id = typeof variables === 'string' ? variables : variables.id;
-        const options = typeof variables === 'string' ? undefined : {
-          testEmail: variables.testEmail,
-          mode: variables.mode,
-          failRecipient: variables.failRecipient,
-          messageId: variables.messageId,
-        };
-        return await agentCenterApi.testRunAgent(id, options);
-      } finally {
-        setIsPending(false);
-      }
+  const dispatch = useAppDispatch();
+  const isPending = useAppSelector(selectAgentMutating);
+
+  const mutateAsync = useCallback(
+    async (
+      variables:
+        | string
+        | {
+            id: string;
+            testEmail?: string;
+            mode?: 'test' | 'live';
+            failRecipient?: string;
+            messageId?: string;
+          }
+    ): Promise<AgentRun> => {
+      const id = typeof variables === 'string' ? variables : variables.id;
+      const options =
+        typeof variables === 'string'
+          ? undefined
+          : {
+              testEmail: variables.testEmail,
+              mode: variables.mode,
+              failRecipient: variables.failRecipient,
+              messageId: variables.messageId,
+            };
+
+      return new Promise<AgentRun>((resolve) => {
+        dispatch(
+          testRunAgentRequest({
+            id,
+            options,
+            onSuccess: (run) => resolve(run),
+          })
+        );
+      });
     },
-    isPending,
-  };
+    [dispatch]
+  );
+
+  return { mutateAsync, isPending };
 }
 
+/**
+ * useIntegrationsStatus - fetches email and whatsapp integration status
+ */
 export function useIntegrationsStatus() {
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const data = useAppSelector(selectAgentIntegrations);
+  const isLoading = !data;
 
   useEffect(() => {
-    agentCenterApi.getIntegrationsStatus()
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, []);
+    dispatch(fetchIntegrationsStatusRequest());
+  }, [dispatch]);
 
   return { data, isLoading };
+}
+
+/**
+ * useAgentDiagnostics - fetches diagnostic summary
+ */
+export function useAgentDiagnostics() {
+  const dispatch = useAppDispatch();
+  const data = useAppSelector(selectAgentDiagnostics);
+  const isLoading = useAppSelector(selectAgentDiagnosticsLoading);
+
+  const refetch = useCallback(() => {
+    dispatch(fetchDiagnosticsRequest());
+  }, [dispatch]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, refetch };
+}
+
+/**
+ * useAgentFollowUps - fetches follow up records
+ */
+export function useAgentFollowUps(status?: string) {
+  const dispatch = useAppDispatch();
+  const data = useAppSelector(selectAgentFollowUps);
+  const isLoading = useAppSelector(selectAgentFollowUpsLoading);
+
+  const refetch = useCallback(() => {
+    dispatch(fetchFollowUpsRequest(status));
+  }, [dispatch, status]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, refetch };
 }

@@ -7,6 +7,7 @@ import {
   IComplianceEntryDocument,
 } from './compliance.model';
 import { Client } from '../client/client.model';
+import { ClientServiceSetting } from '../client/clientServiceSetting.model';
 import { Service } from '../service/service.model';
 import { ServiceService } from '../service/service.service';
 import { deriveEntryStatus, getTodayDateString } from '../shared-nc/status.util';
@@ -96,6 +97,20 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     return { clients: [], rows: [], columns: generateColumns(fy ?? 'FY 2025-2026', frequency ?? 'all'), entries: [] };
   }
 
+  // Pre-load all client service settings from dedicated collection
+  const clientIds = clients.map((c) => c._id);
+  const allServiceSettings = await ClientServiceSetting.find({
+    clientId: { $in: clientIds },
+    isDeleted: false,
+  }).lean();
+
+  const settingsByClient = new Map<string, any[]>();
+  for (const ss of allServiceSettings) {
+    const cid = String(ss.clientId);
+    if (!settingsByClient.has(cid)) settingsByClient.set(cid, []);
+    settingsByClient.get(cid)!.push(ss);
+  }
+
   // Pre-load all catalog services to look up categories and frequencies
   const catalogServices = await Service.find({ isDeleted: false }).lean();
   const catalogMap = new Map<string, any>();
@@ -124,7 +139,7 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     const clientActiveList: ClientActiveService[] = [];
 
     // Check client.serviceSettings - Only services explicitly enabled with compliance are included
-    const settings = (client.serviceSettings || []) as any[];
+    const settings = settingsByClient.get(cid) || ((client as any).serviceSettings || []) as any[];
     for (const s of settings) {
       const isEnabled = Boolean(s.isActive !== undefined ? s.isActive : s.compliance);
       if (!isEnabled) continue;

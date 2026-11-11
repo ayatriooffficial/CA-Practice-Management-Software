@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Service } from './service.model';
 import { Task } from '../task/task.model';
 import { Client } from '../client/client.model';
+import { ClientServiceSetting } from '../client/clientServiceSetting.model';
 import {
   ComplianceCategoryModel,
   ComplianceItemModel,
@@ -349,53 +350,12 @@ export class ServiceService {
    */
   static async getAllServices(
     queryOptions: QueryOptions,
-    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{ items: IServiceDocument[]; pagination: PaginationMeta }> {
     const searchableFields = ['name', 'category', 'sacCode', 'description', 'sop'];
     const parsedQuery = QueryBuilder.parse<IServiceDocument>(queryOptions, searchableFields);
 
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
-    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
-
-    if (orgId) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-      if (userId) {
-        orgConditions.push({ userId }, { createdBy: userId });
-      }
-      const orgFilter = { $or: orgConditions };
-
-      if (parsedQuery.filter.$or) {
-        const existingOr = parsedQuery.filter.$or;
-        delete parsedQuery.filter.$or;
-        parsedQuery.filter.$and = [
-          { $or: existingOr },
-          orgFilter,
-        ];
-      } else {
-        Object.assign(parsedQuery.filter, orgFilter);
-      }
-    } else if (userId) {
-      const userCondition = {
-        $or: [
-          { userId },
-          { createdBy: userId },
-        ],
-      };
-      if (parsedQuery.filter.$or) {
-        const existingOr = parsedQuery.filter.$or;
-        delete parsedQuery.filter.$or;
-        parsedQuery.filter.$and = [
-          { $or: existingOr },
-          userCondition,
-        ];
-      } else {
-        Object.assign(parsedQuery.filter, userCondition);
-      }
-    }
-
+    // Single organization practice: all services are accessible across the practice
     // Lightweight table projection: only fetch fields required for table view.
     const defaultServiceTableFields = [
       'serviceId',
@@ -404,6 +364,8 @@ export class ServiceService {
       'isRecurring',
       'frequency',
       'professionalFee',
+      'governmentFee',
+      'totalServiceFee',
       'difficulty',
       'status',
       'sop',
@@ -612,7 +574,7 @@ export class ServiceService {
    * Analytics and category breakdown
    */
   static async getServiceStats(
-    userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
+    _userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null
   ): Promise<{
     totalServices: number;
     activeServices: number;
@@ -620,21 +582,7 @@ export class ServiceService {
     categoriesCount: number;
     avgFee: number;
   }> {
-    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
-    const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
     const matchCondition: Record<string, any> = { isDeleted: false };
-    if (orgId) {
-      const orgConditions: any[] = [
-        { orgId },
-        { orgId: String(orgId) },
-      ];
-      if (userId) {
-        orgConditions.push({ userId }, { createdBy: userId });
-      }
-      matchCondition.$or = orgConditions;
-    } else if (userId) {
-      matchCondition.$or = [{ userId }, { createdBy: userId }];
-    }
 
     const [stats] = await Service.aggregate([
       { $match: matchCondition },
@@ -856,51 +804,30 @@ export class ServiceService {
       throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
     }
 
-    // 3. Update Client's serviceSettings array
-    client.serviceSettings = client.serviceSettings || [];
-    const settingIndex = client.serviceSettings.findIndex(
-      (s: any) => s.serviceName && s.serviceName.trim().toLowerCase() === service.name.trim().toLowerCase()
+    // 3. Update dedicated ClientServiceSetting collection
+    await ClientServiceSetting.findOneAndUpdate(
+      { clientId: client._id, serviceName: service.name },
+      {
+        $set: {
+          clientId: client._id,
+          orgId: client.orgId || null,
+          serviceId: service._id?.toString() || serviceId,
+          serviceName: service.name,
+          category: service.category || 'General',
+          isActive: enabled,
+          compliance: enabled,
+          recTask: enabled ? 'Enabled' : 'Disabled',
+          frequency: service.frequency || 'Monthly',
+          start: 'Day 1',
+          target: service.tatDays ? `Day ${service.tatDays}` : 'Day 15',
+          end: service.tatDays ? `Day ${service.tatDays + 2}` : 'Day 20',
+          amount: service.professionalFee || 0,
+        },
+      },
+      { upsert: true, new: true }
     );
 
-    if (settingIndex >= 0) {
-      client.serviceSettings[settingIndex].isActive = enabled;
-      client.serviceSettings[settingIndex].compliance = enabled;
-      client.serviceSettings[settingIndex].recTask = enabled ? 'Enabled' : 'Disabled';
-      if (!client.serviceSettings[settingIndex].serviceId && service._id) {
-        client.serviceSettings[settingIndex].serviceId = service._id.toString();
-      }
-    } else if (enabled) {
-      client.serviceSettings.push({
-        id: `ss-${Date.now()}`,
-        serviceId: service._id?.toString() || serviceId,
-        serviceName: service.name,
-        category: service.category || 'General',
-        isActive: true,
-        compliance: true,
-        recTask: 'Enabled',
-        recInvoice: 'Disabled',
-        frequency: service.frequency || 'Monthly',
-        start: 'Day 1',
-        target: service.tatDays ? `Day ${service.tatDays}` : 'Day 15',
-        end: service.tatDays ? `Day ${service.tatDays + 2}` : 'Day 20',
-        amount: service.professionalFee || 0,
-      });
-    }
-
-    // 4. Update Client's services array (active service names)
-    client.services = client.services || [];
-    const hasServiceName = client.services.some(
-      (s: string) => s.trim().toLowerCase() === service.name.trim().toLowerCase()
-    );
-    if (enabled && !hasServiceName) {
-      client.services.push(service.name);
-    } else if (!enabled && hasServiceName) {
-      client.services = client.services.filter(
-        (s: string) => s.trim().toLowerCase() !== service.name.trim().toLowerCase()
-      );
-    }
-
-    // 5. Update Client's customerFiles.recurring array
+    // 4. Update Client's customerFiles.recurring array
     if (!client.customerFiles) {
       client.customerFiles = { promoter: [], statutory: [], recurring: [] };
     }

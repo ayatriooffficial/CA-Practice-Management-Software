@@ -465,7 +465,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   Registered Address
                 </span>
                 <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
-                  {client.address || "-"}
+                  {client.addressDetails?.addressLine1 || client.address || "-"}
                 </span>
               </div>
 
@@ -474,7 +474,13 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   City, State & Pincode
                 </span>
                 <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
-                  {[client.city, client.state, client.pincode].filter(Boolean).join(", ") || "-"}
+                  {[
+                    client.addressDetails?.city || client.city,
+                    client.addressDetails?.state || client.state,
+                    client.addressDetails?.pincode || client.pincode,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "-"}
                 </span>
               </div>
 

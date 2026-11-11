@@ -33,6 +33,7 @@ const AddTaskModal = dynamic(
 import { TaskItem } from "@/data/taskData";
 import { useAuth } from "@/components/auth/AuthContext";
 import { usePermission } from "@/components/team/usePermission";
+import Button from "@/components/ui/Button";
 
 export default function TaskPage() {
   const { currentUser } = useAuth();
@@ -65,7 +66,7 @@ export default function TaskPage() {
   };
 
   return (
-    <div className="">
+    <div className="p-2">
       {/* Detail View Mode */}
       {selectedDetailTaskId ? (
         <TaskDetailView
@@ -75,9 +76,9 @@ export default function TaskPage() {
       ) : (
         <>
           {/* Top Main Navigation Header matching Screenshots 3 & 4 */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between items-center border-b border-[var(--border-main)] p-2">
+          <div className="flex flex-col sm:flex-row  justify-between items-center border-b border-[var(--border-main)] pb-2">
             {/* Left Main Tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto">
+            <div className="flex  gap-2 overflow-x-auto">
               {MAIN_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeMainTab === tab.id;
@@ -109,13 +110,13 @@ export default function TaskPage() {
 
             {/* Right Top Actions */}
             <div className="flex items-center space-x-2.5 shrink-0">
-              <button
+              <Button
+                variant="outline"
                 type="button"
-                className="px-3 py-1.5 text-xs font-medium text-[var(--text-main)] bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md hover:bg-[var(--bg-hover)] transition-colors flex items-center space-x-1.5"
               >
                 <Activity className="w-3.5 h-3.5 text-[var(--text-subtle)]" />
                 <span>Activity</span>
-              </button>
+              </Button>
 
               {!isEmployee && canAddEdit("task_manager") && (
                 <>
@@ -127,15 +128,13 @@ export default function TaskPage() {
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Template</span>
                   </Link>
-                  <button
+                  <Button variant="primary"
+
                     type="button"
-                    onClick={() => setIsAddTaskOpen(true)}
-                    style={{ backgroundColor: "var(--primary)" }}
-                    className="px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center space-x-1.5"
-                  >
+                    onClick={() => setIsAddTaskOpen(true)}>
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Task</span>
-                  </button>
+                  </Button>
                 </>
               )}
             </div>

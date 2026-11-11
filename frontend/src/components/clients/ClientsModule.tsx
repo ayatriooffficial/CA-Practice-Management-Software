@@ -429,7 +429,10 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         setViewMode("list");
         setEditingClient(null);
       } catch (err: any) {
-        showToast(err.message || "Failed to save client.");
+        const errorDetail = err.errors && Array.isArray(err.errors) && err.errors.length > 0
+          ? err.errors.map((e: any) => (e.field ? `${e.field}: ${e.message}` : e.message)).join(", ")
+          : (err.message || "Failed to save client.");
+        showToast(errorDetail);
         throw err;
       }
     },
@@ -510,7 +513,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
         cell: (client: Client) => (
           <button
             type="button"
-onClick={() => handleSelectClient(client, "Master")}
+            onClick={() => handleSelectClient(client, "Master")}
             className="hover:text-[#31719B] hover:underline cursor-pointer truncate max-w-full font-mono text-xs text-gray-600 dark:text-gray-400"
           >
             {client.fileNo}
@@ -736,8 +739,8 @@ onClick={() => handleSelectClient(client, "Master")}
       <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
-        <div className="flex items-center gap-3 py-2 min-h-[40px]">
+      <div className="flex flex-wrap justify-between gap-4 px-1 min-h-[48px]">
+        <div className="flex  gap-3  min-h-[40px]">
           <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white">
             Clients ({pagination?.totalDocs ?? clients.length})
           </h1>
@@ -748,40 +751,36 @@ onClick={() => handleSelectClient(client, "Master")}
           )}
         </div>
 
-        <div className="flex items-center gap-3 py-2">
+        <div className="flex  gap-3 ">
           {/* Toggle Trash / Active View */}
           {canDelete("clients") && (
-            <button
+            <Button
+              variant="outline"
               type="button"
               onClick={() => {
                 setShowDeleted((prev) => !prev);
                 setPage(1);
               }}
-              className={`flex items-center gap-1.5 h-10 px-3 rounded-md text-xs font-semibold border transition-all cursor-pointer ${showDeleted
-                ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300"
-                : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
-                }`}
               title="Toggle deleted records"
             >
               {showDeleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               <span>{showDeleted ? "Trash View" : "Active Only"}</span>
-            </button>
+            </Button>
           )}
 
           {/* New Client Button */}
           {canAddEdit("clients") && (
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setEditingClient(null);
                 setViewMode("create");
               }}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
+
             >
               <Plus className="w-4 h-4" />
               <span>Add Client</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -889,7 +888,7 @@ onClick={() => handleSelectClient(client, "Master")}
       )}
 
       {/* Spreadsheet Table using reusable DataTable */}
-      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-none">
+      <div className="bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col  rounded-none">
         <DataTable<Client>
           columns={clientDataTableColumns}
           data={clients}
@@ -907,7 +906,7 @@ onClick={() => handleSelectClient(client, "Master")}
               ? "Trash is empty."
               : "No clients found. Click '+ Add Client' to register a new client."
           }
-onRowClick={(client) => handleSelectClient(client, "Master")}
+          onRowClick={(client) => handleSelectClient(client, "Master")}
           pagination={{
             currentPage: page,
             totalItems: pagination?.totalDocs || clients.length,

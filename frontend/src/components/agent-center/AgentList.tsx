@@ -16,14 +16,24 @@ import {
   Plus,
   Search,
   Zap,
+  Activity,
+  Database,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   useAgents,
   useDisableAgent,
   usePublishAgent,
   useTestRunAgent,
+  useAgentDiagnostics,
+  useAgentFollowUps,
 } from '@/hooks/useAgentCenterQuery';
-import { Agent, AgentModule } from '@/types/agentCenter';
+import { Agent, AgentModule, FollowUpRecord } from '@/types/agentCenter';
 import { formatAgentDate } from './shared';
 
 interface ModuleCardConfig {
@@ -65,6 +75,7 @@ export default function AgentList() {
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [showLiveStatus, setShowLiveStatus] = useState(false);
 
   useEffect(() => {
     if (queryModule === 'Task' || queryModule === 'DSC' || queryModule === 'License') {
@@ -73,6 +84,8 @@ export default function AgentList() {
   }, [queryModule]);
 
   const { data: liveAgents = [], isLoading: agentsLoading, refetch: refetchAgents } = useAgents({}, true);
+  const { data: diagnostics, isLoading: diagLoading } = useAgentDiagnostics();
+  const { data: followUps = [], isLoading: followUpsLoading } = useAgentFollowUps();
 
   const publish = usePublishAgent();
   const disable = useDisableAgent();
@@ -234,6 +247,152 @@ export default function AgentList() {
           </button>
         </div>
       )}
+
+      {/* 2.5 REAL DATABASE AUTOMATION DIAGNOSTICS & FOLLOW-UP STATUS */}
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        <div
+          onClick={() => setShowLiveStatus((prev) => !prev)}
+          className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 relative">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${diagnostics?.databaseConnected ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${diagnostics?.databaseConnected ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            </span>
+            <span className="text-xs font-semibold text-slate-800">
+              Database Automation Engine: {diagnostics?.databaseConnected ? 'Operational (MongoDB Connected)' : 'Connecting...'}
+            </span>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">
+              · Last Scan: {diagnostics?.lastDatabaseScan ? formatAgentDate(diagnostics.lastDatabaseScan) : 'Active'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-600">
+            <span className="hidden md:inline font-medium text-purple-700">
+              {diagnostics?.activeFollowUpsCount ?? 0} active client follow-up cycles
+            </span>
+            {showLiveStatus ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </div>
+
+        {/* Real Metrics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-white text-center text-xs">
+          <div className="p-3">
+            <p className="text-[11px] text-slate-500">Tasks Due</p>
+            <p className="text-base font-bold text-slate-800 mt-0.5">{diagnostics?.dueTasksCount ?? 0}</p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] text-slate-500">Pending Docs</p>
+            <p className="text-base font-bold text-amber-600 mt-0.5">{diagnostics?.pendingDocumentsCount ?? 0}</p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] text-slate-500">Received Docs</p>
+            <p className="text-base font-bold text-emerald-600 mt-0.5">{diagnostics?.receivedDocumentsCount ?? 0}</p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] text-slate-500">Active DSC</p>
+            <p className="text-base font-bold text-slate-800 mt-0.5">{diagnostics?.activeDscCount ?? 0}</p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] text-slate-500">Active Licenses</p>
+            <p className="text-base font-bold text-slate-800 mt-0.5">{diagnostics?.activeLicensesCount ?? 0}</p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] text-slate-500">Waiting Client</p>
+            <p className="text-base font-bold text-purple-600 mt-0.5">{diagnostics?.waitingClientsCount ?? 0}</p>
+          </div>
+          <div className="p-3 col-span-2 sm:col-span-1">
+            <p className="text-[11px] text-slate-500">Escalated</p>
+            <p className="text-base font-bold text-rose-600 mt-0.5">{diagnostics?.escalatedFollowUpsCount ?? 0}</p>
+          </div>
+        </div>
+
+        {/* Collapsible Record-Level Client Status Table */}
+        {showLiveStatus && (
+          <div className="border-t border-slate-200 p-4 bg-slate-50/50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Active Client Follow-up Tracking & Document Receipts
+              </h3>
+              <span className="text-[11px] text-slate-500">
+                Automatic scan every 60s (Asia/Kolkata)
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
+                  <tr>
+                    <th className="py-2.5 px-3">Client</th>
+                    <th className="py-2.5 px-3">Module</th>
+                    <th className="py-2.5 px-3">Record / Document</th>
+                    <th className="py-2.5 px-3">Channel</th>
+                    <th className="py-2.5 px-3">Current Status</th>
+                    <th className="py-2.5 px-3">Attempt</th>
+                    <th className="py-2.5 px-3">Next Reminder</th>
+                    <th className="py-2.5 px-3">Last Activity / Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {followUpsLoading ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-slate-400">
+                        Loading active follow-up cycles...
+                      </td>
+                    </tr>
+                  ) : followUps.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-slate-400">
+                        No active client follow-up reminder cycles currently pending in MongoDB.
+                      </td>
+                    </tr>
+                  ) : (
+                    followUps.map((item: FollowUpRecord) => {
+                      const statusColor =
+                        item.status === 'completed' || item.status === 'document_received' || item.status === 'verified'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : item.status === 'escalated'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : item.status === 'opt_out'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-purple-50 text-purple-700 border-purple-200';
+
+                      return (
+                        <tr key={item._id} className="hover:bg-slate-50">
+                          <td className="py-2 px-3 font-medium text-slate-900">
+                            {item.clientName || 'Client'}
+                            <span className="block text-[10px] text-slate-400">
+                              {item.clientEmail || item.clientMobile || '—'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-slate-600">{item.module}</td>
+                          <td className="py-2 px-3 text-slate-800">
+                            {item.documentTitle || item.sourceName || '—'}
+                          </td>
+                          <td className="py-2 px-3 text-slate-600">{item.channel}</td>
+                          <td className="py-2 px-3">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusColor}`}>
+                              {item.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-slate-600">
+                            {item.attemptCount} / {item.maxAttempts}
+                          </td>
+                          <td className="py-2 px-3 text-slate-600">
+                            {item.nextReminderAt ? formatAgentDate(item.nextReminderAt) : 'None'}
+                          </td>
+                          <td className="py-2 px-3 text-slate-500 max-w-xs truncate" title={item.resolutionNotes || ''}>
+                            {item.resolutionNotes || 'Awaiting response'}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 3. CATEGORY SECTION HEADING & ADD AGENT BUTTON */}
       <div className="flex items-center justify-between gap-3 mt-6 mb-4">

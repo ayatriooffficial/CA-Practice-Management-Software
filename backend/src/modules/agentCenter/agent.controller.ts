@@ -8,6 +8,8 @@ import { AgentSchedulerService } from './scheduler.service';
 import { getPublicDefinitions } from './definitions';
 import { AppError } from '../../shared/utils/apiError';
 import { MailService } from '../../shared/utils/mailService';
+import { FollowUpService } from './followUp.service';
+import { FollowUpState } from './followUp.model';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 
@@ -177,7 +179,20 @@ export class AgentCenterController {
    * Meta WhatsApp Cloud API delivery status webhook.
    * Transitions agent runs to 'delivered', 'read', or 'failed'.
    */
+  /**
+   * POST /api/v1/agent-center/whatsapp/webhook
+   * Meta WhatsApp Cloud API delivery status & incoming client message webhook.
+   * Handles delivery updates, client text messages, and uploaded document attachments.
+   */
   static handleWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+    const signature = req.headers['x-hub-signature-256'] as string | undefined;
+
+    if (!FollowUpService.verifyWhatsAppSignature(rawBody, signature)) {
+      logger.warn('Unauthorized WhatsApp webhook: signature verification failed.');
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
     const body = req.body;
     if (body?.object === 'whatsapp_business_account' || body?.entry) {
       const entries = Array.isArray(body.entry) ? body.entry : [];
@@ -185,6 +200,7 @@ export class AgentCenterController {
         const changes = Array.isArray(entry?.changes) ? entry.changes : [];
         for (const change of changes) {
           const value = change?.value;
+          // 1. Process delivery receipts
           const statuses = Array.isArray(value?.statuses) ? value.statuses : [];
           for (const statusObj of statuses) {
             const messageId = statusObj?.id;
@@ -194,9 +210,60 @@ export class AgentCenterController {
               await AgentExecutionService.updateWhatsAppDeliveryStatus(messageId, status, errors);
             }
           }
+
+          // 2. Process incoming client messages (text, media, documents)
+          const messages = Array.isArray(value?.messages) ? value.messages : [];
+          for (const msg of messages) {
+            await FollowUpService.handleIncomingWhatsAppMessage(msg);
+          }
         }
       }
     }
     return res.status(200).json({ status: 'ok' });
+  });
+
+  /**
+   * GET /api/v1/agent-center/diagnostics/summary
+   * Provides real MongoDB aggregated statistics for the Agent Center interface.
+   */
+  static diagnosticSummary = asyncHandler(async (req: Request, res: Response) => {
+    const orgId = organizationId(req);
+    const summary = await FollowUpService.getDiagnosticSummary(orgId);
+    return ApiResponse.success(res, summary, 'Agent Center diagnostic summary retrieved');
+  });
+
+  /**
+   * POST /api/v1/agent-center/agents/:id/preview-impact
+   * Evaluates real database records to preview agent execution without sending any client notifications.
+   */
+  static previewAgentImpact = asyncHandler(async (req: Request, res: Response) => {
+    const orgId = organizationId(req);
+    const id = String(req.params.id);
+    const preview = await FollowUpService.previewAgentDatabaseImpact(orgId, id);
+    return ApiResponse.success(res, preview, 'Database-backed agent impact preview generated');
+  });
+
+  /**
+   * GET /api/v1/agent-center/follow-ups
+   * Lists active client follow-up reminder cycles and document collection state.
+   */
+  static listFollowUps = asyncHandler(async (req: Request, res: Response) => {
+    const orgId = organizationId(req);
+    const status = req.query.status as string | undefined;
+    const filter: any = { orgId };
+    if (status) filter.status = status;
+    const followUps = await FollowUpState.find(filter).sort({ updatedAt: -1 }).limit(100).lean().exec();
+    return ApiResponse.success(res, followUps, 'Follow-up records retrieved');
+  });
+
+  /**
+   * POST /api/v1/agent-center/follow-ups/process-tick
+   * Triggers follow-up retry checks and evaluates stop conditions.
+   */
+  static processFollowUpTick = asyncHandler(async (req: Request, res: Response) => {
+    const orgId = organizationId(req);
+    const forceRealSend = req.body?.forceRealSend === true;
+    const result = await FollowUpService.processScheduledFollowUps({ orgId, forceRealSend });
+    return ApiResponse.success(res, result, 'Follow-up tick processed successfully');
   });
 }

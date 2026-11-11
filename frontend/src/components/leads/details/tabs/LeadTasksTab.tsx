@@ -7,6 +7,7 @@ import { useLeadTasks, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useL
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { ComposeModal } from "@/components/email/ComposeModal";
 import { AssociatedCompaniesCard } from "../AssociatedCompaniesCard";
+import Button from "@/components/ui/Button";
 
 interface LeadTasksTabProps {
   lead: Lead;
@@ -121,15 +122,14 @@ Ayatrio Practice`;
           Follow-up Tasks ({tasks.length})
         </h2>
 
-        <button
+        <Button
           type="button"
           onClick={onOpenAddTask}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer"
-          style={{ backgroundColor: "var(--premium-blue-dark)" }}
+
         >
           <Plus className="w-4 h-4" />
           <span>Add Task</span>
-        </button>
+        </Button>
       </div>
 
       {/* Loading Skeleton */}
@@ -182,11 +182,10 @@ Ayatrio Practice`;
                   <button
                     type="button"
                     onClick={() => handleToggleStatus(task)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                      isCompleted
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${isCompleted
                         ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                         : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-                    }`}
+                      }`}
                   >
                     {isCompleted ? (
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />

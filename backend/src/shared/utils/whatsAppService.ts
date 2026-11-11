@@ -138,4 +138,45 @@ export class WhatsAppService {
       };
     }
   }
+
+  /**
+   * Retrieve metadata (download URL, mime type, size) for an uploaded media attachment from Meta Graph API.
+   */
+  public static async getMediaMetadata(mediaId: string): Promise<{ url: string; mime_type: string; file_size?: number } | null> {
+    const token = process.env.WHATSAPP_API_TOKEN;
+    if (!token || !mediaId) return null;
+    try {
+      const res = await fetch(`https://graph.facebook.com/v18.0/${mediaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as { url: string; mime_type: string; file_size?: number };
+    } catch (err: any) {
+      logger.error(`❌ Failed to get WhatsApp media metadata for ${mediaId}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Download the binary payload of an incoming media attachment from Meta CDN.
+   */
+  public static async downloadMedia(mediaId: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    const meta = await this.getMediaMetadata(mediaId);
+    if (!meta || !meta.url) return null;
+    const token = process.env.WHATSAPP_API_TOKEN;
+    try {
+      const res = await fetch(meta.url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const arrayBuf = await res.arrayBuffer();
+      return {
+        buffer: Buffer.from(arrayBuf),
+        mimeType: meta.mime_type,
+      };
+    } catch (err: any) {
+      logger.error(`❌ Failed to download WhatsApp media ${mediaId}:`, err);
+      return null;
+    }
+  }
 }

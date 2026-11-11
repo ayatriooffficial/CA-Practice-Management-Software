@@ -20,18 +20,51 @@ import {
   Check,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
-import { todoApi, TeamTaskItem } from "@/services/todoApi";
-import { clientApi } from "@/services/clientApi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  fetchWorkspaceRequest,
+  setActiveSection,
+  setAdminScope,
+  setSelectedTag,
+  setSearchQuery,
+  setSelectedClientId,
+  setSelectedAssigneeId,
+  setSortBy,
+  setDueDateFilter,
+  setDateFilterTab,
+  setTodoPage,
+  setTodoLimit,
+  resetTodoFilters,
+  toggleAdminTaskRequest,
+  updateTaskProgressRequest,
+  updatePersonalTodoRequest,
+} from "@/store/features/todo/todoSlice";
+import {
+  selectUnifiedTasks,
+  selectTodoFilters,
+  selectTodoPagination,
+  selectIsTodoLoading,
+  selectIsTodoRefreshing,
+  selectTodoScopeCounts,
+  selectTodoSidebarCounts,
+  selectFilteredTodoTasks,
+  selectDateFilteredTasks,
+} from "@/store/features/todo/todoSelectors";
+import { fetchClientsRequest } from "@/store/features/clients/clientSlice";
+import { fetchTeamRequest } from "@/store/features/team/teamSlice";
+import { TeamTaskItem } from "@/services/todoApi";
 import { Client } from "@/data/crmData";
+import { clientApi } from "@/services/clientApi";
 import { teamStore } from "@/components/team/teamStore";
 import { EmployeeRecord } from "@/components/team/types";
-import { TuriaNavSection, TuriaSidebarCounts } from "./TuriaTodoSidebar";
+import { TuriaNavSection } from "./TuriaTodoSidebar";
 import { TuriaRightRail } from "./TuriaRightRail";
 import { TuriaEmptyState } from "./TuriaEmptyState";
 import { TuriaDateTaskView } from "./TuriaDateTaskView";
 import { TuriaAddTodoModal } from "./TuriaAddTodoModal";
 import { TodoCalendarView } from "./TodoCalendarView";
 import { Select } from "@/components/ui/Select";
+import { Pagination } from "@/components/ui/Pagination";
 import {
   parseDateToYMD,
   getTodayKolkataYMD,
@@ -111,26 +144,58 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
   userName,
   defaultCalendarView = false,
 }) => {
+  const dispatch = useAppDispatch();
   const { currentUser } = useAuth();
   const role = (currentUser?.role || "employee").toLowerCase().trim();
   const isAdmin = ["admin", "owner", "partner", "manager"].includes(role);
   const searchParams = useSearchParams();
   const viewQuery = searchParams?.get("view");
 
-  // Layout State
-  const [activeSection, setActiveSection] = useState<TuriaNavSection>("my-todo");
-  const [adminScope, setAdminScope] = useState<"my_work" | "team_work" | "all_work">("my_work");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  // Redux Selectors
+  const filters = useAppSelector(selectTodoFilters);
+  const pagination = useAppSelector(selectTodoPagination);
+  const unifiedTasks = useAppSelector(selectUnifiedTasks);
+  const filteredTasks = useAppSelector(selectFilteredTodoTasks);
+  const dateFilteredTasks = useAppSelector(selectDateFilteredTasks);
+  const sidebarCounts = useAppSelector(selectTodoSidebarCounts);
+  const scopeCounts = useAppSelector(selectTodoScopeCounts);
+  const isLoading = useAppSelector(selectIsTodoLoading);
+  const isRefreshing = useAppSelector(selectIsTodoRefreshing);
+
+  // Clients & Team from Redux store
+  const reduxClients = useAppSelector((state) => state.clients.items);
+  const reduxTeam = useAppSelector((state) => state.team.members);
+
+  // Local state for fallback clients/employees if store is not populated
+  const [fallbackClients, setFallbackClients] = useState<Client[]>([]);
+  const [fallbackEmployees, setFallbackEmployees] = useState<EmployeeRecord[]>([]);
+
+  // Local UI-only state
   const [isCalendarView, setIsCalendarView] = useState(
     () => defaultCalendarView || viewQuery === "calendar"
   );
-  const [dateFilterTab, setDateFilterTab] = useState<"all" | "today" | "tomorrow" | "upcoming" | "overdue">("all");
-
-  // Dropdown States & Refs
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const viewDropdownRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(() => {
+    const act = searchParams?.get("action");
+    const op = searchParams?.get("open");
+    const cr = searchParams?.get("create");
+    return act === "new" || op === "create" || cr === "true";
+  });
+
+  useEffect(() => {
+    const act = searchParams?.get("action");
+    const op = searchParams?.get("open");
+    const cr = searchParams?.get("create");
+    if (act === "new" || op === "create" || cr === "true") {
+      setIsAddModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Close dropdowns on outside click or escape key
   useEffect(() => {
@@ -152,6 +217,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
       if (event.key === "Escape") {
         setIsViewDropdownOpen(false);
         setIsMoreMenuOpen(false);
+        setShowDatePicker(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -162,478 +228,209 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
     };
   }, []);
 
-  // Filter State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClientId, setSelectedClientId] = useState("All");
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState("All");
-  const [sortBy, setSortBy] = useState<"created-desc" | "created-asc" | "due-asc" | "priority-desc">("created-desc");
-  const [dueDateFilter, setDueDateFilter] = useState<string | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(() => {
-    const act = searchParams?.get("action");
-    const op = searchParams?.get("open");
-    const cr = searchParams?.get("create");
-    return act === "new" || op === "create" || cr === "true";
-  });
-
-  useEffect(() => {
-    const act = searchParams?.get("action");
-    const op = searchParams?.get("open");
-    const cr = searchParams?.get("create");
-    if (act === "new" || op === "create" || cr === "true") {
-      setIsAddModalOpen(true);
-    }
-  }, [searchParams]);
-
-  // Data State
-  const [rawTasks, setRawTasks] = useState<TeamTaskItem[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Load clients and employees
-  useEffect(() => {
-    clientApi
-      .getClients({ page: 1, limit: 100 })
-      .then((res) => {
-        if (res.data) setClients(res.data);
-      })
-      .catch((err) => console.error("Error loading clients:", err));
-
-    teamStore
-      .loadEmployeesFromBackend()
-      .then((emps) => {
-        if (emps) {
-          const active = emps.filter((e) => (e.status || "").toLowerCase() === "active");
-          setEmployees(active);
-        }
-      })
-      .catch((err) => console.error("Error loading employees:", err));
-  }, []);
-
-  // Fetch tasks
-  const loadTasks = useCallback(async (isSilent = false) => {
-    try {
-      if (!isSilent) setIsLoading(true);
-      else setIsRefreshing(true);
-
-      // 1. Fetch user's own personalized to-dos (created by this user)
-      const personalRes = await todoApi.getTodos().catch(() => []);
-      const mappedPersonal: TeamTaskItem[] = (personalRes || []).map((pt) => ({
-        id: `pt_${pt.id}`,
-        taskId: pt.id,
-        taskName: pt.title,
-        description: pt.description || '',
-        category: pt.category || 'General',
-        clientName: pt.clientName || 'Personal',
-        clientId: pt.clientId,
-        assigneeId: currentUser?.id || 'me',
-        assigneeName: currentUser?.name || 'Me',
-        assigneeInitials: (currentUser?.name || 'U').slice(0, 2).toUpperCase(),
-        assigneeColor: '#31719B',
-        priority: pt.priority || 'Medium',
-        status: pt.completed ? 'Completed' : 'Pending',
-        startDate: pt.createdAt ? pt.createdAt.slice(0, 10) : '',
-        targetDueDate: pt.dueDate || '',
-        progress: pt.completed ? 100 : 0,
-        checklistTotal: 0,
-        checklistCompleted: 0,
-        checklist: [],
-        isOverdue: !pt.completed && Boolean(pt.dueDate && pt.dueDate < getTodayKolkataYMD()),
-        daysLeft: pt.dueDate ? Math.ceil((new Date(pt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999,
-        createdAt: pt.createdAt,
-        updatedAt: pt.updatedAt,
-        isPersonal: true,
-      }));
-
-      const seenIds = new Set<string>();
-      const merged: TeamTaskItem[] = [];
-
-      for (const item of mappedPersonal) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          merged.push(item);
-        }
-      }
-
-      if (isAdmin) {
-        const adminRes = await todoApi.getAdminTasks().catch(() => []);
-        const mappedAdminTasks: TeamTaskItem[] = (adminRes || []).map((at) => ({
-          id: at.dedupKey || at.id,
-          taskId: at.sourceId || at.id,
-          taskName: at.title,
-          description: at.description,
-          category: at.category,
-          clientName: at.clientName,
-          clientId: at.clientId,
-          assigneeId: currentUser?.id || "admin",
-          assigneeName: currentUser?.name || "Admin",
-          assigneeInitials: (currentUser?.name || "AD").slice(0, 2).toUpperCase(),
-          assigneeColor: "#6366F1",
-          priority: at.priority,
-          status: at.completed ? "Completed" : at.status === "Expired" ? "Overdue" : "Pending",
-          startDate: at.createdAt ? at.createdAt.slice(0, 10) : "",
-          targetDueDate: at.dueDate,
-          progress: at.completed ? 100 : 0,
-          checklistTotal: 1,
-          checklistCompleted: at.completed ? 1 : 0,
-          checklist: [
-            {
-              id: `chk_${at.id}`,
-              title: at.actionLabel || "Review and resolve obligation",
-              completed: at.completed,
-              isMandatory: true,
-            },
-          ],
-          isOverdue: !at.completed && (at.daysLeft < 0 || at.status === "Expired"),
-          daysLeft: at.daysLeft,
-          createdAt: at.createdAt,
-          updatedAt: at.updatedAt,
-          actionUrl: at.actionUrl,
-          isAdministrative: true,
-        }));
-
-        for (const item of mappedAdminTasks) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            merged.push(item);
-          }
-        }
-      } else {
-        const myTasks = await todoApi.getMyTasks().catch(() => []);
-        for (const item of myTasks || []) {
-          const itemKey = item.taskId || item.id;
-          if (!seenIds.has(itemKey) && !seenIds.has(item.id)) {
-            seenIds.add(itemKey);
-            merged.push(item);
-          }
-        }
-      }
-
-      setRawTasks(merged);
-    } catch (err) {
-      console.error("Failed to load to-do tasks:", err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [isAdmin, currentUser]);
+  // Fetch initial tasks via Redux Saga
+  const loadTasks = useCallback(
+    (isSilent = false) => {
+      dispatch(
+        fetchWorkspaceRequest({
+          isSilent,
+          role,
+          userId: currentUser?.id,
+        })
+      );
+    },
+    [dispatch, role, currentUser?.id]
+  );
 
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
 
-  // Scope counts for Admin: My Work vs Team Work vs All Work
-  const scopeCounts = useMemo(() => {
-    let myWork = 0;
-    let teamWork = 0;
-    let allWork = 0;
+  // Load clients and employees through Redux store (with fallbacks)
+  useEffect(() => {
+    if (!reduxClients || reduxClients.length === 0) {
+      dispatch(fetchClientsRequest({ page: 1, limit: 100 }));
+      clientApi
+        .getClients({ page: 1, limit: 100 })
+        .then((res) => {
+          if (res.data) setFallbackClients(res.data);
+        })
+        .catch(() => {});
+    }
 
-    rawTasks.forEach((t) => {
-      const isDone = (t.status || "").toLowerCase() === "completed";
-      if (!isDone) {
-        allWork++;
-        const isMine =
-          (t as any).isAdministrative ||
-          t.assigneeId === currentUser?.id ||
-          t.assigneeName === currentUser?.name ||
-          t.assigneeName?.toLowerCase().includes("admin") ||
-          t.category === "Personal";
-
-        if (isMine) {
-          myWork++;
-        } else {
-          teamWork++;
-        }
-      }
-    });
-
-    return { myWork, teamWork, allWork };
-  }, [rawTasks, currentUser]);
-
-  // Calculate counts for task views
-  const sidebarCounts: TuriaSidebarCounts = useMemo(() => {
-    let myTodo = 0;
-    let important = 0;
-    let recurring = 0;
-    let completed = 0;
-    let deleted = 0;
-
-    rawTasks.forEach((t) => {
-      const isDone = (t.status || "").toLowerCase() === "completed";
-      const isImp = t.priority === "Urgent" || t.priority === "High";
-      const isRec = Boolean(t.category?.toLowerCase().includes("recurring") || t.taskName?.toLowerCase().includes("recurring"));
-
-      if (isDone) {
-        completed++;
-      } else {
-        if (!isAdmin) {
-          myTodo++;
-          if (isImp) important++;
-          if (isRec) recurring++;
-        } else {
-          const isMine =
-            (t as any).isAdministrative ||
-            t.assigneeId === currentUser?.id ||
-            t.assigneeName === currentUser?.name ||
-            t.assigneeName?.toLowerCase().includes("admin") ||
-            t.category === "Personal";
-
-          if (adminScope === "my_work" && isMine) {
-            myTodo++;
-          } else if (adminScope === "team_work" && !isMine) {
-            myTodo++;
-          } else if (adminScope === "all_work") {
-            myTodo++;
-          }
-
-          if (isImp) important++;
-          if (isRec) recurring++;
-        }
-      }
-    });
-
-    return { myTodo, important, recurring, completed, deleted };
-  }, [rawTasks, isAdmin, currentUser, adminScope]);
-
-  // Filter tasks based on all active criteria
-  const filteredTasks = useMemo(() => {
-    let list = [...rawTasks];
-
-    // 1. Task-view filter
-    if (activeSection === "completed") {
-      list = list.filter((t) => (t.status || "").toLowerCase() === "completed");
-    } else if (activeSection === "deleted") {
-      list = list.filter((t) => (t.status || "").toLowerCase() === "cancelled" || (t.status || "").toLowerCase() === "deleted");
-    } else {
-      // In my-todo (All), important, recurring: exclude completed by default
-      list = list.filter((t) => (t.status || "").toLowerCase() !== "completed");
-
-      if (activeSection === "important") {
-        list = list.filter((t) => t.priority === "Urgent" || t.priority === "High");
-      } else if (activeSection === "recurring") {
-        list = list.filter((t) =>
-          Boolean(t.category?.toLowerCase().includes("recurring") || t.taskName?.toLowerCase().includes("recurring"))
-        );
-      } else if (activeSection === "my-todo") {
-        if (!isAdmin) {
-          // Employee sees their own tasks and personal to-dos
-          list = list.filter(
-            (t) =>
-              t.assigneeId === currentUser?.id ||
-              t.assigneeName === currentUser?.name ||
-              t.category === "Personal"
-          );
-        } else {
-          // Admin filters by scope
-          if (adminScope === "my_work") {
-            list = list.filter(
-              (t) =>
-                (t as any).isAdministrative ||
-                t.assigneeId === currentUser?.id ||
-                t.assigneeName === currentUser?.name ||
-                t.assigneeName?.toLowerCase().includes("admin") ||
-                t.category === "Personal"
+    if (!reduxTeam || reduxTeam.length === 0) {
+      dispatch(fetchTeamRequest());
+      teamStore
+        .loadEmployeesFromBackend()
+        .then((emps) => {
+          if (emps) {
+            const active = emps.filter(
+              (e) => (e.status || "").toLowerCase() === "active"
             );
-          } else if (adminScope === "team_work") {
-            list = list.filter(
-              (t) =>
-                !(t as any).isAdministrative &&
-                t.assigneeId !== currentUser?.id &&
-                !t.assigneeName?.toLowerCase().includes("admin") &&
-                t.category !== "Personal"
-            );
+            setFallbackEmployees(active);
           }
-          // if "all_work", list remains all active tasks
-        }
-      }
+        })
+        .catch(() => {});
     }
+  }, [dispatch, reduxClients, reduxTeam]);
 
-    // 2. Tag filter
-    if (selectedTag) {
-      list = list.filter(
-        (t) => (t.category || "").toLowerCase() === selectedTag.toLowerCase()
-      );
+  // Unified clients and employees list
+  const clients = useMemo(() => {
+    return reduxClients && reduxClients.length > 0 ? reduxClients : fallbackClients;
+  }, [reduxClients, fallbackClients]);
+
+  const employees = useMemo(() => {
+    if (reduxTeam && reduxTeam.length > 0) {
+      return reduxTeam.map((m) => ({
+        id: m.id,
+        name: m.name,
+        role: m.role,
+        email: m.email,
+        phone: m.phone,
+        status: m.active ? 'active' : 'inactive',
+      }));
     }
+    return fallbackEmployees;
+  }, [reduxTeam, fallbackEmployees]);
 
-    // 3. Search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter(
-        (t) =>
-          t.taskName?.toLowerCase().includes(q) ||
-          t.clientName?.toLowerCase().includes(q) ||
-          t.taskId?.toLowerCase().includes(q) ||
-          t.description?.toLowerCase().includes(q) ||
-          t.assigneeName?.toLowerCase().includes(q)
-      );
-    }
-
-    // 4. Client filter
-    if (selectedClientId !== "All") {
-      list = list.filter(
-        (t) => t.clientId === selectedClientId || t.clientName === selectedClientId
-      );
-    }
-
-    // 5. Assignee filter (for Admin)
-    if (selectedAssigneeId !== "All") {
-      list = list.filter(
-        (t) =>
-          t.assigneeId === selectedAssigneeId ||
-          t.assigneeName?.toLowerCase().trim() === selectedAssigneeId.toLowerCase().trim()
-      );
-    }
-
-    // 6. Specific due date filter (from Filter by due date button)
-    if (dueDateFilter) {
-      list = list.filter((t) => parseDateToYMD(t.targetDueDate) === dueDateFilter);
-    }
-
-    // 7. Sort
-    list.sort((a, b) => {
-      if (sortBy === "due-asc") {
-        const da = parseDateToYMD(a.targetDueDate) || "9999-99-99";
-        const db = parseDateToYMD(b.targetDueDate) || "9999-99-99";
-        return da.localeCompare(db);
-      }
-      if (sortBy === "priority-desc") {
-        const score = (p: string) => (p === "Urgent" ? 4 : p === "High" ? 3 : p === "Medium" ? 2 : 1);
-        return score(b.priority) - score(a.priority);
-      }
-      if (sortBy === "created-asc") {
-        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return ta - tb;
-      }
-      // default: created-desc
-      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return tb - ta;
-    });
-
-    return list;
-  }, [
-    rawTasks,
-    activeSection,
-    adminScope,
-    selectedTag,
-    searchQuery,
-    selectedClientId,
-    selectedAssigneeId,
-    dueDateFilter,
-    sortBy,
-    isAdmin,
-    currentUser,
-  ]);
-
-  // Handlers
-  const handleToggleChecklist = async (
+  // Handlers wired to Redux Saga mutations
+  const handleToggleChecklist = (
     taskId: string,
     checklistId: string,
     currentCompleted: boolean
   ) => {
-    try {
-      if (taskId.startsWith("admin:")) {
-        await todoApi.toggleAdminTask(taskId, !currentCompleted);
-      } else {
-        await todoApi.updateTaskProgress(taskId, {
-          toggleChecklistId: checklistId,
-          checklistCompleted: !currentCompleted,
-        });
-      }
-      loadTasks(true);
-    } catch (err) {
-      console.error("Failed to update checklist step:", err);
+    if (taskId.startsWith("admin:")) {
+      dispatch(
+        toggleAdminTaskRequest({
+          dedupKey: taskId,
+          completed: !currentCompleted,
+        })
+      );
+    } else {
+      dispatch(
+        updateTaskProgressRequest({
+          taskId,
+          data: {
+            toggleChecklistId: checklistId,
+            checklistCompleted: !currentCompleted,
+          },
+        })
+      );
     }
   };
 
-  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
-    try {
-      if (taskId.startsWith("admin:")) {
-        await todoApi.toggleAdminTask(taskId, newStatus === "Completed");
-      } else {
-        await todoApi.updateTaskProgress(taskId, {
-          status: newStatus,
-          progress: newStatus === "Completed" ? 100 : undefined,
-        });
-      }
-      loadTasks(true);
-    } catch (err) {
-      console.error("Failed to update status:", err);
+  const handleUpdateStatus = (taskId: string, newStatus: string) => {
+    if (taskId.startsWith("admin:")) {
+      dispatch(
+        toggleAdminTaskRequest({
+          dedupKey: taskId,
+          completed: newStatus === "Completed",
+        })
+      );
+    } else {
+      dispatch(
+        updateTaskProgressRequest({
+          taskId,
+          data: {
+            status: newStatus,
+            progress: newStatus === "Completed" ? 100 : undefined,
+          },
+        })
+      );
     }
   };
 
-  const handleToggleCompleteTask = async (task: TeamTaskItem) => {
+  const handleToggleCompleteTask = (task: TeamTaskItem) => {
     const isCurrentlyDone = (task.status || "").toLowerCase() === "completed";
     const nextStatus = isCurrentlyDone ? "Pending" : "Completed";
     const nextProgress = isCurrentlyDone ? 0 : 100;
 
-    try {
-      if ((task as any).isPersonal || task.id.startsWith("pt_")) {
-        await todoApi.updateTodo(task.taskId || task.id.replace("pt_", ""), {
+    if ((task as any).isPersonal || task.id.startsWith("pt_")) {
+      dispatch(
+        updatePersonalTodoRequest({
+          id: task.taskId || task.id.replace("pt_", ""),
+          updates: {
+            completed: !isCurrentlyDone,
+          },
+        })
+      );
+    } else if (
+      (task as any).isAdministrative ||
+      task.id.startsWith("admin:") ||
+      (task as any).sourceType === "dsc" ||
+      (task as any).sourceType === "license" ||
+      (task as any).sourceType === "document"
+    ) {
+      dispatch(
+        toggleAdminTaskRequest({
+          dedupKey: task.id,
           completed: !isCurrentlyDone,
-        });
-      } else if ((task as any).isAdministrative || task.id.startsWith("admin:") || (task as any).sourceType === "dsc" || (task as any).sourceType === "license" || (task as any).sourceType === "document") {
-        await todoApi.toggleAdminTask(task.id, !isCurrentlyDone);
-      } else {
-        await todoApi.updateTaskProgress(task.id, {
-          status: nextStatus,
-          progress: nextProgress,
-        });
-      }
-      loadTasks(true);
-    } catch (err) {
-      console.error("Failed to toggle completion:", err);
+        })
+      );
+    } else {
+      dispatch(
+        updateTaskProgressRequest({
+          taskId: task.id,
+          data: {
+            status: nextStatus,
+            progress: nextProgress,
+          },
+        })
+      );
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = (taskId: string) => {
     if (!confirm("Are you sure you want to delete this To-Do task?")) return;
-    try {
-      await todoApi.updateTaskProgress(taskId, {
-        status: "Cancelled",
-      });
-      loadTasks(true);
-    } catch (err) {
-      console.error("Failed to delete task:", err);
-    }
+    dispatch(
+      updateTaskProgressRequest({
+        taskId,
+        data: {
+          status: "Cancelled",
+        },
+      })
+    );
   };
 
-  const handleStarTask = async (taskId: string) => {
-    const task = rawTasks.find((t) => t.id === taskId);
+  const handleStarTask = (taskId: string) => {
+    const task = unifiedTasks.find((t) => t.id === taskId);
     if (!task) return;
-    const nextPriority = task.priority === "High" || task.priority === "Urgent" ? "Medium" : "High";
+    const nextPriority =
+      task.priority === "High" || task.priority === "Urgent" ? "Medium" : "High";
 
-    try {
-      await todoApi.updateTaskProgress(taskId, {
-        note: `Priority changed to ${nextPriority}`,
-      });
-      loadTasks(true);
-    } catch (err) {
-      console.error("Failed to star task:", err);
-    }
+    dispatch(
+      updateTaskProgressRequest({
+        taskId,
+        data: {
+          note: `Priority changed to ${nextPriority}`,
+        },
+      })
+    );
   };
 
   // Active view information
   const currentViewConfig =
-    TASK_VIEW_OPTIONS.find((opt) => opt.id === activeSection) || TASK_VIEW_OPTIONS[0];
+    TASK_VIEW_OPTIONS.find((opt) => opt.id === filters.activeSection) ||
+    TASK_VIEW_OPTIONS[0];
 
   const currentViewCount =
-    activeSection === "my-todo"
+    filters.activeSection === "my-todo"
       ? sidebarCounts.myTodo
-      : activeSection === "important"
+      : filters.activeSection === "important"
       ? sidebarCounts.important
-      : activeSection === "completed"
+      : filters.activeSection === "completed"
       ? sidebarCounts.completed
-      : activeSection === "recurring"
+      : filters.activeSection === "recurring"
       ? sidebarCounts.recurring
       : sidebarCounts.deleted;
 
   const ViewIcon = currentViewConfig.icon;
+
+  // Paginated slice of currently date-filtered tasks
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (pagination.page - 1) * pagination.limit;
+    return dateFilteredTasks.slice(startIndex, startIndex + pagination.limit);
+  }, [dateFilteredTasks, pagination.page, pagination.limit]);
 
   if (isCalendarView) {
     return (
@@ -656,13 +453,13 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
         <div className="w-full bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md min-h-[600px]">
           <TodoCalendarView
-            initialEmployeeFilter={selectedAssigneeId}
+            initialEmployeeFilter={filters.selectedAssigneeId}
             isAdmin={isAdmin}
-            adminScope={adminScope}
-            onScopeChange={setAdminScope}
+            adminScope={filters.adminScope}
+            onScopeChange={(s) => dispatch(setAdminScope(s))}
             onSwitchToList={() => setIsCalendarView(false)}
             onAddTodo={(dateStr) => {
-              if (dateStr) setDueDateFilter(dateStr);
+              if (dateStr) dispatch(setDueDateFilter(dateStr));
               setIsAddModalOpen(true);
             }}
           />
@@ -676,7 +473,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
           isAdmin={isAdmin}
           currentUserId={currentUser?.id}
           currentUserName={currentUser?.name}
-          defaultDate={dueDateFilter || undefined}
+          defaultDate={filters.dueDateFilter || undefined}
         />
       </div>
     );
@@ -706,219 +503,227 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
           <div className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex items-center gap-2.5 sm:gap-3 shrink-0 overflow-x-auto no-scrollbar bg-white dark:bg-[#1e293b]">
             {/* Task-View Dropdown (All / Important / Finished / Recurring Master / Deleted) */}
             <div className="relative shrink-0" ref={viewDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsViewDropdownOpen((prev) => !prev)}
-                  className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 ${
-                    isViewDropdownOpen
-                      ? "border-[#31719B] ring-1 ring-[#31719B]"
-                      : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400"
+              <button
+                type="button"
+                onClick={() => setIsViewDropdownOpen((prev) => !prev)}
+                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 ${
+                  isViewDropdownOpen
+                    ? "border-[#31719B] ring-1 ring-[#31719B]"
+                    : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400"
+                }`}
+                aria-haspopup="listbox"
+                aria-expanded={isViewDropdownOpen}
+                title="Select Task View"
+              >
+                <ViewIcon
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    filters.activeSection === "important"
+                      ? "text-amber-500 fill-amber-400"
+                      : filters.activeSection === "completed"
+                      ? "text-emerald-600"
+                      : "text-slate-600 dark:text-slate-300"
                   }`}
-                  aria-haspopup="listbox"
-                  aria-expanded={isViewDropdownOpen}
-                  title="Select Task View"
+                />
+                <span>{currentViewConfig.label}</span>
+                <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                  {currentViewCount}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-150 ${
+                    isViewDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isViewDropdownOpen && (
+                <div
+                  className="absolute left-0 top-full mt-1.5 w-60 sm:w-64 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100"
+                  role="listbox"
                 >
-                  <ViewIcon
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      activeSection === "important"
-                        ? "text-amber-500 fill-amber-400"
-                        : activeSection === "completed"
-                        ? "text-emerald-600"
-                        : "text-slate-600 dark:text-slate-300"
-                    }`}
-                  />
-                  <span>{currentViewConfig.label}</span>
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                    {currentViewCount}
-                  </span>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-150 ${
-                      isViewDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isViewDropdownOpen && (
-                  <div
-                    className="absolute left-0 top-full mt-1.5 w-60 sm:w-64 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100"
-                    role="listbox"
-                  >
-                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Task Views
-                    </div>
-                    {/* Primary Views: All, Important, Finished */}
-                    {TASK_VIEW_OPTIONS.filter((opt) => !opt.isSecondary).map((opt) => {
-                      const Icon = opt.icon;
-                      const isSelected = activeSection === opt.id;
-                      const count =
-                        opt.id === "my-todo"
-                          ? sidebarCounts.myTodo
-                          : opt.id === "important"
-                          ? sidebarCounts.important
-                          : sidebarCounts.completed;
-
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveSection(opt.id);
-                            setIsViewDropdownOpen(false);
-                            setIsCalendarView(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer text-left ${
-                            isSelected
-                              ? "bg-[#31719B]/10 font-semibold text-[#31719B] dark:text-[#60A5FA]"
-                              : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300"
-                          }`}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <Icon
-                              className={`w-4 h-4 shrink-0 ${
-                                opt.id === "important"
-                                  ? "text-amber-500 fill-amber-400"
-                                  : opt.id === "completed"
-                                  ? "text-emerald-600"
-                                  : "text-slate-500"
-                              }`}
-                            />
-                            <div className="min-w-0">
-                              <div className="font-semibold">{opt.label}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{opt.description}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                            <span className="text-[11px] font-medium text-slate-400 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                              {count}
-                            </span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-[#31719B] dark:text-[#60A5FA]" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Management
-                    </div>
-
-                    {/* Secondary Views: Recurring Master, Deleted */}
-                    {TASK_VIEW_OPTIONS.filter((opt) => opt.isSecondary).map((opt) => {
-                      const Icon = opt.icon;
-                      const isSelected = activeSection === opt.id;
-                      const count =
-                        opt.id === "recurring"
-                          ? sidebarCounts.recurring
-                          : sidebarCounts.deleted;
-
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveSection(opt.id);
-                            setIsViewDropdownOpen(false);
-                            setIsCalendarView(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer text-left ${
-                            isSelected
-                              ? "bg-[#31719B]/10 font-semibold text-[#31719B] dark:text-[#60A5FA]"
-                              : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300"
-                          }`}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <Icon className="w-4 h-4 shrink-0 text-slate-500" />
-                            <div className="min-w-0">
-                              <div className="font-semibold">{opt.label}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{opt.description}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                            <span className="text-[11px] font-medium text-slate-400 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                              {count}
-                            </span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-[#31719B] dark:text-[#60A5FA]" />}
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Task Views
                   </div>
-                )}
-              </div>
+                  {/* Primary Views: All, Important, Finished */}
+                  {TASK_VIEW_OPTIONS.filter((opt) => !opt.isSecondary).map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = filters.activeSection === opt.id;
+                    const count =
+                      opt.id === "my-todo"
+                        ? sidebarCounts.myTodo
+                        : opt.id === "important"
+                        ? sidebarCounts.important
+                        : sidebarCounts.completed;
 
-              {/* Vertical Divider */}
-              <div className="h-5 w-[1px] bg-[#dde2e8] dark:bg-[#334155] shrink-0" />
-
-              {/* Horizontal Tag Pills (Scrollable with smooth touch/drag support) */}
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar snap-x py-0.5">
-                {/* All Tags Pill */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTag(null);
-                    setIsCalendarView(false);
-                  }}
-                  className={`inline-flex items-center px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
-                    selectedTag === null
-                      ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
-                      : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
-                  }`}
-                >
-                  <span>All Tags</span>
-                </button>
-
-                {/* Individual Tag Pills */}
-                {DEFAULT_TAGS.map((tag) => {
-                  const isSelected = selectedTag === tag;
-                  const dotColor = TAG_DOT_COLORS[tag] || "bg-slate-400";
-
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTag(isSelected ? null : tag);
-                        setIsCalendarView(false);
-                      }}
-                      className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
-                        isSelected
-                          ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
-                          : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
-                      }`}
-                      title={`Filter by ${tag}`}
-                    >
-                      <span
-                        className={`w-2 h-2 rounded-full shrink-0 ${
-                          isSelected ? "bg-white" : dotColor
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          dispatch(setActiveSection(opt.id));
+                          setIsViewDropdownOpen(false);
+                          setIsCalendarView(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer text-left ${
+                          isSelected
+                            ? "bg-[#31719B]/10 font-semibold text-[#31719B] dark:text-[#60A5FA]"
+                            : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300"
                         }`}
-                      />
-                      <span>{tag}</span>
-                      {isSelected && (
-                        <X className="w-3 h-3 text-white/80 hover:text-white ml-0.5" />
-                      )}
-                    </button>
-                  );
-                })}
+                        role="option"
+                        aria-selected={isSelected}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon
+                            className={`w-4 h-4 shrink-0 ${
+                              opt.id === "important"
+                                ? "text-amber-500 fill-amber-400"
+                                : opt.id === "completed"
+                                ? "text-emerald-600"
+                                : "text-slate-500"
+                            }`}
+                          />
+                          <div className="min-w-0">
+                            <div className="font-semibold">{opt.label}</div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {opt.description}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="text-[11px] font-medium text-slate-400 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                            {count}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-[#31719B] dark:text-[#60A5FA]" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
 
-                {/* Add Tag / Add Task (+) Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="p-1.5 rounded-full border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors cursor-pointer shrink-0 snap-start"
-                  title="Add or manage tags"
-                  aria-label="Add or manage tags"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Management
+                  </div>
+
+                  {/* Secondary Views: Recurring Master, Deleted */}
+                  {TASK_VIEW_OPTIONS.filter((opt) => opt.isSecondary).map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = filters.activeSection === opt.id;
+                    const count =
+                      opt.id === "recurring"
+                        ? sidebarCounts.recurring
+                        : sidebarCounts.deleted;
+
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          dispatch(setActiveSection(opt.id));
+                          setIsViewDropdownOpen(false);
+                          setIsCalendarView(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer text-left ${
+                          isSelected
+                            ? "bg-[#31719B]/10 font-semibold text-[#31719B] dark:text-[#60A5FA]"
+                            : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300"
+                        }`}
+                        role="option"
+                        aria-selected={isSelected}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon className="w-4 h-4 shrink-0 text-slate-500" />
+                          <div className="min-w-0">
+                            <div className="font-semibold">{opt.label}</div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {opt.description}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="text-[11px] font-medium text-slate-400 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                            {count}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-[#31719B] dark:text-[#60A5FA]" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-                      {/* Row 2: Filters Toolbar (Search, Client, Assignee, Sort, ⋮ on left; Filter by due date, Calendar, + Add To-Do on right) */}
+            {/* Vertical Divider */}
+            <div className="h-5 w-[1px] bg-[#dde2e8] dark:bg-[#334155] shrink-0" />
+
+            {/* Horizontal Tag Pills */}
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar snap-x py-0.5">
+              {/* All Tags Pill */}
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(setSelectedTag(null));
+                  setIsCalendarView(false);
+                }}
+                className={`inline-flex items-center px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
+                  filters.selectedTag === null
+                    ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
+                    : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
+                }`}
+              >
+                <span>All Tags</span>
+              </button>
+
+              {/* Individual Tag Pills */}
+              {DEFAULT_TAGS.map((tag) => {
+                const isSelected = filters.selectedTag === tag;
+                const dotColor = TAG_DOT_COLORS[tag] || "bg-slate-400";
+
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      dispatch(setSelectedTag(isSelected ? null : tag));
+                      setIsCalendarView(false);
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
+                      isSelected
+                        ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
+                        : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
+                    }`}
+                    title={`Filter by ${tag}`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        isSelected ? "bg-white" : dotColor
+                      }`}
+                    />
+                    <span>{tag}</span>
+                    {isSelected && (
+                      <X className="w-3 h-3 text-white/80 hover:text-white ml-0.5" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Add Tag / Add Task (+) Button */}
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="p-1.5 rounded-full border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors cursor-pointer shrink-0 snap-start"
+                title="Add or manage tags"
+                aria-label="Add or manage tags"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Filters Toolbar (Search, Client, Assignee, Sort, ⋮ on left; Filter by due date, Calendar, + Add To-Do on right) */}
           <div className="p-3 sm:px-4 sm:py-3 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1e293b]">
             {/* Left Controls */}
             <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
@@ -930,15 +735,15 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   name="todoSearch"
                   aria-label="Search to-dos"
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={filters.searchQuery}
+                  onChange={(e) => dispatch(setSearchQuery(e.target.value))}
                   placeholder="Search to-dos..."
                   className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs text-[#000000] dark:text-white outline-none focus:border-[#31719B] transition-colors"
                 />
-                {searchQuery && (
+                {filters.searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => dispatch(setSearchQuery(""))}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -950,8 +755,8 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               <div className="w-full sm:w-44 shrink-0">
                 <Select
                   aria-label="Filter by client"
-                  value={selectedClientId}
-                  onChange={(val) => setSelectedClientId(val)}
+                  value={filters.selectedClientId}
+                  onChange={(val) => dispatch(setSelectedClientId(val))}
                   placeholder="All Clients"
                   searchable
                   options={[
@@ -968,8 +773,8 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               <div className="w-full sm:w-40 shrink-0">
                 <Select
                   aria-label="Filter by assignee"
-                  value={selectedAssigneeId}
-                  onChange={(val) => setSelectedAssigneeId(val)}
+                  value={filters.selectedAssigneeId}
+                  onChange={(val) => dispatch(setSelectedAssigneeId(val))}
                   placeholder="All Assignees"
                   disabled={!isAdmin}
                   options={
@@ -998,8 +803,8 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               <div className="w-full sm:w-40 shrink-0">
                 <Select
                   aria-label="Sort to-dos"
-                  value={sortBy}
-                  onChange={(val) => setSortBy(val as any)}
+                  value={filters.sortBy}
+                  onChange={(val) => dispatch(setSortBy(val as any))}
                   separator={false}
                   options={[
                     { value: "created-desc", label: "Created On ↓" },
@@ -1023,13 +828,11 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                 </button>
 
                 {isMoreMenuOpen && (
-                  <div
-                    className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-56 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100"
-                  >
+                  <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-56 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100">
                     <button
                       type="button"
                       onClick={() => {
-                        setActiveSection("recurring");
+                        dispatch(setActiveSection("recurring"));
                         setIsMoreMenuOpen(false);
                       }}
                       className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
@@ -1040,7 +843,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setActiveSection("deleted");
+                        dispatch(setActiveSection("deleted"));
                         setIsMoreMenuOpen(false);
                       }}
                       className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
@@ -1060,15 +863,15 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
                       <span>Refresh Tasks</span>
                     </button>
-                    {(selectedTag || selectedClientId !== "All" || selectedAssigneeId !== "All" || searchQuery || dueDateFilter) && (
+                    {(filters.selectedTag ||
+                      filters.selectedClientId !== "All" ||
+                      filters.selectedAssigneeId !== "All" ||
+                      filters.searchQuery ||
+                      filters.dueDateFilter) && (
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedTag(null);
-                          setSelectedClientId("All");
-                          setSelectedAssigneeId("All");
-                          setSearchQuery("");
-                          setDueDateFilter(null);
+                          dispatch(resetTodoFilters());
                           setIsMoreMenuOpen(false);
                         }}
                         className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md cursor-pointer text-left font-medium"
@@ -1090,23 +893,23 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   type="button"
                   onClick={() => setShowDatePicker((prev) => !prev)}
                   className={`h-10 px-3.5 text-xs font-semibold rounded-md border flex items-center gap-2 transition-all cursor-pointer ${
-                    dueDateFilter
+                    filters.dueDateFilter
                       ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 font-semibold"
                       : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5 text-gray-500" />
                   <span>
-                    {dueDateFilter
-                      ? `Due: ${formatFriendlyDate(dueDateFilter)}`
+                    {filters.dueDateFilter
+                      ? `Due: ${formatFriendlyDate(filters.dueDateFilter)}`
                       : "Filter by due date"}
                   </span>
-                  {dueDateFilter && (
+                  {filters.dueDateFilter && (
                     <X
                       className="w-3 h-3 text-indigo-500 hover:text-indigo-700 ml-0.5"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDueDateFilter(null);
+                        dispatch(setDueDateFilter(null));
                       }}
                     />
                   )}
@@ -1122,7 +925,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setDueDateFilter(getTodayKolkataYMD());
+                          dispatch(setDueDateFilter(getTodayKolkataYMD()));
                           setShowDatePicker(false);
                         }}
                         className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
@@ -1132,7 +935,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setDueDateFilter(getTomorrowKolkataYMD());
+                          dispatch(setDueDateFilter(getTomorrowKolkataYMD()));
                           setShowDatePicker(false);
                         }}
                         className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
@@ -1146,9 +949,9 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       </label>
                       <input
                         type="date"
-                        value={dueDateFilter || ""}
+                        value={filters.dueDateFilter || ""}
                         onChange={(e) => {
-                          setDueDateFilter(e.target.value || null);
+                          dispatch(setDueDateFilter(e.target.value || null));
                           setShowDatePicker(false);
                         }}
                         className="w-full px-2.5 py-1 text-xs rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200"
@@ -1184,7 +987,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
           {/* Row 3 & 4: Task List / Table Area */}
           <div className="flex-1 flex flex-col min-h-[450px]">
-            {isLoading ? (
+            {isLoading && unifiedTasks.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-gray-400 text-xs">
                 <Loader2 className="w-6 h-6 animate-spin text-[#31719B]" />
                 <span>Loading to-do manager...</span>
@@ -1193,47 +996,66 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               <TuriaEmptyState
                 onAddTodo={() => setIsAddModalOpen(true)}
                 title={
-                  searchQuery || selectedClientId !== "All" || selectedAssigneeId !== "All" || selectedTag
+                  filters.searchQuery ||
+                  filters.selectedClientId !== "All" ||
+                  filters.selectedAssigneeId !== "All" ||
+                  filters.selectedTag
                     ? "No Matching Tasks Found"
-                    : activeSection === "completed"
+                    : filters.activeSection === "completed"
                     ? "No Finished Tasks"
-                    : activeSection === "important"
+                    : filters.activeSection === "important"
                     ? "No Important Tasks"
-                    : activeSection === "recurring"
+                    : filters.activeSection === "recurring"
                     ? "No Recurring Master Tasks"
-                    : activeSection === "deleted"
+                    : filters.activeSection === "deleted"
                     ? "No Deleted Tasks"
                     : "Ready to Tackle Your Day?"
                 }
                 subtitle={
-                  searchQuery || selectedClientId !== "All" || selectedAssigneeId !== "All" || selectedTag
+                  filters.searchQuery ||
+                  filters.selectedClientId !== "All" ||
+                  filters.selectedAssigneeId !== "All" ||
+                  filters.selectedTag
                     ? "Try resetting filters or searching for something else."
-                    : activeSection === "completed"
+                    : filters.activeSection === "completed"
                     ? "Completed tasks will appear here once marked as finished."
-                    : activeSection === "important"
+                    : filters.activeSection === "important"
                     ? "Mark tasks as high or urgent priority to see them here."
-                    : activeSection === "recurring"
+                    : filters.activeSection === "recurring"
                     ? "Set up recurring tasks to automate regular obligations."
-                    : activeSection === "deleted"
+                    : filters.activeSection === "deleted"
                     ? "Tasks you cancel or delete will be preserved here."
                     : "Click 'Add To-Do' to create your first task and get organized!"
                 }
               />
             ) : (
-              <TuriaDateTaskView
-                tasks={filteredTasks}
-                isAdmin={isAdmin}
-                onToggleChecklist={handleToggleChecklist}
-                onUpdateStatus={handleUpdateStatus}
-                onToggleCompleteTask={handleToggleCompleteTask}
-                onDeleteTask={handleDeleteTask}
-                onStarTask={handleStarTask}
-                activeFilterTab={dateFilterTab}
-                onTabChange={setDateFilterTab}
-                adminScope={adminScope}
-                onScopeChange={setAdminScope}
-                scopeCounts={scopeCounts}
-              />
+              <div className="flex-1 flex flex-col">
+                <TuriaDateTaskView
+                  tasks={filteredTasks}
+                  isAdmin={isAdmin}
+                  onToggleChecklist={handleToggleChecklist}
+                  onUpdateStatus={handleUpdateStatus}
+                  onToggleCompleteTask={handleToggleCompleteTask}
+                  onDeleteTask={handleDeleteTask}
+                  onStarTask={handleStarTask}
+                  activeFilterTab={filters.dateFilterTab}
+                  onTabChange={(t) => dispatch(setDateFilterTab(t))}
+                  adminScope={filters.adminScope}
+                  onScopeChange={(s) => dispatch(setAdminScope(s))}
+                  scopeCounts={scopeCounts}
+                />
+
+                {/* Pagination footer if tasks exceed page limit */}
+                {dateFilteredTasks.length > 10 && (
+                  <Pagination
+                    currentPage={pagination.page}
+                    pageSize={pagination.limit}
+                    totalItems={dateFilteredTasks.length}
+                    onPageChange={(p) => dispatch(setTodoPage(p))}
+                    onPageSizeChange={(s) => dispatch(setTodoLimit(s))}
+                  />
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1253,7 +1075,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         isAdmin={isAdmin}
         currentUserId={currentUser?.id}
         currentUserName={currentUser?.name}
-        defaultDate={dueDateFilter || undefined}
+        defaultDate={filters.dueDateFilter || undefined}
       />
     </div>
   );
