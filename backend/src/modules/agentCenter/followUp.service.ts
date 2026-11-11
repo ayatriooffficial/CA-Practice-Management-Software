@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { FollowUpState } from './followUp.model';
 import { IFollowUpStateDocument, FollowUpModule } from './followUp.interface';
 import { Task } from '../task/task.model';
@@ -7,6 +7,9 @@ import { Client } from '../client/client.model';
 import { AgentAiService, PendingDocumentTarget } from './ai.service';
 import { executeProvider } from './execution.service';
 import { WhatsAppService } from '../../shared/utils/whatsAppService';
+import { DriveService } from '../drive/drive.service';
+import { DocumentCategory } from '../drive/drive.interface';
+import { GmailSyncService } from '../../shared/utils/gmailSyncService';
 import { getConfiguredFollowUpIntervals, env } from '../../config/env';
 import { logger } from '../../config/logger';
 
@@ -27,17 +30,35 @@ export interface RecordFollowUpParams {
   providerMessageId?: string;
   emailThreadId?: string;
   maxAttempts?: number;
+  metadata?: Record<string, any>;
 }
 
 export class FollowUpService {
   /**
    * Record or update an active follow-up state when an agent sends a document request or reminder.
+   * Enforces permanent opt-out suppression: never silently reopens an opted-out client record.
    */
   static async recordFollowUpRequest(params: RecordFollowUpParams): Promise<IFollowUpStateDocument> {
     const intervals = getConfiguredFollowUpIntervals();
     const firstIntervalHours = intervals[0] || 24;
     const nextReminderAt = new Date(Date.now() + firstIntervalHours * 3600 * 1000);
     const maxAttempts = params.maxAttempts || env.AGENT_FOLLOWUP_MAX_ATTEMPTS || 4;
+
+    // Phase 4.A: Check if client has previously opted out on this channel in this organization
+    const optedOutRecord =
+      mongoose.connection.readyState === 1 && params.clientId
+        ? await FollowUpState.findOne({
+            orgId: params.orgId,
+            clientId: params.clientId,
+            channel: params.channel,
+            status: 'opt_out',
+          }).exec()
+        : null;
+
+    if (optedOutRecord) {
+      logger.warn(`Client "${params.clientId}" is opted out on channel "${params.channel}". Suppressing follow-up creation.`);
+      return optedOutRecord;
+    }
 
     const filter: any = {
       orgId: params.orgId,
@@ -49,6 +70,10 @@ export class FollowUpService {
 
     const existing = await FollowUpState.findOne(filter).exec();
     if (existing) {
+      // Opt-out is a terminal suppression state: NEVER reopen it automatically
+      if (existing.status === 'opt_out') {
+        return existing;
+      }
       existing.agentId = params.agentId;
       existing.agentName = params.agentName || existing.agentName;
       existing.channel = params.channel;
@@ -61,6 +86,9 @@ export class FollowUpService {
       existing.lastReminderAt = new Date();
       existing.nextReminderAt = nextReminderAt;
       existing.status = 'waiting_client';
+      if (params.metadata) {
+        existing.metadata = { ...(existing.metadata || {}), ...params.metadata };
+      }
       await existing.save();
       return existing;
     }
@@ -87,16 +115,23 @@ export class FollowUpService {
       lastReminderAt: new Date(),
       nextReminderAt,
       responseHistory: [],
+      metadata: params.metadata || {},
     });
   }
 
   /**
-   * Verify authenticity of Meta WhatsApp webhook using HMAC-SHA256 signature if app secret configured.
+   * Verify authenticity of Meta WhatsApp webhook using HMAC-SHA256 signature against raw request bytes.
+   * Fails closed in production if WHATSAPP_APP_SECRET is not configured.
    */
   static verifyWhatsAppSignature(rawBody: string | Buffer, signatureHeader?: string): boolean {
     const secret = process.env.WHATSAPP_APP_SECRET || env.WHATSAPP_APP_SECRET;
+    const isProduction = process.env.NODE_ENV === 'production';
     if (!secret) {
-      // In development / testing or when app secret is not configured, pass through
+      if (isProduction) {
+        logger.error('❌ WHATSAPP_APP_SECRET is not configured in production. Failing closed.');
+        return false;
+      }
+      // Non-production test/dev fallback
       return true;
     }
     if (!signatureHeader || !signatureHeader.startsWith('sha256=')) {
@@ -113,7 +148,59 @@ export class FollowUpService {
   }
 
   /**
+   * Helper to immediately resolve an active follow-up when a task document is uploaded via application UI.
+   * Cancels future reminders (nextReminderAt = null) and records receipt.
+   */
+  static async completeFollowUpForDocument(params: {
+    orgId: string;
+    taskId: string;
+    documentRequestId: string;
+    fileUrl?: string;
+    receivedAt?: Date | null;
+  }): Promise<boolean> {
+    try {
+      const isTaskObjId = Types.ObjectId.isValid(params.taskId);
+      const filter: any = {
+        orgId: params.orgId,
+        status: { $in: ['waiting_client', 'response_received', 'pending'] },
+        documentRequestId: params.documentRequestId,
+        ...(isTaskObjId ? { $or: [{ sourceId: params.taskId }] } : { sourceId: params.taskId }),
+      };
+      const followUp = await FollowUpState.findOne(filter).exec();
+      if (followUp) {
+        followUp.status = 'document_received';
+        followUp.nextReminderAt = null;
+        followUp.resolvedAt = params.receivedAt || new Date();
+        followUp.resolutionNotes = `Document received via application upload (${params.fileUrl || 'file uploaded'}).`;
+        if (params.fileUrl) {
+          followUp.responseHistory.push({
+            receivedAt: params.receivedAt || new Date(),
+            channel: followUp.channel,
+            rawText: 'Document uploaded via task interface',
+            attachmentUrl: params.fileUrl,
+            aiClassification: {
+              intent: 'document_submitted',
+              confidence: 1.0,
+              notes: 'Direct application upload',
+              requiresHumanReview: false,
+              actionSuggested: 'mark_received',
+            },
+          });
+        }
+        await followUp.save();
+        logger.info(`✅ Closed active follow-up (${followUp._id}) for task document ${params.documentRequestId}`);
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      logger.warn(`Failed to complete follow-up for document: ${err?.message || err}`);
+      return false;
+    }
+  }
+
+  /**
    * Handle incoming WhatsApp message event (text, media, documents).
+   * Enforces multi-tenant isolation, unique client matching, real media storage, and permanent opt-out.
    */
   static async handleIncomingWhatsAppMessage(messagePayload: {
     from: string; // sender phone number e.g. 919876543210
@@ -135,20 +222,56 @@ export class FollowUpService {
       return { handled: false, actionTaken: 'Missing sender phone number' };
     }
 
-    // 1. Find active follow-up states waiting for this client's mobile number
-    // Clean mobile number regex matching trailing digits
-    const mobileSuffix = cleanDigits.slice(-10);
-    const activeFollowUps = await FollowUpState.find({
-      clientMobile: { $regex: `${mobileSuffix}$` },
-      status: { $in: ['waiting_client', 'response_received', 'pending'] },
-    }).sort({ updatedAt: -1 }).exec();
+    // 1. Resolve matching clients and enforce tenant safety
+    let primaryFollowUp: IFollowUpStateDocument | null = null;
 
-    if (!activeFollowUps.length) {
-      logger.info(`Received WhatsApp message from ${cleanDigits}, but no active waiting follow-ups found.`);
-      return { handled: false, actionTaken: 'No active follow-up waiting for sender' };
+    // Check context reply message ID first if client quoted our outbound WhatsApp message
+    if (messagePayload.context?.id) {
+      primaryFollowUp = await FollowUpState.findOne({
+        providerMessageId: messagePayload.context.id,
+        status: { $in: ['waiting_client', 'response_received', 'pending'] },
+      }).exec();
     }
 
-    const primaryFollowUp = activeFollowUps[0];
+    if (!primaryFollowUp) {
+      const mobileSuffix = cleanDigits.slice(-10);
+      const matchingClients = await Client.find({
+        mobile: { $regex: `${mobileSuffix}$` },
+        isDeleted: false,
+      }).lean().exec();
+
+      if (!matchingClients.length) {
+        logger.info(`Received WhatsApp message from ${cleanDigits}, but no registered client found.`);
+        return { handled: false, actionTaken: 'No registered client found for sender phone number' };
+      }
+
+      // Check organization uniqueness to prevent cross-tenant message routing
+      const uniqueOrgIds = [...new Set(matchingClients.map((c: any) => String(c.orgId || 'default')))];
+      if (uniqueOrgIds.length > 1) {
+        logger.warn(`⚠️ WhatsApp sender ${cleanDigits} matches clients in multiple organizations (${uniqueOrgIds.join(', ')}). Routing to manual review.`);
+        return {
+          handled: false,
+          actionTaken: 'Ambiguous cross-tenant sender phone number; manual review required to prevent cross-tenant leak',
+        };
+      }
+
+      const orgId = uniqueOrgIds[0];
+      const clientIds = matchingClients.map((c: any) => String(c._id));
+
+      const activeFollowUps = await FollowUpState.find({
+        orgId,
+        clientId: { $in: clientIds },
+        status: { $in: ['waiting_client', 'response_received', 'pending'] },
+      }).sort({ updatedAt: -1 }).exec();
+
+      if (!activeFollowUps.length) {
+        logger.info(`Received WhatsApp message from ${cleanDigits}, but no active waiting follow-ups found in organization ${orgId}.`);
+        return { handled: false, actionTaken: 'No active follow-up waiting for sender' };
+      }
+
+      primaryFollowUp = activeFollowUps[0];
+    }
+
     const orgId = primaryFollowUp.orgId;
 
     // 2. Load pending document requests for the target task if Task module
@@ -156,10 +279,13 @@ export class FollowUpService {
     let targetTask: any = null;
 
     if (primaryFollowUp.module === 'Task' && primaryFollowUp.sourceId) {
+      const isTaskObjId = Types.ObjectId.isValid(primaryFollowUp.sourceId);
       targetTask = await Task.findOne({
-        _id: primaryFollowUp.sourceId,
         orgId,
         isDeleted: false,
+        ...(isTaskObjId
+          ? { $or: [{ _id: primaryFollowUp.sourceId }, { taskId: primaryFollowUp.sourceId }] }
+          : { taskId: primaryFollowUp.sourceId }),
       }).exec();
 
       if (targetTask && Array.isArray(targetTask.documentRequests)) {
@@ -175,7 +301,7 @@ export class FollowUpService {
       }
     }
 
-    // 3. Process Attachment (Document or Image)
+    // 3. Process Attachment (Document or Image) - Never mock, download and store genuine buffer
     if (isDoc || isImage) {
       const docMeta = messagePayload.document || messagePayload.image || {};
       const filename = messagePayload.document?.filename || `whatsapp_${Date.now()}.${isDoc ? 'pdf' : 'jpg'}`;
@@ -190,9 +316,112 @@ export class FollowUpService {
         }
       }
 
-      // If buffer couldn't be downloaded (e.g. test or network), generate a mock verification buffer
+      // If buffer couldn't be downloaded, DO NOT fabricate mock bytes or mark received
       if (!fileBuffer) {
-        fileBuffer = Buffer.from(`Mock verification attachment content for ${filename}`);
+        logger.error(`❌ Could not download WhatsApp media (${mediaId}) for ${filename}. Marking for manual review.`);
+        const failureRecord = {
+          receivedAt: new Date(),
+          channel: 'WhatsApp' as const,
+          providerMessageId: messagePayload.id,
+          senderAddress: cleanDigits,
+          rawText: textBody,
+          attachmentName: filename,
+          aiClassification: {
+            intent: 'document_submitted',
+            confidence: 0,
+            notes: 'WhatsApp media download failed or returned empty payload from Meta CDN.',
+            requiresHumanReview: true,
+            actionSuggested: 'manual_review',
+          },
+        };
+        primaryFollowUp.status = 'response_received';
+        primaryFollowUp.lastResponseAt = new Date();
+        primaryFollowUp.resolutionNotes = `Attachment notification received, but media payload could not be downloaded (${filename}).`;
+        primaryFollowUp.responseHistory.push(failureRecord);
+        await primaryFollowUp.save();
+
+        return {
+          handled: true,
+          matchedRequestId: null,
+          actionTaken: 'Attachment download failed; marked for human review',
+        };
+      }
+
+      // Validate file size limit (< 25MB)
+      if (fileBuffer.length > 25 * 1024 * 1024) {
+        logger.warn(`Attachment ${filename} exceeds 25MB limit (${fileBuffer.length} bytes). Marking for manual review.`);
+        primaryFollowUp.status = 'response_received';
+        primaryFollowUp.lastResponseAt = new Date();
+        primaryFollowUp.resolutionNotes = `Attachment ${filename} exceeds allowed 25MB limit.`;
+        primaryFollowUp.responseHistory.push({
+          receivedAt: new Date(),
+          channel: 'WhatsApp' as const,
+          providerMessageId: messagePayload.id,
+          senderAddress: cleanDigits,
+          rawText: textBody,
+          attachmentName: filename,
+          aiClassification: {
+            intent: 'document_submitted',
+            confidence: 0,
+            notes: 'Attachment exceeds maximum allowed size (25MB).',
+            requiresHumanReview: true,
+            actionSuggested: 'manual_review',
+          },
+        });
+        await primaryFollowUp.save();
+        return { handled: true, matchedRequestId: null, actionTaken: 'Attachment exceeds size limit; flagged for review' };
+      }
+
+      // Store genuine buffer via DriveService
+      let persistentFileUrl = '';
+      try {
+        const multerFile: Express.Multer.File = {
+          fieldname: 'file',
+          originalname: filename,
+          encoding: '7bit',
+          mimetype: mimeType,
+          buffer: fileBuffer,
+          size: fileBuffer.length,
+          destination: '',
+          filename,
+          path: '',
+          stream: null as any,
+        };
+
+        const uploaded = await DriveService.uploadDocument(multerFile, {
+          category: DocumentCategory.GENERAL,
+          description: `WhatsApp Inbound Document: ${filename} from ${cleanDigits}`,
+          clientId: primaryFollowUp.clientId,
+          clientName: primaryFollowUp.clientName,
+          subFolder: primaryFollowUp.sourceId,
+          customFileName: filename,
+          tags: ['WhatsApp-Inbound', primaryFollowUp.sourceId],
+          uploadedBy: 'Client via WhatsApp',
+        });
+
+        persistentFileUrl = uploaded.webViewLink || uploaded.previewUrl || `/api/v1/drive/${uploaded._id}/download`;
+      } catch (storageErr: any) {
+        logger.error(`❌ Failed to store WhatsApp attachment ${filename} to Drive:`, storageErr);
+        primaryFollowUp.status = 'response_received';
+        primaryFollowUp.lastResponseAt = new Date();
+        primaryFollowUp.resolutionNotes = `Attachment received but failed to persist to storage: ${storageErr?.message || storageErr}`;
+        primaryFollowUp.responseHistory.push({
+          receivedAt: new Date(),
+          channel: 'WhatsApp' as const,
+          providerMessageId: messagePayload.id,
+          senderAddress: cleanDigits,
+          rawText: textBody,
+          attachmentName: filename,
+          aiClassification: {
+            intent: 'document_submitted',
+            confidence: 0,
+            notes: `Storage failure: ${storageErr?.message || storageErr}`,
+            requiresHumanReview: true,
+            actionSuggested: 'manual_review',
+          },
+        });
+        await primaryFollowUp.save();
+        return { handled: true, matchedRequestId: null, actionTaken: 'Attachment storage failed; flagged for review' };
       }
 
       // Perform AI and heuristic matching against pending requests
@@ -210,6 +439,7 @@ export class FollowUpService {
         senderAddress: cleanDigits,
         rawText: textBody,
         attachmentName: filename,
+        attachmentUrl: persistentFileUrl,
         aiClassification: {
           intent: 'document_submitted',
           confidence: matchResult.confidence,
@@ -220,13 +450,12 @@ export class FollowUpService {
       };
 
       if (matchResult.isMatch && matchResult.matchedRequestId && targetTask) {
-        // A. Update Task document request item to 'Received'
         let updatedDocItem = false;
         for (const req of targetTask.documentRequests) {
           if (req.id === matchResult.matchedRequestId) {
             req.status = 'Received';
             req.receivedAt = new Date();
-            req.fileUrl = `/uploads/whatsapp/${filename}`;
+            req.fileUrl = persistentFileUrl;
             updatedDocItem = true;
             break;
           }
@@ -237,7 +466,6 @@ export class FollowUpService {
           await targetTask.save();
         }
 
-        // B. Update primary follow up status to document_received & cancel reminders
         primaryFollowUp.status = 'document_received';
         primaryFollowUp.nextReminderAt = null;
         primaryFollowUp.lastResponseAt = new Date();
@@ -253,7 +481,6 @@ export class FollowUpService {
           actionTaken: `Document verified and received: ${matchResult.matchedDocumentName}`,
         };
       } else {
-        // Ambiguous attachment -> mark for human review
         primaryFollowUp.status = 'response_received';
         primaryFollowUp.lastResponseAt = new Date();
         primaryFollowUp.resolutionNotes = `Attachment received but requires human verification: ${filename}`;
@@ -301,6 +528,23 @@ export class FollowUpService {
         primaryFollowUp.status = 'opt_out';
         primaryFollowUp.nextReminderAt = null;
         primaryFollowUp.resolutionNotes = 'Client opted out of reminders.';
+
+        // Cascade opt-out across all active follow-ups for this client and channel in this org
+        await FollowUpState.updateMany(
+          {
+            orgId,
+            clientId: primaryFollowUp.clientId,
+            channel: 'WhatsApp',
+            status: { $in: ['waiting_client', 'response_received', 'pending'] },
+          },
+          {
+            $set: {
+              status: 'opt_out',
+              nextReminderAt: null,
+              resolutionNotes: 'Client opted out of WhatsApp reminders; cascaded across active requests.',
+            },
+          }
+        );
       } else if (classification.intent === 'promised_later') {
         primaryFollowUp.status = 'response_received';
         // Delay next reminder by 48 hours to honor client promise
@@ -328,11 +572,13 @@ export class FollowUpService {
   /**
    * Process due scheduled follow-up reminders.
    * Invoked automatically on scheduler ticks.
+   * Rechecks actual database source records (Task, DSC, License) and handles promised-later state.
    */
   static async processScheduledFollowUps(options?: {
     orgId?: string;
     nowDate?: Date;
     forceRealSend?: boolean;
+    isLockLost?: () => boolean;
   }): Promise<{
     processed: number;
     reminded: number;
@@ -341,9 +587,10 @@ export class FollowUpService {
     errors: string[];
   }> {
     const now = options?.nowDate || new Date();
+    // Query both waiting_client and eligible promised_later (response_received) records
     const query: any = {
-      status: 'waiting_client',
-      nextReminderAt: { $lte: now },
+      status: { $in: ['waiting_client', 'response_received'] },
+      nextReminderAt: { $lte: now, $ne: null },
     };
     if (options?.orgId) {
       query.orgId = options.orgId;
@@ -361,17 +608,52 @@ export class FollowUpService {
     const intervals = getConfiguredFollowUpIntervals();
 
     for (const followUp of dueFollowUps) {
+      if (options?.isLockLost && options.isLockLost()) {
+        logger.warn('Stopping follow-up reminder loop: scheduler leader lock ownership was lost.');
+        break;
+      }
+
       try {
-        // 1. Check if the underlying asset or document is still active and missing
+        // If status is response_received, verify that the last recorded intent was promised_later
+        if (followUp.status === 'response_received') {
+          const lastResp = followUp.responseHistory[followUp.responseHistory.length - 1];
+          if (lastResp?.aiClassification?.intent !== 'promised_later') {
+            // Not a promised_later response; requires human action, do not send automated reminder
+            continue;
+          }
+        }
+
+        // Check permanent opt-out suppression for this client/channel
+        const hasOptedOut =
+          mongoose.connection.readyState === 1 && followUp.clientId
+            ? await FollowUpState.exists({
+                orgId: followUp.orgId,
+                clientId: followUp.clientId,
+                channel: followUp.channel,
+                status: 'opt_out',
+              })
+            : false;
+        if (hasOptedOut) {
+          followUp.status = 'opt_out';
+          followUp.nextReminderAt = null;
+          followUp.resolutionNotes = 'Client opted out of communications on this channel; reminder loop terminated.';
+          await followUp.save();
+          result.completed++;
+          continue;
+        }
+
+        // 1. Recheck the underlying asset or task source record
         if (followUp.module === 'Task') {
           const isTaskObjId = Types.ObjectId.isValid(followUp.sourceId);
           const task: any = await Task.findOne({
             orgId: followUp.orgId,
             isDeleted: false,
-            ...(isTaskObjId ? { $or: [{ _id: followUp.sourceId }, { taskId: followUp.sourceId }] } : { taskId: followUp.sourceId }),
+            ...(isTaskObjId
+              ? { $or: [{ _id: followUp.sourceId }, { taskId: followUp.sourceId }] }
+              : { taskId: followUp.sourceId }),
           }).lean().exec();
 
-          // Stop conditions: Task completed, deleted, or doc already received
+          // Stop conditions: Task completed, deleted, cancelled
           if (!task || task.status === 'Completed' || task.status === 'Cancelled') {
             followUp.status = 'completed';
             followUp.nextReminderAt = null;
@@ -403,10 +685,19 @@ export class FollowUpService {
             : null;
 
           const dsc = client?.dscs?.find((d: any) => String(d.id || d.dscId) === followUp.sourceId);
+          // If DSC deleted, deactivated, or expiry changed (renewed), terminate reminder
           if (!dsc || (dsc.status && String(dsc.status).toLowerCase() !== 'active')) {
             followUp.status = 'completed';
             followUp.nextReminderAt = null;
             followUp.resolutionNotes = 'DSC was renewed or deactivated; reminder loop ended.';
+            await followUp.save();
+            result.completed++;
+            continue;
+          }
+          if (followUp.metadata?.originalExpiryDate && dsc.expiryDate !== followUp.metadata.originalExpiryDate) {
+            followUp.status = 'completed';
+            followUp.nextReminderAt = null;
+            followUp.resolutionNotes = 'DSC expiry date updated (certificate renewed); reminder loop ended.';
             await followUp.save();
             result.completed++;
             continue;
@@ -422,10 +713,19 @@ export class FollowUpService {
             : null;
 
           const lic = client?.licenses?.find((l: any) => String(l.id || l.licenseNo) === followUp.sourceId);
-          if (!lic) {
+          // If license deleted, closed, or expiry changed (renewed), terminate reminder
+          if (!lic || (lic.status && String(lic.status).toLowerCase() !== 'active')) {
             followUp.status = 'completed';
             followUp.nextReminderAt = null;
             followUp.resolutionNotes = 'License was renewed or closed; reminder loop ended.';
+            await followUp.save();
+            result.completed++;
+            continue;
+          }
+          if (followUp.metadata?.originalExpiryDate && lic.expiryDate !== followUp.metadata.originalExpiryDate) {
+            followUp.status = 'completed';
+            followUp.nextReminderAt = null;
+            followUp.resolutionNotes = 'License expiry date updated (license renewed); reminder loop ended.';
             await followUp.save();
             result.completed++;
             continue;
@@ -475,21 +775,25 @@ export class FollowUpService {
 
         if (sendResult.status === 'failed' && isRealSend) {
           logger.warn(`Failed follow-up dispatch to ${recipientAddress}: ${sendResult.error}`);
-        }
+          followUp.metadata = {
+            ...(followUp.metadata || {}),
+            deliveryRetryCount: Number(followUp.metadata?.deliveryRetryCount || 0) + 1,
+            lastDeliveryError: sendResult.error,
+          };
+        } else {
+          followUp.attemptCount += 1;
+          followUp.lastReminderAt = now;
+          if (sendResult.executionId) {
+            followUp.providerMessageId = sendResult.executionId;
+          }
 
-        // 5. Update follow-up record
-        followUp.attemptCount += 1;
-        followUp.lastReminderAt = now;
-        if (sendResult.executionId) {
-          followUp.providerMessageId = sendResult.executionId;
+          const nextIntervalIndex = Math.min(followUp.attemptCount - 1, intervals.length - 1);
+          const nextIntervalHours = intervals[nextIntervalIndex] || 48;
+          followUp.nextReminderAt = new Date(now.getTime() + nextIntervalHours * 3600 * 1000);
+          result.reminded++;
         }
-
-        const nextIntervalIndex = Math.min(followUp.attemptCount - 1, intervals.length - 1);
-        const nextIntervalHours = intervals[nextIntervalIndex] || 48;
-        followUp.nextReminderAt = new Date(now.getTime() + nextIntervalHours * 3600 * 1000);
 
         await followUp.save();
-        result.reminded++;
       } catch (err: any) {
         const errMsg = `Error processing follow-up (${followUp._id}): ${err?.message || err}`;
         logger.error(errMsg);
@@ -498,6 +802,298 @@ export class FollowUpService {
     }
 
     return result;
+  }
+
+  /**
+   * Process incoming Gmail replies and document attachments when GMAIL_INBOUND_ENABLED=true.
+   * Matches replies against active follow-up records via threadId, inReplyTo, or unique client email.
+   */
+  static async processInboundGmailReplies(options?: {
+    orgId?: string;
+    limit?: number;
+  }): Promise<{
+    processed: number;
+    matched: number;
+    errors: string[];
+  }> {
+    const isEnabled = env.GMAIL_INBOUND_ENABLED || process.env.GMAIL_INBOUND_ENABLED === 'true';
+    if (!isEnabled) {
+      return { processed: 0, matched: 0, errors: [] };
+    }
+
+    const auth = await GmailSyncService.getOAuth2Client();
+    if (!auth) {
+      return { processed: 0, matched: 0, errors: ['Google OAuth client not configured or missing refresh token.'] };
+    }
+
+    const { google } = await import('googleapis');
+    const gmail = google.gmail({ version: 'v1', auth });
+    const limit = options?.limit || 20;
+    const errors: string[] = [];
+    let processed = 0;
+    let matched = 0;
+
+    try {
+      const listRes = await gmail.users.messages.list({
+        userId: 'me',
+        q: 'in:inbox',
+        maxResults: limit,
+      });
+
+      const messages = listRes.data.messages || [];
+      for (const msgSummary of messages) {
+        if (!msgSummary.id) continue;
+        processed++;
+
+        try {
+          const detail = await gmail.users.messages.get({
+            userId: 'me',
+            id: msgSummary.id,
+            format: 'full',
+          });
+
+          const payload = detail.data.payload;
+          if (!payload) continue;
+
+          const headers = payload.headers || [];
+          const getHeader = (name: string) =>
+            headers.find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+
+          const fromValue = getHeader('From');
+          const inReplyToHeader = getHeader('In-Reply-To');
+          const referencesHeader = getHeader('References');
+          const threadId = detail.data.threadId || msgSummary.threadId;
+
+          const emailMatch =
+            fromValue.match(/<([^>]+)>/) ||
+            fromValue.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+          const senderEmail = emailMatch ? emailMatch[1].trim().toLowerCase() : fromValue.trim().toLowerCase();
+
+          // 1. Correlation order:
+          // Priority A: Exact stored emailThreadId
+          // Priority B: inReplyTo / references matching providerMessageId
+          // Priority C: Verified client email with unique active follow-up
+          let followUp: IFollowUpStateDocument | null = null;
+          if (threadId) {
+            followUp = await FollowUpState.findOne({
+              emailThreadId: threadId,
+              status: { $in: ['waiting_client', 'response_received', 'pending'] },
+              ...(options?.orgId ? { orgId: options.orgId } : {}),
+            }).exec();
+          }
+
+          if (!followUp && (inReplyToHeader || referencesHeader)) {
+            const refIds = [inReplyToHeader, ...(referencesHeader ? referencesHeader.split(/\s+/) : [])].filter(Boolean);
+            followUp = await FollowUpState.findOne({
+              providerMessageId: { $in: refIds },
+              status: { $in: ['waiting_client', 'response_received', 'pending'] },
+              ...(options?.orgId ? { orgId: options.orgId } : {}),
+            }).exec();
+          }
+
+          if (!followUp && senderEmail) {
+            const candidateFollowUps = await FollowUpState.find({
+              clientEmail: senderEmail,
+              status: { $in: ['waiting_client', 'response_received', 'pending'] },
+              ...(options?.orgId ? { orgId: options.orgId } : {}),
+            }).exec();
+
+            if (candidateFollowUps.length === 1) {
+              followUp = candidateFollowUps[0];
+            } else if (candidateFollowUps.length > 1) {
+              logger.warn(`Ambiguous Gmail reply from ${senderEmail}: matches ${candidateFollowUps.length} active follow-ups. Marking for review.`);
+              continue;
+            }
+          }
+
+          if (!followUp) {
+            // Message does not correlate to an active agent follow-up
+            continue;
+          }
+
+          matched++;
+
+          // Extract text body
+          let bodyText = '';
+          const extractText = (part: any) => {
+            if (part.mimeType === 'text/plain' && part.body?.data) {
+              bodyText += Buffer.from(part.body.data, 'base64url').toString('utf-8');
+            } else if (part.parts && Array.isArray(part.parts)) {
+              for (const subPart of part.parts) extractText(subPart);
+            }
+          };
+          extractText(payload);
+          if (!bodyText && detail.data.snippet) {
+            bodyText = detail.data.snippet;
+          }
+
+          // Check for attachments
+          const attachmentParts: Array<{ filename: string; mimeType: string; attachmentId: string; size: number }> = [];
+          const findAttachments = (part: any) => {
+            if (part.filename && part.body?.attachmentId) {
+              attachmentParts.push({
+                filename: part.filename,
+                mimeType: part.mimeType || 'application/octet-stream',
+                attachmentId: part.body.attachmentId,
+                size: Number(part.body.size || 0),
+              });
+            }
+            if (part.parts && Array.isArray(part.parts)) {
+              for (const subPart of part.parts) findAttachments(subPart);
+            }
+          };
+          findAttachments(payload);
+
+          // Handle Attachment if present
+          if (attachmentParts.length > 0 && followUp.module === 'Task' && followUp.sourceId) {
+            const att = attachmentParts[0];
+            try {
+              const attData = await gmail.users.messages.attachments.get({
+                userId: 'me',
+                messageId: msgSummary.id,
+                id: att.attachmentId,
+              });
+
+              if (attData.data.data) {
+                const fileBuffer = Buffer.from(attData.data.data, 'base64url');
+                const multerFile: Express.Multer.File = {
+                  fieldname: 'file',
+                  originalname: att.filename,
+                  encoding: '7bit',
+                  mimetype: att.mimeType,
+                  buffer: fileBuffer,
+                  size: fileBuffer.length,
+                  destination: '',
+                  filename: att.filename,
+                  path: '',
+                  stream: null as any,
+                };
+
+                const uploaded = await DriveService.uploadDocument(multerFile, {
+                  category: DocumentCategory.GENERAL,
+                  description: `Gmail Inbound Attachment: ${att.filename} from ${senderEmail}`,
+                  clientId: followUp.clientId,
+                  clientName: followUp.clientName,
+                  subFolder: followUp.sourceId,
+                  customFileName: att.filename,
+                  tags: ['Gmail-Inbound', followUp.sourceId],
+                  uploadedBy: 'Client via Email',
+                });
+
+                const fileUrl = uploaded.webViewLink || uploaded.previewUrl || `/api/v1/drive/${uploaded._id}/download`;
+
+                // Update Task document request
+                const targetTask = await Task.findOne({
+                  orgId: followUp.orgId,
+                  isDeleted: false,
+                  ...(Types.ObjectId.isValid(followUp.sourceId)
+                    ? { $or: [{ _id: followUp.sourceId }, { taskId: followUp.sourceId }] }
+                    : { taskId: followUp.sourceId }),
+                }).exec();
+
+                if (targetTask && followUp.documentRequestId) {
+                  const docReq = (targetTask.documentRequests || []).find((d: any) => d.id === followUp.documentRequestId);
+                  if (docReq) {
+                    docReq.status = 'Received';
+                    docReq.fileUrl = fileUrl;
+                    docReq.receivedAt = new Date();
+                    targetTask.markModified('documentRequests');
+                    await targetTask.save();
+                  }
+                }
+
+                followUp.status = 'document_received';
+                followUp.nextReminderAt = null;
+                followUp.resolvedAt = new Date();
+                followUp.resolutionNotes = `Attachment downloaded from Gmail and stored: ${att.filename}`;
+                followUp.responseHistory.push({
+                  receivedAt: new Date(),
+                  channel: 'Email',
+                  providerMessageId: msgSummary.id,
+                  senderAddress: senderEmail,
+                  rawText: bodyText,
+                  attachmentName: att.filename,
+                  attachmentUrl: fileUrl,
+                  aiClassification: {
+                    intent: 'document_submitted',
+                    confidence: 0.95,
+                    notes: 'Genuine Gmail attachment verified and saved to Drive',
+                    requiresHumanReview: false,
+                    actionSuggested: 'mark_received',
+                  },
+                });
+                await followUp.save();
+                continue;
+              }
+            } catch (attErr: any) {
+              logger.warn(`Failed to process Gmail attachment for message ${msgSummary.id}:`, attErr?.message || attErr);
+            }
+          }
+
+          // Handle text body classification
+          if (bodyText) {
+            const classification = await AgentAiService.classifyClientReply(bodyText, [], {
+              clientName: followUp.clientName,
+              taskOrAssetName: followUp.sourceName,
+            });
+
+            followUp.lastResponseAt = new Date();
+            followUp.responseHistory.push({
+              receivedAt: new Date(),
+              channel: 'Email',
+              providerMessageId: msgSummary.id,
+              senderAddress: senderEmail,
+              rawText: bodyText,
+              aiClassification: {
+                intent: classification.intent,
+                confidence: classification.confidence,
+                notes: classification.notes,
+                requiresHumanReview: classification.requiresHumanReview,
+                actionSuggested: classification.actionSuggested,
+              },
+            });
+
+            if (classification.intent === 'opt_out') {
+              followUp.status = 'opt_out';
+              followUp.nextReminderAt = null;
+              followUp.resolutionNotes = 'Client opted out via email reply.';
+              await FollowUpState.updateMany(
+                {
+                  orgId: followUp.orgId,
+                  clientId: followUp.clientId,
+                  channel: 'Email',
+                  status: { $in: ['waiting_client', 'response_received', 'pending'] },
+                },
+                {
+                  $set: {
+                    status: 'opt_out',
+                    nextReminderAt: null,
+                    resolutionNotes: 'Client opted out of email reminders; cascaded across active requests.',
+                  },
+                }
+              );
+            } else if (classification.intent === 'promised_later') {
+              followUp.status = 'response_received';
+              followUp.nextReminderAt = new Date(Date.now() + 48 * 3600 * 1000);
+              followUp.resolutionNotes = `Client promised later via email: ${classification.notes}`;
+            } else {
+              followUp.status = 'response_received';
+              followUp.resolutionNotes = `Client email response: ${classification.notes}`;
+            }
+
+            await followUp.save();
+          }
+        } catch (msgErr: any) {
+          logger.warn(`Error processing Gmail message ${msgSummary.id}:`, msgErr?.message || msgErr);
+          errors.push(msgErr?.message || String(msgErr));
+        }
+      }
+    } catch (err: any) {
+      logger.error('Error fetching Gmail messages for inbound processing:', err);
+      errors.push(err?.message || String(err));
+    }
+
+    return { processed, matched, errors };
   }
 
   /**

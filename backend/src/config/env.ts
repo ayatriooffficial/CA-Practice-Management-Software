@@ -85,6 +85,7 @@ export const envSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().default('ayatrio_practice_whatsapp_verify_token'),
   WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_GRAPH_API_VERSION: z.string().default('v21.0'),
   // AI Integration (Groq / OpenAI compatible)
   AI_PROVIDER_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
   AI_PROVIDER_API_KEY: z.string().optional(),

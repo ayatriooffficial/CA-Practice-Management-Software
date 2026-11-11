@@ -1159,6 +1159,30 @@ export class TaskService {
     }
 
     const updated = await task.save();
+
+    // Close any active client follow-up reminder cycles when task is completed or cancelled
+    if (updated.status === 'Completed' || updated.status === 'Cancelled') {
+      try {
+        const { FollowUpState } = await import('../agentCenter/followUp.model');
+        await FollowUpState.updateMany(
+          {
+            orgId: String(updated.orgId || 'default'),
+            sourceId: { $in: [updated.taskId, String(updated._id)] },
+            status: { $in: ['waiting_client', 'response_received', 'pending'] },
+          },
+          {
+            $set: {
+              status: 'completed',
+              nextReminderAt: null,
+              resolutionNotes: `Task marked as ${updated.status}; reminder loop ended.`,
+            },
+          }
+        ).exec();
+      } catch {
+        // Non-blocking
+      }
+    }
+
     const triggers = new Set<string>();
     if (previous.status !== updated.status) {
       triggers.add('Status Changed');
@@ -1286,6 +1310,21 @@ export class TaskService {
       }
       task.markModified('documentRequests');
       await task.save();
+
+      if (doc.status === 'Received') {
+        try {
+          const { FollowUpService } = await import('../agentCenter/followUp.service');
+          await FollowUpService.completeFollowUpForDocument({
+            orgId: String(task.orgId || 'default'),
+            taskId: task.taskId || String(task._id),
+            documentRequestId: doc.id,
+            fileUrl: doc.fileUrl,
+            receivedAt: doc.receivedAt || undefined,
+          });
+        } catch {
+          // Non-blocking
+        }
+      }
     }
     return task;
   }
@@ -1335,6 +1374,20 @@ export class TaskService {
     task.markModified('documentRequests');
     await task.save();
     await this.dispatchAgentTaskEvents(task, ['Files Uploaded']);
+
+    // Immediately resolve active Agent Center client follow-up for this document
+    try {
+      const { FollowUpService } = await import('../agentCenter/followUp.service');
+      await FollowUpService.completeFollowUpForDocument({
+        orgId: String(task.orgId || 'default'),
+        taskId: task.taskId || String(task._id),
+        documentRequestId: doc.id,
+        fileUrl,
+        receivedAt: doc.receivedAt,
+      });
+    } catch {
+      // Non-blocking for task upload
+    }
 
     return { task, document: uploaded };
   }
