@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { Types } from 'mongoose';
 import { FollowUpState } from './followUp.model';
 import { IFollowUpStateDocument, FollowUpModule } from './followUp.interface';
 import { Task } from '../task/task.model';
@@ -363,10 +364,11 @@ export class FollowUpService {
       try {
         // 1. Check if the underlying asset or document is still active and missing
         if (followUp.module === 'Task') {
+          const isTaskObjId = Types.ObjectId.isValid(followUp.sourceId);
           const task: any = await Task.findOne({
-            _id: followUp.sourceId,
             orgId: followUp.orgId,
             isDeleted: false,
+            ...(isTaskObjId ? { $or: [{ _id: followUp.sourceId }, { taskId: followUp.sourceId }] } : { taskId: followUp.sourceId }),
           }).lean().exec();
 
           // Stop conditions: Task completed, deleted, or doc already received
@@ -391,11 +393,14 @@ export class FollowUpService {
             }
           }
         } else if (followUp.module === 'DSC') {
-          const client: any = await Client.findOne({
-            _id: followUp.clientId,
-            orgId: followUp.orgId,
-            isDeleted: false,
-          }).lean().exec();
+          const isClientObjId = Types.ObjectId.isValid(followUp.clientId);
+          const client: any = isClientObjId
+            ? await Client.findOne({
+                _id: followUp.clientId,
+                orgId: followUp.orgId,
+                isDeleted: false,
+              }).lean().exec()
+            : null;
 
           const dsc = client?.dscs?.find((d: any) => String(d.id || d.dscId) === followUp.sourceId);
           if (!dsc || (dsc.status && String(dsc.status).toLowerCase() !== 'active')) {
@@ -407,11 +412,14 @@ export class FollowUpService {
             continue;
           }
         } else if (followUp.module === 'License') {
-          const client: any = await Client.findOne({
-            _id: followUp.clientId,
-            orgId: followUp.orgId,
-            isDeleted: false,
-          }).lean().exec();
+          const isClientObjId = Types.ObjectId.isValid(followUp.clientId);
+          const client: any = isClientObjId
+            ? await Client.findOne({
+                _id: followUp.clientId,
+                orgId: followUp.orgId,
+                isDeleted: false,
+              }).lean().exec()
+            : null;
 
           const lic = client?.licenses?.find((l: any) => String(l.id || l.licenseNo) === followUp.sourceId);
           if (!lic) {

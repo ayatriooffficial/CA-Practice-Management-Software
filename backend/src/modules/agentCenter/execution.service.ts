@@ -207,8 +207,9 @@ export async function executeProvider(
     simulateFailure: boolean;
   }
 ): Promise<ProviderExecutionOutput> {
-  const providerName = channel === 'Email' ? 'email' : channel === 'WhatsApp' ? 'whatsapp' : 'in-app';
-  const envName = channel === 'Email' ? 'MOCK_EMAIL_FAILURE' : channel === 'WhatsApp' ? 'MOCK_WHATSAPP_FAILURE' : '';
+  const normChannel = (channel || '').trim().toLowerCase();
+  const providerName = normChannel === 'email' ? 'email' : normChannel === 'whatsapp' ? 'whatsapp' : 'in-app';
+  const envName = normChannel === 'email' ? 'MOCK_EMAIL_FAILURE' : normChannel === 'whatsapp' ? 'MOCK_WHATSAPP_FAILURE' : '';
   const configuredFailure = envName ? process.env[envName] === 'true' : false;
   const fingerprint = createHash('sha256')
     .update(`${providerName}:${payload.recipient}:${payload.message}`)
@@ -217,24 +218,24 @@ export async function executeProvider(
   const executionId = `${providerName}-${payload.previewOnly ? 'mock' : 'real'}-${fingerprint}`;
   const missingTemplateMatches = [
     ...payload.message.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g),
-    ...(channel === 'Email' && payload.subject ? payload.subject.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g) : []),
+    ...(normChannel === 'email' && payload.subject ? payload.subject.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g) : []),
   ].map((m) => m[1]);
   const missingTemplateData = missingTemplateMatches.length > 0;
   const missingTemplateMsg = missingTemplateData
     ? `Required template variable(s) missing from event record: {{${[...new Set(missingTemplateMatches)].join('}}, {{')}}}.`
     : 'Required template data is missing from the event record.';
-  const invalidContact = channel === 'Email' ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.recipient)
-    : channel === 'WhatsApp' ? !/^\+?[0-9]{7,15}$/.test(payload.recipient.replace(/[\s()-]/g, ''))
+  const invalidContact = normChannel === 'email' ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.recipient)
+    : normChannel === 'whatsapp' ? !/^\+?[0-9]{7,15}$/.test(payload.recipient.replace(/[\s()-]/g, ''))
       : !payload.recipient;
 
   if (payload.previewOnly) {
-    if (!payload.recipient || invalidContact || !payload.message || (channel === 'Email' && !payload.subject.trim()) || missingTemplateData || configuredFailure || payload.simulateFailure) {
+    if (!payload.recipient || invalidContact || !payload.message || (normChannel === 'email' && !payload.subject.trim()) || missingTemplateData || configuredFailure || payload.simulateFailure) {
       return {
         provider: providerName,
         mode: 'mock',
         status: 'failed',
         simulated: true,
-        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (channel === 'Email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? missingTemplateMsg : 'Simulated provider failure.',
+        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (normChannel === 'email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? missingTemplateMsg : 'Simulated provider failure.',
         timestamp: new Date().toISOString(),
         executionId,
       };
@@ -265,7 +266,7 @@ export async function executeProvider(
     };
   }
 
-  if (!payload.message || (channel === 'Email' && !payload.subject.trim())) {
+  if (!payload.message || (normChannel === 'email' && !payload.subject.trim())) {
     return {
       provider: providerName,
       mode: 'real',
@@ -277,7 +278,7 @@ export async function executeProvider(
     };
   }
 
-  if (channel === 'Email') {
+  if (normChannel === 'email') {
     const status = await MailService.getStatus();
     if (!status.authorized) {
       return {
@@ -324,7 +325,7 @@ export async function executeProvider(
     };
   }
 
-  if (channel === 'WhatsApp') {
+  if (normChannel === 'whatsapp') {
     if (!isWhatsAppConfigured()) {
       return {
         provider: 'whatsapp',
