@@ -34,6 +34,7 @@ interface TuriaDateTaskViewProps {
   adminScope?: "my_work" | "team_work" | "all_work";
   onScopeChange?: (scope: "my_work" | "team_work" | "all_work") => void;
   scopeCounts?: { myWork: number; teamWork: number; allWork: number };
+  hideHeader?: boolean;
 }
 
 const MONTH_SHORT = [
@@ -73,6 +74,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
   adminScope = "my_work",
   onScopeChange,
   scopeCounts,
+  hideHeader = false,
 }) => {
   const [expandedTaskIds, setExpandedTaskIds] = useState<Record<string, boolean>>({});
   const [activeMenuTaskId, setActiveMenuTaskId] = useState<string | null>(null);
@@ -129,7 +131,8 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
   return (
     <div className="flex flex-col flex-1 min-w-0">
       {/* Scope Selector & Date Agenda Tabs */}
-      <div className="px-4 py-2 border-b border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+      {!hideHeader && (
+        <div className="px-4 py-2 border-b border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
         {/* Date Agenda Tabs */}
         {onTabChange && (
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink-0 w-full max-w-full min-w-0">
@@ -270,6 +273,7 @@ export const TuriaDateTaskView: React.FC<TuriaDateTaskViewProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Desktop Table View (>= md) */}
       <div className="hidden md:block">
