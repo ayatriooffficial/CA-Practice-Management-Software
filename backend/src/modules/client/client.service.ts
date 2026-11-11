@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Client } from './client.model';
 import { ClientServiceSetting } from './clientServiceSetting.model';
 import { IClient, IClientDocument } from './client.interface';
@@ -622,6 +623,41 @@ export class ClientService {
         serviceSettings = await ClientServiceSetting.find({ clientId: client._id, isDeleted: false }).lean();
       } catch {}
     }
+
+    // Also auto-migrate from customerFiles.recurring if serviceSettings collection is still empty
+    if (serviceSettings.length === 0 && Array.isArray(client.customerFiles?.recurring) && client.customerFiles.recurring.length > 0) {
+      try {
+        const recurringSettings = client.customerFiles.recurring
+          .filter((r: any) => Boolean((r as any).service || r.serviceName))
+          .map((r: any) => {
+            const sName = (r as any).service || r.serviceName;
+            const prof = Number(r.professionalFee) || 0;
+            const govt = Number(r.governmentFee) || 0;
+            const other = Number(r.otherCharges) || 0;
+            const total = Number(r.totalServiceFee) || Number(r.tariff) || (prof + govt + other) || 0;
+            return {
+              clientId: client._id,
+              orgId: client.orgId || null,
+              serviceName: sName,
+              category: r.category || 'General',
+              compliance: true,
+              isActive: true,
+              recTask: 'Enabled',
+              recInvoice: 'Enabled',
+              frequency: 'Monthly',
+              amount: total,
+              professionalFee: prof,
+              governmentFee: govt,
+              otherCharges: other,
+              totalServiceFee: total,
+            };
+          });
+        if (recurringSettings.length > 0) {
+          await ClientServiceSetting.insertMany(recurringSettings);
+          serviceSettings = await ClientServiceSetting.find({ clientId: client._id, isDeleted: false }).lean();
+        }
+      } catch {}
+    }
     (client as any).serviceSettings = serviceSettings;
 
     // Contact/director resolution from associated leads & customerFiles.promoter
@@ -694,7 +730,15 @@ export class ClientService {
       (client as any).contacts = [];
     }
 
-    return client;
+    const clientObj: any = client.toObject ? client.toObject() : { ...client };
+    clientObj.id = clientObj._id?.toString() || clientObj.id;
+    clientObj.serviceSettings = serviceSettings;
+    clientObj.services = serviceSettings
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => s.serviceName);
+    clientObj.contacts = (client as any).contacts || [];
+
+    return clientObj;
   }
 
   /**
@@ -1764,15 +1808,22 @@ export class ClientService {
   }
 
   /**
-   * Delete a Contact from Client
+   * Delete a Contact / Director from Client only (unlinks from this client without deleting the Lead)
    */
-  static async deleteContact(id: string, contactId: string): Promise<IClientDocument> {
+  static async deleteContact(id: string, contactId: string): Promise<any> {
     const client = await Client.findById(id);
     if (!client) throw AppError.notFound(ResponseMessages.CLIENT_NOT_FOUND);
     if (!client.contacts) {
       client.contacts = [];
     }
 
+    // Identify target contact to check for linked lead
+    const targetContact = client.contacts.find(
+      (c: any) => c.id === contactId || c._id?.toString() === contactId
+    );
+    const targetLeadId = targetContact?.leadId || (contactId.startsWith('lead-') ? contactId.replace('lead-', '') : (/^[0-9a-fA-F]{24}$/.test(contactId) ? contactId : null));
+
+    // Remove from client.contacts
     client.contacts = client.contacts.filter(
       (c: any) => c.id !== contactId && c._id?.toString() !== contactId
     );
@@ -1782,14 +1833,38 @@ export class ClientService {
       client.customerFiles.promoter = client.customerFiles.promoter.filter(
         (p: any, i: number) => {
           const promoId = `promoter-${p.key || i + 1}`;
-          return promoId !== contactId && p._id?.toString() !== contactId && p.id !== contactId;
+          const isTarget = promoId === contactId || p._id?.toString() === contactId || p.id === contactId;
+          const isTargetLead = targetLeadId && (p.leadId === targetLeadId || p._id?.toString() === targetLeadId);
+          const isTargetName = targetContact?.name && p.name && p.name.trim().toLowerCase() === targetContact.name.trim().toLowerCase();
+          return !isTarget && !isTargetLead && !isTargetName;
         }
       );
       client.markModified('customerFiles');
     }
 
+    // If associated with a Lead, unlink from this client without deleting the Lead!
+    if (targetLeadId && mongoose.Types.ObjectId.isValid(targetLeadId)) {
+      try {
+        await Lead.updateOne(
+          { _id: targetLeadId },
+          {
+            $pull: { associatedClientIds: client._id },
+          }
+        );
+        // If convertedToClientId points to this client, remove reference
+        await Lead.updateOne(
+          { _id: targetLeadId, convertedToClientId: client._id },
+          { $unset: { convertedToClientId: 1 } }
+        );
+      } catch (err) {
+        console.error('Error unlinking lead from client on contact deletion:', err);
+      }
+    }
+
     client.markModified('contacts');
-    return await client.save();
+    await client.save();
+
+    return await ClientService.getClientById(client._id.toString());
   }
 
   /**

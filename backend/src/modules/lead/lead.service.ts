@@ -471,6 +471,69 @@ export class LeadService {
   }
 
   /**
+   * Check deletion impact: whether this lead is the sole/last director for any active clients
+   */
+  static async checkLeadDeletionImpact(id: string): Promise<{
+    isSoleDirector: boolean;
+    affectedClients: Array<{ id: string; name: string; fileNo?: string; totalDirectors: number }>;
+  }> {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    const lead = isObjectId ? await Lead.findById(id).lean() : null;
+    if (!lead) {
+      return { isSoleDirector: false, affectedClients: [] };
+    }
+
+    const orConditions: any[] = [
+      { leadId: lead._id },
+      { _id: { $in: lead.associatedClientIds || [] } },
+    ];
+    if (lead.convertedToClientId) {
+      orConditions.push({ _id: lead.convertedToClientId });
+    }
+    if (lead.pan && lead.pan.trim()) {
+      orConditions.push({ 'customerFiles.promoter.pan': lead.pan.trim().toUpperCase() });
+    }
+    if (lead.fullName && lead.fullName.trim()) {
+      orConditions.push({ 'customerFiles.promoter.name': lead.fullName.trim() });
+    }
+
+    const associatedClients = await Client.find({
+      $or: orConditions,
+      isDeleted: false,
+    }).select('name legalName fileNo customerFiles.promoter contacts').lean();
+
+    const affectedClients: Array<{ id: string; name: string; fileNo?: string; totalDirectors: number }> = [];
+
+    for (const client of associatedClients) {
+      const promoters = Array.isArray(client.customerFiles?.promoter) ? client.customerFiles.promoter : [];
+      const contacts = Array.isArray(client.contacts) ? client.contacts : [];
+
+      const seen = new Set<string>();
+      promoters.forEach((p: any) => {
+        if (p.name) seen.add(p.name.trim().toLowerCase());
+      });
+      contacts.forEach((c: any) => {
+        if (c.name) seen.add(c.name.trim().toLowerCase());
+      });
+
+      // If client has 1 or fewer distinct directors, this lead is the sole director!
+      if (seen.size <= 1) {
+        affectedClients.push({
+          id: client._id.toString(),
+          name: client.name || client.legalName || 'Client',
+          fileNo: client.fileNo,
+          totalDirectors: seen.size,
+        });
+      }
+    }
+
+    return {
+      isSoleDirector: affectedClients.length > 0,
+      affectedClients,
+    };
+  }
+
+  /**
    * Soft-delete lead record
    */
   static async softDeleteLead(id: string, deletedBy?: string): Promise<ILeadDocument> {
@@ -480,6 +543,59 @@ export class LeadService {
     }
 
     await lead.softDelete(deletedBy);
+
+    // Clean up director associations on clients so stale links are removed
+    try {
+      const leadIdStr = lead._id.toString();
+      const panUpper = lead.pan ? lead.pan.trim().toUpperCase() : null;
+      const nameTrim = lead.fullName ? lead.fullName.trim().toLowerCase() : null;
+
+      const clientFilters: any[] = [
+        { leadId: lead._id },
+        { _id: { $in: lead.associatedClientIds || [] } },
+      ];
+      if (lead.convertedToClientId) clientFilters.push({ _id: lead.convertedToClientId });
+      if (panUpper) clientFilters.push({ 'customerFiles.promoter.pan': panUpper });
+      if (nameTrim) clientFilters.push({ 'customerFiles.promoter.name': new RegExp(`^${lead.fullName.trim()}$`, 'i') });
+
+      const affectedClients = await Client.find({ $or: clientFilters, isDeleted: false });
+
+      for (const c of affectedClients) {
+        let modified = false;
+        if (Array.isArray(c.customerFiles?.promoter)) {
+          const prevLen = c.customerFiles.promoter.length;
+          c.customerFiles.promoter = c.customerFiles.promoter.filter((p: any) => {
+            const matchPan = panUpper && p.pan && p.pan.toUpperCase() === panUpper;
+            const matchName = nameTrim && p.name && p.name.trim().toLowerCase() === nameTrim;
+            const matchLead = p.leadId && (p.leadId === leadIdStr || p.leadId.toString() === leadIdStr);
+            return !matchPan && !matchName && !matchLead;
+          });
+          if (c.customerFiles.promoter.length !== prevLen) {
+            c.markModified('customerFiles');
+            modified = true;
+          }
+        }
+        if (Array.isArray(c.contacts)) {
+          const prevLen = c.contacts.length;
+          c.contacts = c.contacts.filter((ct: any) => {
+            const matchPan = panUpper && ct.pan && ct.pan.toUpperCase() === panUpper;
+            const matchName = nameTrim && ct.name && ct.name.trim().toLowerCase() === nameTrim;
+            const matchLead = ct.leadId && (ct.leadId === leadIdStr || ct.leadId.toString() === leadIdStr);
+            return !matchPan && !matchName && !matchLead;
+          });
+          if (c.contacts.length !== prevLen) {
+            c.markModified('contacts');
+            modified = true;
+          }
+        }
+        if (modified) {
+          await c.save();
+        }
+      }
+    } catch (err) {
+      console.error('Error pruning client director associations on lead delete:', err);
+    }
+
     return lead;
   }
 

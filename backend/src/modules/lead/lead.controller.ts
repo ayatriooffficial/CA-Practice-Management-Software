@@ -59,6 +59,16 @@ export class LeadController {
   });
 
   /**
+   * Check deletion impact: determine if lead is the sole director of any clients
+   * GET /api/v1/leads/:id/deletion-impact
+   */
+  static checkDeletionImpact = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const impact = await LeadService.checkLeadDeletionImpact(id);
+    return ApiResponse.success(res, impact, 'Lead deletion impact evaluated successfully');
+  });
+
+  /**
    * Soft-delete lead
    * DELETE /api/v1/leads/:id
    */

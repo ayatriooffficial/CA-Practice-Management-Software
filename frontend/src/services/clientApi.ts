@@ -236,6 +236,10 @@ export const clientApi = {
     });
   },
 
+  getServiceSettings: async (id: string): Promise<ApiResponse<any[]>> => {
+    return request<any[]>(`/clients/${id}/service-settings`);
+  },
+
   updateServiceSettings: async (id: string, settings: any[]): Promise<ApiResponse<Client>> => {
     return request<Client>(`/clients/${id}/service-settings`, {
       method: 'PATCH',

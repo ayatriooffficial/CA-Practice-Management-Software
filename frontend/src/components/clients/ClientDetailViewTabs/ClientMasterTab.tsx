@@ -37,6 +37,7 @@ import { ClientGstLinksCard } from "./ClientGstLinksCard";
 import { ClientMasterSuggestionsCard } from "./ClientMasterSuggestionsCard";
 import { isGstReturnServiceEnabled } from "./utils";
 import { AddDirectorModal } from "../modals/AddDirectorModal";
+import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { getAvatarBadge } from "./utils";
 import { getPortalDefaultUrl } from "./utils";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
@@ -84,6 +85,17 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   const router = useRouter();
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
+  const [deleteDirectorConfirm, setDeleteDirectorConfirm] = useState<{
+    isOpen: boolean;
+    contactId: string;
+    contactName: string;
+    isLastDirector: boolean;
+  }>({
+    isOpen: false,
+    contactId: "",
+    contactName: "",
+    isLastDirector: false,
+  });
   const [contactsPage, setContactsPage] = useState(1);
   const [revealedMcaPasswords, setRevealedMcaPasswords] = useState<Record<string, boolean>>({});
   const [revealedPromoterPasswords, setRevealedPromoterPasswords] = useState<Record<string, boolean>>({});
@@ -212,15 +224,18 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
   // Recurring Services dataset: merges client.customerFiles.recurring with enabled allServices
   const recurringServicesList = useMemo(() => {
-    const fromFiles = (client.customerFiles?.recurring || []).map((r, i) => ({
-      id: `rec-${r.key || i + 1}`,
-      name: r.serviceName || r.type || "Recurring Service",
-      periodicity: r.periodicity || "Monthly",
-      amount: r.amount || "-",
-      dueDate: r.dueDate || "15th of month",
-      status: "Active",
-      source: "file",
-    }));
+    const fromFiles = (client.customerFiles?.recurring || []).map((r: any, i: number) => {
+      const fee = r.totalServiceFee || r.tariff || r.amount;
+      return {
+        id: `rec-${r.key || i + 1}`,
+        name: r.service || r.serviceName || r.type || "Recurring Service",
+        periodicity: r.periodicity || "Monthly",
+        amount: fee ? (String(fee).startsWith("₹") ? String(fee) : `₹${fee}`) : "-",
+        dueDate: r.dueDate || "15th of month",
+        status: "Active",
+        source: "file",
+      };
+    });
 
     const fromSettings = (allServices || [])
       .filter((s) => s.compliance || s.isActive)
@@ -771,13 +786,17 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                           {handleDeleteContact && (
                             <button
                               type="button"
-                              onClick={async () => {
-                                if (confirm(`Remove director ${contact.name}?`)) {
-                                  await handleDeleteContact(contact.id || "", contact.name || "");
-                                }
+                              onClick={() => {
+                                const isLast = contactsList.length <= 1;
+                                setDeleteDirectorConfirm({
+                                  isOpen: true,
+                                  contactId: contact.id || "",
+                                  contactName: contact.name || "",
+                                  isLastDirector: isLast,
+                                });
                               }}
                               className="h-7 w-7 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:text-rose-600 text-gray-400 flex items-center justify-center transition-colors cursor-pointer"
-                              title="Delete Contact"
+                              title={contactsList.length <= 1 ? "Remove Sole Director from Client (Warning)" : "Remove Director from Client"}
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -1672,6 +1691,48 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
           setIsAddContactModalOpen(false);
           setEditingContact(null);
           showToast(editingContact ? "Director updated successfully." : "Director added successfully.");
+        }}
+      />
+
+      {/* Director Deletion Confirmation Modal */}
+      <DiscardConfirmationModal
+        isOpen={deleteDirectorConfirm.isOpen}
+        title={
+          deleteDirectorConfirm.isLastDirector
+            ? "Sole Director Warning"
+            : "Remove Director from Client"
+        }
+        message={
+          deleteDirectorConfirm.isLastDirector
+            ? `Warning: "${deleteDirectorConfirm.contactName}" is the LAST remaining director for "${client.name}". If this director is removed, the client entity will have no associated director, which may impact filings and compliance representation.\n\nAre you sure you want to proceed? (Note: This action will only remove the director from "${client.name}". The lead record in the Leads directory will NOT be deleted.)`
+            : `Are you sure you want to remove director "${deleteDirectorConfirm.contactName}" from "${client.name}"? This will unlink the director from this client only. The lead record in the Leads directory will NOT be deleted.`
+        }
+        confirmText={
+          deleteDirectorConfirm.isLastDirector
+            ? "Yes, Remove Sole Director"
+            : "Remove from Client"
+        }
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onCancel={() =>
+          setDeleteDirectorConfirm({
+            isOpen: false,
+            contactId: "",
+            contactName: "",
+            isLastDirector: false,
+          })
+        }
+        onConfirm={async () => {
+          const { contactId, contactName } = deleteDirectorConfirm;
+          setDeleteDirectorConfirm({
+            isOpen: false,
+            contactId: "",
+            contactName: "",
+            isLastDirector: false,
+          });
+          if (handleDeleteContact && contactId) {
+            await handleDeleteContact(contactId, contactName);
+          }
         }}
       />
 

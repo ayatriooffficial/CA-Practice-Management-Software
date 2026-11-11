@@ -46,6 +46,13 @@ router.patch(
   LeadController.updateLead
 );
 
+// Check Lead Deletion Impact
+router.get(
+  '/:id/deletion-impact',
+  validateRequest({ params: leadIdParamSchema }),
+  LeadController.checkDeletionImpact
+);
+
 // Soft Delete Lead
 router.delete(
   '/:id',

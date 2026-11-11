@@ -287,6 +287,16 @@ export class ClientController {
   });
 
   /**
+   * Get service settings for client
+   * GET /api/v1/clients/:id/service-settings
+   */
+  static getServiceSettings = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const settings = await ClientService.getServiceSettings(id);
+    return ApiResponse.success(res, settings, 'Client service settings retrieved successfully');
+  });
+
+  /**
    * Update service settings for client
    * PATCH /api/v1/clients/:id/service-settings
    */

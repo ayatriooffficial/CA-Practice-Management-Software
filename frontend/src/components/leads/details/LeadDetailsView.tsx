@@ -11,6 +11,7 @@ import { DealCard } from "./DealCard";
 import { BusinessInfoCard } from "./BusinessInfoCard";
 import { LeadTasksTab, QuotationTab, ProposalTab, DetailNotesTab } from "./tabs";
 import { Quotation } from "@/services/quotationApi";
+import { leadApi } from "@/services/leadApi";
 import { Loader2 } from "lucide-react";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 
@@ -167,12 +168,31 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
   }, [activeLead.fullName, handleStatusChange]);
 
   // Handle Delete Lead
-  const handleDeleteLead = useCallback(() => {
+  const handleDeleteLead = useCallback(async () => {
+    let isSole = false;
+    let affected: Array<{ id: string; name: string; fileNo?: string }> = [];
+    try {
+      const impactRes = await leadApi.checkLeadDeletionImpact(activeLead.id);
+      if (impactRes.data) {
+        isSole = impactRes.data.isSoleDirector;
+        affected = impactRes.data.affectedClients || [];
+      }
+    } catch (err) {
+      console.error("Failed to check lead deletion impact:", err);
+    }
+
+    const title = isSole
+      ? "⚠️ Warning: Sole Director for Company"
+      : "Move to Trash?";
+    const message = isSole
+      ? `Warning: "${activeLead.fullName}" is the LAST remaining director for: ${affected.map((c) => c.name).join(", ")}.\n\nIf this lead is deleted, those clients will have no director, and associated director details will also be removed.\n\nAre you sure you want to proceed? (This lead will be moved to trash via soft-delete)`
+      : `Are you sure you want to move lead "${activeLead.fullName}" to trash?`;
+
     setConfirmDialog({
       isOpen: true,
-      title: "Move to Trash?",
-      message: `Are you sure you want to move lead "${activeLead.fullName}" to trash?`,
-      confirmText: "Move to Trash",
+      title,
+      message,
+      confirmText: isSole ? "Yes, Delete Lead" : "Move to Trash",
       cancelText: "Cancel",
       confirmVariant: "danger",
       onConfirm: async () => {

@@ -154,6 +154,7 @@ router.patch('/:id/documents-in-out/:subId', ClientController.updateDocumentInOu
 router.delete('/:id/documents-in-out/:subId', ClientController.deleteDocumentInOut);
 
 // Service Settings
+router.get('/:id/service-settings', ClientController.getServiceSettings);
 router.patch('/:id/service-settings', ClientController.updateServiceSettings);
 router.patch('/:clientId/services/:serviceId', ClientController.toggleClientService);
 router.patch('/:id/services/:serviceId', ClientController.toggleClientService);

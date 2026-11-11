@@ -298,18 +298,36 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
     isOpen: boolean;
     id: string;
     name: string;
+    isSoleDirector?: boolean;
+    affectedClients?: Array<{ id: string; name: string; fileNo?: string }>;
   }>({
     isOpen: false,
     id: "",
     name: "",
+    isSoleDirector: false,
+    affectedClients: [],
   });
 
   const handleDeleteLead = useCallback(
-    (id: string, name: string) => {
+    async (id: string, name: string) => {
+      let isSole = false;
+      let affected: Array<{ id: string; name: string; fileNo?: string }> = [];
+      try {
+        const impactRes = await leadApi.checkLeadDeletionImpact(id);
+        if (impactRes.data) {
+          isSole = impactRes.data.isSoleDirector;
+          affected = impactRes.data.affectedClients || [];
+        }
+      } catch (err) {
+        console.error("Failed to check lead deletion impact:", err);
+      }
+
       setDeleteConfirm({
         isOpen: true,
         id,
         name,
+        isSoleDirector: isSole,
+        affectedClients: affected,
       });
     },
     []
@@ -317,7 +335,13 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
 
   const handleConfirmDelete = async () => {
     const { id, name } = deleteConfirm;
-    setDeleteConfirm({ isOpen: false, id: "", name: "" });
+    setDeleteConfirm({
+      isOpen: false,
+      id: "",
+      name: "",
+      isSoleDirector: false,
+      affectedClients: [],
+    });
     if (!id) return;
     try {
       await deleteMutation.mutateAsync(id);
@@ -711,12 +735,28 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
       {/* In-App Delete Confirmation Modal */}
       <DiscardConfirmationModal
         isOpen={deleteConfirm.isOpen}
-        title="Move Lead to Trash?"
-        message={`Are you sure you want to move lead "${deleteConfirm.name}" to trash?`}
-        confirmText="Move to Trash"
+        title={
+          deleteConfirm.isSoleDirector
+            ? "⚠️ Warning: Sole Director for Company"
+            : "Move Lead to Trash?"
+        }
+        message={
+          deleteConfirm.isSoleDirector
+            ? `Warning: "${deleteConfirm.name}" is the LAST remaining director for: ${deleteConfirm.affectedClients?.map((c) => c.name).join(", ")}.\n\nIf this lead is deleted, those clients will have no director, and associated director details will also be removed.\n\nAre you sure you want to proceed? (This lead will be moved to trash via soft-delete)`
+            : `Are you sure you want to move lead "${deleteConfirm.name}" to trash?`
+        }
+        confirmText={deleteConfirm.isSoleDirector ? "Yes, Delete Lead" : "Move to Trash"}
         cancelText="Cancel"
         confirmVariant="danger"
-        onKeepEditing={() => setDeleteConfirm({ isOpen: false, id: "", name: "" })}
+        onKeepEditing={() =>
+          setDeleteConfirm({
+            isOpen: false,
+            id: "",
+            name: "",
+            isSoleDirector: false,
+            affectedClients: [],
+          })
+        }
         onDiscard={handleConfirmDelete}
       />
 

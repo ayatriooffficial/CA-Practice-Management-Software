@@ -95,6 +95,14 @@ export const leadApi = {
     });
   },
 
+  checkLeadDeletionImpact: async (
+    id: string
+  ): Promise<ApiResponse<{ isSoleDirector: boolean; affectedClients: Array<{ id: string; name: string; fileNo?: string; totalDirectors: number }> }>> => {
+    return request<{ isSoleDirector: boolean; affectedClients: Array<{ id: string; name: string; fileNo?: string; totalDirectors: number }> }>(
+      `/leads/${id}/deletion-impact`
+    );
+  },
+
   getLeadCompanies: async (id: string): Promise<ApiResponse<any[]>> => {
     return request<any[]>(`/leads/${id}/companies`);
   },

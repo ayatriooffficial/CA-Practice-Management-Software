@@ -801,7 +801,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         setClient(res.data);
         onClientUpdated?.(res.data);
       }
-      showToast(`Contact "${name}" deleted.`);
+      showToast(`Director "${name}" removed from client.`);
     } catch (err: any) {
       showToast(err.message || "Failed to delete contact.");
     }
