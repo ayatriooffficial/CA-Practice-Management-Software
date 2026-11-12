@@ -29,11 +29,11 @@ export interface TaskQueryParams {
 let fallbackTasks: TaskItem[] = [];
 
 function getStoredTasks(): TaskItem[] {
-  return fallbackTasks;
+  return [...fallbackTasks];
 }
 
 function saveStoredTasks(tasks: TaskItem[]): void {
-  fallbackTasks = tasks;
+  fallbackTasks = Array.isArray(tasks) ? [...tasks] : [];
 }
 
 export const taskApi = {
@@ -246,7 +246,7 @@ export const taskApi = {
         body: JSON.stringify(payload),
       });
       if (res.data) {
-        fallbackTasks.unshift(res.data);
+        fallbackTasks = [res.data, ...fallbackTasks];
         saveStoredTasks(fallbackTasks);
         return res;
       }
@@ -290,17 +290,17 @@ export const taskApi = {
       createProformaInvoice: !!payload.createProformaInvoice,
       creatorName: '',
       adminId: '',
-      subTasks: payload.subTasks || [
+      subTasks: payload.subTasks ? [...payload.subTasks] : [
         { id: '1', title: 'Step 1 - Collect Invoices', completed: false, timeSpent: '00:00:00' },
         { id: '2', title: 'Step 2 - Verification & Reconciliation', completed: false, timeSpent: '00:00:00' },
         { id: '3', title: 'Step 3 - Final Filing & Client Submission', completed: false, timeSpent: '00:00:00' },
       ],
-      checklist: payload.checklist || [
+      checklist: payload.checklist ? [...payload.checklist] : [
         { id: 'c1', title: 'Verify Source Invoices & Bank Statements', completed: false, isMandatory: true },
         { id: 'c2', title: 'Reconcile 2B/GSTR Data on Portal', completed: false, isMandatory: true },
         { id: 'c3', title: 'Review Tax Computation & Get Partner Sign-off', completed: false, isMandatory: true },
       ],
-      documentRequests: payload.documentRequests || [
+      documentRequests: payload.documentRequests ? [...payload.documentRequests] : [
         { id: 'd1', title: 'Sales Register & Output Tax Summary', status: 'Pending', isMandatory: true },
         { id: 'd2', title: 'Bank Account Statement (Monthly)', status: 'Pending', isMandatory: true },
       ],
@@ -316,7 +316,7 @@ export const taskApi = {
       createdAt: new Date().toISOString(),
     };
 
-    fallbackTasks.unshift(newTask);
+    fallbackTasks = [newTask, ...fallbackTasks];
     saveStoredTasks(fallbackTasks);
     return {
       success: true,
@@ -333,8 +333,9 @@ export const taskApi = {
         body: JSON.stringify(payload),
       });
       if (res.data) {
-        const idx = fallbackTasks.findIndex((t) => t.id === id || t.taskId === id);
-        if (idx !== -1) fallbackTasks[idx] = { ...fallbackTasks[idx], ...res.data };
+        fallbackTasks = fallbackTasks.map((t) =>
+          t.id === id || t.taskId === id ? { ...t, ...res.data } : t
+        );
         saveStoredTasks(fallbackTasks);
         return res;
       }
@@ -342,15 +343,18 @@ export const taskApi = {
       // Fallback
     }
 
-    const idx = fallbackTasks.findIndex((t) => t.id === id || t.taskId === id);
-    if (idx !== -1) {
-      fallbackTasks[idx] = { ...fallbackTasks[idx], ...payload };
+    const foundTask = fallbackTasks.find((t) => t.id === id || t.taskId === id);
+    if (foundTask) {
+      const updatedTask = { ...foundTask, ...payload };
+      fallbackTasks = fallbackTasks.map((t) =>
+        t.id === id || t.taskId === id ? updatedTask : t
+      );
       saveStoredTasks(fallbackTasks);
       return {
         success: true,
         statusCode: 200,
         message: 'Task updated successfully',
-        data: fallbackTasks[idx],
+        data: updatedTask,
       };
     }
 

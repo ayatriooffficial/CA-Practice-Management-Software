@@ -437,7 +437,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       });
 
       const checklist = (customChecklist && customChecklist.length > 0)
-        ? customChecklist
+        ? customChecklist.map((c) => ({ ...c }))
         : selectedService?.checklist?.map((c: any, idx: number) => {
         if (typeof c === "string") {
           return {
