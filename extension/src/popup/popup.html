@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CA Practice - Portal Auto-Fill Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-box">
+        <div class="logo-icon">CA</div>
+        <div>
+          <h1>CA Practice</h1>
+          <p class="subtitle" id="connectionSubtitle">Portal Auto-Fill Assistant</p>
+        </div>
+      </div>
+      <div class="nav-tabs">
+        <button type="button" class="tab-btn active" id="tabFill">Fill</button>
+        <button type="button" class="tab-btn" id="tabSearch">🔍 Search</button>
+        <button type="button" class="tab-btn" id="tabSettings" title="Extension Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- PORTAL SELECTOR PILLS -->
+    <div class="portal-selector" id="portalSelector">
+      <!-- Generated dynamically by popup.js: MCA, Income Tax, GST, TRACES -->
+    </div>
+
+    <!-- SEARCH VIEW -->
+    <div id="searchView" class="view-section" style="display: none;">
+      <div class="field-group">
+        <label>Search Client Master</label>
+        <input type="text" id="searchInput" placeholder="Search by PAN, Name, GSTIN, or DIN..." autofocus>
+      </div>
+      <div id="searchResults" class="search-results-list">
+        <div class="empty-hint">Type PAN (e.g. ABCDE1234F) or Name to search clients.</div>
+      </div>
+    </div>
+
+    <!-- ACTIVE CREDENTIAL CARD -->
+    <div id="fillView" class="view-section">
+      <div class="card" id="credentialCard">
+        <div class="card-header">
+          <div>
+            <span class="card-title" id="clientName">No Client Selected</span>
+            <div class="card-subtitle" id="clientSubtitle">Select a client or launch from CA Practice app</div>
+          </div>
+          <span class="pan-badge" id="clientPanBadge"></span>
+        </div>
+
+        <!-- Director Selector (when client has multiple directors) -->
+        <div class="field-group" id="directorGroup" style="display: none;">
+          <label>Select Director / Signatory</label>
+          <select id="directorSelect" class="select-input"></select>
+        </div>
+
+        <!-- User ID -->
+        <div class="field-group">
+          <label id="userIdLabel">Portal User ID</label>
+          <div class="input-with-copy">
+            <input type="text" id="userIdInput" placeholder="Enter User ID / DIN / PAN">
+            <button type="button" class="icon-btn" id="copyIdBtn" title="Copy User ID">📋</button>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="field-group">
+          <label id="passwordLabel">Portal Password</label>
+          <div class="input-with-copy">
+            <input type="password" id="passwordInput" placeholder="Enter Portal Password">
+            <button type="button" class="icon-btn" id="togglePassBtn" title="Show/Hide Password">👁️</button>
+            <button type="button" class="icon-btn" id="copyPassBtn" title="Copy Password">📋</button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="button-group">
+          <button type="button" class="btn btn-primary" id="openAndFillBtn">
+            🚀 Open Portal & Auto-Fill
+          </button>
+          <button type="button" class="btn btn-secondary" id="fillCurrentTabBtn">
+            ⚡ Fill Current Tab
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Info Box -->
+      <div class="info-box">
+        <p class="info-text" id="portalInfoText">
+          <strong>Tip:</strong> In the CA Practice web app, click <em>"Auto-Fill"</em> under any client credentials to instantly launch and log in.
+        </p>
+      </div>
+    </div>
+
+    <!-- Status Toast -->
+    <div class="status-toast" id="statusToast"></div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -32,6 +32,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="application-name" content="Ayatrio CA Practice" />
+        <meta name="ayatrio-extension-bridge" content="enabled" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="color-scheme" content="light dark" />
       </head>

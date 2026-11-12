@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CA Practice Extension - Settings & Deployment</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="logo-box">
+        <div class="logo-icon">CA</div>
+        <div>
+          <h1>CA Practice Extension Settings</h1>
+          <p class="subtitle">Production Deployment & Portal Configuration</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" id="saveBtn">Save Changes</button>
+    </header>
+
+    <!-- SECTION 1: DEPLOYED SYSTEM DOMAINS -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="icon">🌐</span>
+        <h2>Connected Web App & Production Domains</h2>
+      </div>
+      <p class="section-desc">
+        The extension automatically bridges with localhost and cloud deployments (Vercel, Netlify, Render). If you host CA Practice on a custom private domain, add it below so the extension connects seamlessly.
+      </p>
+
+      <div class="field-group">
+        <label>Custom Web App Production Domains (one per line)</label>
+        <textarea id="customDomainsInput" rows="3" placeholder="https://app.yourfirm.com&#10;https://portal.mycompany.in"></textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Detected Web App Instances</label>
+        <div id="detectedOriginsList" class="detected-origins-list">
+          <span class="badge">None detected yet (Open CA Practice app to auto-register)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: BACKEND API CONFIGURATION -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="icon">🔌</span>
+        <h2>Backend API Endpoint</h2>
+      </div>
+      <p class="section-desc">
+        Base endpoint used by the extension to search clients and fetch live credentials when disconnected from the active tab.
+      </p>
+
+      <div class="field-group">
+        <label>Backend API Base URL (leave blank to auto-detect from active app)</label>
+        <input type="text" id="backendApiUrlInput" placeholder="Auto-detect (e.g. http://localhost:5000/api/v1 or https://api.ayatrio.com/api/v1)">
+      </div>
+    </div>
+
+    <!-- SECTION 3: AUTOMATION & PREFERENCES -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="icon">⚡</span>
+        <h2>Automation & Form Behavior</h2>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="autoFillEnabled" checked>
+        <div>
+          <strong>Auto-Fill on Portal Load</strong>
+          <p class="checkbox-desc">Automatically populate User ID and Password when arriving on a portal login page.</p>
+        </div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="showFloatingWidget" checked>
+        <div>
+          <strong>Show Draggable Assistant Pill</strong>
+          <p class="checkbox-desc">Display a discreet floating assistant on MCA, Income Tax, GST, and TRACES pages.</p>
+        </div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="autoFocusCaptcha" checked>
+        <div>
+          <strong>Auto-Focus Captcha Field</strong>
+          <p class="checkbox-desc">Automatically place cursor into the captcha input so you only have to type the code and press Enter.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="status-toast" id="statusToast"></div>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

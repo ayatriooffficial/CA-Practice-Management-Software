@@ -2,96 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CA Practice - MCA Auto-Fill</title>
-  <link rel="stylesheet" href="popup.css">
+  <meta http-equiv="refresh" content="0; url=src/popup/popup.html">
+  <title>CA Practice - Portal Auto-Fill</title>
 </head>
 <body>
-  <div class="popup-container">
-    <!-- Header -->
-    <header class="header">
-      <div class="logo-box">
-        <div class="logo-icon">CA</div>
-        <div>
-          <h1>MCA Auto-Fill</h1>
-          <p class="subtitle">CA Practice Assistant</p>
-        </div>
-      </div>
-      <div style="display: flex; gap: 4px;">
-        <button type="button" class="tab-toggle-btn active" id="fillTabBtn">Fill</button>
-        <button type="button" class="tab-toggle-btn" id="searchTabBtn">🔍 Search</button>
-        <button type="button" class="tab-toggle-btn" id="detailsTabBtn">📋 Details</button>
-      </div>
-    </header>
-
-    <!-- SEARCH VIEW -->
-    <div id="searchViewSection" style="display: none;">
-      <div class="field-group">
-        <label>Search Client by PAN ID / Name / DIN</label>
-        <input type="text" id="popupSearchInput" placeholder="Type PAN (e.g. ABCDE1234F) or Name...">
-      </div>
-      <div id="popupSearchResults" class="search-results-list">
-        <div class="empty-hint">Type PAN ID or Name to search clients.</div>
-      </div>
-    </div>
-
-    <!-- CLIENT DETAILS VIEW -->
-    <div id="detailsViewSection" style="display: none;">
-      <div id="popupDetailsContent" class="details-content-box">
-        <div class="empty-hint">No client currently loaded.</div>
-      </div>
-    </div>
-
-    <!-- ACTIVE CREDENTIAL CARD -->
-    <div class="card" id="credentialCard">
-      <div class="card-header">
-        <span class="card-title" id="clientTitle">Active Credentials</span>
-        <span class="pan-badge" id="clientPanBadge"></span>
-      </div>
-
-      <!-- Director Switcher -->
-      <div class="field-group" id="directorSelectGroup" style="display: none;">
-        <label>Select Director</label>
-        <select id="directorSelect" class="select-input"></select>
-      </div>
-
-      <div class="field-group">
-        <label>MCA User ID / DIN</label>
-        <div class="input-with-copy">
-          <input type="text" id="mcaIdInput" placeholder="Enter MCA User ID / DIN">
-          <button type="button" class="icon-btn" id="copyIdBtn" title="Copy MCA ID">📋</button>
-        </div>
-      </div>
-
-      <div class="field-group">
-        <label>MCA Password</label>
-        <div class="input-with-copy">
-          <input type="password" id="mcaPasswordInput" placeholder="Enter MCA Password">
-          <button type="button" class="icon-btn" id="togglePassBtn" title="Show/Hide Password">👁️</button>
-          <button type="button" class="icon-btn" id="copyPassBtn" title="Copy Password">📋</button>
-        </div>
-      </div>
-
-      <div class="button-group">
-        <button type="button" class="btn btn-primary" id="openAndFillBtn">
-          🚀 Open MCA & Auto-Fill
-        </button>
-        <button type="button" class="btn btn-secondary" id="fillCurrentTabBtn">
-          ⚡ Fill Current Tab
-        </button>
-      </div>
-    </div>
-
-    <!-- Tips -->
-    <div class="info-box">
-      <p class="info-text">
-        <strong>Tip:</strong> In CA Practice Master, open any client or click <em>"Auto-Fill MCA"</em>. On the MCA portal, you can drag the floating assistant anywhere.
-      </p>
-    </div>
-
-    <!-- Status Toast -->
-    <div class="status-toast" id="statusToast"></div>
-  </div>
-
-  <script src="popup.js"></script>
+  <script>
+    window.location.href = "src/popup/popup.html";
+  </script>
 </body>
 </html>

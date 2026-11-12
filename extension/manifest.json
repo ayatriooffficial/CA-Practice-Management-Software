@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "CA Practice - MCA Auto-Fill Assistant",
-  "version": "1.0.1",
-  "description": "Automatically fills MCA ID and Password on the Ministry of Corporate Affairs (MCA V2/V3) portal directly from CA Practice Management.",
+  "name": "CA Practice - Portal Auto-Fill Assistant",
+  "version": "2.0.0",
+  "description": "Professional multi-portal auto-fill assistant for CA Practice Management. Automatically fills credentials on MCA (V2/V3), Income Tax (ITD), GST, and TRACES compliance portals on localhost and deployed cloud environments.",
   "permissions": [
     "storage",
     "activeTab",
@@ -12,17 +12,38 @@
   "host_permissions": [
     "*://*.mca.gov.in/*",
     "*://mca.gov.in/*",
+    "*://*.incometax.gov.in/*",
+    "*://incometax.gov.in/*",
+    "*://*.gst.gov.in/*",
+    "*://gst.gov.in/*",
+    "*://*.tdscpc.gov.in/*",
+    "*://tdscpc.gov.in/*",
     "http://localhost:*/*",
-    "http://127.0.0.1:*/*"
+    "http://127.0.0.1:*/*",
+    "https://*.ayatrio.com/*",
+    "https://ayatrio.com/*",
+    "https://*.vercel.app/*",
+    "https://*.netlify.app/*",
+    "https://*.onrender.com/*",
+    "https://*.railway.app/*",
+    "https://*.fly.dev/*",
+    "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background/service_worker.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": [
         "*://*.mca.gov.in/*",
-        "*://mca.gov.in/*"
+        "*://mca.gov.in/*",
+        "*://*.incometax.gov.in/*",
+        "*://incometax.gov.in/*",
+        "*://*.gst.gov.in/*",
+        "*://gst.gov.in/*",
+        "*://*.tdscpc.gov.in/*",
+        "*://tdscpc.gov.in/*"
       ],
       "js": ["content_mca.js"],
       "all_frames": true,
@@ -32,7 +53,14 @@
     {
       "matches": [
         "http://localhost:*/*",
-        "http://127.0.0.1:*/*"
+        "http://127.0.0.1:*/*",
+        "https://*.ayatrio.com/*",
+        "https://ayatrio.com/*",
+        "https://*.vercel.app/*",
+        "https://*.netlify.app/*",
+        "https://*.onrender.com/*",
+        "https://*.railway.app/*",
+        "https://*.fly.dev/*"
       ],
       "js": ["content_app.js"],
       "all_frames": true,
@@ -40,17 +68,30 @@
     }
   ],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "CA Practice MCA Auto-Fill",
+    "default_popup": "src/popup/popup.html",
+    "default_title": "CA Practice Portal Auto-Fill",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
   },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/*",
+        "src/**/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

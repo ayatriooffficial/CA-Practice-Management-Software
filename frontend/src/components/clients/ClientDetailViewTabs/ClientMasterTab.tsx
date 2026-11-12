@@ -1309,42 +1309,90 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
                           <td className="py-2.5 px-3.5 border-b border-gray-100 dark:border-gray-800 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {pwd.portal?.toLowerCase().includes("mca") && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    window.postMessage(
-                                      {
-                                        type: "CA_PRACTICE_AUTOFILL_MCA",
-                                        mcaId: pwd.userId || "",
-                                        mcaPassword: pwd.password || "",
-                                        directorName: pwd.remarks || "MCA Credential",
-                                        clientName: client.name,
-                                      },
-                                      "*"
-                                    );
-                                    if (pwd.password) copyToClipboard(pwd.password, "MCA Password");
+                              {(() => {
+                                const pLower = (pwd.portal || "").toLowerCase();
+                                let pId = "";
+                                let pName = "";
+                                if (pLower.includes("mca")) { pId = "mca"; pName = "MCA"; }
+                                else if (pLower.includes("income") || pLower.includes("itd")) { pId = "incometax"; pName = "ITD"; }
+                                else if (pLower.includes("gst")) { pId = "gst"; pName = "GST"; }
+                                else if (pLower.includes("traces") || pLower.includes("tds")) { pId = "traces"; pName = "TRACES"; }
 
-                                    const hasExt =
-                                      typeof document !== "undefined" &&
-                                      document.documentElement.dataset.caPracticeExtension;
-                                    if (!hasExt) {
-                                      window.open(launchUrl, "_blank");
-                                      showToast("Opening MCA login (Password copied to clipboard)");
-                                    } else {
-                                      showToast("MCA login opened with auto-fill");
-                                    }
-                                  }}
-                                  className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                  title="Open MCA Portal and Auto-Fill Credentials via Extension"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  <span>Auto-Fill MCA</span>
-                                </button>
-                              )}
+                                if (!pId) return null;
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      window.postMessage(
+                                        {
+                                          type: "CA_PRACTICE_AUTOFILL_PORTAL",
+                                          portalId: pId,
+                                          userId: pwd.userId || "",
+                                          password: pwd.password || "",
+                                          directorName: pwd.remarks || `${pName} Credential`,
+                                          clientName: client.name,
+                                          clientPan: client.pan || "",
+                                        },
+                                        "*"
+                                      );
+                                      if (pId === "mca") {
+                                        window.postMessage(
+                                          {
+                                            type: "CA_PRACTICE_AUTOFILL_MCA",
+                                            mcaId: pwd.userId || "",
+                                            mcaPassword: pwd.password || "",
+                                            directorName: pwd.remarks || "MCA Credential",
+                                            clientName: client.name,
+                                          },
+                                          "*"
+                                        );
+                                      }
+                                      if (pwd.password) copyToClipboard(pwd.password, `${pName} Password`);
+
+                                      const hasExt =
+                                        typeof document !== "undefined" &&
+                                        document.documentElement.dataset.caPracticeExtension;
+                                      if (!hasExt) {
+                                        window.open(launchUrl, "_blank");
+                                        showToast(`Opening ${pName} login (Password copied to clipboard)`);
+                                      } else {
+                                        showToast(`${pName} login opened with auto-fill`);
+                                      }
+                                    }}
+                                    className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                    title={`Open ${pName} Portal and Auto-Fill Credentials via Extension`}
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    <span>Auto-Fill {pName}</span>
+                                  </button>
+                                );
+                              })()}
                               <button
                                 type="button"
                                 onClick={() => {
+                                  const pLower = (pwd.portal || "").toLowerCase();
+                                  let pId = "";
+                                  if (pLower.includes("mca")) pId = "mca";
+                                  else if (pLower.includes("income") || pLower.includes("itd")) pId = "incometax";
+                                  else if (pLower.includes("gst")) pId = "gst";
+                                  else if (pLower.includes("traces") || pLower.includes("tds")) pId = "traces";
+
+                                  if (pId) {
+                                    window.postMessage(
+                                      {
+                                        type: "CA_PRACTICE_AUTOFILL_PORTAL",
+                                        portalId: pId,
+                                        userId: pwd.userId || "",
+                                        password: pwd.password || "",
+                                        directorName: pwd.remarks || `${pwd.portal} Credential`,
+                                        clientName: client.name,
+                                        clientPan: client.pan || "",
+                                      },
+                                      "*"
+                                    );
+                                  }
+
                                   if (pwd.portal?.toLowerCase().includes("mca")) {
                                     window.postMessage(
                                       {

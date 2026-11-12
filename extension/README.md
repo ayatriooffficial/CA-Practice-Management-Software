@@ -1,40 +1,157 @@
-# CA Practice Management - MCA Auto-Fill Assistant (Chrome Extension)
+# CA Practice Management - Multi-Portal Auto-Fill Assistant (Chrome & Edge Extension)
 
-A Chrome / Edge (Manifest V3) extension that automatically fills **MCA ID / DIN** and **MCA Password** on the Ministry of Corporate Affairs (MCA V2 and V3) portal (`https://www.mca.gov.in/*`).
+A production-grade Manifest V3 browser extension for **CA Practice Management** that automates credential filling across multiple government and compliance portals:
+- **MCA** (Ministry of Corporate Affairs V2 & V3)
+- **Income Tax e-Filing** (ITD)
+- **GST Portal** (Goods and Services Tax)
+- **TRACES** (TDS CPC)
+- **Custom Portals** (Modular plug-and-play adapter architecture)
 
 ---
 
-## 🚀 How to Install in Chrome or Edge (Takes 30 seconds)
+## 📁 Professional Code & Folder Structure
 
-1. Open your browser and navigate to:
+```
+extension/
+├── manifest.json              # Manifest V3 specification
+├── README.md                  # Complete architecture & deployment guide
+├── background.js              # Backward-compatible service worker loader
+├── content_app.js             # Web app content script entry loader
+├── content_mca.js             # Portal content script entry loader
+├── popup.html                 # Extension popup entry point
+├── icons/                     # Extension branding icons (16, 48, 128px)
+└── src/
+    ├── config/
+    │   ├── constants.js       # Storage keys, message action types, and defaults
+    │   ├── env.js             # Deployment environment patterns & trusted domains
+    │   └── portals.js         # Central Portal Registry (metadata, login URLs, selectors)
+    ├── background/
+    │   ├── service_worker.js  # Service worker lifecycle & dynamic script injector
+    │   ├── message-handler.js # Clean action dispatcher & messaging router
+    │   ├── credential-manager.js # Multi-portal credential extractor & director manager
+    │   └── api-service.js     # Dynamic API client (connects to local or deployed backend)
+    ├── content/
+    │   ├── app-bridge.js      # Runs on CA Practice web app (localhost & deployed cloud)
+    │   ├── portal-bridge.js   # Runs on compliance portals (auto-fill & assistant pill)
+    │   ├── core/
+    │   │   ├── dom-utils.js   # Framework-safe input filler, shadow DOM, captcha focus
+    │   │   └── floating-widget.js # Universal draggable floating assistant pill
+    │   └── adapters/
+    │       ├── mca-adapter.js # MCA V2/V3 AEM GuideBridge & registration filler
+    │       ├── incometax-adapter.js # ITD two-step login (PAN / Password) adapter
+    │       ├── gst-adapter.js # GST portal login adapter
+    │       └── traces-adapter.js # TRACES TAN/User ID portal adapter
+    ├── popup/
+    │   ├── popup.html         # Multi-portal popup with live search & director picker
+    │   ├── popup.css          # Modern responsive stylesheet with dark mode
+    │   └── popup.js           # Popup controller & portal switcher
+    ├── options/
+    │   ├── options.html       # Production deployment settings & custom domain manager
+    │   ├── options.css        # Options stylesheet
+    │   └── options.js         # Settings storage controller
+    └── utils/
+        ├── storage.js         # Promise-based chrome.storage.local wrapper
+        └── logger.js          # Tagged logging utility with debug support
+```
+
+---
+
+## 🚀 How to Install in Chrome or Edge
+
+1. Open your browser and go to:
    - **Chrome**: `chrome://extensions/`
    - **Edge**: `edge://extensions/`
-2. Turn on **Developer mode** (toggle switch in the top-right corner).
+2. Turn ON **"Developer mode"** (toggle in the top-right corner).
 3. Click the **"Load unpacked"** button in the top-left corner.
 4. Select the `extension` folder located at:
    ```
    E:\Job Task\Ayatrio\extension
    ```
-5. The **CA Practice - MCA Auto-Fill Assistant** icon will now appear in your browser extension bar!
+5. Pin the **CA Practice - Portal Auto-Fill Assistant** icon to your toolbar!
 
 ---
 
-## ⚡ How It Works
+## 🌐 Production & Deployed System Architecture
 
-### Method 1: One-Click from CA Practice Web App
-1. Go to any client in **Client Master** or **Portal Passwords**.
-2. Under the Director's details or credentials, click the **"⚡ Auto-Fill MCA"** button.
-3. The extension automatically:
-   - Copies credentials into memory.
-   - Opens `https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html` in a new tab.
-   - Auto-fills the **User ID** and **Password** into the MCA login form.
-   - Automatically focuses the **Captcha** field so you only have to type the captcha and log in!
+The extension is engineered to run seamlessly across both development (`localhost`) and live deployed environments:
 
-### Method 2: From the Extension Popup
-1. Click the **CA Practice** extension icon in your browser toolbar.
-2. View your active MCA credentials, or type/paste any ID & Password.
-3. Click **"🚀 Open MCA & Auto-Fill"** to launch and fill, or **"⚡ Fill Current Tab"** if you are already on the MCA portal.
+1. **Automatic Origin Detection**:
+   When you open your deployed CA Practice web app (e.g. `https://app.ayatrio.com` or `https://my-firm.vercel.app`), the extension's `app-bridge.js` detects the live domain and registers it with the background worker.
 
-### Method 3: Floating Helper on MCA Portal
-- When visiting the MCA portal, a discreet **Auto-Fill Assistant** pill appears in the bottom right corner showing the active director name and quick buttons to **Auto-Fill Now** or **Copy Password**.
+2. **Wildcard Support**:
+   Pre-configured in `manifest.json` for major cloud providers:
+   `*.ayatrio.com`, `*.vercel.app`, `*.netlify.app`, `*.onrender.com`, `*.railway.app`, `*.fly.dev`.
 
+3. **Custom Private Domains**:
+   If your firm hosts CA Practice on an internal or custom domain (e.g. `https://erp.taxfirm.in`):
+   - Right-click the extension icon and select **"Options"** (or click the ⚙️ gear icon in the popup).
+   - Add your custom domain under **"Custom Web App Production Domains"**.
+   - The extension will dynamically inject the bridge into your custom domain!
+
+4. **Dynamic API Backend Resolution**:
+   In `src/background/api-service.js`, the extension automatically searches clients using:
+   - User-configured backend URL in Options.
+   - Deployed web app origin (`/api/v1`).
+   - Development fallback (`http://localhost:5000/api/v1`).
+
+---
+
+## 🔌 How to Add a New Website / Portal in the Future
+
+Adding a new government or corporate website takes only 3 simple steps:
+
+### Step 1: Register Portal in `src/config/portals.js`
+Add a configuration entry:
+```javascript
+{
+  id: "epfo",
+  name: "EPFO Unified Portal",
+  shortName: "EPFO",
+  badge: "EPFO",
+  color: "#d97706",
+  loginUrl: "https://unifiedportal-emp.epfindia.gov.in/epfo/",
+  matchPatterns: ["*://*.epfindia.gov.in/*"],
+  credentialKeys: {
+    idKey: "epfoUserId",
+    passwordKey: "epfoPassword",
+    idLabel: "EPFO Employer ID",
+    passwordLabel: "EPFO Password",
+  },
+  selectors: {
+    userId: ["input#username", "input[name='username']"],
+    password: ["input#password", "input[type='password']"],
+    captcha: ["input#captcha"],
+  },
+  adapter: "epfo",
+}
+```
+
+### Step 2: Create Adapter in `src/content/adapters/epfo-adapter.js`
+```javascript
+import { DomUtils } from "../core/dom-utils.js";
+
+export class EpfoAdapter {
+  constructor(portalConfig) {
+    this.config = portalConfig;
+  }
+
+  fillLogin(credentials) {
+    const userField = DomUtils.findFirstMatching(this.config.selectors.userId);
+    const pwdField = DomUtils.findFirstMatching(this.config.selectors.password);
+
+    if (userField && credentials.userId) DomUtils.setInputValue(userField, credentials.userId);
+    if (pwdField && credentials.password) DomUtils.setInputValue(pwdField, credentials.password);
+
+    DomUtils.focusCaptcha(this.config.selectors.captcha);
+  }
+}
+```
+
+### Step 3: Register in `src/content/portal-bridge.js`
+Import your adapter and add one line in the switch block:
+```javascript
+case "epfo":
+  adapter = new EpfoAdapter(portal);
+  break;
+```
+That's it! The extension popup, floating widget, auto-fill dispatcher, and web app bridge will now automatically support the new portal!
