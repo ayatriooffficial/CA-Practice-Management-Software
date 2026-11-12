@@ -96,9 +96,11 @@ export const GroupEntitiesTab: React.FC<GroupEntitiesTabProps> = ({
               entities
                 .slice((page - 1) * limit, page * limit)
                 .map((entity: any) => {
-                const isPoc = group.pocClientId
-                  ? group.pocClientId.toString() === entity.id
-                  : false;
+                const pocIdStr = typeof group.pocClientId === "string"
+                  ? group.pocClientId
+                  : (group.pocClientId as any)?.id || (group.pocClientId as any)?._id?.toString() || (group.poc?.clientId) || (entities[0]?.id);
+
+                const isPoc = Boolean(pocIdStr && entity.id && String(pocIdStr) === String(entity.id));
 
                 const primaryContact =
                   (entity.contacts || []).find((c: any) => c.isPrimary) ||

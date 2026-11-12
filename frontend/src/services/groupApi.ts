@@ -60,6 +60,7 @@ export interface GroupContactRecord {
   mobile?: string;
   designation?: string;
   isPrimary?: boolean;
+  isGroupPoc?: boolean;
   pan?: string;
   din?: string;
   dinStatus?: string;

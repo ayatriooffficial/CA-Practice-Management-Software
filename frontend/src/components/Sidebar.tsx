@@ -67,6 +67,64 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "documents", label: "Documents", href: "/documents", icon: Files },
 ];
 
+export const isSidebarItemActive = (item: SidebarItem, pathname: string): boolean => {
+  if (item.id === "home") {
+    return pathname === "/" || pathname === "";
+  }
+  if (item.id === "groups") {
+    return pathname === "/groups" || pathname.startsWith("/groups/");
+  }
+  if (item.id === "client") {
+    return pathname === "/client" || pathname.startsWith("/client/");
+  }
+  if (item.id === "leads") {
+    return (
+      pathname === "/leads" ||
+      pathname.startsWith("/leads/") ||
+      pathname === "/lead" ||
+      pathname.startsWith("/lead/")
+    );
+  }
+  if (item.id === "services") {
+    return (
+      pathname === "/services" ||
+      pathname.startsWith("/services/") ||
+      pathname === "/service" ||
+      pathname.startsWith("/service/")
+    );
+  }
+  if (item.id === "task") {
+    return pathname === "/task" || pathname.startsWith("/task/") || pathname.startsWith("/tasks");
+  }
+  if (item.id === "invoice") {
+    return pathname === "/invoice" || pathname.startsWith("/invoice/");
+  }
+  if (item.id === "team") {
+    return pathname === "/team" || pathname.startsWith("/team/");
+  }
+  if (item.id === "reports") {
+    return pathname === "/reports" || pathname.startsWith("/reports/");
+  }
+  if (item.id === "dsc") {
+    return (
+      pathname === "/dsc" ||
+      (pathname.startsWith("/dsc") && !pathname.startsWith("/dsc/pdf-signer"))
+    );
+  }
+  if (item.id === "pdf-signer") {
+    return pathname.startsWith("/pdf-signer") || pathname.startsWith("/dsc/pdf-signer");
+  }
+  if (item.id === "documents") {
+    return (
+      pathname === "/documents" ||
+      pathname === "/document" ||
+      pathname.startsWith("/documents/") ||
+      pathname.startsWith("/document/")
+    );
+  }
+  return pathname === item.href || pathname.startsWith(item.href + "/");
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile }) => {
   const dispatch = useAppDispatch();
   const { switchSection } = useSectionNavigation();
@@ -148,12 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           {SIDEBAR_ITEMS.map((item) => {
             if (!isItemVisible(item.id)) return null;
             const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.id === "reports" && pathname.startsWith("/reports/")) ||
-              (item.id === "dsc" && (pathname === "/dsc" || (pathname.startsWith("/dsc") && !pathname.startsWith("/dsc/pdf-signer")))) ||
-              (item.id === "pdf-signer" && (pathname.startsWith("/pdf-signer") || pathname.startsWith("/dsc/pdf-signer"))) ||
-              (item.id === "documents" && (pathname === "/documents" || pathname === "/document" || pathname.startsWith("/documents/")));
+            const isActive = isSidebarItemActive(item, pathname);
 
             return (
               <Link
@@ -356,12 +409,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               {SIDEBAR_ITEMS.map((item) => {
                 if (!isItemVisible(item.id)) return null;
                 const Icon = item.icon;
-                const isActive =
-                  pathname === item.href ||
-                  (item.id === "reports" && pathname.startsWith("/reports/")) ||
-                  (item.id === "dsc" && (pathname === "/dsc" || (pathname.startsWith("/dsc") && !pathname.startsWith("/dsc/pdf-signer")))) ||
-                  (item.id === "pdf-signer" && (pathname.startsWith("/pdf-signer") || pathname.startsWith("/dsc/pdf-signer"))) ||
-                  (item.id === "documents" && (pathname === "/documents" || pathname === "/document" || pathname.startsWith("/documents/")));
+                const isActive = isSidebarItemActive(item, pathname);
 
                 return (
                   <Link

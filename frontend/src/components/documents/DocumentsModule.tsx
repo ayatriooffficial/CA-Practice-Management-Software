@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { stageAndRedirectToPdfSigner } from "@/services/stageToPdfSigner";
 import { Pagination } from "@/components/ui/Pagination";
@@ -158,6 +158,7 @@ export const DocumentsModule: React.FC = () => {
   } | null>(null);
 
   // Active Tab inside Person Detail (requirements | profile)
+  const searchParams = useSearchParams();
   const [activeDetailTab, setActiveDetailTab] = useState<"requirements" | "profile">("requirements");
 
   // Debounce search query
@@ -196,15 +197,47 @@ export const DocumentsModule: React.FC = () => {
     loadPeople();
   }, [loadPeople]);
 
+  // Sync personId and tab from URL searchParams
+  useEffect(() => {
+    if (!searchParams) return;
+    const pId = searchParams.get("personId");
+    const t = (searchParams.get("tab") as "requirements" | "profile") || "requirements";
+    if (pId) {
+      if (selectedPersonId !== pId) {
+        setSelectedPersonId(pId);
+        setIsLoadingDetail(true);
+        setDetailErrorMsg(null);
+        documentApi
+          .getPersonDetails(pId)
+          .then((res) => {
+            if (res && res.data) {
+              setSelectedPersonDetail(res.data);
+            }
+          })
+          .catch((err) => {
+            setDetailErrorMsg(err.message || "Failed to load person record details.");
+          })
+          .finally(() => {
+            setIsLoadingDetail(false);
+          });
+      }
+      setActiveDetailTab(t);
+    } else {
+      setSelectedPersonId(null);
+      setSelectedPersonDetail(null);
+    }
+  }, [searchParams, selectedPersonId]);
+
   // Load individual person details when selected
-  const handleSelectPerson = async (personId: string) => {
+  const handleSelectPerson = async (personId: string, tab: "requirements" | "profile" = "requirements") => {
     setSelectedPersonId(personId);
     setIsLoadingDetail(true);
     setDetailErrorMsg(null);
     setDocumentCategoryFilter("all");
     setStatusFilter("all");
     setDetailSearchQuery("");
-    setActiveDetailTab("requirements");
+    setActiveDetailTab(tab);
+    router.push(`/documents?personId=${personId}&tab=${tab}`);
 
     try {
       const res = await documentApi.getPersonDetails(personId);
@@ -221,10 +254,18 @@ export const DocumentsModule: React.FC = () => {
     }
   };
 
+  const handleDetailTabChange = (tab: "requirements" | "profile") => {
+    setActiveDetailTab(tab);
+    if (selectedPersonId) {
+      router.push(`/documents?personId=${selectedPersonId}&tab=${tab}`);
+    }
+  };
+
   const handleBackToDirectory = () => {
     setSelectedPersonId(null);
     setSelectedPersonDetail(null);
     setDetailErrorMsg(null);
+    router.push("/documents");
   };
 
   // Open Upload Modal prefilled for a specific pending/requested requirement
@@ -1086,7 +1127,7 @@ export const DocumentsModule: React.FC = () => {
               >
                 <button
                   type="button"
-                  onClick={() => setActiveDetailTab("requirements")}
+                  onClick={() => handleDetailTabChange("requirements")}
                   className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     activeDetailTab === "requirements"
                       ? "border-[var(--primary)] text-[var(--primary)]"
@@ -1101,7 +1142,7 @@ export const DocumentsModule: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setActiveDetailTab("profile")}
+                  onClick={() => handleDetailTabChange("profile")}
                   className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     activeDetailTab === "profile"
                       ? "border-[var(--primary)] text-[var(--primary)]"

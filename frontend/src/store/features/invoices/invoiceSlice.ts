@@ -191,8 +191,13 @@ export const invoiceSlice = createSlice({
 
     // Fetch Invoices (Saga triggers)
     fetchInvoicesRequest: (state) => {
-      state.loading = true;
+      if (!state.isLoaded) {
+        state.loading = true;
+      }
       state.error = null;
+    },
+    setInvoicesLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
     },
     fetchInvoicesSuccess: (
       state,
@@ -595,6 +600,7 @@ export const {
   fetchInvoicesRequest,
   fetchInvoicesSuccess,
   fetchInvoicesFailure,
+  setInvoicesLoading,
   createInvoiceRequest,
   createInvoiceSuccess,
   createInvoiceFailure,

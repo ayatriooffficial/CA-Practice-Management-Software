@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Layers,
   List,
@@ -40,13 +41,31 @@ export default function TaskPage() {
   const { canAddEdit } = usePermission();
   const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = (searchParams?.get("tab") as any) || "Task Summary";
+
   const [activeMainTab, setActiveMainTab] = useState<
     "Task Summary" | "Task List" | "Sub Tasks" | "Recurring Schedule" | "Analytics"
-  >("Task Summary");
+  >(tabParam);
 
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState<string | null>(null);
   const [selectedAssigneeFilter, setSelectedAssigneeFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeMainTab) {
+      setActiveMainTab(tabParam);
+    }
+  }, [tabParam, activeMainTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveMainTab(tabId as any);
+    if (tabId === "Task List") {
+      setSelectedAssigneeFilter(null);
+    }
+    router.push(`/task?tab=${encodeURIComponent(tabId)}`);
+  };
 
   const MAIN_TABS = [
     { id: "Task Summary", label: "Task Summary", icon: Layers },
@@ -58,11 +77,11 @@ export default function TaskPage() {
 
   const handleSelectGroupFromSummary = (assigneeName: string) => {
     setSelectedAssigneeFilter(assigneeName);
-    setActiveMainTab("Task List");
+    handleTabChange("Task List");
   };
 
   const handleTaskCreated = (_newTask: TaskItem) => {
-    setActiveMainTab("Task List");
+    handleTabChange("Task List");
   };
 
   return (
@@ -86,12 +105,7 @@ export default function TaskPage() {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => {
-                      setActiveMainTab(tab.id);
-                      if (tab.id === "Task List") {
-                        setSelectedAssigneeFilter(null);
-                      }
-                    }}
+                    onClick={() => handleTabChange(tab.id)}
                     style={{
                       color: isActive ? "var(--primary)" : undefined,
                       borderBottomColor: isActive ? "var(--primary)" : "transparent",

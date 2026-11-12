@@ -11,6 +11,7 @@ import {
   fetchInvoicesRequest,
   fetchInvoicesSuccess,
   fetchInvoicesFailure,
+  setInvoicesLoading,
   createInvoiceRequest,
   createInvoiceSuccess,
   createInvoiceFailure,
@@ -76,6 +77,7 @@ function* handleFetchInvoices(): Generator<any, void, any> {
   try {
     const isLoaded: boolean = yield select((state: RootState) => state.invoices.isLoaded);
     if (isLoaded) {
+      yield put(setInvoicesLoading(false));
       return;
     }
 

@@ -14,6 +14,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Service,
   SERVICE_CATEGORIES,
@@ -176,6 +177,53 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
 
   const services = useMemo(() => data?.services || [], [data?.services]);
   const pagination = data?.pagination;
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const handleOpenDetail = useCallback((srv: Service) => {
+    setSelectedService(srv);
+    setViewMode("detail");
+    const id = srv.id || (srv as any)._id || (srv as any).serviceId;
+    if (id) {
+      router.push(`/services?serviceId=${id}`);
+    }
+  }, [router]);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedService(null);
+    setViewMode("list");
+    router.push('/services');
+  }, [router]);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const sId = searchParams.get("serviceId");
+    if (sId) {
+      const currentId = selectedService?.id || (selectedService as any)?._id || (selectedService as any)?.serviceId;
+      if (!selectedService || currentId !== sId) {
+        const found = services.find((s) => (s.id || (s as any)._id || (s as any).serviceId) === sId);
+        if (found) {
+          setSelectedService(found);
+          setViewMode("detail");
+        } else {
+          import("@/services/serviceApi").then(({ serviceApi }) => {
+            serviceApi.getServiceById(sId).then((res) => {
+              if (res && res.data) {
+                setSelectedService(res.data);
+                setViewMode("detail");
+              }
+            }).catch(() => {});
+          });
+        }
+      }
+    } else {
+      if (viewMode === "detail") {
+        setSelectedService(null);
+        setViewMode("list");
+      }
+    }
+  }, [searchParams, services, selectedService, viewMode]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -361,10 +409,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
             <div className="flex items-center gap-2 truncate">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedService(service);
-                  setViewMode("detail");
-                }}
+                onClick={() => handleOpenDetail(service)}
                 className="text-left font-semibold text-[#000000] dark:text-white hover:text-[#31719B] hover:underline cursor-pointer transition-colors truncate max-w-full"
               >
                 {service.name}
@@ -517,10 +562,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
       {
         label: "View Details",
         icon: Eye,
-        onClick: () => {
-          setSelectedService(service);
-          setViewMode("detail");
-        },
+        onClick: () => handleOpenDetail(service),
       },
     ];
 
@@ -529,10 +571,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
         actionsList.push({
           label: "Edit Service",
           icon: Pencil,
-          onClick: () => {
-            setSelectedService(service);
-            setViewMode("detail");
-          },
+          onClick: () => handleOpenDetail(service),
         });
       }
       if (canDelete("services")) {
@@ -782,10 +821,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
               ? "Trash is empty."
               : "No services found matching your filters."
           }
-          onRowClick={(service) => {
-            setSelectedService(service);
-            setViewMode("detail");
-          }}
+          onRowClick={(service) => handleOpenDetail(service)}
           pagination={{
             currentPage: page,
             totalItems: pagination?.totalDocs || services.length,

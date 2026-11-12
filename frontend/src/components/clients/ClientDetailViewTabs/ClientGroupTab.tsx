@@ -127,7 +127,7 @@ export const ClientGroupTab: React.FC<ClientGroupTabProps> = ({ client }) => {
     <div className="space-y-6">
       {clientGroups.map((grp) => {
         const pocId = typeof grp.pocClientId === "string" ? grp.pocClientId : (grp.pocClientId as any)?.id || (grp.pocClientId as any)?._id;
-        const isClientPoc = String(pocId) === String(clientId);
+        const isClientPoc = Boolean(pocId && clientId && String(pocId) === String(clientId));
         const isExpanded = expandedGroupIds.has(grp.id);
 
         const entitiesCount = grp.stats?.entitiesCount || (grp.entities?.length ?? grp.clientIds?.length ?? 0);

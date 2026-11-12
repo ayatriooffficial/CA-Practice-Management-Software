@@ -108,28 +108,6 @@ export function useSectionNavigation() {
     activeSectionRef.current = current;
   }, [pathname]);
 
-  // Rule 1: Back/Forward arrows must follow back ONLY until that particular section ends.
-  // Prevent browser history traversal across different sections.
-  useEffect(() => {
-    const handlePopState = () => {
-      const activeSection = activeSectionRef.current;
-      const destinationPath = window.location.pathname;
-      const destinationSection = getSectionKey(destinationPath);
-
-      if (activeSection && destinationSection !== activeSection) {
-        // Intercept attempt to leave the active section via browser back/forward buttons
-        const root = getSectionFirstPage(activeSection);
-        window.history.pushState(null, "", root);
-        router.replace(root);
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [router]);
-
   const inFlightSectionRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 

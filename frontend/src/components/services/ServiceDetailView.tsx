@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   X,
   Edit2,
@@ -53,10 +54,28 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
   onEdit,
   onServiceUpdated,
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = (searchParams?.get("tab") as any) || "Overview";
+
   const [service, setService] = useState<Service>(initialService);
   const [activeTab, setActiveTab] = useState<
     "Overview" | "SOP" | "Sub Tasks" | "Checklist" | "Document Request" | "Clients"
-  >("Overview");
+  >(tabParam);
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam, activeTab]);
+
+  const handleTabClick = (tabId: string) => {
+    setActiveTab(tabId as any);
+    const sId = initialService.id || (initialService as any)._id || (initialService as any).serviceId;
+    if (sId) {
+      router.push(`/services?serviceId=${sId}&tab=${encodeURIComponent(tabId)}`);
+    }
+  };
 
   const targetServiceId =
     initialService.id || (initialService as any)._id || (initialService as any).serviceId;
@@ -642,7 +661,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => handleTabClick(tab.id)}
               className={`flex items-center gap-x-2 py-3 px-4 border-b-2 transition-all cursor-pointer whitespace-nowrap ${isActive
                 ? "border-[var(--primary)] text-[var(--primary)] font-bold"
                 : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]"

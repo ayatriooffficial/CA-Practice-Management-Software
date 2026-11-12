@@ -189,9 +189,14 @@ export class GroupService {
           };
         });
 
+        const effectivePocClientId = grp.pocClientId
+          ? (grp.pocClientId._id ? grp.pocClientId._id.toString() : grp.pocClientId.toString())
+          : (pocClient ? pocClient._id.toString() : null);
+
         return {
           ...grp,
           id: grp._id.toString(),
+          pocClientId: effectivePocClientId,
           stats: {
             entitiesCount: clients.length,
             openTasksCount,
@@ -308,6 +313,7 @@ export class GroupService {
     return {
       ...group,
       id: group._id.toString(),
+      pocClientId: pocClient?._id?.toString() || (group.pocClientId ? (group.pocClientId._id ? group.pocClientId._id.toString() : group.pocClientId.toString()) : null),
       entities: clients.map((c: any) => ({
         ...c,
         id: c._id.toString(),
@@ -530,34 +536,75 @@ export class GroupService {
     if (clientIds.length === 0) return [];
 
     const clients = await Client.find({ _id: { $in: clientIds }, isDeleted: false })
-      .select('name fileNo contacts type')
+      .select('name fileNo contacts type mobile email pan address city state pincode aadhar passport dob fatherName')
       .lean();
+
+    const groupPocClientId = group.pocClientId
+      ? (group.pocClientId._id ? group.pocClientId._id.toString() : group.pocClientId.toString())
+      : (clientIds[0] ? clientIds[0].toString() : null);
 
     const aggregated: any[] = [];
 
     clients.forEach((c: any) => {
+      const isClientGroupPoc = Boolean(groupPocClientId && c._id.toString() === groupPocClientId);
       const contacts = c.contacts || [];
-      contacts.forEach((contact: any) => {
+
+      if (contacts.length === 0) {
+        // Fallback: If client entity has no separate sub-contacts, include the client itself as a primary contact
         aggregated.push({
-          id: contact.id || contact._id?.toString() || `${c._id}-${contact.name}`,
-          name: contact.name || '-',
-          designation: contact.designation || '-',
+          id: `${c._id}-client-contact`,
+          name: c.name || '-',
+          designation: isClientGroupPoc ? 'POC (Client Entity)' : (c.type || 'Client Entity'),
           clientName: c.name,
           clientId: c._id.toString(),
-          email: contact.email || '-',
-          mobile: contact.mobile || '-',
-          pan: contact.pan || '-',
-          din: contact.din || contact.mcaId || '-',
-          dinStatus: contact.dinStatus || 'Active',
-          appointmentDate: contact.appointmentDate || '-',
-          dob: contact.dob || '-',
-          aadhar: contact.aadhar || '-',
-          passport: contact.passport || '-',
-          fatherName: contact.fatherName || '-',
-          address: contact.address || contact.addressLine1 || '-',
-          isPrimary: !!contact.isPrimary,
+          email: c.email || '-',
+          mobile: c.mobile || '-',
+          pan: c.pan || '-',
+          din: '-',
+          dinStatus: 'Active',
+          appointmentDate: '-',
+          dob: c.dob || '-',
+          aadhar: c.aadhar || '-',
+          passport: c.passport || '-',
+          fatherName: c.fatherName || '-',
+          address: c.address || (c.city ? `${c.city}${c.state ? `, ${c.state}` : ''}` : '-'),
+          isPrimary: true,
+          isGroupPoc: isClientGroupPoc,
         });
-      });
+      } else {
+        contacts.forEach((contact: any, idx: number) => {
+          const isContactPoc = isClientGroupPoc && (contact.isPrimary || idx === 0);
+          aggregated.push({
+            id: contact.id || contact._id?.toString() || `${c._id}-${contact.name || idx}`,
+            name: contact.name || '-',
+            designation: contact.designation || (isContactPoc ? 'Group POC' : '-'),
+            clientName: c.name,
+            clientId: c._id.toString(),
+            email: contact.email || c.email || '-',
+            mobile: contact.mobile || c.mobile || '-',
+            pan: contact.pan || c.pan || '-',
+            din: contact.din || contact.mcaId || '-',
+            dinStatus: contact.dinStatus || 'Active',
+            appointmentDate: contact.appointmentDate || '-',
+            dob: contact.dob || '-',
+            aadhar: contact.aadhar || '-',
+            passport: contact.passport || '-',
+            fatherName: contact.fatherName || '-',
+            address: contact.address || contact.addressLine1 || c.address || '-',
+            isPrimary: Boolean(contact.isPrimary),
+            isGroupPoc: isContactPoc,
+          });
+        });
+      }
+    });
+
+    // Sort so Group POC comes first, followed by primary contacts
+    aggregated.sort((a, b) => {
+      if (a.isGroupPoc && !b.isGroupPoc) return -1;
+      if (!a.isGroupPoc && b.isGroupPoc) return 1;
+      if (a.isPrimary && !b.isPrimary) return -1;
+      if (!a.isPrimary && b.isPrimary) return 1;
+      return 0;
     });
 
     return aggregated;

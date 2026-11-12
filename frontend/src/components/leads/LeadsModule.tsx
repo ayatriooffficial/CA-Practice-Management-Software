@@ -14,7 +14,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { leadApi } from "@/services/leadApi";
 import { Lead } from "@/data/crmData";
 import {
@@ -156,7 +156,22 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
   const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<Lead | null>(null);
 
+  const router = useRouter();
   const searchParams = useSearchParams();
+
+  const handleOpenLeadDetails = (lead: Lead) => {
+    setSelectedLeadForDetails(lead);
+    const id = lead.id || (lead as any)._id;
+    if (id) {
+      router.push(`/leads?leadId=${id}`);
+    }
+  };
+
+  const handleCloseLeadDetails = () => {
+    setSelectedLeadForDetails(null);
+    router.push('/leads');
+  };
+
   useEffect(() => {
     if (!searchParams) return;
     const qSearch = searchParams.get("search");
@@ -165,14 +180,19 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
       setSearch(qSearch);
     }
     if (qLeadId) {
-      leadApi
-        .getLeadById(qLeadId)
-        .then((res) => {
-          if (res.data) {
-            setSelectedLeadForDetails(res.data);
-          }
-        })
-        .catch(() => { });
+      const currentId = selectedLeadForDetails?.id || (selectedLeadForDetails as any)?._id;
+      if (!selectedLeadForDetails || currentId !== qLeadId) {
+        leadApi
+          .getLeadById(qLeadId)
+          .then((res) => {
+            if (res.data) {
+              setSelectedLeadForDetails(res.data);
+            }
+          })
+          .catch(() => { });
+      }
+    } else {
+      setSelectedLeadForDetails(null);
     }
   }, [searchParams]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -421,7 +441,7 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
           <div className="flex items-center gap-2.5 text-left truncate">
             <button
               type="button"
-              onClick={() => setSelectedLeadForDetails(lead)}
+              onClick={() => handleOpenLeadDetails(lead)}
               className="flex items-center gap-2.5 text-left cursor-pointer group/name hover:opacity-80 transition-opacity truncate max-w-full"
             >
               {lead.photo ? (
@@ -563,7 +583,7 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
         <LeadDetailsView
           leadId={selectedLeadForDetails.id}
           initialLead={selectedLeadForDetails}
-          onClose={() => setSelectedLeadForDetails(null)}
+          onClose={handleCloseLeadDetails}
           onEditLead={(lead) => setEditingLead(lead)}
           onConvertLead={(lead) => setConvertingLead(lead)}
         />
@@ -699,7 +719,7 @@ export const LeadsModule: React.FC<LeadsModuleProps> = ({ initialData }) => {
               ? "Trash is empty."
               : "No leads match this search. Click '+ Add' to create a lead."
           }
-          onRowClick={(lead) => setSelectedLeadForDetails(lead)}
+          onRowClick={(lead) => handleOpenLeadDetails(lead)}
           pagination={{
             currentPage: page,
             totalItems: pagination?.totalDocs || leads.length,
