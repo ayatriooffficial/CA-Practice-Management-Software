@@ -1006,6 +1006,141 @@ export class ServiceService {
     return client;
   }
 
+  /**
+   * Get paginated clients for a specific service ID with client service settings and pagination limit=10
+   */
+  static async getClientsByServiceId(
+    serviceId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      department?: string;
+    } = {}
+  ): Promise<{
+    clients: any[];
+    pagination: PaginationMeta;
+  }> {
+    // 1. Resolve Service
+    const isServiceObjectId = mongoose.Types.ObjectId.isValid(serviceId) && /^[0-9a-fA-F]{24}$/.test(serviceId);
+    let service = isServiceObjectId
+      ? await Service.findById(serviceId)
+      : await Service.findOne({
+          $or: [
+            { name: serviceId },
+            { name: new RegExp(`^${serviceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+            { serviceId: serviceId },
+          ],
+        });
+    if (!service) {
+      service = await Service.findOne({ name: new RegExp(serviceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') });
+    }
+    if (!service) {
+      throw AppError.notFound(ResponseMessages.SERVICE_NOT_FOUND);
+    }
+
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.max(1, Number(options.limit) || 10);
+    const skip = (page - 1) * limit;
+
+    // 2. Build match filter for clients
+    const matchFilter: any = { isDeleted: false };
+    if (options.department && options.department !== 'All' && options.department !== 'All Departments') {
+      matchFilter.group = options.department;
+    }
+    if (options.search && options.search.trim()) {
+      const searchRegex = new RegExp(options.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      matchFilter.$or = [
+        { name: searchRegex },
+        { legalName: searchRegex },
+        { fileNo: searchRegex },
+        { pan: searchRegex },
+        { email: searchRegex },
+        { mobile: searchRegex },
+      ];
+    }
+
+    const totalDocs = await Client.countDocuments(matchFilter);
+    const totalPages = Math.ceil(totalDocs / limit) || 1;
+
+    // 3. Query paginated clients
+    const clients = await Client.find(matchFilter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const clientIds = clients.map((c) => c._id);
+
+    // 4. Query ClientServiceSetting for these clients and this service
+    const settings = await ClientServiceSetting.find({
+      clientId: { $in: clientIds },
+      $or: [
+        { serviceId: service._id?.toString() },
+        { serviceName: service.name },
+      ],
+      isDeleted: false,
+    }).lean();
+
+    const settingsMap = new Map<string, any>();
+    settings.forEach((s) => {
+      settingsMap.set(s.clientId.toString(), s);
+    });
+
+    // 5. Map clients with their service setting
+    const mappedClients = clients.map((c: any) => {
+      const cIdStr = c._id.toString();
+      let svcSetting = settingsMap.get(cIdStr);
+
+      if (!svcSetting) {
+        // Fallback: check customerFiles.recurring
+        const recurringList = c.customerFiles?.recurring || [];
+        const found = recurringList.find(
+          (r: any) => r.service && r.service.trim().toLowerCase() === service.name.trim().toLowerCase()
+        );
+        if (found) {
+          svcSetting = {
+            serviceId: service._id?.toString(),
+            serviceName: service.name,
+            compliance: true,
+            isActive: true,
+            recTask: 'Enabled',
+            frequency: service.frequency || 'Monthly',
+            amount: Number(found.totalServiceFee) || Number(found.tariff) || 0,
+          };
+        } else {
+          svcSetting = {
+            serviceId: service._id?.toString(),
+            serviceName: service.name,
+            compliance: false,
+            isActive: false,
+            recTask: 'Disabled',
+            frequency: service.frequency || 'Monthly',
+            amount: service.professionalFee || 0,
+          };
+        }
+      }
+
+      return {
+        ...c,
+        id: c._id.toString(),
+        serviceSettings: [svcSetting],
+      };
+    });
+
+    return {
+      clients: mappedClients,
+      pagination: {
+        page,
+        limit,
+        totalDocs,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
   static async resolveComplianceCategoryId(serviceCategory?: string, serviceName?: string): Promise<string> {
     const cat = (serviceCategory || '').trim().toLowerCase();
     const name = (serviceName || '').trim().toLowerCase();

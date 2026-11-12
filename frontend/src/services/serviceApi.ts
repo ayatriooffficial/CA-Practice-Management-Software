@@ -123,6 +123,20 @@ export const serviceApi = {
     });
   },
 
+  getClientsByServiceId: async (
+    serviceId: string,
+    params: { page?: number; limit?: number; search?: string; department?: string } = {}
+  ): Promise<ApiResponse<Client[]>> => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', String(params.page));
+    searchParams.set('limit', String(params.limit || 10));
+    if (params.search && params.search.trim()) searchParams.set('search', params.search.trim());
+    if (params.department && params.department !== 'All' && params.department !== 'All Departments') {
+      searchParams.set('department', params.department);
+    }
+    return request<Client[]>(`/services/${encodeURIComponent(serviceId)}/clients?${searchParams.toString()}`);
+  },
+
   toggleClientService: async (
     serviceId: string,
     clientId: string,

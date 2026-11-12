@@ -391,8 +391,11 @@ export class ClientController {
   static deleteContact = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const subId = req.params.subId as string;
-    const client = await ClientService.deleteContact(id, subId);
-    return ApiResponse.success(res, client, 'Client contact removed successfully');
+    const result = await ClientService.deleteContact(id, subId);
+    if (result && result.clientDeleted) {
+      return ApiResponse.success(res, { clientDeleted: true, id }, result.message || 'Last director removed; client removed');
+    }
+    return ApiResponse.success(res, result.client || result, 'Client contact removed successfully');
   });
 
   /**

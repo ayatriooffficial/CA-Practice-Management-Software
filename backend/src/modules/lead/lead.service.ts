@@ -588,7 +588,34 @@ export class LeadService {
             modified = true;
           }
         }
-        if (modified) {
+
+        // Also remove this director's stored credentials from client.passwords
+        if (Array.isArray(c.passwords)) {
+          const prevLen = c.passwords.length;
+          c.passwords = c.passwords.filter((pwd: any) => {
+            const uId = (pwd.userId || '').trim().toLowerCase();
+            const uPan = (pwd.userId || '').trim().toUpperCase();
+            const remarksLower = (pwd.remarks || '').trim().toLowerCase();
+            const matchPan = panUpper && uPan === panUpper;
+            const matchDin = lead.din && uId === lead.din.toLowerCase();
+            const matchMca = lead.mcaId && uId === lead.mcaId.toLowerCase();
+            const matchName = nameTrim && uId === nameTrim;
+            const matchRemark = nameTrim && remarksLower.includes(nameTrim);
+            return !matchPan && !matchDin && !matchMca && !matchName && !matchRemark;
+          });
+          if (c.passwords.length !== prevLen) {
+            c.markModified('passwords');
+            modified = true;
+          }
+        }
+
+        // Check if this lead was the LAST remaining director of client c
+        const remPromoters = (c.customerFiles?.promoter || []).filter((p: any) => p.name && p.name.trim() !== '').length;
+        const remContacts = (c.contacts || []).length;
+        if (remPromoters === 0 && remContacts === 0) {
+          const { ClientService } = await import('../client/client.service');
+          await ClientService.softDeleteClient(c._id.toString(), deletedBy);
+        } else if (modified) {
           await c.save();
         }
       }

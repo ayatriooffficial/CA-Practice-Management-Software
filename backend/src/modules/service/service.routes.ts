@@ -80,6 +80,13 @@ router.post(
   ServiceController.syncServiceToTasks
 );
 
+// Get Paginated Clients for a Service (with Client Service Settings, default limit=10)
+router.get(
+  '/:id/clients',
+  validateRequest({ params: serviceIdParamSchema }),
+  ServiceController.getClientsByServiceId
+);
+
 // Toggle Client Service Compliance Status
 router.patch(
   '/:id/clients/:clientId/toggle',

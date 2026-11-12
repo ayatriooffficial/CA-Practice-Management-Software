@@ -117,6 +117,32 @@ export class ServiceController {
   });
 
   /**
+   * Get paginated clients for a specific service ID with client service settings
+   * GET /api/v1/services/:id/clients?page=1&limit=10&search=&department=
+   */
+  static getClientsByServiceId = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string;
+    const department = req.query.department as string;
+
+    const result = await ServiceService.getClientsByServiceId(id, {
+      page,
+      limit,
+      search,
+      department,
+    });
+
+    return ApiResponse.paginated(
+      res,
+      result.clients,
+      result.pagination,
+      'Clients for service retrieved successfully'
+    );
+  });
+
+  /**
    * Update SOP structured content
    * PATCH /api/v1/services/:id/sop
    */

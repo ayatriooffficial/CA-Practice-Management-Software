@@ -697,11 +697,17 @@ export class ClientService {
           email: l.email || '',
           mobile: l.mobile || '',
           pan: l.pan || '',
+          panAttachment: l.panAttachment || null,
           aadhar: l.aadhaar || '',
+          aadhaarAttachment: l.aadhaarAttachment || null,
+          dinAttachment: l.dinAttachment || null,
+          photo: l.photo || null,
           passport: l.passport || '',
           fatherName: l.fatherName || '',
           address: l.address || '',
           leadId: l._id?.toString(),
+          passwords: l.passwords || [],
+          documents: l.documents || [],
         });
       });
 
@@ -739,6 +745,45 @@ export class ClientService {
       .filter((s: any) => s.isActive !== false)
       .map((s: any) => s.serviceName);
     clientObj.contacts = (client as any).contacts || [];
+
+    // Synthesize credentials from directors into clientObj.passwords if not already present
+    clientObj.passwords = Array.isArray(clientObj.passwords) ? [...clientObj.passwords] : [];
+    if (Array.isArray(clientObj.contacts)) {
+      clientObj.contacts.forEach((contact: any) => {
+        if (contact.mcaId && contact.mcaPassword) {
+          const mcaExists = clientObj.passwords.some(
+            (cp: any) =>
+              (cp.portal?.toLowerCase().includes('mca') || cp.portal?.toLowerCase().includes('ministry')) &&
+              cp.userId === contact.mcaId
+          );
+          if (!mcaExists) {
+            clientObj.passwords.push({
+              id: `pwd-mca-${contact.id || contact.leadId || Date.now()}`,
+              portal: 'Ministry of Corporate Affairs (MCA)',
+              userId: contact.mcaId,
+              password: contact.mcaPassword,
+              url: 'https://mca.gov.in',
+              remarks: `Director: ${contact.name}`,
+              directorName: contact.name,
+            });
+          }
+        }
+        if (Array.isArray(contact.passwords)) {
+          contact.passwords.forEach((pwd: any) => {
+            const exists = clientObj.passwords.some(
+              (cp: any) => cp.portal === pwd.portal && cp.userId === pwd.userId
+            );
+            if (!exists) {
+              clientObj.passwords.push({
+                ...pwd,
+                directorName: contact.name,
+                remarks: pwd.remarks || `Director: ${contact.name}`,
+              });
+            }
+          });
+        }
+      });
+    }
 
     return clientObj;
   }
@@ -1942,11 +1987,15 @@ export class ClientService {
       client.contacts = [];
     }
 
-    // Identify target contact to check for linked lead
+    // Identify target contact to check for linked lead and credentials
     const targetContact = client.contacts.find(
       (c: any) => c.id === contactId || c._id?.toString() === contactId
     );
     const targetLeadId = targetContact?.leadId || (contactId.startsWith('lead-') ? contactId.replace('lead-', '') : (/^[0-9a-fA-F]{24}$/.test(contactId) ? contactId : null));
+    const targetName = targetContact?.name ? targetContact.name.trim().toLowerCase() : '';
+    const targetPan = targetContact?.pan ? targetContact.pan.trim().toUpperCase() : '';
+    const targetDin = targetContact?.din ? targetContact.din.trim().toLowerCase() : '';
+    const targetMcaId = targetContact?.mcaId ? targetContact.mcaId.trim().toLowerCase() : '';
 
     // Remove from client.contacts
     client.contacts = client.contacts.filter(
@@ -1960,11 +2009,28 @@ export class ClientService {
           const promoId = `promoter-${p.key || i + 1}`;
           const isTarget = promoId === contactId || p._id?.toString() === contactId || p.id === contactId;
           const isTargetLead = targetLeadId && (p.leadId === targetLeadId || p._id?.toString() === targetLeadId);
-          const isTargetName = targetContact?.name && p.name && p.name.trim().toLowerCase() === targetContact.name.trim().toLowerCase();
-          return !isTarget && !isTargetLead && !isTargetName;
+          const isTargetName = targetName && p.name && p.name.trim().toLowerCase() === targetName;
+          const isTargetPan = targetPan && p.pan && p.pan.trim().toUpperCase() === targetPan;
+          return !isTarget && !isTargetLead && !isTargetName && !isTargetPan;
         }
       );
       client.markModified('customerFiles');
+    }
+
+    // Remove credentials associated with this director from client.passwords
+    if (Array.isArray(client.passwords)) {
+      client.passwords = client.passwords.filter((pwd: any) => {
+        const uId = (pwd.userId || '').trim().toLowerCase();
+        const uPan = (pwd.userId || '').trim().toUpperCase();
+        const remarks = (pwd.remarks || '').trim().toLowerCase();
+        const matchPan = targetPan && (uPan === targetPan || remarks.includes(targetPan.toLowerCase()));
+        const matchDin = targetDin && (uId === targetDin || remarks.includes(targetDin));
+        const matchMca = targetMcaId && (uId === targetMcaId || remarks.includes(targetMcaId));
+        const matchName = targetName && (uId === targetName || remarks.includes(targetName));
+        const matchDirector = pwd.directorName && pwd.directorName.trim().toLowerCase() === targetName;
+        return !matchPan && !matchDin && !matchMca && !matchName && !matchDirector;
+      });
+      client.markModified('passwords');
     }
 
     // If associated with a Lead, unlink from this client without deleting the Lead!
@@ -1987,9 +2053,30 @@ export class ClientService {
     }
 
     client.markModified('contacts');
-    await client.save();
 
-    return await ClientService.getClientById(client._id.toString());
+    // Check if this was the LAST director of this client
+    const remContacts = (client.contacts || []).filter((c: any) => c.name && c.name.trim() !== '');
+    const remPromoters = (client.customerFiles?.promoter || []).filter((p: any) => p.name && p.name.trim() !== '');
+    const totalRemainingDirectors = Math.max(remContacts.length, remPromoters.length);
+
+    if (totalRemainingDirectors === 0) {
+      await client.save();
+      // Soft delete the client itself because all directors have been removed
+      await ClientService.softDeleteClient(client._id.toString());
+      return {
+        clientDeleted: true,
+        id: client._id.toString(),
+        message: `Last director "${targetContact?.name || 'Director'}" removed. Client "${client.name}" has been removed.`,
+        client: null,
+      };
+    }
+
+    await client.save();
+    const updatedClient = await ClientService.getClientById(client._id.toString());
+    return {
+      clientDeleted: false,
+      client: updatedClient,
+    };
   }
 
   /**

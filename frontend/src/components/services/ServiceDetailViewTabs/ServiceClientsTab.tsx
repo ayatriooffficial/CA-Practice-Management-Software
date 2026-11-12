@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 interface ServiceClientsTabProps {
   service: Service;
   clients: Client[];
-  filteredClients: Client[];
+  filteredClients?: Client[];
   clientSearch: string;
   setClientSearch: (val: string) => void;
   selectedDeptFilter: string;
@@ -19,6 +19,9 @@ interface ServiceClientsTabProps {
   isClientsLoading: boolean;
   handleToggleClientService: (client: Client, enable: boolean) => Promise<void>;
   pendingClientId?: string | null;
+  page?: number;
+  setPage?: (p: number) => void;
+  totalDocs?: number;
 }
 
 export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
@@ -32,14 +35,16 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
   isClientsLoading,
   handleToggleClientService,
   pendingClientId,
+  page,
+  setPage,
+  totalDocs,
 }) => {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  const paginatedClients = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredClients.slice(start, start + pageSize);
-  }, [filteredClients, page, pageSize]);
+  const [localPage, setLocalPage] = useState(1);
+  const activePage = page !== undefined ? page : localPage;
+  const setActivePage = setPage || setLocalPage;
+  const pageSize = 10;
+  const totalItems = totalDocs !== undefined ? totalDocs : (filteredClients?.length ?? clients.length);
+  const displayClients = clients;
 
   const columns = useMemo<DataTableColumn<Client>[]>(
     () => [
@@ -260,7 +265,7 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-gray-900 dark:text-white">
-            Clients ({filteredClients.length})
+            Clients ({totalItems})
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Configure recurring compliance schedules for individual clients.
@@ -273,7 +278,7 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
             value={selectedDeptFilter}
             onChange={(e) => {
               setSelectedDeptFilter(e.target.value);
-              setPage(1);
+              setActivePage(1);
             }}
             className="h-8 px-2.5 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-sm text-gray-800 dark:text-gray-200 focus:outline-none"
           >
@@ -291,10 +296,13 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
               value={clientSearch}
               onChange={(e) => {
                 setClientSearch(e.target.value);
-                setPage(1);
+                setActivePage(1);
               }}
               leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
-              onClear={() => setClientSearch("")}
+              onClear={() => {
+                setClientSearch("");
+                setActivePage(1);
+              }}
             />
           </div>
         </div>
@@ -303,20 +311,15 @@ export const ServiceClientsTab: React.FC<ServiceClientsTabProps> = ({
       {/* Reusable DataTable */}
       <DataTable<Client>
         columns={columns}
-        data={paginatedClients}
+        data={displayClients}
         loading={isClientsLoading}
         getRowId={(c, idx) => c.id || (c as any)._id || String(idx)}
-        emptyMessage="No clients registered in database."
+        emptyMessage="No clients found for this service."
         pagination={{
-          currentPage: page,
-          pageSize,
-          totalItems: filteredClients.length,
-          onPageChange: setPage,
-          rowsPerPageOptions: [10, 25, 50],
-          onRowsPerPageChange: (s) => {
-            setPageSize(s);
-            setPage(1);
-          },
+          currentPage: activePage,
+          pageSize: 10,
+          totalItems,
+          onPageChange: setActivePage,
         }}
       />
     </div>

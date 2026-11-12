@@ -1876,17 +1876,17 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
         isOpen={deleteDirectorConfirm.isOpen}
         title={
           deleteDirectorConfirm.isLastDirector
-            ? "Sole Director Warning"
+            ? "Remove Last Director & Client"
             : "Remove Director from Client"
         }
         message={
           deleteDirectorConfirm.isLastDirector
-            ? `Warning: "${deleteDirectorConfirm.contactName}" is the LAST remaining director for "${client.name}". If this director is removed, the client entity will have no associated director, which may impact filings and compliance representation.\n\nAre you sure you want to proceed? (Note: This action will only remove the director from "${client.name}". The lead record in the Leads directory will NOT be deleted.)`
-            : `Are you sure you want to remove director "${deleteDirectorConfirm.contactName}" from "${client.name}"? This will unlink the director from this client only. The lead record in the Leads directory will NOT be deleted.`
+            ? `Warning: "${deleteDirectorConfirm.contactName}" is the LAST remaining director for "${client.name}". Removing the last director will also remove client "${client.name}" and hide its associated records.\n\nAre you sure you want to proceed? (Note: The director and their credentials will be removed from this client; their master Lead record will NOT be deleted.)`
+            : `Are you sure you want to remove director "${deleteDirectorConfirm.contactName}" from "${client.name}"? This will unlink the director and their credentials from this client only. The lead record in the Leads directory will NOT be deleted.`
         }
         confirmText={
           deleteDirectorConfirm.isLastDirector
-            ? "Yes, Remove Sole Director"
+            ? "Yes, Remove Last Director & Client"
             : "Remove from Client"
         }
         cancelText="Cancel"

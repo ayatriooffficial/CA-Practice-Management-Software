@@ -127,6 +127,14 @@ const leadSchema = new Schema<ILeadDocument>(
       type: String,
       select: false, // Hidden by default for security
     },
+    passwords: {
+      type: [Schema.Types.Mixed],
+      default: [],
+    },
+    documents: {
+      type: [Schema.Types.Mixed],
+      default: [],
+    },
     referredBy: {
       type: String,
       trim: true,

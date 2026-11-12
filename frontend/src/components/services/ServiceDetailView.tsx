@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Edit2,
@@ -106,6 +106,8 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
 
   // Clients state
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientsPage, setClientsPage] = useState(1);
+  const [clientsTotalDocs, setClientsTotalDocs] = useState(0);
   const [clientSearch, setClientSearch] = useState("");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("All departments");
   const [isClientsLoading, setIsClientsLoading] = useState(false);
@@ -198,24 +200,41 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     });
   }, [service.documentRequests]);
 
-  // Fetch real clients from database for Clients tab (only once per service ID)
-  const fetchedClientsForServiceIdRef = useRef<string | null>(null);
+  // Fetch clients for this specific service with pagination limit=10
+  const fetchServiceClients = useCallback(
+    (pageToFetch: number, searchVal: string, deptVal: string) => {
+      if (!targetServiceId) return;
+      setIsClientsLoading(true);
+      serviceApi
+        .getClientsByServiceId(targetServiceId, {
+          page: pageToFetch,
+          limit: 10,
+          search: searchVal,
+          department: deptVal === "All departments" ? undefined : deptVal,
+        })
+        .then((res) => {
+          if (res.data) {
+            setClients(res.data);
+            if (res.pagination?.totalDocs !== undefined) {
+              setClientsTotalDocs(res.pagination.totalDocs);
+            } else {
+              setClientsTotalDocs(res.data.length);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to fetch clients for service:", err);
+        })
+        .finally(() => setIsClientsLoading(false));
+    },
+    [targetServiceId]
+  );
+
   useEffect(() => {
     if (activeTab === "Clients") {
-      if (fetchedClientsForServiceIdRef.current === targetServiceId && clients.length > 0) {
-        return;
-      }
-      fetchedClientsForServiceIdRef.current = targetServiceId;
-      setIsClientsLoading(true);
-      clientApi
-        .getClients({ limit: 100 })
-        .then((res) => {
-          if (res.data) setClients(res.data);
-        })
-        .catch(() => { })
-        .finally(() => setIsClientsLoading(false));
+      fetchServiceClients(clientsPage, clientSearch, selectedDeptFilter);
     }
-  }, [activeTab, targetServiceId, clients.length]);
+  }, [activeTab, targetServiceId, clientsPage, clientSearch, selectedDeptFilter, fetchServiceClients]);
 
   // Sync templates to active tasks
   const handleSyncToTasks = async () => {
@@ -473,9 +492,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     } catch (err: any) {
       console.error("Failed to update client service compliance:", err);
       showToast("Failed to update client service.");
-      clientApi.getClients({ limit: 100 }).then((res) => {
-        if (res.data) setClients(res.data);
-      });
+      fetchServiceClients(clientsPage, clientSearch, selectedDeptFilter);
     } finally {
       setPendingClientId(null);
     }
@@ -688,6 +705,9 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
           isClientsLoading={isClientsLoading}
           handleToggleClientService={handleToggleClientService}
           pendingClientId={pendingClientId}
+          clientsPage={clientsPage}
+          setClientsPage={setClientsPage}
+          clientsTotalDocs={clientsTotalDocs}
           sopContent={sopContent}
           setSopContent={setSopContent}
           handleSaveSop={handleSaveSop}

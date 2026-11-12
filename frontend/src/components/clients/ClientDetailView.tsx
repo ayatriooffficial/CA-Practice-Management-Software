@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   X,
   Edit,
@@ -45,7 +46,8 @@ import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab
 import { usePermission } from "@/components/team/usePermission";
 import { useToggleClientServiceMutation } from "@/hooks/useServicesQuery";
 import { useAppDispatch } from "@/store/hooks";
-import { mergeClientSectionData, fetchClientByIdSuccess, setSelectedClient } from "@/store/features/clients/clientSlice";
+import { mergeClientSectionData, fetchClientByIdSuccess, setSelectedClient, fetchClientsRequest } from "@/store/features/clients/clientSlice";
+import { pageStateCache } from "@/services/pageStateCache";
 import Button from "../ui/Button";
 
 const AddLicenseModal = dynamic(
@@ -114,6 +116,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   onClientUpdated,
 }) => {
   const { canView, canAddEdit, canDelete } = usePermission();
+  const router = useRouter();
   const toggleClientServiceMutation = useToggleClientServiceMutation();
   const dispatch = useAppDispatch();
   const loadedSectionsRef = React.useRef<Set<string>>(new Set());
@@ -800,12 +803,22 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   // Delete Contact (Directly executes without duplicate confirmation modal)
   const handleDeleteContact = async (contactId: string, name: string) => {
     try {
+      const isLast = (client.contacts || []).length <= 1 && (client.customerFiles?.promoter || []).length <= 1;
       const res = await clientApi.deleteContact(client.id, contactId);
+      if ((res.data as any)?.clientDeleted || isLast) {
+        showToast(`Last director removed. Client "${client.name}" has been removed.`);
+        dispatch(fetchClientsRequest());
+        dispatch(setSelectedClient(null));
+        pageStateCache.delete('clients_list_data');
+        router.push('/client');
+        onClose();
+        return;
+      }
       if (res.data) {
         setClient(res.data);
         onClientUpdated?.(res.data);
       }
-      showToast(`Director "${name}" removed from client.`);
+      showToast(`Director "${name}" and associated credentials removed from client.`);
     } catch (err: any) {
       showToast(err.message || "Failed to delete contact.");
     }

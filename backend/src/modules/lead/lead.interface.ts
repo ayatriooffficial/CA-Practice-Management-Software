@@ -47,6 +47,24 @@ export interface ILead {
   dinAttachment?: string | null;
   mcaId?: string;
   mcaPassword?: string;
+  passwords?: Array<{
+    id?: string;
+    portal: string;
+    userId: string;
+    password?: string;
+    url?: string;
+    remarks?: string;
+  }>;
+  documents?: Array<{
+    id?: string;
+    name: string;
+    category?: string;
+    fileUrl?: string;
+    driveFileId?: string;
+    status?: string;
+    remarks?: string;
+    createdAt?: string;
+  }>;
   referredBy?: string;
   photo?: string | null;
   status: LeadStatus;
