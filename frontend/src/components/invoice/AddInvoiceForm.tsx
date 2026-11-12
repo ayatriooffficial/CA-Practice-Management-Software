@@ -732,30 +732,65 @@ tax:'18%',
           const serviceGstRate = (matchedClientSetting as any)?.taxRate || matchedCatalog?.taxRate || '18%';
 
           if (matchedClientSetting) {
-            const prof = Number(
-              (matchedClientSetting.professionalFee && matchedClientSetting.professionalFee > 0)
-                ? matchedClientSetting.professionalFee
-                : (matchedClientSetting.amount || matchedClientSetting.totalServiceFee || 0)
-            );
+            const prof = Number(matchedClientSetting.professionalFee || 0);
             const govt = Number(matchedClientSetting.governmentFee || 0);
             const other = Number(matchedClientSetting.otherCharges || 0);
+            const sumFees = prof + govt + other;
+
+            // Total Service Fee priority: totalServiceFee -> sum breakdown fees -> amount -> catalog
+            const totalServiceFees = Number(
+              (matchedClientSetting.totalServiceFee && matchedClientSetting.totalServiceFee > 0)
+                ? matchedClientSetting.totalServiceFee
+                : (sumFees > 0
+                    ? sumFees
+                    : (matchedClientSetting.amount || matchedCatalog?.totalServiceFee || prof || 0))
+            );
+
             const qty = Number(updated.quantity) || 1;
-            const lineAmount = qty * prof;
+            const lineAmount = qty * totalServiceFees;
             const gstRate = parseItemGstRate(serviceGstRate);
             const itemGst = Math.round((lineAmount * (gstRate / 100)) * 100) / 100;
 
             updated.serviceName = matchedClientSetting.serviceName;
-            updated.price = prof;
-            updated.professionalFee = prof;
+            updated.price = totalServiceFees;
+            updated.professionalFee = prof > 0 ? prof : totalServiceFees;
             updated.governmentFee = govt;
             updated.otherCharges = other;
             updated.amount = lineAmount;
-            updated.totalServiceFee = lineAmount;
+            updated.totalServiceFee = totalServiceFees;
             updated.tax = serviceGstRate;
             updated.total = Math.round((lineAmount + itemGst) * 100) / 100;
             updated.frequency = (matchedClientSetting.frequency as any) || updated.frequency || 'Monthly';
             if (!updated.description || updated.description === 'Description') {
               updated.description = `${matchedClientSetting.serviceName} compliance & retainer (${matchedClientSetting.frequency || 'Monthly'})`;
+            }
+            return updated;
+          } else if (matchedCatalog) {
+            const prof = Number(matchedCatalog.professionalFee || 0);
+            const govt = Number(matchedCatalog.governmentFee || 0);
+            const sumFees = prof + govt;
+            const totalServiceFees = Number(
+              (matchedCatalog.totalServiceFee && matchedCatalog.totalServiceFee > 0)
+                ? matchedCatalog.totalServiceFee
+                : (sumFees > 0 ? sumFees : (prof || 0))
+            );
+
+            const qty = Number(updated.quantity) || 1;
+            const lineAmount = qty * totalServiceFees;
+            const gstRate = parseItemGstRate(serviceGstRate);
+            const itemGst = Math.round((lineAmount * (gstRate / 100)) * 100) / 100;
+
+            updated.serviceName = matchedCatalog.name;
+            updated.price = totalServiceFees;
+            updated.professionalFee = prof > 0 ? prof : totalServiceFees;
+            updated.governmentFee = govt;
+            updated.amount = lineAmount;
+            updated.totalServiceFee = totalServiceFees;
+            updated.tax = serviceGstRate;
+            updated.total = Math.round((lineAmount + itemGst) * 100) / 100;
+            updated.frequency = (matchedCatalog.frequency as any) || updated.frequency || 'Monthly';
+            if (!updated.description || updated.description === 'Description') {
+              updated.description = `${matchedCatalog.name} service`;
             }
             return updated;
           }
@@ -1644,18 +1679,22 @@ tax:'18%',
                                 <option value="" disabled>No active services configured for this client</option>
                               ) : (
                                 activeClientServices.map((service) => {
-                                  const prof = Number(
-                                    (service.professionalFee && service.professionalFee > 0)
-                                      ? service.professionalFee
-                                      : (service.amount || service.totalServiceFee || 0)
-                                  );
+                                  const sProf = Number(service.professionalFee || 0);
+                                  const sGovt = Number(service.governmentFee || 0);
+                                  const sOther = Number(service.otherCharges || 0);
+                                  const sSum = sProf + sGovt + sOther;
                                   const matchedCat = serviceCatalog.find(
                                     (c) => c.name.toLowerCase() === service.serviceName.trim().toLowerCase() || c.id === service.serviceId
+                                  );
+                                  const totalServiceFees = Number(
+                                    (service.totalServiceFee && service.totalServiceFee > 0)
+                                      ? service.totalServiceFee
+                                      : (sSum > 0 ? sSum : (service.amount || matchedCat?.totalServiceFee || sProf || 0))
                                   );
                                   const gstRate = (service as any).taxRate || matchedCat?.taxRate || '18%';
                                   return (
                                     <option key={service.id || service.serviceName} value={service.serviceName}>
-                                      {service.serviceName} — ₹{prof.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({service.frequency || 'Monthly'}) | GST {gstRate}
+                                      {service.serviceName} — ₹{totalServiceFees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({service.frequency || 'Monthly'}) | GST {gstRate}
                                     </option>
                                   );
                                 })
