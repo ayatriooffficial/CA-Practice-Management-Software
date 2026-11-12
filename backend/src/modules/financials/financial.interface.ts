@@ -19,6 +19,7 @@ export interface IFinancialInvoice extends Document {
   originalInvoiceId?: Types.ObjectId | null;
   allocations: IInvoiceAllocation[];
   details: Record<string, unknown>;
+  isClientDeleted?: boolean;
   idempotencyKey: string;
   createdBy: Types.ObjectId;
   createdAt: Date;
@@ -79,6 +80,7 @@ export interface IFinancialReceipt extends Document {
   discountAmount: number;
   badDebtAmount: number;
   details: Record<string, unknown>;
+  isClientDeleted?: boolean;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

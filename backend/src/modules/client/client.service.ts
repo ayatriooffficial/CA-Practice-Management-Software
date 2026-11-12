@@ -12,6 +12,8 @@ import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
 import { AgentExecutionService } from '../agentCenter/execution.service';
 import { Lead } from '../lead/lead.model';
+import { Task } from '../task/task.model';
+import { FinancialInvoice, FinancialReceipt } from '../financials/financial.model';
 
 export class ClientService {
   /**
@@ -1024,7 +1026,7 @@ export class ClientService {
   }
 
   /**
-   * Soft delete client
+   * Soft delete client and cascade visibility flag to related tasks, invoices, receipts, and service settings
    */
   static async softDeleteClient(id: string, deletedBy?: string): Promise<IClientDocument> {
     const client = await Client.findById(id);
@@ -1033,11 +1035,49 @@ export class ClientService {
     }
 
     await client.softDelete(deletedBy);
+
+    // High performance cascade: mark related tasks, invoices, receipts, and service settings as client-deleted
+    const clientIds = [client._id, String(client._id)];
+    if (client.fileNo) clientIds.push(client.fileNo as any);
+
+    const taskMatch: any = {
+      $or: [
+        { clientId: { $in: clientIds } },
+        ...(client.fileNo ? [{ clientFileNo: client.fileNo }] : []),
+        ...(client.name ? [{ clientName: client.name }] : []),
+      ],
+    };
+
+    const invoiceMatch: any = {
+      $or: [
+        { 'details.clientId': { $in: [String(client._id), ...(client.fileNo ? [client.fileNo] : [])] } },
+        ...(client.name ? [{ 'details.clientName': client.name }, { 'details.businessName': client.name }] : []),
+      ],
+    };
+
+    const receiptMatch: any = {
+      $or: [
+        { clientId: { $in: [String(client._id), ...(client.fileNo ? [client.fileNo] : [])] } },
+        ...(client.name ? [{ businessName: client.name }] : []),
+      ],
+    };
+
+    try {
+      await Promise.all([
+        Task.updateMany(taskMatch, { $set: { isClientDeleted: true } }),
+        FinancialInvoice.updateMany(invoiceMatch, { $set: { isClientDeleted: true } }),
+        FinancialReceipt.updateMany(receiptMatch, { $set: { isClientDeleted: true } }),
+        ClientServiceSetting.updateMany({ clientId: client._id }, { $set: { isClientDeleted: true, isDeleted: true } }),
+      ]);
+    } catch (err) {
+      console.error('Error cascading client deletion to related records:', err);
+    }
+
     return client;
   }
 
   /**
-   * Restore soft-deleted client
+   * Restore soft-deleted client and restore visibility of related tasks, invoices, receipts, and service settings
    */
   static async restoreClient(id: string): Promise<IClientDocument> {
     const client = await Client.findOne({ _id: id }).setOptions({ includeDeleted: true });
@@ -1050,6 +1090,44 @@ export class ClientService {
     }
 
     await client.restore();
+
+    // High performance restore: restore related tasks, invoices, receipts, and service settings to visibility
+    const clientIds = [client._id, String(client._id)];
+    if (client.fileNo) clientIds.push(client.fileNo as any);
+
+    const taskMatch: any = {
+      $or: [
+        { clientId: { $in: clientIds } },
+        ...(client.fileNo ? [{ clientFileNo: client.fileNo }] : []),
+        ...(client.name ? [{ clientName: client.name }] : []),
+      ],
+    };
+
+    const invoiceMatch: any = {
+      $or: [
+        { 'details.clientId': { $in: [String(client._id), ...(client.fileNo ? [client.fileNo] : [])] } },
+        ...(client.name ? [{ 'details.clientName': client.name }, { 'details.businessName': client.name }] : []),
+      ],
+    };
+
+    const receiptMatch: any = {
+      $or: [
+        { clientId: { $in: [String(client._id), ...(client.fileNo ? [client.fileNo] : [])] } },
+        ...(client.name ? [{ businessName: client.name }] : []),
+      ],
+    };
+
+    try {
+      await Promise.all([
+        Task.updateMany(taskMatch, { $set: { isClientDeleted: false } }),
+        FinancialInvoice.updateMany(invoiceMatch, { $set: { isClientDeleted: false } }),
+        FinancialReceipt.updateMany(receiptMatch, { $set: { isClientDeleted: false } }),
+        ClientServiceSetting.updateMany({ clientId: client._id }, { $set: { isClientDeleted: false, isDeleted: false } }),
+      ]);
+    } catch (err) {
+      console.error('Error restoring client related records visibility:', err);
+    }
+
     return client;
   }
 

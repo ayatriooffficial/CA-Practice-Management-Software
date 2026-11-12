@@ -57,7 +57,7 @@ export class TaskService {
   }, userCtx?: { userId: string | null; orgId?: string | null; name?: string; email?: string; role?: string } | string | null): Promise<{ items: ITaskDocument[]; pagination: PaginationMeta }> {
     await this.seedInitialTasksIfNeeded();
 
-    const filter: Record<string, any> = { isDeleted: false };
+    const filter: Record<string, any> = { isDeleted: false, isClientDeleted: { $ne: true } };
     const andClauses: any[] = [];
 
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
@@ -356,7 +356,7 @@ export class TaskService {
   ): Promise<ITaskStats> {
     await this.seedInitialTasksIfNeeded();
 
-    const matchFilter: Record<string, any> = { isDeleted: false };
+    const matchFilter: Record<string, any> = { isDeleted: false, isClientDeleted: { $ne: true } };
     if (category && category !== 'All Categories') {
       matchFilter.category = category;
     }
@@ -435,7 +435,7 @@ export class TaskService {
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
     const isAdminRole = ['admin', 'partner', 'owner', 'superadmin', 'manager'].includes(userRole) || (!isEmployeeRole && !userRole);
 
-    const andClauses: any[] = [{ isDeleted: false }];
+    const andClauses: any[] = [{ isDeleted: false }, { isClientDeleted: { $ne: true } }];
 
     if (orgId && !isAdminRole) {
       andClauses.push({ $or: [{ orgId }, { orgId: String(orgId) }] });
@@ -600,7 +600,7 @@ export class TaskService {
   ): Promise<{ rows: ITaskSummaryRow[]; grandTotal: ITaskSummaryRow }> {
     await this.seedInitialTasksIfNeeded();
 
-    const matchFilter: Record<string, any> = { isDeleted: false };
+    const matchFilter: Record<string, any> = { isDeleted: false, isClientDeleted: { $ne: true } };
     const userId = typeof userCtx === 'string' ? userCtx : userCtx?.userId;
 
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
@@ -793,7 +793,7 @@ export class TaskService {
       });
     }
 
-    if (!task) {
+    if (!task || task.isDeleted || task.isClientDeleted) {
       throw AppError.notFound(ResponseMessages.TASK_NOT_FOUND);
     }
 
@@ -1442,7 +1442,7 @@ export class TaskService {
     query: { search?: string; category?: string; frequency?: string } = {},
     _userCtx?: { userId?: string | null; orgId?: string | null } | null
   ): Promise<ITaskTemplateDocument[]> {
-    const andClauses: any[] = [{ isDeleted: false }];
+    const andClauses: any[] = [{ isDeleted: false }, { isClientDeleted: { $ne: true } }];
 
     if (query.category && query.category !== 'All' && query.category !== 'All Categories') {
       andClauses.push({ category: query.category });

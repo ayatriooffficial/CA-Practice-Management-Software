@@ -1,5 +1,6 @@
 import { FinancialReceipt } from "../financials/financial.model";
 import { PaginationMeta } from "../../shared/utils/apiResponse";
+import { Client } from "../client/client.model";
 
 export class FinancialService {
   static async workDoneClient(query: { page?: number | string; limit?: number | string; search?: string } = {}): Promise<{ items: any[]; pagination: PaginationMeta }> {
@@ -8,12 +9,30 @@ export class FinancialService {
     const rawSearch = typeof query.search === "string" ? query.search.trim() : "";
     const search = (rawSearch === "undefined" || rawSearch === "null") ? "" : rawSearch.toLowerCase();
 
-    const receipts = await FinancialReceipt.find().lean();
+    const [receipts, deletedClients] = await Promise.all([
+      FinancialReceipt.find({ isClientDeleted: { $ne: true } }).lean(),
+      Client.find({ isDeleted: true }).select('_id fileNo name').lean(),
+    ]);
+
+    const deletedClientSet = new Set<string>();
+    deletedClients.forEach((c: any) => {
+      if (c._id) deletedClientSet.add(c._id.toString());
+      if (c.fileNo) deletedClientSet.add(String(c.fileNo).toLowerCase().trim());
+      if (c.name) deletedClientSet.add(String(c.name).toLowerCase().trim());
+    });
 
     const clientMap: { [key: string]: any } = {};
 
     receipts.forEach((receipt: any) => {
       const clientId = receipt.clientId?.toString() || receipt._id?.toString() || "unknown";
+
+      if (
+        (receipt.clientId && deletedClientSet.has(String(receipt.clientId).toLowerCase().trim())) ||
+        (receipt.businessName && deletedClientSet.has(String(receipt.businessName).toLowerCase().trim())) ||
+        (receipt.legalName && deletedClientSet.has(String(receipt.legalName).toLowerCase().trim()))
+      ) {
+        return;
+      }
 
       if (!clientMap[clientId]) {
         clientMap[clientId] = {

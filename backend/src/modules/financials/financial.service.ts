@@ -209,7 +209,7 @@ export class FinancialService {
   }
 
   static async listInvoices(_ctx?: FinancialUserContext) {
-    return FinancialInvoice.find({}).sort({ createdAt: -1 }).lean();
+    return FinancialInvoice.find({ isClientDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
   }
 
   static async voidInvoice(id: string, reason: string, ctx?: FinancialUserContext) {
@@ -479,7 +479,7 @@ export class FinancialService {
   }
 
   static async listReceipts(_ctx?: FinancialUserContext) {
-    return FinancialReceipt.find({}).sort({ paymentDate: -1, createdAt: -1 }).lean();
+    return FinancialReceipt.find({ isClientDeleted: { $ne: true } }).sort({ paymentDate: -1, createdAt: -1 }).lean();
   }
 
   static async createTimeEntry(input: {
@@ -642,7 +642,7 @@ export class FinancialService {
     const start = toDate(from);
     const end = new Date(toDate(to).getTime() + 86_400_000);
     const [invoices, timeEntries, expenses] = await Promise.all([
-      FinancialInvoice.find({ state: 'issued', issueDate: { $gte: start, $lt: end } })
+      FinancialInvoice.find({ state: 'issued', isClientDeleted: { $ne: true }, issueDate: { $gte: start, $lt: end } })
         .select('kind allocations issueDate').lean(),
       FinancialTimeEntry.find({ workDate: { $gte: start, $lt: end } })
         .select('taskId employeeId workDate costPaise').populate('employeeId', 'name').lean(),
@@ -696,6 +696,7 @@ export class FinancialService {
 
     const orgTasks = await Task.find({
       isDeleted: false,
+      isClientDeleted: { $ne: true },
     }).select('taskId clientId clientName serviceName assigneeName billingType startDate targetDueDate endDate createdAt').lean();
 
     // Match tasks relevant to this reporting period:
@@ -826,6 +827,7 @@ export class FinancialService {
     // 1. Unbilled Tasks: billable tasks not marked as 'Billed'
     const unbilledTasksCount = await Task.countDocuments({
       isDeleted: false,
+      isClientDeleted: { $ne: true },
       billingType: 'Billable',
       billingStatus: { $ne: 'Billed' },
     });
@@ -833,6 +835,7 @@ export class FinancialService {
     // 2. Pending Retainer Invoices: recurring retainer tasks pending billing or active clients with recurring agreements
     const pendingRetainerTasks = await Task.countDocuments({
       isDeleted: false,
+      isClientDeleted: { $ne: true },
       billingType: 'Billable',
       billingStatus: { $ne: 'Billed' },
       $or: [
@@ -862,6 +865,7 @@ export class FinancialService {
     const invoiceQuery: any = {
       kind: 'invoice',
       state: 'issued',
+      isClientDeleted: { $ne: true },
     };
 
     const issuedInvoices = await FinancialInvoice.find(invoiceQuery).lean();
@@ -884,7 +888,7 @@ export class FinancialService {
     }
 
     // 4. Draft Invoices
-    const draftQuery: any = { state: 'draft' };
+    const draftQuery: any = { state: 'draft', isClientDeleted: { $ne: true } };
     const draftInvoices = await FinancialInvoice.find(draftQuery).lean();
 
     const draftCount = draftInvoices.length;

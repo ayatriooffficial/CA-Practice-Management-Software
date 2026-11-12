@@ -123,6 +123,7 @@ export interface ITask {
   timerStartedAt?: Date | null;
   timeSpentSeconds?: number;
   progress?: number;
+  isClientDeleted?: boolean;
   orgId?: string | null;
   userId?: string | null;
   createdBy?: string | null;

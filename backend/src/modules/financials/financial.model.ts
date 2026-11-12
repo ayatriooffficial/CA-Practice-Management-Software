@@ -20,6 +20,7 @@ const invoiceSchema = new Schema<IFinancialInvoice>(
     originalInvoiceId: { type: Schema.Types.ObjectId, ref: 'FinancialInvoice', default: null },
     allocations: { type: [allocationSchema], required: true, default: [] },
     details: { type: Schema.Types.Mixed, required: true, default: {} },
+    isClientDeleted: { type: Boolean, default: false, index: true },
     idempotencyKey: { type: String, required: true, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
@@ -91,6 +92,7 @@ const receiptSchema = new Schema<IFinancialReceipt>(
     discountAmount: { type: Number, default: 0 },
     badDebtAmount: { type: Number, default: 0 },
     details: { type: Schema.Types.Mixed, default: {} },
+    isClientDeleted: { type: Boolean, default: false, index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
@@ -100,6 +102,7 @@ receiptSchema.index({ orgId: 1, receiptNo: 1 }, { unique: true });
 receiptSchema.index({ orgId: 1, paymentDate: -1 });
 receiptSchema.index({ orgId: 1, clientId: 1 });
 receiptSchema.index({ orgId: 1, invoiceNumber: 1 });
+receiptSchema.index({ isClientDeleted: 1, createdAt: -1 });
 
 export const FinancialInvoice = model<IFinancialInvoice>('FinancialInvoice', invoiceSchema);
 export const FinancialTimeEntry = model<ITimeEntry>('FinancialTimeEntry', timeEntrySchema);

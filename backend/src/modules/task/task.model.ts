@@ -64,6 +64,11 @@ export const taskSchema = new Schema<ITaskDocument>(
       default: null,
       index: true,
     },
+    isClientDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     clientName: {
       type: String,
       required: [true, 'Client/Business name is required'],
@@ -319,6 +324,8 @@ taskSchema.index({ isDeleted: 1, createdAt: -1 });
 taskSchema.index({ status: 1, category: 1, isDeleted: 1 });
 taskSchema.index({ assigneeName: 1, status: 1, isDeleted: 1 });
 taskSchema.index({ clientId: 1, isDeleted: 1 });
+taskSchema.index({ isClientDeleted: 1, isDeleted: 1, createdAt: -1 });
+taskSchema.index({ clientId: 1, isClientDeleted: 1, isDeleted: 1 });
 taskSchema.index({ targetDueDate: 1, isDeleted: 1 });
 taskSchema.index({ orgId: 1, isDeleted: 1, createdAt: -1 });
 
