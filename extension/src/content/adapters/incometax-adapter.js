@@ -44,3 +44,4 @@ export class IncomeTaxAdapter {
     return { filledId, filledPwd };
   }
 }
+

@@ -1780,19 +1780,34 @@ export class ClientService {
     client.contacts.unshift(newContact);
     client.markModified('contacts');
 
-    // Also sync to customerFiles.promoter if matching
-    if (client.customerFiles?.promoter) {
-      const pIdx = client.customerFiles.promoter.findIndex(
-        (p: any) =>
-          (p.name && p.name.trim().toLowerCase() === newContact.name.trim().toLowerCase()) ||
-          (newContact.pan && p.pan && p.pan.trim().toUpperCase() === newContact.pan.trim().toUpperCase())
-      );
-      if (pIdx >= 0) {
-        if (newContact.mcaId) client.customerFiles.promoter[pIdx].mcaId = newContact.mcaId;
-        if (newContact.mcaPassword) client.customerFiles.promoter[pIdx].mcaPassword = newContact.mcaPassword;
-        client.markModified('customerFiles');
-      }
+    // Also sync to customerFiles.promoter
+    if (!client.customerFiles) {
+      client.customerFiles = {} as any;
     }
+    if (!Array.isArray(client.customerFiles.promoter)) {
+      client.customerFiles.promoter = [];
+    }
+
+    const pIdx = client.customerFiles.promoter.findIndex(
+      (p: any) =>
+        (p.name && newContact.name && p.name.trim().toLowerCase() === newContact.name.trim().toLowerCase()) ||
+        (newContact.pan && p.pan && p.pan.trim().toUpperCase() === newContact.pan.trim().toUpperCase())
+    );
+    if (pIdx >= 0) {
+      if (newContact.mcaId) client.customerFiles.promoter[pIdx].mcaId = newContact.mcaId;
+      if (newContact.mcaPassword) client.customerFiles.promoter[pIdx].mcaPassword = newContact.mcaPassword;
+      if (newContact.designation) client.customerFiles.promoter[pIdx].designation = newContact.designation;
+    } else {
+      client.customerFiles.promoter.push({
+        key: Date.now(),
+        name: newContact.name,
+        designation: newContact.designation || 'Director',
+        pan: newContact.pan || '',
+        mcaId: newContact.mcaId || newContact.din || '',
+        mcaPassword: newContact.mcaPassword || '',
+      });
+    }
+    client.markModified('customerFiles');
 
     if (data.leadId) {
       try {
@@ -1802,14 +1817,45 @@ export class ClientService {
       } catch (err) {}
     } else if (newContact.pan) {
       try {
-        await Lead.findOneAndUpdate(
+        const updatedLead = await Lead.findOneAndUpdate(
           { pan: newContact.pan.toUpperCase(), isDeleted: { $ne: true } },
           { $addToSet: { associatedClientIds: client._id } }
         );
+        if (!updatedLead && newContact.name && newContact.name.trim()) {
+          await Lead.create({
+            fullName: newContact.name,
+            pan: newContact.pan.toUpperCase(),
+            din: newContact.din || newContact.mcaId,
+            mcaId: newContact.mcaId || newContact.din,
+            mcaPassword: newContact.mcaPassword,
+            mobile: newContact.mobile,
+            email: newContact.email,
+            designation: newContact.designation || 'Director',
+            appointmentDate: newContact.appointmentDate,
+            associatedClientIds: [client._id],
+            status: 'converted',
+          });
+        }
+      } catch (err) {}
+    } else if (newContact.name && newContact.name.trim()) {
+      try {
+        await Lead.create({
+          fullName: newContact.name,
+          din: newContact.din || newContact.mcaId,
+          mcaId: newContact.mcaId || newContact.din,
+          mcaPassword: newContact.mcaPassword,
+          mobile: newContact.mobile,
+          email: newContact.email,
+          designation: newContact.designation || 'Director',
+          appointmentDate: newContact.appointmentDate,
+          associatedClientIds: [client._id],
+          status: 'converted',
+        });
       } catch (err) {}
     }
 
-    return await client.save();
+    await client.save();
+    return await ClientService.getClientById(client._id.toString());
   }
 
   /**
@@ -1882,7 +1928,8 @@ export class ClientService {
         client.markModified('customerFiles');
       }
     }
-    return await client.save();
+    await client.save();
+    return await ClientService.getClientById(client._id.toString());
   }
 
   /**

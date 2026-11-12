@@ -1734,7 +1734,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
         }}
         onSuccess={(updated) => {
           if (onClientUpdated) {
-            onClientUpdated(updated);
+            onClientUpdated({ ...updated });
           }
           setIsAddContactModalOpen(false);
           setEditingContact(null);

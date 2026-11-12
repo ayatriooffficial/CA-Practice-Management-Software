@@ -202,8 +202,15 @@ export const AddDirectorModal: React.FC<AddDirectorModalProps> = ({
 
         const contactId = editingContact.id || (editingContact as any)._id;
         const res = await clientApi.updateContact(client.id, contactId, payload);
-        if (res.data) {
-          onSuccess(res.data);
+        let updatedClient = res.data;
+        if (!updatedClient?.contacts || updatedClient.contacts.length === 0) {
+          try {
+            const fresh = await clientApi.getClientById(client.id);
+            if (fresh?.data) updatedClient = fresh.data;
+          } catch {}
+        }
+        if (updatedClient) {
+          onSuccess(updatedClient);
           onClose();
         } else {
           throw new Error((res as any).error || res.message || "Failed to update director");
@@ -233,8 +240,15 @@ export const AddDirectorModal: React.FC<AddDirectorModalProps> = ({
         };
 
         const res = await clientApi.addContact(client.id, payload);
-        if (res.data) {
-          onSuccess(res.data);
+        let updatedClient = res.data;
+        if (!updatedClient?.contacts || updatedClient.contacts.length === 0) {
+          try {
+            const fresh = await clientApi.getClientById(client.id);
+            if (fresh?.data) updatedClient = fresh.data;
+          } catch {}
+        }
+        if (updatedClient) {
+          onSuccess(updatedClient);
           onClose();
         } else {
           throw new Error((res as any).error || res.message || "Failed to add director");
@@ -262,8 +276,15 @@ export const AddDirectorModal: React.FC<AddDirectorModalProps> = ({
         };
 
         const res = await clientApi.addContact(client.id, payload);
-        if (res.data) {
-          onSuccess(res.data);
+        let updatedClient = res.data;
+        if (!updatedClient?.contacts || updatedClient.contacts.length === 0) {
+          try {
+            const fresh = await clientApi.getClientById(client.id);
+            if (fresh?.data) updatedClient = fresh.data;
+          } catch {}
+        }
+        if (updatedClient) {
+          onSuccess(updatedClient);
           onClose();
         } else {
           throw new Error((res as any).error || res.message || "Failed to add director");

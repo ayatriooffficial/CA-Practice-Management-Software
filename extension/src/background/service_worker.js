@@ -63,3 +63,4 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // ignore invalid URLs (e.g. chrome://)
   }
 });
+

@@ -42,3 +42,4 @@ export const DEFAULT_SETTINGS = {
   rememberLastDirector: true,
   debugLogging: false,
 };
+

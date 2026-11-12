@@ -45,7 +45,7 @@ import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab
 import { usePermission } from "@/components/team/usePermission";
 import { useToggleClientServiceMutation } from "@/hooks/useServicesQuery";
 import { useAppDispatch } from "@/store/hooks";
-import { mergeClientSectionData } from "@/store/features/clients/clientSlice";
+import { mergeClientSectionData, fetchClientByIdSuccess, setSelectedClient } from "@/store/features/clients/clientSlice";
 import Button from "../ui/Button";
 
 const AddLicenseModal = dynamic(
@@ -124,8 +124,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   }, [initialClient]);
 
   const handleClientUpdated = (updated: Client) => {
-    setClient(updated);
+    setClient({ ...updated });
     onClientUpdated?.(updated);
+    if (updated.id) {
+      dispatch(fetchClientByIdSuccess(updated));
+      dispatch(setSelectedClient(updated));
+    }
   };
 
   // Synchronize active client with MCA Auto-Fill Extension

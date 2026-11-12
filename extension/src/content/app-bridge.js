@@ -123,3 +123,4 @@ const log = logger.create("AppBridge");
     }
   });
 })();
+
