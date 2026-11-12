@@ -8,6 +8,9 @@ import { logger } from "../utils/logger.js";
 const log = logger.create("AppBridge");
 
 (function initAppBridge() {
+  if (window.__caPracticeAppBridgeLoaded) return;
+  window.__caPracticeAppBridgeLoaded = true;
+
   const currentOrigin = window.location.origin;
   log.log("Active on web app instance:", currentOrigin);
 

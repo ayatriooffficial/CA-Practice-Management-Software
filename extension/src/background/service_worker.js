@@ -3,6 +3,7 @@
 import { MessageHandler } from "./message-handler.js";
 import { Storage } from "../utils/storage.js";
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from "../config/constants.js";
+import { ENV } from "../config/env.js";
 import { logger } from "../utils/logger.js";
 
 const log = logger.create("ServiceWorker");
@@ -26,34 +27,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // 3. Dynamic Content Script Injection for Custom Deployed Web App Domains
-// If a user deploys CA Practice to a custom private company domain, this listener injects the app bridge.
+// If a user deploys CA Practice to a custom private company domain, this listener injects the app bridge loader.
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete" || !tab.url) return;
 
   try {
+    // Trusted app origins (localhost, 127.0.0.1, *.vercel.app, etc.) already have content_app.js declared in manifest.json
+    if (ENV.isTrustedAppOrigin(tab.url)) {
+      return;
+    }
+
     const url = new URL(tab.url);
     const domain = url.hostname.toLowerCase();
 
-    // Check if this domain is in user-configured custom domains
-    const stored = await Storage.get([STORAGE_KEYS.CUSTOM_DOMAINS, STORAGE_KEYS.APP_ORIGINS]);
+    // Only inject for user-configured custom domains not covered by manifest matches
+    const stored = await Storage.get([STORAGE_KEYS.CUSTOM_DOMAINS]);
     const customDomains = (stored[STORAGE_KEYS.CUSTOM_DOMAINS] || []).map((d) => d.toLowerCase());
-    const registeredOrigins = (stored[STORAGE_KEYS.APP_ORIGINS] || []).map((o) => {
-      try { return new URL(o).hostname.toLowerCase(); } catch { return ""; }
-    });
 
-    const isCustomMatch = customDomains.includes(domain) || registeredOrigins.includes(domain);
+    const isCustomMatch = customDomains.includes(domain);
 
     if (isCustomMatch) {
-      log.log(`Injecting app bridge into custom deployed domain: ${domain}`);
+      log.log(`Injecting app bridge loader into custom deployed domain: ${domain}`);
       chrome.scripting.executeScript({
         target: { tabId },
-        files: [
-          "src/config/constants.js",
-          "src/config/portals.js",
-          "src/utils/storage.js",
-          "src/utils/logger.js",
-          "src/content/app-bridge.js",
-        ],
+        files: ["content_app.js"],
       }).catch((err) => {
         // Tab might already have content script or permissions restricted
         log.warn(`Dynamic injection note: ${err.message}`);

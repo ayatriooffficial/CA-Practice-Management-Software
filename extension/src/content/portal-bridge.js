@@ -14,6 +14,9 @@ import { logger } from "../utils/logger.js";
 const log = logger.create("PortalBridge");
 
 (async function initPortalBridge() {
+  if (window.__caPracticePortalBridgeLoaded) return;
+  window.__caPracticePortalBridgeLoaded = true;
+
   const currentUrl = window.location.href;
   const portal = detectPortalFromUrl(currentUrl) || getPortalById("mca");
 

@@ -12,6 +12,7 @@ export const ENV = {
   TRUSTED_APP_DOMAINS: [
     "localhost",
     "127.0.0.1",
+    "ca-practice-management-software.vercel.app",
     "ayatrio.com",
     "*.ayatrio.com",
     "*.vercel.app",
