@@ -280,6 +280,117 @@ export class MessageHandler {
           break;
         }
 
+        // ---------------------------------------------------------------------
+        // 4. Backward Compatibility Handlers for Content Scripts
+        // ---------------------------------------------------------------------
+        case "GET_ACTIVE_DATA": {
+          const stored = await Storage.get([
+            STORAGE_KEYS.ACTIVE_CLIENT,
+            STORAGE_KEYS.CACHED_CLIENTS,
+            STORAGE_KEYS.PENDING_CREDENTIALS,
+            STORAGE_KEYS.LAST_USED_CREDENTIALS,
+            STORAGE_KEYS.SETTINGS,
+            "widgetPosition",
+          ]);
+          const client = stored[STORAGE_KEYS.ACTIVE_CLIENT] || null;
+          const creds = stored[STORAGE_KEYS.PENDING_CREDENTIALS] || stored[STORAGE_KEYS.LAST_USED_CREDENTIALS] || {};
+          const mcaCreds = client ? CredentialManager.extractMcaCredentials(client) : {};
+          sendResponse({
+            success: true,
+            activeClient: client,
+            cachedClients: stored[STORAGE_KEYS.CACHED_CLIENTS] || [],
+            pendingMcaCredentials: {
+              ...mcaCreds,
+              ...creds,
+            },
+            pendingCredentials: creds,
+            lastUsedCredentials: stored[STORAGE_KEYS.LAST_USED_CREDENTIALS] || creds,
+            settings: stored[STORAGE_KEYS.SETTINGS] || {},
+            widgetPosition: stored.widgetPosition,
+          });
+          break;
+        }
+
+        case "OPEN_MCA_AND_FILL": {
+          const payload = request.data || {};
+          const creds = {
+            portalId: "mca",
+            userId: payload.mcaId || payload.userId || "",
+            mcaId: payload.mcaId || payload.userId || "",
+            password: payload.mcaPassword || payload.password || "",
+            mcaPassword: payload.mcaPassword || payload.password || "",
+            clientName: payload.clientName || "Client",
+            directorName: payload.directorName || "Director",
+            clientPan: payload.clientPan || "",
+            timestamp: Date.now(),
+            autoFillEnabled: true,
+          };
+          await Storage.set({
+            [STORAGE_KEYS.ACTIVE_PORTAL_ID]: "mca",
+            [STORAGE_KEYS.PENDING_CREDENTIALS]: creds,
+            [STORAGE_KEYS.LAST_USED_CREDENTIALS]: creds,
+          });
+          const mcaUrl = "https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html";
+          chrome.tabs.create({ url: mcaUrl }, (newTab) => {
+            sendResponse({ success: true, tabId: newTab?.id });
+          });
+          break;
+        }
+
+        case "GET_CLIENT_GST_PERIODS": {
+          const clientId = request.clientId;
+          if (!clientId) {
+            sendResponse({ periods: [] });
+            break;
+          }
+          const storageKey = `gstPeriods_${clientId}`;
+          const stored = await Storage.get([storageKey, "selectedGstPeriod"]);
+          const cached = stored[storageKey] || [];
+          const selected = stored.selectedGstPeriod || null;
+
+          const baseUrl = await ApiService.getBaseUrl();
+          const urls = [
+            `${baseUrl}/gst-links/client/${clientId}/submissions`,
+            `${baseUrl}/gst-links/client/${clientId}`,
+            `https://ca-practice-management-software.vercel.app/api/v1/gst-links/client/${clientId}/submissions`,
+            `http://localhost:5000/api/v1/gst-links/client/${clientId}/submissions`,
+          ];
+
+          let foundPeriods = null;
+          for (const u of urls) {
+            try {
+              const res = await fetch(u);
+              if (!res.ok) continue;
+              const json = await res.json();
+              if (json?.success && Array.isArray(json.data) && json.data.length > 0) {
+                foundPeriods = json.data;
+                break;
+              }
+            } catch {}
+          }
+
+          if (foundPeriods) {
+            await Storage.set({ [storageKey]: foundPeriods });
+            sendResponse({ periods: foundPeriods, selectedPeriod: selected });
+          } else {
+            sendResponse({ periods: cached, selectedPeriod: selected });
+          }
+          break;
+        }
+
+        case "SET_SELECTED_GST_PERIOD": {
+          const periodData = request.periodData || null;
+          await Storage.set({ selectedGstPeriod: periodData });
+          sendResponse({ success: true, selectedGstPeriod: periodData });
+          break;
+        }
+
+        case "CLEAR_PENDING_CREDENTIALS": {
+          await Storage.set({ [STORAGE_KEYS.PENDING_CREDENTIALS]: null });
+          sendResponse({ success: true });
+          break;
+        }
+
         default:
           sendResponse({ success: false, error: `Unknown action: ${type}` });
           break;
