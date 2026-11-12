@@ -1655,14 +1655,25 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
                 Secure vault for Income Tax, GST, MCA, and TRACES logins
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsAddingPassword(!isAddingPassword)}
-              className="px-2.5 py-1 text-xs font-semibold text-white bg-[var(--primary)] rounded cursor-pointer hover:opacity-90 flex items-center space-x-1"
-            >
-              <Plus className="w-3 h-3" />
-              <span>{isAddingPassword ? "Cancel" : "Add Password"}</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <a
+                href="/downloads/ca-practice-extension.zip"
+                download="ca-practice-extension.zip"
+                className="h-6 px-2 text-[10px] font-semibold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] rounded flex items-center gap-1 hover:bg-blue-100 transition-colors cursor-pointer"
+                title="Download CA Practice Auto-Fill Extension (.ZIP)"
+              >
+                <Download className="w-2.5 h-2.5" />
+                <span>Extension</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setIsAddingPassword(!isAddingPassword)}
+                className="px-2.5 py-1 text-xs font-semibold text-white bg-[var(--primary)] rounded cursor-pointer hover:opacity-90 flex items-center space-x-1"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{isAddingPassword ? "Cancel" : "Add Password"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Add Password Form */}

@@ -18,6 +18,7 @@ import {
   StickyNote,
   Award,
   Upload,
+  Download,
   Building2,
   FileBadge,
   Repeat,
@@ -698,6 +699,15 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                <a
+                  href="/downloads/ca-practice-extension.zip"
+                  download="ca-practice-extension.zip"
+                  className="h-8 px-2.5 rounded-md text-xs font-semibold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[#31719B] dark:text-[#60a5fa] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                  title="Download CA Practice Auto-Fill Extension (.ZIP for Chrome / Edge)"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Extension</span>
+                </a>
                 <button
                   type="button"
                   onClick={() => {
@@ -1264,17 +1274,29 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 </div>
               </div>
 
-              {setIsAddPasswordOpen && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddPasswordOpen(true)}
-                  style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                  className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+              <div className="flex items-center gap-2">
+                <a
+                  href="/downloads/ca-practice-extension.zip"
+                  download="ca-practice-extension.zip"
+                  className="h-8 px-3 rounded-md text-xs font-semibold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[#31719B] dark:text-[#60a5fa] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                  title="Download CA Practice Auto-Fill Extension (.ZIP for Chrome / Edge)"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Password</span>
-                </button>
-              )}
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Extension</span>
+                </a>
+
+                {setIsAddPasswordOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddPasswordOpen(true)}
+                    style={{ backgroundColor: "var(--premium-blue-dark)" }}
+                    className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Password</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {passwordsList.length === 0 ? (
