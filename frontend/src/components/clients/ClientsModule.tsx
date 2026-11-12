@@ -197,55 +197,56 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
   const clients = useMemo(() => data?.clients || [], [data?.clients]);
   const pagination = data?.pagination;
 
-  // Synchronize client selection from Redux store or URL params
+  // Synchronize client selection from Redux store or URL params (URL is single source of truth)
   useEffect(() => {
-    // 1. If paramClientId is given in URL
-    if (paramClientId) {
-      const foundInList = clients.find(
-        (c) => c.id === paramClientId || (c as any)._id === paramClientId
-      );
-      if (foundInList) {
-        setViewingClient(foundInList);
-        setViewMode("detail");
-        dispatch(setSelectedClient(foundInList));
-        return;
-      }
-
-      // If not yet in loaded clients list, fetch client from API
-      let isMounted = true;
-      clientApi
-        .getClientById(paramClientId)
-        .then((res) => {
-          if (!isMounted) return;
-          if (res && res.data) {
-            setViewingClient(res.data);
-            setViewMode("detail");
-            dispatch(fetchClientByIdSuccess(res.data));
-            dispatch(setSelectedClient(res.data));
-          }
-        })
-        .catch((err) => {
-          console.warn("Failed to fetch client for detail view:", err);
-        });
-
-      return () => {
-        isMounted = false;
-      };
+    // 1. If no paramClientId in URL, user is on client list view
+    if (!paramClientId) {
+      setViewingClient(null);
+      setViewMode("list");
+      return;
     }
 
-    // 2. If Redux already has selectedClient
+    // 2. If paramClientId is given in URL, show detail view
+    const foundInList = clients.find(
+      (c) => c.id === paramClientId || (c as any)._id === paramClientId
+    );
+    if (foundInList) {
+      setViewingClient(foundInList);
+      setViewMode("detail");
+      dispatch(setSelectedClient(foundInList));
+      return;
+    }
+
+    // If reduxSelectedClient matches the requested ID, use it immediately
     if (reduxSelectedClient) {
       const rId = reduxSelectedClient.id || (reduxSelectedClient as any)._id;
-      if (!paramClientId || paramClientId === rId) {
+      if (paramClientId === rId) {
         setViewingClient(reduxSelectedClient);
         setViewMode("detail");
         return;
       }
-    } else if (!paramClientId) {
-      // If no selected client in Redux and no param in URL, return to list view
-      setViewingClient(null);
-      setViewMode("list");
     }
+
+    // If not yet in memory, fetch client from API
+    let isMounted = true;
+    clientApi
+      .getClientById(paramClientId)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res && res.data) {
+          setViewingClient(res.data);
+          setViewMode("detail");
+          dispatch(fetchClientByIdSuccess(res.data));
+          dispatch(setSelectedClient(res.data));
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch client for detail view:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [paramClientId, reduxSelectedClient, clients, dispatch]);
 
   // Handle fresh reload when clicking sidebar Client item
@@ -701,7 +702,7 @@ export const ClientsModule: React.FC<ClientsModuleProps> = ({
           dispatch(setSelectedClient(null));
           setActiveDetailTab("Master");
           if (paramClientId || paramTab) {
-            router.replace("/client");
+            router.push("/client");
           }
         }}
         onEdit={(c) => {

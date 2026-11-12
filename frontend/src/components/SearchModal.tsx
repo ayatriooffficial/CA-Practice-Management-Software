@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, ArrowRight } from "lucide-react";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -71,9 +72,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
   );
 
   const handleSelect = (href: string) => {
-    router.push(href);
     onClose();
     setQuery("");
+    void navigateWithTransition(href, router);
   };
 
   return (

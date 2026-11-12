@@ -8,7 +8,6 @@ import {
   Plus,
   Search,
   ChevronDown,
-  ArrowDownUp,
   MoreVertical,
   Loader2,
   X,
@@ -48,6 +47,7 @@ import {
   selectTodoScopeCounts,
   selectTodoSidebarCounts,
   selectFilteredTodoTasks,
+  selectDateTabCounts,
   selectDateFilteredTasks,
 } from "@/store/features/todo/todoSelectors";
 import { fetchClientsRequest } from "@/store/features/clients/clientSlice";
@@ -66,7 +66,6 @@ import { TodoCalendarView } from "./TodoCalendarView";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
 import {
-  parseDateToYMD,
   getTodayKolkataYMD,
   getTomorrowKolkataYMD,
   formatFriendlyDate,
@@ -141,7 +140,7 @@ const TASK_VIEW_OPTIONS: TaskViewOption[] = [
 ];
 
 export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
-  userName,
+  userName: _userName,
   defaultCalendarView = false,
 }) => {
   const dispatch = useAppDispatch();
@@ -157,6 +156,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
   const unifiedTasks = useAppSelector(selectUnifiedTasks);
   const filteredTasks = useAppSelector(selectFilteredTodoTasks);
   const dateFilteredTasks = useAppSelector(selectDateFilteredTasks);
+  const dateTabCounts = useAppSelector(selectDateTabCounts);
   const sidebarCounts = useAppSelector(selectTodoSidebarCounts);
   const scopeCounts = useAppSelector(selectTodoScopeCounts);
   const isLoading = useAppSelector(selectIsTodoLoading);
@@ -166,7 +166,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
   const reduxClients = useAppSelector((state) => state.clients.items);
   const reduxTeam = useAppSelector((state) => state.team.members);
 
-  // Local state for fallback clients/employees if store is not populated
+  // Local state for fallback clients/employees if store is not yet populated
   const [fallbackClients, setFallbackClients] = useState<Client[]>([]);
   const [fallbackEmployees, setFallbackEmployees] = useState<EmployeeRecord[]>([]);
 
@@ -179,6 +179,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const viewDropdownRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(() => {
@@ -211,6 +212,12 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         !moreMenuRef.current.contains(event.target as Node)
       ) {
         setIsMoreMenuOpen(false);
+      }
+      if (
+        datePickerRef.current &&
+        !datePickerRef.current.contains(event.target as Node)
+      ) {
+        setShowDatePicker(false);
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
@@ -287,7 +294,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         role: m.role,
         email: m.email,
         phone: m.phone,
-        status: m.active ? 'active' : 'inactive',
+        status: m.active ? "active" : "inactive",
       }));
     }
     return fallbackEmployees;
@@ -398,17 +405,29 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
     const nextPriority =
       task.priority === "High" || task.priority === "Urgent" ? "Medium" : "High";
 
-    dispatch(
-      updateTaskProgressRequest({
-        taskId,
-        data: {
-          note: `Priority changed to ${nextPriority}`,
-        },
-      })
-    );
+    if ((task as any).isPersonal || task.id.startsWith("pt_")) {
+      const realId = task.taskId || task.id.replace("pt_", "");
+      dispatch(
+        updatePersonalTodoRequest({
+          id: realId,
+          updates: {
+            priority: nextPriority,
+          },
+        })
+      );
+    } else {
+      dispatch(
+        updateTaskProgressRequest({
+          taskId: task.id,
+          data: {
+            note: `Priority changed to ${nextPriority}`,
+          },
+        })
+      );
+    }
   };
 
-  // Active view information
+  // Active view configuration
   const currentViewConfig =
     TASK_VIEW_OPTIONS.find((opt) => opt.id === filters.activeSection) ||
     TASK_VIEW_OPTIONS[0];
@@ -426,12 +445,6 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
   const ViewIcon = currentViewConfig.icon;
 
-  // Paginated slice of currently date-filtered tasks
-  const paginatedTasks = useMemo(() => {
-    const startIndex = (pagination.page - 1) * pagination.limit;
-    return dateFilteredTasks.slice(startIndex, startIndex + pagination.limit);
-  }, [dateFilteredTasks, pagination.page, pagination.limit]);
-
   if (isCalendarView) {
     return (
       <div className="w-full flex flex-col space-y-4">
@@ -442,13 +455,24 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               To-Do Calendar
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCalendarView(false)}
-            className="flex items-center gap-1.5 h-10 px-3.5 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-all cursor-pointer"
-          >
-            Switch to List View
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsCalendarView(false)}
+              className="flex items-center gap-1.5 h-10 px-3.5 rounded-md text-xs font-semibold border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-all cursor-pointer"
+            >
+              Switch to List View
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap"
+              style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Add To-Do</span>
+            </button>
+          </div>
         </div>
 
         <div className="w-full bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md min-h-[600px]">
@@ -481,7 +505,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
   return (
     <div className="w-full flex flex-col space-y-4">
-      {/* 1. Header Row - Client Module Style */}
+      {/* 1. Top Heading Row: To-Do (count) on left, Add To-Do on right */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-1 min-h-[48px]">
         <div className="flex items-center gap-3 py-2 min-h-[40px]">
           <h1 className="text-2xl font-bold tracking-tight text-[#000000] dark:text-white">
@@ -493,19 +517,33 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
             </span>
           )}
         </div>
+
+        {/* Top-Right Add To-Do Button */}
+        <button
+          type="button"
+          onClick={() => setIsAddModalOpen(true)}
+          className="h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap"
+          style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>Add To-Do</span>
+        </button>
       </div>
 
       {/* 2. Main Layout Row: Single Task-List Container + Right Rail */}
       <div className="flex items-start gap-3">
         {/* The ONE Single Main Task-List Container */}
-        <div className="flex-1 min-w-0 bg-white dark:bg-[#1e293b] shadow-card overflow-hidden flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
+        <div className="flex-1 min-w-0 bg-white dark:bg-[#1e293b] shadow-card flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
           {/* Row 1: Top Category & Tag Navigation Row */}
-          <div className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex items-center gap-2.5 sm:gap-3 shrink-0 overflow-x-auto no-scrollbar bg-white dark:bg-[#1e293b]">
+          <div className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex items-center gap-2.5 sm:gap-3 shrink-0 bg-white dark:bg-[#1e293b] relative z-30">
             {/* Task-View Dropdown (All / Important / Finished / Recurring Master / Deleted) */}
-            <div className="relative shrink-0" ref={viewDropdownRef}>
+            <div className="relative shrink-0 z-50" ref={viewDropdownRef}>
               <button
                 type="button"
-                onClick={() => setIsViewDropdownOpen((prev) => !prev)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsViewDropdownOpen((prev) => !prev);
+                }}
                 className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 ${
                   isViewDropdownOpen
                     ? "border-[#31719B] ring-1 ring-[#31719B]"
@@ -559,8 +597,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       <button
                         key={opt.id}
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           dispatch(setActiveSection(opt.id));
+                          dispatch(setTodoPage(1));
                           setIsViewDropdownOpen(false);
                           setIsCalendarView(false);
                         }}
@@ -619,8 +659,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       <button
                         key={opt.id}
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           dispatch(setActiveSection(opt.id));
+                          dispatch(setTodoPage(1));
                           setIsViewDropdownOpen(false);
                           setIsCalendarView(false);
                         }}
@@ -723,12 +765,12 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Row 2: Filters Toolbar (Search, Client, Assignee, Sort, ⋮ on left; Filter by due date, Calendar, + Add To-Do on right) */}
-          <div className="p-3 sm:px-4 sm:py-3 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1e293b]">
+          {/* Row 2: First Toolbar Row (Full width: Left = Search, Clients, Assignees, Sort, ⋮ | Right = Filter by due date, Calendar) */}
+          <div className="p-3 sm:px-4 sm:py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1e293b] relative z-20">
             {/* Left Controls */}
             <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
               {/* Search Box */}
-              <div className="relative w-full sm:w-60 md:w-64">
+              <div className="relative w-full sm:w-56 md:w-64">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
                   id="todo-search-input"
@@ -819,7 +861,10 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               <div className="relative shrink-0" ref={moreMenuRef}>
                 <button
                   type="button"
-                  onClick={() => setIsMoreMenuOpen((prev) => !prev)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMoreMenuOpen((prev) => !prev);
+                  }}
                   className="h-10 w-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center cursor-pointer transition-colors"
                   title="More options"
                   aria-label="More options"
@@ -833,6 +878,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       type="button"
                       onClick={() => {
                         dispatch(setActiveSection("recurring"));
+                        dispatch(setTodoPage(1));
                         setIsMoreMenuOpen(false);
                       }}
                       className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
@@ -844,6 +890,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       type="button"
                       onClick={() => {
                         dispatch(setActiveSection("deleted"));
+                        dispatch(setTodoPage(1));
                         setIsMoreMenuOpen(false);
                       }}
                       className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
@@ -885,13 +932,16 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Right Controls: Filter by due date, Calendar, + Add To-Do */}
+            {/* Right Controls: Filter by due date, Calendar */}
             <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
               {/* Filter by due date button / popover */}
-              <div className="relative">
+              <div className="relative" ref={datePickerRef}>
                 <button
                   type="button"
-                  onClick={() => setShowDatePicker((prev) => !prev)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDatePicker((prev) => !prev);
+                  }}
                   className={`h-10 px-3.5 text-xs font-semibold rounded-md border flex items-center gap-2 transition-all cursor-pointer ${
                     filters.dueDateFilter
                       ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 font-semibold"
@@ -917,7 +967,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
                 {/* Date Filter Dropdown Popover */}
                 {showDatePicker && (
-                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[#1e293b] rounded-md shadow-xl border border-[#dde2e8] dark:border-[#334155] p-3 z-30 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[#1e293b] rounded-md shadow-xl border border-[#dde2e8] dark:border-[#334155] p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Quick Date Select
                     </div>
@@ -971,21 +1021,113 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                 <Calendar className="w-3.5 h-3.5 text-[#31719B]" />
                 <span>Calendar</span>
               </button>
-
-              {/* + Add To-Do Primary Button */}
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(true)}
-                className="h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap"
-                style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Add To-Do</span>
-              </button>
             </div>
           </div>
 
-          {/* Row 3 & 4: Task List / Table Area */}
+          {/* Row 3: Second Toolbar Row (Agenda Tabs immediately beneath first toolbar row, spanning full width) */}
+          <div className="px-4 py-2 border-b border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-slate-900/40 flex flex-wrap items-center justify-between gap-2 shrink-0 relative z-10">
+            {/* Agenda Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0 max-w-full">
+              <button
+                type="button"
+                onClick={() => dispatch(setDateFilterTab("all"))}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
+                  filters.dateFilterTab === "all"
+                    ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                All Agenda ({dateTabCounts.all})
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(setDateFilterTab("today"))}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
+                  filters.dateFilterTab === "today"
+                    ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                Today ({dateTabCounts.today})
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(setDateFilterTab("tomorrow"))}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
+                  filters.dateFilterTab === "tomorrow"
+                    ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                Tomorrow ({dateTabCounts.tomorrow})
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(setDateFilterTab("upcoming"))}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
+                  filters.dateFilterTab === "upcoming"
+                    ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] border border-[#dde2e8] dark:border-[#334155] shadow-2xs"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                Upcoming ({dateTabCounts.upcoming})
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(setDateFilterTab("overdue"))}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer shrink-0 ${
+                  filters.dateFilterTab === "overdue"
+                    ? "bg-white dark:bg-[#1e293b] text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 shadow-2xs"
+                    : dateTabCounts.overdue > 0
+                    ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                Overdue ({dateTabCounts.overdue})
+              </button>
+            </div>
+
+            {/* Admin Scope Switcher: My Work | Team Work | All Work */}
+            {isAdmin && (
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-md shrink-0 border border-[#dde2e8]/60 dark:border-[#334155]/60">
+                <button
+                  type="button"
+                  onClick={() => dispatch(setAdminScope("my_work"))}
+                  className={`px-2.5 py-1 text-xs rounded font-medium transition-all cursor-pointer shrink-0 ${
+                    filters.adminScope === "my_work"
+                      ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] shadow-2xs font-semibold"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  My Work ({scopeCounts.myWork})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dispatch(setAdminScope("team_work"))}
+                  className={`px-2.5 py-1 text-xs rounded font-medium transition-all cursor-pointer shrink-0 ${
+                    filters.adminScope === "team_work"
+                      ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] shadow-2xs font-semibold"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  Team Work ({scopeCounts.teamWork})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dispatch(setAdminScope("all_work"))}
+                  className={`px-2.5 py-1 text-xs rounded font-medium transition-all cursor-pointer shrink-0 ${
+                    filters.adminScope === "all_work"
+                      ? "bg-white dark:bg-[#1e293b] text-[#31719B] dark:text-[#60A5FA] shadow-2xs font-semibold"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  All Work ({scopeCounts.allWork})
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Row 4: Task List / Table Area */}
           <div className="flex-1 flex flex-col min-h-[450px]">
             {isLoading && unifiedTasks.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-gray-400 text-xs">
@@ -1043,6 +1185,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   adminScope={filters.adminScope}
                   onScopeChange={(s) => dispatch(setAdminScope(s))}
                   scopeCounts={scopeCounts}
+                  hideHeader={true}
                 />
 
                 {/* Pagination footer if tasks exceed page limit */}

@@ -40,6 +40,7 @@ import {
   PenTool,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 import {
   DocumentCategory,
   CATEGORY_MAP,
@@ -316,7 +317,7 @@ export function DriveModule() {
     try {
       const res = await pdfSignerApi.stageFromDrive(docId);
       if (res && res.data) {
-        router.push('/pdf-signer');
+        void navigateWithTransition('/pdf-signer', router);
       }
     } catch (err: any) {
       alert(err?.message || 'Failed to prepare document for DSC signing');

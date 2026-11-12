@@ -27,6 +27,7 @@ import { taskApi } from "@/services/taskApi";
 import { TaskItem } from "@/data/taskData";
 import { useAuth } from "@/components/auth/AuthContext";
 import { financialApi } from "@/services/financialApi";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 import {
   TaskNavigationMenu,
   TaskSubTasksList,
@@ -367,7 +368,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
     };
 
     sessionStorage.setItem("turia_draft_invoice_from_task", JSON.stringify(draftInvoice));
-    router.push("/invoice?fromTask=1");
+    void navigateWithTransition("/invoice?fromTask=1", router);
   };
 
   const handleStatusChange = async (newStatus: any) => {

@@ -74,6 +74,11 @@ export function mapPersistedInvoice(record: FinancialInvoiceRecord): InvoiceReco
 
 function* handleFetchInvoices(): Generator<any, void, any> {
   try {
+    const isLoaded: boolean = yield select((state: RootState) => state.invoices.isLoaded);
+    if (isLoaded) {
+      return;
+    }
+
     const [records, receiptsData]: [FinancialInvoiceRecord[], any[]] = yield all([
       call(financialApi.listInvoices),
       call(financialApi.listReceipts),

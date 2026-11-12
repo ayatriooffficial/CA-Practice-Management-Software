@@ -1,12 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGmail } from '@/hooks/useGmail';
 import { ThreadList } from '@/components/email/ThreadList';
 import { ThreadView } from '@/components/email/ThreadView';
 import { ComposeModal } from '@/components/email/ComposeModal';
+import { useAppDispatch } from '@/store/hooks';
+import { fetchEmailsRequest } from '@/store/features/email/emailSlice';
 
 export default function EmailPage() {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    dispatch(fetchEmailsRequest());
+  }, [dispatch]);
+
   const {
     status,
     email,

@@ -1,4 +1,5 @@
 import { pdfSignerApi } from './pdfSignerApi';
+import { navigateWithTransition } from '@/hooks/useSectionNavigation';
 
 export interface StageOptions {
   fileName: string;
@@ -89,6 +90,6 @@ export async function stageAndRedirectToPdfSigner(
   const redirectUrl = stagedId
     ? `/pdf-signer?stagedId=${encodeURIComponent(stagedId)}`
     : '/pdf-signer';
-  router.push(redirectUrl);
+  await navigateWithTransition(redirectUrl, router);
 }
 

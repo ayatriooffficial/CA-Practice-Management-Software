@@ -79,7 +79,8 @@ export const selectTodoSidebarCounts = createSelector(
       const isDone = (t.status || '').toLowerCase() === 'completed';
       const isCancelled =
         (t.status || '').toLowerCase() === 'cancelled' || (t.status || '').toLowerCase() === 'deleted';
-      const isImp = t.priority === 'Urgent' || t.priority === 'High';
+      const p = (t.priority || '').toLowerCase();
+      const isImp = p === 'urgent' || p === 'high' || Boolean((t as any).isStarred) || Boolean((t as any).starred);
       const isRec = Boolean(
         t.category?.toLowerCase().includes('recurring') ||
           t.taskName?.toLowerCase().includes('recurring')
@@ -144,7 +145,10 @@ export const selectFilteredTodoTasks = createSelector(
       list = list.filter((t) => (t.status || '').toLowerCase() !== 'completed');
 
       if (filters.activeSection === 'important') {
-        list = list.filter((t) => t.priority === 'Urgent' || t.priority === 'High');
+        list = list.filter((t) => {
+          const p = (t.priority || '').toLowerCase();
+          return p === 'urgent' || p === 'high' || Boolean((t as any).isStarred) || Boolean((t as any).starred);
+        });
       } else if (filters.activeSection === 'recurring') {
         list = list.filter((t) =>
           Boolean(

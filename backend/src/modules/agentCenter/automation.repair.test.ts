@@ -13,6 +13,7 @@ import { ClientService } from '../client/client.service';
 import { Client } from '../client/client.model';
 import { AgentExecutionService, executeProvider, resolveRecipientWithFallback } from './execution.service';
 import { WhatsAppService } from '../../shared/utils/whatsAppService';
+import { MailService } from '../../shared/utils/mailService';
 import { parseExpiryMilestones } from '../../config/env';
 import { AgentRun } from './agentRun.model';
 
@@ -359,6 +360,125 @@ describe('Agent Center Automation Audit & Repair Verification', () => {
       assert.equal(res.success, false);
       assert.equal(res.status, 'failed');
       assert.ok(res.error?.includes('WHATSAPP_API_TOKEN'));
+    });
+
+    it('honestly records failure when Email credentials are not authorized in real send mode', async () => {
+      const origGetStatus = MailService.getStatus;
+      MailService.getStatus = async () => ({
+        connected: false,
+        authorized: false,
+        provider: 'none',
+        email: null,
+        needsReconnect: false,
+        statusText: 'Not connected',
+        error: 'Email delivery provider credentials not configured (Gmail OAuth or SMTP required).',
+      });
+
+      try {
+        const result = await executeProvider('Email', {
+          recipient: 'director@tatamotors.com',
+          recipientLabel: 'Director',
+          message: 'Reminder: Your DSC is expiring.',
+          subject: 'DSC Expiry',
+          previewOnly: false,
+          simulateFailure: false,
+        });
+
+        assert.equal(result.mode, 'real');
+        assert.equal(result.status, 'failed');
+        assert.equal(result.simulated, false);
+        assert.ok(result.error?.includes('credentials not configured'));
+      } finally {
+        MailService.getStatus = origGetStatus;
+      }
+    });
+
+    it('successfully dispatches via MailService.sendMail when Email provider is authorized', async () => {
+      const origGetStatus = MailService.getStatus;
+      const origSendMail = MailService.sendMail;
+
+      MailService.getStatus = async () => ({
+        connected: true,
+        authorized: true,
+        provider: 'gmail',
+        email: 'searchaicloud@gmail.com',
+        needsReconnect: false,
+        statusText: 'Connected (searchaicloud@gmail.com)',
+      });
+
+      let sentOptions: any = null;
+      MailService.sendMail = async (opts) => {
+        sentOptions = opts;
+        return {
+          success: true,
+          messageId: 'gmail_msg_id_test_abc123',
+          provider: 'gmail',
+        };
+      };
+
+      try {
+        const result = await executeProvider('Email', {
+          recipient: 'director@tatamotors.com',
+          recipientLabel: 'Director (director@tatamotors.com)',
+          message: 'Your Digital Signature Certificate expires in 15 days.',
+          subject: 'DSC Expiry Approaching: Director',
+          previewOnly: false,
+          simulateFailure: false,
+        });
+
+        assert.equal(result.mode, 'real');
+        assert.equal(result.status, 'delivered');
+        assert.equal(result.simulated, false);
+        assert.equal(result.provider, 'gmail');
+        assert.equal(result.executionId, 'gmail_msg_id_test_abc123');
+        assert.deepEqual(sentOptions, {
+          to: 'director@tatamotors.com',
+          subject: 'DSC Expiry Approaching: Director',
+          text: 'Your Digital Signature Certificate expires in 15 days.',
+        });
+      } finally {
+        MailService.getStatus = origGetStatus;
+        MailService.sendMail = origSendMail;
+      }
+    });
+
+    it('truthfully reports error when MailService.sendMail fails', async () => {
+      const origGetStatus = MailService.getStatus;
+      const origSendMail = MailService.sendMail;
+
+      MailService.getStatus = async () => ({
+        connected: true,
+        authorized: true,
+        provider: 'gmail',
+        email: 'searchaicloud@gmail.com',
+        needsReconnect: false,
+        statusText: 'Connected (searchaicloud@gmail.com)',
+      });
+
+      MailService.sendMail = async () => ({
+        success: false,
+        error: 'Gmail API HTTP error 403: Daily user sending quota exceeded',
+        provider: 'gmail',
+      });
+
+      try {
+        const result = await executeProvider('Email', {
+          recipient: 'director@tatamotors.com',
+          recipientLabel: 'Director',
+          message: 'Urgent: License renewal required.',
+          subject: 'License Expiry',
+          previewOnly: false,
+          simulateFailure: false,
+        });
+
+        assert.equal(result.mode, 'real');
+        assert.equal(result.status, 'failed');
+        assert.equal(result.simulated, false);
+        assert.ok(result.error?.includes('Daily user sending quota exceeded'));
+      } finally {
+        MailService.getStatus = origGetStatus;
+        MailService.sendMail = origSendMail;
+      }
     });
   });
 

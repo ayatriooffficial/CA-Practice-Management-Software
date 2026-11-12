@@ -117,7 +117,7 @@ export const ComplianceShell: React.FC = () => {
   const searchParams = useSearchParams();
 
   const dispatch = useAppDispatch();
-  const { rows, columns, loading, isLoaded, currentParams } = useAppSelector(
+  const { rows, columns, loading, isLoaded } = useAppSelector(
     (state) => state.compliance
   );
 
@@ -144,20 +144,19 @@ export const ComplianceShell: React.FC = () => {
   const [isSyncDrawerOpen, setIsSyncDrawerOpen] = useState(false);
   const searchInput = localSearch !== null ? localSearch : searchParam || "";
 
+  // Memoize fetch parameters based ONLY on primitive filter values
+  const fetchParams = useMemo(() => ({
+    category: activeCategoryId,
+    categoryId: activeCategoryId,
+    fy: activeFy,
+    frequency: activeFrequency,
+    search: searchInput ? searchInput.trim() : undefined,
+  }), [activeCategoryId, activeFy, activeFrequency, searchInput]);
+
+  // Stable effect: runs ONLY when primitive filter values change, preventing infinite loops
   useEffect(() => {
-    const params = {
-      category: activeCategoryId,
-      categoryId: activeCategoryId,
-      fy: activeFy,
-      frequency: activeFrequency,
-      search: searchInput || undefined,
-    };
-    const isSame = JSON.stringify(currentParams) === JSON.stringify(params);
-    if (isLoaded && isSame && rows.length > 0) {
-      return;
-    }
-    dispatch(fetchComplianceRequest(params));
-  }, [dispatch, activeCategoryId, activeFy, activeFrequency, searchInput, isLoaded, currentParams, rows.length]);
+    dispatch(fetchComplianceRequest(fetchParams));
+  }, [dispatch, fetchParams]);
 
   const updateUrlParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -181,15 +180,6 @@ export const ComplianceShell: React.FC = () => {
       category: catName,
       tab: catName,
     });
-    dispatch(
-      fetchComplianceRequest({
-        category: catName,
-        categoryId: catName,
-        fy: activeFy,
-        frequency: activeFrequency,
-        search: searchInput || undefined,
-      })
-    );
   };
 
   const handleFrequencyChange = (freq: FrequencyKey) => {

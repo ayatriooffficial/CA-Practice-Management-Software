@@ -9,6 +9,8 @@ import { aggregateEmployeeCosts, aggregatePeriodFacts, calculateProfitPaise, cal
 import { generateProfitabilityReportPdf, ProfitabilityPdfRow } from './pdf.generator';
 import { AgentExecutionService } from '../agentCenter/execution.service';
 import { CounterService } from '../counter/counter.service';
+import { MailService } from '../../shared/utils/mailService';
+import { logger } from '../../config/logger';
 
 export interface FinancialUserContext {
   userId: string;
@@ -929,5 +931,259 @@ export class FinancialService {
         link: '/invoice',
       },
     };
+  }
+
+  /**
+   * Helper to resolve client name and email for financial document notifications
+   */
+  private static async resolveClientInfo(
+    clientId?: string,
+    clientName?: string,
+    passedEmail?: string
+  ): Promise<{ email: string; name: string }> {
+    let email = (passedEmail || '').trim();
+    let name = (clientName || '').trim();
+
+    if (!email && clientId) {
+      try {
+        let clientDoc: any = null;
+        if (mongoose.Types.ObjectId.isValid(clientId)) {
+          clientDoc = await Client.findById(clientId).select('name email fileNo').lean();
+        }
+        if (!clientDoc) {
+          clientDoc = await Client.findOne({ fileNo: clientId, isDeleted: false }).select('name email fileNo').lean();
+        }
+        if (!clientDoc) {
+          clientDoc = await Client.findOne({ name: clientId, isDeleted: false }).select('name email fileNo').lean();
+        }
+        if (clientDoc) {
+          if (clientDoc.email) email = clientDoc.email.trim();
+          if (!name && clientDoc.name) name = clientDoc.name.trim();
+        }
+      } catch (err: any) {
+        logger.warn(`Failed to resolve client info for email dispatch: ${err?.message}`);
+      }
+    }
+
+    if (!email && name) {
+      try {
+        const clientDoc = await Client.findOne({ name, isDeleted: false }).select('name email fileNo').lean();
+        if (clientDoc?.email) email = clientDoc.email.trim();
+      } catch (err: any) {
+        logger.warn(`Failed to resolve client by name for email dispatch: ${err?.message}`);
+      }
+    }
+
+    return { email, name: name || 'Valued Client' };
+  }
+
+  /**
+   * Asynchronously dispatches an automated invoice email notification to the client
+   */
+  public static async dispatchInvoiceEmail(
+    invoice: InstanceType<typeof FinancialInvoice>,
+    input: {
+      details?: Record<string, unknown>;
+      kind?: string;
+      number?: string;
+      issueDate?: string | null;
+      allocations?: IInvoiceAllocation[];
+    }
+  ): Promise<void> {
+    try {
+      const details = (input.details || invoice.details || {}) as Record<string, any>;
+      const invoiceNum = invoice.number || input.number || 'INV';
+      const isCreditNote = input.kind === 'credit_note' || invoice.kind === 'credit_note';
+
+      const explicitEmail = (details.clientEmail as string) || (details.email as string) || '';
+      const explicitName = (details.clientName as string) || (details.businessName as string) || (details.legalName as string) || '';
+      const explicitClientId = (details.clientId as string) || '';
+
+      let { email: clientEmail, name: clientName } = await this.resolveClientInfo(
+        explicitClientId,
+        explicitName,
+        explicitEmail
+      );
+
+      // Check task allocations if client email still unresolved
+      if (!clientEmail && invoice.allocations?.length) {
+        const firstTaskId = invoice.allocations[0]?.taskId;
+        if (firstTaskId) {
+          const task = await Task.findOne({ taskId: firstTaskId }).select('clientId clientName').lean();
+          if (task?.clientId) {
+            const taskClientInfo = await this.resolveClientInfo(task.clientId, task.clientName);
+            if (taskClientInfo.email) {
+              clientEmail = taskClientInfo.email;
+              if (clientName === 'Valued Client' && taskClientInfo.name) clientName = taskClientInfo.name;
+            }
+          }
+        }
+      }
+
+      if (!clientEmail || !clientEmail.includes('@')) {
+        logger.info(`ℹ️ [Invoice Email] Skipped dispatch for invoice #${invoiceNum}: no client email address found.`);
+        return;
+      }
+
+      const totalAmount = Number(details.totalPayable || 0);
+      const formattedAmount = totalAmount ? `₹${totalAmount.toLocaleString('en-IN')}` : '₹0.00';
+      const dueDate = (details.dueDate as string) || (input.issueDate ? String(input.issueDate) : 'Upon Receipt');
+      const docTypeLabel = isCreditNote ? 'Credit Note' : 'Tax Invoice';
+
+      const subject = `${docTypeLabel} #${invoiceNum} from CA Practice Management - ${formattedAmount}`;
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+            <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <div style="background: #1e3a8a; padding: 24px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700;">CA Practice Management</h1>
+                <p style="color: #bfdbfe; margin: 6px 0 0; font-size: 13px;">New ${docTypeLabel} Issued</p>
+              </div>
+              <div style="padding: 28px;">
+                <p style="margin: 0 0 16px; font-size: 15px;">Dear <strong>${clientName}</strong>,</p>
+                <p style="margin: 0 0 20px; font-size: 14px; color: #475569; line-height: 1.6;">
+                  Please find below the billing details of the ${docTypeLabel.toLowerCase()} issued for professional services rendered to your account:
+                </p>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0;">${docTypeLabel} Number</td>
+                    <td style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #e2e8f0; text-align: right;">${invoiceNum}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Total Amount</td>
+                    <td style="padding: 12px 16px; font-size: 16px; font-weight: 700; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; text-align: right;">${formattedAmount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b;">Due Date</td>
+                    <td style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #1e293b; text-align: right;">${dueDate}</td>
+                  </tr>
+                </table>
+                <p style="margin: 0 0 16px; font-size: 13.5px; color: #475569; line-height: 1.6;">
+                  Kindly arrange for payment on or before the due date. If you have already made this payment or have any queries, please let us know.
+                </p>
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 24px;">
+                  <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                    Thank you for your valued business.<br>
+                    <strong>CA Practice Management Services</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      await MailService.sendMail({
+        to: clientEmail,
+        subject,
+        html,
+        text: `Dear ${clientName},\n\nYour ${docTypeLabel} #${invoiceNum} has been issued for ${formattedAmount}. Due Date: ${dueDate}.\n\nThank you,\nCA Practice Management`,
+      });
+      logger.info(`📧 [Invoice Email] Dispatched ${docTypeLabel.toLowerCase()} #${invoiceNum} notification to ${clientEmail}`);
+    } catch (mailErr: any) {
+      logger.error(`❌ [Invoice Email] Failed to dispatch email for invoice #${invoice?.number}:`, mailErr);
+    }
+  }
+
+  /**
+   * Asynchronously dispatches an automated payment receipt acknowledgment email to the client
+   */
+  public static async dispatchReceiptEmail(
+    receipt: any,
+    input: {
+      clientId?: string;
+      businessName?: string;
+      legalName?: string;
+      details?: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    try {
+      const explicitEmail = (input.details?.clientEmail as string) || (input.details?.email as string) || (receipt.details?.clientEmail as string) || '';
+      const explicitName = input.businessName || input.legalName || receipt.businessName || receipt.legalName || '';
+      const explicitClientId = input.clientId || receipt.clientId || '';
+
+      let { email: clientEmail, name: clientName } = await this.resolveClientInfo(
+        explicitClientId,
+        explicitName,
+        explicitEmail
+      );
+
+      if (!clientEmail && receipt.invoiceId) {
+        const inv = await FinancialInvoice.findById(receipt.invoiceId).select('details').lean();
+        const invEmail = (inv?.details as any)?.clientEmail || (inv?.details as any)?.email;
+        if (invEmail) clientEmail = invEmail;
+      }
+
+      if (!clientEmail || !clientEmail.includes('@')) {
+        logger.info(`ℹ️ [Receipt Email] Skipped dispatch for receipt #${receipt?.receiptNo}: no client email address found.`);
+        return;
+      }
+
+      const amount = Number(receipt.amount || 0);
+      const formattedAmount = `₹${amount.toLocaleString('en-IN')}`;
+      const method = receipt.method || 'Bank Transfer';
+      const receiptNo = receipt.receiptNo || 'REC';
+      const invoiceNumber = receipt.invoiceNumber || 'N/A';
+
+      const subject = `Payment Receipt #${receiptNo} - CA Practice Management`;
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+            <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <div style="background: #059669; padding: 24px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700;">CA Practice Management</h1>
+                <p style="color: #d1fae5; margin: 6px 0 0; font-size: 13px;">Payment Acknowledgment Receipt</p>
+              </div>
+              <div style="padding: 28px;">
+                <p style="margin: 0 0 16px; font-size: 15px;">Dear <strong>${clientName}</strong>,</p>
+                <p style="margin: 0 0 20px; font-size: 14px; color: #475569; line-height: 1.6;">
+                  We gratefully acknowledge the receipt of your payment. Below are the transaction details:
+                </p>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Receipt Number</td>
+                    <td style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #e2e8f0; text-align: right;">${receiptNo}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Amount Received</td>
+                    <td style="padding: 12px 16px; font-size: 16px; font-weight: 700; color: #059669; border-bottom: 1px solid #e2e8f0; text-align: right;">${formattedAmount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Payment Mode</td>
+                    <td style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #e2e8f0; text-align: right;">${method}</td>
+                  </tr>
+                  ${invoiceNumber !== 'N/A' ? `
+                  <tr>
+                    <td style="padding: 12px 16px; font-size: 13px; color: #64748b;">Against Invoice</td>
+                    <td style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #1e293b; text-align: right;">${invoiceNumber}</td>
+                  </tr>` : ''}
+                </table>
+                <p style="margin: 0 0 16px; font-size: 13.5px; color: #475569; line-height: 1.6;">
+                  This is an electronically generated acknowledgment receipt. If you require a detailed statement of account, please contact our accounts desk.
+                </p>
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 24px;">
+                  <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                    Thank you for prompt payment.<br>
+                    <strong>CA Practice Management Accounts Department</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      await MailService.sendMail({
+        to: clientEmail,
+        subject,
+        html,
+        text: `Dear ${clientName},\n\nPayment received: ${formattedAmount} via ${method}. Receipt #${receiptNo}.\n\nThank you,\nCA Practice Management`,
+      });
+      logger.info(`📧 [Receipt Email] Dispatched payment receipt #${receiptNo} notification to ${clientEmail}`);
+    } catch (mailErr: any) {
+      logger.error(`❌ [Receipt Email] Failed to dispatch email for receipt #${receipt?.receiptNo}:`, mailErr);
+    }
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   InvoiceTab,
   InvoiceRecord,
@@ -79,7 +80,10 @@ const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
 
 export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const invoiceState = useAppSelector((state) => state.invoices);
+  const tabParam = (searchParams?.get('tab') as InvoiceTab) || undefined;
 
   // Automatically fetch persisted invoices from MongoDB backend on mount via Redux Saga
   useEffect(() => {
@@ -88,11 +92,19 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [dispatch, invoiceState.isLoaded]);
 
+  // Synchronize activeTab from URL searchParams
+  useEffect(() => {
+    if (tabParam && tabParam !== invoiceState.activeTab) {
+      dispatch(sliceSetActiveTab(tabParam));
+    }
+  }, [tabParam, invoiceState.activeTab, dispatch]);
+
   const setActiveTab = useCallback(
     (tab: InvoiceTab) => {
       dispatch(sliceSetActiveTab(tab));
+      router.push(`/invoice?tab=${tab}`);
     },
-    [dispatch]
+    [dispatch, router]
   );
 
   const setFinancialYear = useCallback(

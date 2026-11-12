@@ -1,8 +1,9 @@
-import { call, put, takeLatest, all } from 'redux-saga/effects';
+import { call, put, select, takeLatest, all } from 'redux-saga/effects';
 import { PayloadAction } from '@reduxjs/toolkit';
 import { taskApi, TaskQueryParams } from '@/services/taskApi';
 import { ApiResponse } from '@/services/apiClient';
 import { TaskItem, TaskStats } from '@/data/taskData';
+import { RootState } from '../../rootReducer';
 import {
   fetchTasksRequest,
   fetchTasksSuccess,
@@ -30,6 +31,12 @@ import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchTasks(action: PayloadAction<TaskQueryParams | undefined>): Generator<any, void, any> {
   try {
+    const isLoaded: boolean = yield select((state: RootState) => state.tasks.isLoaded);
+    const hasParams = Boolean(action.payload && Object.keys(action.payload).length > 0);
+    if (isLoaded && !hasParams) {
+      return;
+    }
+
     const response: ApiResponse<TaskItem[]> = yield call(taskApi.getTasks, action.payload || {});
     const tasks = response.data || [];
     yield put(
@@ -66,6 +73,10 @@ function* handleFetchTaskById(action: PayloadAction<string>): Generator<any, voi
 
 function* handleFetchTaskStats(action: PayloadAction<string | undefined>): Generator<any, void, any> {
   try {
+    const existingStats = yield select((state: RootState) => state.tasks.stats);
+    if (existingStats && !action.payload) {
+      return;
+    }
     const response: ApiResponse<TaskStats> = yield call(taskApi.getTaskStats, action.payload);
     if (response.data) {
       yield put(fetchTaskStatsSuccess(response.data));

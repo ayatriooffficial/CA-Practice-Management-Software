@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TeamTabsHeader, TeamTab } from './TeamTabsHeader';
 import { TeamListView } from './TeamListView';
 import { AttendanceView } from './AttendanceView';
@@ -14,7 +15,10 @@ import { useAuth } from '../auth/AuthContext';
 import { pageStateCache } from '@/services/pageStateCache';
 
 export const TeamModule: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TeamTab>('team');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = (searchParams?.get('tab') as TeamTab) || 'team';
+  const [activeTab, setActiveTab] = useState<TeamTab>(tabParam);
   const [employees, setEmployees] = useState<EmployeeRecord[]>(() => teamStore.getEmployees());
   const [isLoaded, setIsLoaded] = useState(() => teamStore.getEmployees().length > 0);
   const { currentUser } = useAuth();
@@ -22,10 +26,20 @@ export const TeamModule: React.FC = () => {
   const isEmployee = roleLower === 'employee';
   const isAdmin = roleLower === 'admin';
 
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam, activeTab]);
+
   const loadData = async () => {
     const local = teamStore.getEmployees();
     setEmployees(local);
     setIsLoaded(true);
+    // If team data is already loaded in this session, preserve instantly with zero network refetch
+    if (pageStateCache.isLoaded('/team') && local.length > 0) {
+      return;
+    }
     pageStateCache.markLoaded('/team');
     try {
       const fresh = await teamStore.loadEmployeesFromBackend();
@@ -58,6 +72,7 @@ export const TeamModule: React.FC = () => {
         activeTab={currentTab}
         onTabChange={(tab) => {
           setActiveTab(tab);
+          router.push(`/team?tab=${tab}`);
         }}
       />
 

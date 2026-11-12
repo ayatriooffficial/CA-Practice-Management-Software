@@ -1,5 +1,7 @@
 import { logger } from '../../config/logger';
 
+export const WHATSAPP_GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || 'v21.0';
+
 export interface SendWhatsAppOptions {
   to: string; // E.164 formatted phone number e.g. +919876543210
   message?: string;
@@ -50,7 +52,7 @@ export class WhatsAppService {
     try {
       const token = process.env.WHATSAPP_API_TOKEN!;
       const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
-      const url = `https://graph.facebook.com/v18.0/${phoneId}/messages`;
+      const url = `https://graph.facebook.com/${WHATSAPP_GRAPH_API_VERSION}/${phoneId}/messages`;
 
       let requestBody: Record<string, unknown>;
 
@@ -146,7 +148,7 @@ export class WhatsAppService {
     const token = process.env.WHATSAPP_API_TOKEN;
     if (!token || !mediaId) return null;
     try {
-      const res = await fetch(`https://graph.facebook.com/v18.0/${mediaId}`, {
+      const res = await fetch(`https://graph.facebook.com/${WHATSAPP_GRAPH_API_VERSION}/${mediaId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return null;

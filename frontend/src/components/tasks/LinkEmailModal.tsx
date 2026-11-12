@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, Mail, Loader2, Check, ExternalLink } from 'lucide-react';
 import { useGmailThreads } from '@/hooks/useGmail';
 import { useLinkEmailToTask } from '@/hooks/useTaskMutations';
 import { LinkedEmail, TaskItem } from '@/data/taskData';
 import { ThreadListItem } from '@/lib/integrations/gmail';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchEmailsRequest } from '@/store/features/email/emailSlice';
 
 interface LinkEmailModalProps {
   isOpen: boolean;
@@ -21,21 +23,31 @@ export const LinkEmailModal: React.FC<LinkEmailModalProps> = ({
   onSuccess,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedThread, setSelectedThread] = useState<ThreadListItem | null>(null);
+  const [selectedThread, setSelectedThread] = useState<ThreadListItem | any | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const dispatch = useAppDispatch();
+  const { items: reduxEmails, loading: reduxLoading, error: reduxError } = useAppSelector((state) => state.emails);
+
+  useEffect(() => {
+    if (isOpen) {
+      dispatch(fetchEmailsRequest());
+    }
+  }, [isOpen, dispatch]);
+
   // TanStack Query for inbox threads (cached with staleTime: 60000)
-  const { data, isLoading, isError, error } = useGmailThreads();
+  const { data, isLoading: queryLoading, isError, error } = useGmailThreads();
   const linkMutation = useLinkEmailToTask();
 
-  const threads = data?.threads || [];
+  const threads = reduxEmails.length > 0 ? reduxEmails : (data?.threads || []);
+  const isLoading = reduxEmails.length > 0 ? false : (reduxLoading || queryLoading);
 
   // Filter threads by search term
   const filteredThreads = useMemo(() => {
     if (!searchTerm.trim()) return threads;
     const term = searchTerm.toLowerCase();
     return threads.filter(
-      (t: ThreadListItem) =>
+      (t: any) =>
         t.subject?.toLowerCase().includes(term) ||
         t.from?.toLowerCase().includes(term) ||
         t.snippet?.toLowerCase().includes(term),
@@ -47,7 +59,7 @@ export const LinkEmailModal: React.FC<LinkEmailModalProps> = ({
     return Boolean(task.linkedEmails?.some((e) => e.threadId === threadId));
   };
 
-  const handleLink = async (thread: ThreadListItem) => {
+  const handleLink = async (thread: any) => {
     setErrorMsg(null);
     const targetTaskId = task.id || (task as any)._id || task.taskId;
     const emailMeta: LinkedEmail = {
@@ -145,7 +157,7 @@ export const LinkEmailModal: React.FC<LinkEmailModalProps> = ({
               </p>
             </div>
           ) : (
-            filteredThreads.map((thread: ThreadListItem) => {
+            filteredThreads.map((thread: any) => {
               const alreadyLinked = isThreadAlreadyLinked(thread.id);
               const isSelected = selectedThread?.id === thread.id;
 

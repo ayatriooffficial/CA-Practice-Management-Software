@@ -16,6 +16,8 @@ import { CounterService } from './modules/counter/counter.service';
 import { initializeFinancialIndexes } from './modules/financials/financial.model';
 import { AuthService } from './modules/auth/auth.service';
 import { AgentSchedulerService } from './modules/agentCenter/scheduler.service';
+import { initRedis, closeRedis } from './config/redis';
+import { realtimeService } from './shared/services/realtime.service';
 
 let server: http.Server | null = null;
 
@@ -24,7 +26,11 @@ const startServer = async (): Promise<void> => {
     // 1. Establish Database Connection
     await connectDatabase();
 
-    // 2. Ensure admin account & seed data
+    // 2. Initialize Redis Caching & Realtime Pub/Sub if configured
+    initRedis();
+    realtimeService.initSubscription();
+
+    // 3. Ensure admin account & seed data
     await AuthService.ensureSeedData();
 
     // 3. Ensure financial uniqueness and query indexes (production disables autoIndex)
@@ -70,6 +76,7 @@ const handleGracefulShutdown = (signal: string) => {
     server.close(async () => {
       logger.info('🛑 HTTP server closed.');
       await disconnectDatabase();
+      await closeRedis();
       logger.info('👋 Graceful shutdown process completed. Exiting.');
       process.exit(0);
     });

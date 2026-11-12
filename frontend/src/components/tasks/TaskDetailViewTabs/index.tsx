@@ -122,6 +122,7 @@ export const TaskDetailViewTabs: React.FC<TaskDetailViewTabsProps> = ({
     if (activeSubTab === "Document Request") {
       return (
         <TaskDocumentRequestTab
+          task={task}
           documentRequests={task.documentRequests}
           isAddDocInline={isAddDocInline}
           setIsAddDocInline={setIsAddDocInline}

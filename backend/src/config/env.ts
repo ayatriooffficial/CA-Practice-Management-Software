@@ -48,6 +48,9 @@ export const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // 15 mins
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(500),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+  // Redis Caching, Invalidation & Realtime Pub/Sub
+  REDIS_URL: z.string().optional(),
+  REDIS_ENABLED: strictBoolean(false),
   // Google Drive & Uploads
   GOOGLE_DRIVE_CREDENTIALS_PATH: z.string().optional(),
   GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: z.string().optional(),
@@ -83,8 +86,9 @@ export const envSchema = z.object({
   // WhatsApp Cloud API
   WHATSAPP_API_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
-  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().default('ayatrio_practice_whatsapp_verify_token'),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_GRAPH_API_VERSION: z.string().default('v21.0'),
   // AI Integration (Groq / OpenAI compatible)
   AI_PROVIDER_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
   AI_PROVIDER_API_KEY: z.string().optional(),

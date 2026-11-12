@@ -1,8 +1,9 @@
-import { call, put, takeLatest, all } from 'redux-saga/effects';
+import { call, put, select, takeLatest, all } from 'redux-saga/effects';
 import { PayloadAction } from '@reduxjs/toolkit';
 import { clientApi, ClientQueryParams, ClientStats } from '@/services/clientApi';
 import { ApiResponse } from '@/services/apiClient';
 import { Client } from '@/data/crmData';
+import { RootState } from '../../rootReducer';
 import {
   fetchClientsRequest,
   fetchClientsSuccess,
@@ -30,6 +31,12 @@ import { pageStateCache } from '@/services/pageStateCache';
 
 function* handleFetchClients(action: PayloadAction<ClientQueryParams | undefined>): Generator<any, void, any> {
   try {
+    const isLoaded: boolean = yield select((state: RootState) => state.clients.isLoaded);
+    const hasParams = Boolean(action.payload && Object.keys(action.payload).length > 0);
+    if (isLoaded && !hasParams) {
+      return;
+    }
+
     const response: ApiResponse<Client[]> = yield call(clientApi.getClients, action.payload || {});
     const clients = response.data || [];
     yield put(
@@ -66,6 +73,10 @@ function* handleFetchClientById(action: PayloadAction<string>): Generator<any, v
 
 function* handleFetchClientStats(): Generator<any, void, any> {
   try {
+    const existingStats = yield select((state: RootState) => state.clients.stats);
+    if (existingStats && Object.keys(existingStats).length > 0) {
+      return;
+    }
     const response: ApiResponse<ClientStats> = yield call(clientApi.getClientStats);
     if (response.data) {
       yield put(fetchClientStatsSuccess(response.data));

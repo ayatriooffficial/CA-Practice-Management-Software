@@ -91,10 +91,11 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
     fetchGroup();
   }, [fetchGroup]);
 
-  // Tab change with lazy loading
+  // Tab change with lazy loading & URL history tracking
   const handleTabChange = (tab: GroupTabType) => {
     setActiveTab(tab);
     setLoadedTabs((prev) => new Set([...prev, tab]));
+    router.push(`/groups/${groupId}?tab=${tab}`);
   };
 
   // Save edit handler

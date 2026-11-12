@@ -36,7 +36,7 @@ const storage =
 const persistConfig = {
   key: 'ayatrio_practice_session',
   storage,
-  whitelist: ['auth', 'dashboard'], // Whitelist only safe non-sensitive slices
+  whitelist: ['auth', 'dashboard', 'navigation'], // Whitelist session-persistent slices
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

@@ -366,7 +366,7 @@ export class AgentSchedulerService {
    */
   static async processAutomaticExpiryReminders(
     nowDate: Date = new Date(),
-    options?: { forceEnable?: boolean; forceRealSend?: boolean; milestones?: number[] }
+    options?: { forceEnable?: boolean; forceRealSend?: boolean; milestones?: number[]; isLockLost?: () => boolean }
   ): Promise<ExpiryReminderBatchResult> {
     const todayKolkataYMD = getKolkataYMD(nowDate);
     const isEnabled = options?.forceEnable !== undefined ? options.forceEnable : isAutomaticExpiryRemindersEnabled();
@@ -405,23 +405,35 @@ export class AgentSchedulerService {
     result.ran = true;
 
     try {
-      const clients = await ClientModel.find({
+      let clientQuery: any = ClientModel.find({
         isDeleted: false,
         $or: [
           { 'dscs.0': { $exists: true } },
           { 'licenses.0': { $exists: true } },
         ],
-      }).lean().exec();
+      });
+      if (typeof clientQuery.limit === 'function') {
+        clientQuery = clientQuery.limit(200);
+      }
+      const clients = await (typeof clientQuery.lean === 'function' ? clientQuery.lean() : clientQuery).exec();
 
       result.processedClients = clients.length;
 
       for (const client of clients) {
+        if (options?.isLockLost && options.isLockLost()) {
+          const lockMsg = 'processAutomaticExpiryReminders halted: scheduler leader lock lease was lost.';
+          logger.warn(lockMsg);
+          result.errors.push(lockMsg);
+          break;
+        }
+
         const clientOrgId = String(client.orgId || 'default');
         const clientEmail = (client.email || '').trim().toLowerCase();
         const hasValidEmail = Boolean(clientEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail));
 
         // 1. Process DSC records
         for (const dsc of client.dscs || []) {
+          if (options?.isLockLost?.()) break;
           result.processedDscs++;
           if (dsc.status && String(dsc.status).toLowerCase() !== 'active') {
             continue;
@@ -511,6 +523,7 @@ export class AgentSchedulerService {
 
         // 2. Process License records
         for (const lic of client.licenses || []) {
+          if (options?.isLockLost?.()) break;
           result.processedLicenses++;
 
           const expYMD = parseDateToYMD(lic.expiryDate);
@@ -664,7 +677,9 @@ export class AgentSchedulerService {
       const todayKolkataYMD = getKolkataYMD(nowDate);
 
       // Part 1: Process automatic DSC and License expiry reminders (if enabled)
-      const autoRemindersResult = await this.processAutomaticExpiryReminders(nowDate);
+      const autoRemindersResult = await this.processAutomaticExpiryReminders(nowDate, {
+        isLockLost: () => lockOwnershipLost,
+      });
       dispatchedRuns += autoRemindersResult.dispatchedReminders;
       if (autoRemindersResult.errors.length) {
         errors.push(...autoRemindersResult.errors);
@@ -676,10 +691,19 @@ export class AgentSchedulerService {
         const followUpResults = await FollowUpService.processScheduledFollowUps({
           nowDate,
           forceRealSend: await isAutomaticRemindersRealSendEnabledAsync(),
+          isLockLost: () => lockOwnershipLost,
         });
         dispatchedRuns += followUpResults.reminded;
         if (followUpResults.errors.length) {
           errors.push(...followUpResults.errors);
+        }
+
+        // Part 1c: Process inbound Gmail replies if configured
+        if (env.GMAIL_INBOUND_ENABLED || process.env.GMAIL_INBOUND_ENABLED === 'true') {
+          const gmailInboundResults = await FollowUpService.processInboundGmailReplies();
+          if (gmailInboundResults.errors.length) {
+            errors.push(...gmailInboundResults.errors);
+          }
         }
       } catch (fErr: any) {
         logger.warn(`Follow-up scheduler cycle error: ${fErr?.message || fErr}`);
@@ -713,9 +737,10 @@ export class AgentSchedulerService {
                 status: { $ne: 'Completed' },
                 isDeleted: false,
                 targetDueDate: { $exists: true, $ne: '' },
-              }).lean().exec();
+              }).limit(100).lean().exec();
 
               for (const task of tasks) {
+                if (lockOwnershipLost) break;
                 const targetYMD = parseDateToYMD(task.targetDueDate);
                 if (!targetYMD) continue;
                 const daysLeft = diffInCalendarDays(targetYMD, todayKolkataYMD);
@@ -765,9 +790,10 @@ export class AgentSchedulerService {
                 status: { $ne: 'Completed' },
                 isDeleted: false,
                 targetDueDate: { $exists: true, $ne: '' },
-              }).lean().exec();
+              }).limit(100).lean().exec();
 
               for (const task of tasks) {
+                if (lockOwnershipLost) break;
                 const targetYMD = parseDateToYMD(task.targetDueDate);
                 if (!targetYMD) continue;
                 const daysLeft = diffInCalendarDays(targetYMD, todayKolkataYMD);
@@ -818,9 +844,10 @@ export class AgentSchedulerService {
                 status: { $ne: 'Completed' },
                 isDeleted: false,
                 'documentRequests.status': 'Pending',
-              }).lean().exec();
+              }).limit(100).lean().exec();
 
               for (const task of tasks) {
+                if (lockOwnershipLost) break;
                 const pendingDocs = (task.documentRequests || []).filter((d) => d.status === 'Pending');
                 if (!pendingDocs.length) continue;
 
@@ -847,6 +874,7 @@ export class AgentSchedulerService {
                 });
 
                 if (claimResult.acquired) {
+                  if (lockOwnershipLost) break;
                   await AgentExecutionService.run(String(agent._id), {
                     orgId,
                     event: {
@@ -858,6 +886,9 @@ export class AgentSchedulerService {
                       status: task.status,
                       priority: task.priority,
                       targetDueDate: task.targetDueDate,
+                      documentRequestId: pendingDocs[0]?.id,
+                      documentTitle: pendingDocs[0]?.title,
+                      pendingDocs: pendingDocs.map((d) => ({ id: d.id, title: d.title })),
                       pendingDocumentsCount: pendingDocs.length,
                       pendingDocumentNames: pendingDocs.map((d) => d.title).join(', '),
                     },
@@ -882,11 +913,13 @@ export class AgentSchedulerService {
                 orgId,
                 isDeleted: false,
                 'dscs.0': { $exists: true },
-              }).lean().exec();
+              }).limit(100).lean().exec();
 
               for (const client of clients) {
+                if (lockOwnershipLost) break;
                 const clientEmail = (client.email || '').trim().toLowerCase();
                 for (const dsc of client.dscs || []) {
+                  if (lockOwnershipLost) break;
                   if (dsc.status && String(dsc.status).toLowerCase() !== 'active') continue;
                   const expYMD = parseDateToYMD(dsc.expiryDate);
                   if (!expYMD) continue;
@@ -959,11 +992,13 @@ export class AgentSchedulerService {
                 orgId,
                 isDeleted: false,
                 'licenses.0': { $exists: true },
-              }).lean().exec();
+              }).limit(100).lean().exec();
 
               for (const client of clients) {
+                if (lockOwnershipLost) break;
                 const clientEmail = (client.email || '').trim().toLowerCase();
                 for (const lic of client.licenses || []) {
+                  if (lockOwnershipLost) break;
                   const expYMD = parseDateToYMD(lic.expiryDate);
                   if (!expYMD) continue;
                   const daysLeft = diffInCalendarDays(expYMD, todayKolkataYMD);

@@ -35,6 +35,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermission } from "@/components/team/usePermission";
 import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/Button";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 import { Input } from "@/components/ui/Input";
 import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
 import { DropdownActionItem } from "@/components/ui/TableActionDropdown";
@@ -252,7 +253,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
     };
 
     sessionStorage.setItem("turia_draft_invoice_from_task", JSON.stringify(draftInvoice));
-    router.push("/invoice?fromTask=1");
+    void navigateWithTransition("/invoice?fromTask=1", router);
   };
 
   const displayTasks = isEmployee

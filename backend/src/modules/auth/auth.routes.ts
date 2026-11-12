@@ -15,6 +15,7 @@ import {
 const router = Router();
 
 // Public Authentication Endpoints
+router.get('/demo-credentials', AuthController.getDemoCredentials);
 router.post('/register', validateRequest({ body: registerOrgSchema }), AuthController.register);
 router.post('/lookup', validateRequest({ body: lookupUserSchema }), AuthController.lookup);
 router.post('/send-otp', validateRequest({ body: sendOtpSchema }), AuthController.sendOtp);

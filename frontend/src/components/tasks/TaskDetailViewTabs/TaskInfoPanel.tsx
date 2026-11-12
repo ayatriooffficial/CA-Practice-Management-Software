@@ -42,6 +42,8 @@ import { clientApi } from "@/services/clientApi";
 import { serviceApi } from "@/services/serviceApi";
 import { taskApi } from "@/services/taskApi";
 import { ToastNotification } from "@/components/ui/ToastNotification";
+import { ComposeModal } from "@/components/email/ComposeModal";
+import { generateTaskReminderEmailTemplate } from "@/lib/emailTemplates";
 
 interface TaskInfoPanelProps {
   task: TaskItem;
@@ -139,6 +141,17 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
     setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3000);
+  };
+
+  // Email Reminder State
+  const [isReminderComposeOpen, setIsReminderComposeOpen] = useState(false);
+  const [reminderComposeData, setReminderComposeData] = useState({ to: "", subject: "", body: "" });
+
+  const handleOpenReminderEmail = () => {
+    const clientEmail = client?.email || (task as any).clientEmail || (task as any).email || "";
+    const { to, subject, body } = generateTaskReminderEmailTemplate(task, clientEmail);
+    setReminderComposeData({ to, subject, body });
+    setIsReminderComposeOpen(true);
   };
 
   const handleCopy = (text: string, key: string, label: string = "Value") => {
@@ -727,6 +740,16 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
             <span>Generate Invoice</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={handleOpenReminderEmail}
+          className="py-1.5 px-3 text-xs font-semibold rounded-full border border-[var(--border-main)] bg-[var(--bg-surface)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
+          title="Send task update or reminder to client"
+        >
+          <Mail className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Email Reminder</span>
+        </button>
 
         <button
           type="button"
@@ -1945,6 +1968,16 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {isReminderComposeOpen && (
+        <ComposeModal
+          initialTo={reminderComposeData.to}
+          initialSubject={reminderComposeData.subject}
+          initialHtmlBody={reminderComposeData.body}
+          onClose={() => setIsReminderComposeOpen(false)}
+          zIndex={70}
+        />
       )}
     </div>
   );

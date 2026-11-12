@@ -19,6 +19,7 @@ import {
   PenTool,
   Loader2,
   CreditCard,
+  Mail,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { InvoiceRecord, ReceiptRecord } from './types';
@@ -35,6 +36,8 @@ import { Input } from '@/components/ui/Input';
 import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu';
 import { DiscardConfirmationModal } from '@/components/ui/DiscardConfirmationModal';
 import { InvoiceLivePreview, generateInvoicePdfBlob } from '@/components/onboarding/tabs/InvoiceLivePreview';
+import { ComposeModal } from '@/components/email/ComposeModal';
+import { generateInvoiceEmailTemplate, generateReceiptEmailTemplate } from '@/lib/emailTemplates';
 
 interface ColumnDef {
   key: string;
@@ -76,6 +79,20 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
   const [financialActionError, setFinancialActionError] = useState('');
   const [financialActionBusy, setFinancialActionBusy] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
+
+  const handleEmailInvoice = (row: any) => {
+    const draft = generateInvoiceEmailTemplate(row);
+    setComposeData(draft);
+    setIsComposeOpen(true);
+  };
+
+  const handleEmailReceipt = (row: any) => {
+    const draft = generateReceiptEmailTemplate(row);
+    setComposeData(draft);
+    setIsComposeOpen(true);
+  };
 
   const handleSignInvoiceWithDsc = async (row: any) => {
     setSigningInvoiceId(row.id);
@@ -445,6 +462,22 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
         label: "Sign with DSC",
         icon: PenTool,
         onClick: () => handleSignInvoiceWithDsc(row),
+      });
+    }
+
+    if ((activeTab === "invoice" || activeTab === "proforma") && row.status !== "Cancelled") {
+      actions.push({
+        label: "Email Invoice",
+        icon: Mail,
+        onClick: () => handleEmailInvoice(row),
+      });
+    }
+
+    if (activeTab === "receipts") {
+      actions.push({
+        label: "Email Receipt",
+        icon: Mail,
+        onClick: () => handleEmailReceipt(row),
       });
     }
 
@@ -917,6 +950,16 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({ onView, onEdit, onVi
             notes={signingTargetRow.notes || 'Thank you for your business. Please make payment within the due date.'}
           />
         </div>
+      )}
+
+      {isComposeOpen && (
+        <ComposeModal
+          initialTo={composeData.to}
+          initialSubject={composeData.subject}
+          initialHtmlBody={composeData.body}
+          onClose={() => setIsComposeOpen(false)}
+          zIndex={70}
+        />
       )}
     </div>
   );

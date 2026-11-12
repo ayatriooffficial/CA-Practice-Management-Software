@@ -5,6 +5,8 @@ import { AppError } from '../../shared/utils/apiError';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { getUserContextFromRequest } from '../../shared/utils/auth.helper';
 import { FinancialService, FinancialUserContext } from './financial.service';
+import { realtimeService } from '../../shared/services/realtime.service';
+import { cacheService } from '../../shared/services/cache.service';
 
 function getContext(req: Request): FinancialUserContext {
   const userCtx = getUserContextFromRequest(req);
@@ -70,14 +72,32 @@ export class FinancialController {
   static listInvoices = asyncHandler(async (req: Request, res: Response) =>
     ApiResponse.success(res, await FinancialService.listInvoices(getContext(req))));
 
-  static createInvoice = asyncHandler(async (req: Request, res: Response) =>
-    ApiResponse.created(res, await FinancialService.createInvoice(req.body, getContext(req)), 'Invoice saved'));
+  static createInvoice = asyncHandler(async (req: Request, res: Response) => {
+    const result = await FinancialService.createInvoice(req.body, getContext(req));
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('invoice:*');
+    void realtimeService.publishChange('invoice', 'create', { entityId: (result as any)?._id || (result as any)?.id });
+    void realtimeService.publishChange('home', 'invalidate');
+    return ApiResponse.created(res, result, 'Invoice saved');
+  });
 
-  static updateInvoice = asyncHandler(async (req: Request, res: Response) =>
-    ApiResponse.success(res, await FinancialService.updateInvoice(String(req.params.id), req.body, getContext(req)), 'Invoice updated'));
+  static updateInvoice = asyncHandler(async (req: Request, res: Response) => {
+    const result = await FinancialService.updateInvoice(String(req.params.id), req.body, getContext(req));
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('invoice:*');
+    void realtimeService.publishChange('invoice', 'update', { entityId: String(req.params.id) });
+    void realtimeService.publishChange('home', 'invalidate');
+    return ApiResponse.success(res, result, 'Invoice updated');
+  });
 
-  static voidInvoice = asyncHandler(async (req: Request, res: Response) =>
-    ApiResponse.success(res, await FinancialService.voidInvoice(String(req.params.id), req.body.reason, getContext(req)), 'Invoice voided'));
+  static voidInvoice = asyncHandler(async (req: Request, res: Response) => {
+    const result = await FinancialService.voidInvoice(String(req.params.id), req.body.reason, getContext(req));
+    void cacheService.delPattern('home:*');
+    void cacheService.delPattern('invoice:*');
+    void realtimeService.publishChange('invoice', 'update', { entityId: String(req.params.id) });
+    void realtimeService.publishChange('home', 'invalidate');
+    return ApiResponse.success(res, result, 'Invoice voided');
+  });
 
   static listTimeEntries = asyncHandler(async (req: Request, res: Response) => {
     const taskId = String(req.query.taskId || '');

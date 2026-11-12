@@ -50,6 +50,7 @@ async function main() {
         trigger: 'Task Created',
         conditions: {},
         recipient: ['Client', 'Assigned user'],
+        recipientResolution: { mode: 'task-linked-client', relationship: 'trigger-record' },
         channel: 'Email',
         action: 'Send notification',
         templateId: 'custom',

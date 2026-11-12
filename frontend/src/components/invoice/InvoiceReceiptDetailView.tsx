@@ -33,7 +33,10 @@ import { organizationApi, OrganizationDetails } from "@/services/organizationApi
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setSelectedClient, fetchClientByIdSuccess } from "@/store/features/clients/clientSlice";
+import { ComposeModal } from "@/components/email/ComposeModal";
+import { generateInvoiceEmailTemplate, generateReceiptEmailTemplate } from "@/lib/emailTemplates";
 import { clientApi } from "@/services/clientApi";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 
 interface InvoiceReceiptDetailViewProps {
   receipt?: ReceiptRecord | null;
@@ -244,6 +247,19 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
   const reduxClients = useAppSelector((state) => state.clients.items);
   const [isOpeningLedger, setIsOpeningLedger] = useState(false);
   const [isSigningDsc, setIsSigningDsc] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
+
+  const handleOpenEmailCompose = () => {
+    if (receipt) {
+      const draft = generateReceiptEmailTemplate(receipt, orgDetails?.name);
+      setComposeData(draft);
+    } else if (activeInvoice) {
+      const draft = generateInvoiceEmailTemplate(activeInvoice, orgDetails?.name);
+      setComposeData(draft);
+    }
+    setIsComposeOpen(true);
+  };
 
   const handlePrint = () => {
     window.print();
@@ -358,19 +374,19 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
         if (onViewClientLedger) {
           onViewClientLedger(finalId);
         } else {
-          router.push(`/client?clientId=${finalId}&tab=Ledger`);
+          void navigateWithTransition(`/client?clientId=${finalId}&tab=Ledger`, router);
         }
       } else {
         // Fallback: If no client object found, still navigate with ID or default to /client
         if (rawClientId) {
-          router.push(`/client?clientId=${rawClientId}&tab=Ledger`);
+          void navigateWithTransition(`/client?clientId=${rawClientId}&tab=Ledger`, router);
         } else {
-          router.push(`/client`);
+          void navigateWithTransition(`/client`, router);
         }
       }
     } catch (err) {
       console.error("Error navigating to client ledger:", err);
-      router.push(`/client`);
+      void navigateWithTransition(`/client`, router);
     } finally {
       setIsOpeningLedger(false);
     }
@@ -464,7 +480,8 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
           {/* Email button */}
           <button
             type="button"
-            title="Send Email"
+            onClick={handleOpenEmailCompose}
+            title={receipt ? "Email Receipt to Client" : "Email Invoice to Client"}
             className="h-8 w-8 rounded-sm border border-[var(--border-main)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--bg-hover)] flex items-center justify-center transition-colors cursor-pointer"
           >
             <Mail className="w-4 h-4" />
@@ -1129,6 +1146,16 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
             </div>
           </div>
         </div>
+      )}
+
+      {isComposeOpen && (
+        <ComposeModal
+          initialTo={composeData.to}
+          initialSubject={composeData.subject}
+          initialHtmlBody={composeData.body}
+          onClose={() => setIsComposeOpen(false)}
+          zIndex={70}
+        />
       )}
     </div>
   );

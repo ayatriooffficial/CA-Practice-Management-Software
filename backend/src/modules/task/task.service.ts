@@ -22,6 +22,8 @@ import { DocumentCategory } from '../drive/drive.interface';
 import { CounterService } from '../counter/counter.service';
 import { AgentExecutionService } from '../agentCenter/execution.service';
 import { getNowIST, toISTDateString, offsetISTDate, parseDateToYMD } from '../../shared/utils/istDate';
+import { MailService } from '../../shared/utils/mailService';
+import { logger } from '../../config/logger';
 
 export class TaskService {
   private static async dispatchAgentTaskEvents(task: ITaskDocument, triggers: string[]) {
@@ -1157,6 +1159,30 @@ export class TaskService {
     }
 
     const updated = await task.save();
+
+    // Close any active client follow-up reminder cycles when task is completed or cancelled
+    if (updated.status === 'Completed' || updated.status === 'Cancelled') {
+      try {
+        const { FollowUpState } = await import('../agentCenter/followUp.model');
+        await FollowUpState.updateMany(
+          {
+            orgId: String(updated.orgId || 'default'),
+            sourceId: { $in: [updated.taskId, String(updated._id)] },
+            status: { $in: ['waiting_client', 'response_received', 'pending'] },
+          },
+          {
+            $set: {
+              status: 'completed',
+              nextReminderAt: null,
+              resolutionNotes: `Task marked as ${updated.status}; reminder loop ended.`,
+            },
+          }
+        ).exec();
+      } catch {
+        // Non-blocking
+      }
+    }
+
     const triggers = new Set<string>();
     if (previous.status !== updated.status) {
       triggers.add('Status Changed');
@@ -1284,6 +1310,21 @@ export class TaskService {
       }
       task.markModified('documentRequests');
       await task.save();
+
+      if (doc.status === 'Received') {
+        try {
+          const { FollowUpService } = await import('../agentCenter/followUp.service');
+          await FollowUpService.completeFollowUpForDocument({
+            orgId: String(task.orgId || 'default'),
+            taskId: task.taskId || String(task._id),
+            documentRequestId: doc.id,
+            fileUrl: doc.fileUrl,
+            receivedAt: doc.receivedAt || undefined,
+          });
+        } catch {
+          // Non-blocking
+        }
+      }
     }
     return task;
   }
@@ -1333,6 +1374,20 @@ export class TaskService {
     task.markModified('documentRequests');
     await task.save();
     await this.dispatchAgentTaskEvents(task, ['Files Uploaded']);
+
+    // Immediately resolve active Agent Center client follow-up for this document
+    try {
+      const { FollowUpService } = await import('../agentCenter/followUp.service');
+      await FollowUpService.completeFollowUpForDocument({
+        orgId: String(task.orgId || 'default'),
+        taskId: task.taskId || String(task._id),
+        documentRequestId: doc.id,
+        fileUrl,
+        receivedAt: doc.receivedAt,
+      });
+    } catch {
+      // Non-blocking for task upload
+    }
 
     return { task, document: uploaded };
   }
@@ -1524,6 +1579,140 @@ export class TaskService {
     const template = await this.getTemplateById(id, userCtx);
     template.isDeleted = true;
     await template.save();
+  }
+
+  /**
+   * Helper to resolve client name and email for task document request notifications
+   */
+  private static async resolveTaskClientEmail(task: ITaskDocument): Promise<{ email: string; name: string }> {
+    let email = '';
+    let name = task.clientName || '';
+
+    try {
+      let clientDoc: any = null;
+      if (task.clientId && mongoose.Types.ObjectId.isValid(task.clientId)) {
+        clientDoc = await Client.findById(task.clientId).select('name email fileNo').lean();
+      }
+      if (!clientDoc && task.clientId) {
+        clientDoc = await Client.findOne({ fileNo: task.clientId, isDeleted: false }).select('name email fileNo').lean();
+      }
+      if (!clientDoc && task.clientFileNo) {
+        clientDoc = await Client.findOne({ fileNo: task.clientFileNo, isDeleted: false }).select('name email fileNo').lean();
+      }
+      if (!clientDoc && task.clientName) {
+        clientDoc = await Client.findOne({ name: task.clientName, isDeleted: false }).select('name email fileNo').lean();
+      }
+      if (clientDoc) {
+        if (clientDoc.email) email = clientDoc.email.trim();
+        if (!name && clientDoc.name) name = clientDoc.name.trim();
+      }
+    } catch (err: any) {
+      logger.warn(`Failed to resolve client email for task document request: ${err?.message}`);
+    }
+
+    return { email, name: name || 'Valued Client' };
+  }
+
+  /**
+   * Dispatches an asynchronous "Action Required: Document Request" email to the client
+   */
+  public static async dispatchDocumentRequestEmail(
+    task: ITaskDocument,
+    activeDoc: any
+  ): Promise<void> {
+    try {
+      const { email: clientEmail, name: clientName } = await this.resolveTaskClientEmail(task);
+
+      if (!clientEmail || !clientEmail.includes('@')) {
+        logger.info(`ℹ️ [Document Request Email] Skipped dispatch for task ${task.taskId}: no client email found.`);
+        return;
+      }
+
+      // Collect all currently pending or requested documents for complete engagement context
+      const pendingDocs = (task.documentRequests || []).filter(
+        (d) => d.status === 'Requested' || d.status === 'Pending'
+      );
+      const docsToDisplay = pendingDocs.length > 0 ? pendingDocs : [activeDoc];
+
+      const docListHtml = docsToDisplay
+        .map(
+          (d: any) => `
+          <li style="margin-bottom: 10px; font-size: 13.5px; color: #1e293b; line-height: 1.5;">
+            <strong>${d.title || d.name || 'Required Document'}</strong>
+            ${d.description ? `<br><span style="font-size: 12px; color: #64748b;">${d.description}</span>` : ''}
+            ${d.isMandatory ? ` <span style="display: inline-block; background-color: #fee2e2; color: #b91c1c; font-size: 10.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Mandatory</span>` : ''}
+          </li>`
+        )
+        .join('');
+
+      const docListText = docsToDisplay
+        .map(
+          (d: any) =>
+            `- ${d.title || 'Required Document'}${d.description ? ` (${d.description})` : ''}${d.isMandatory ? ' [Mandatory]' : ''}`
+        )
+        .join('\n');
+
+      const taskTitle = task.taskName || 'Compliance & Tax Engagement';
+      const serviceName = task.serviceName || 'Professional Services';
+      const targetDate = task.targetDueDate || 'As soon as possible';
+      const assigneeName = task.assigneeName || 'Audit & Taxation Team';
+
+      const subject = `Action Required: Document Request for ${taskTitle} - ${clientName}`;
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+            <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <div style="background: #2563eb; padding: 24px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700;">CA Practice Management</h1>
+                <p style="color: #dbeafe; margin: 6px 0 0; font-size: 13px;">Action Required &bull; Document Request</p>
+              </div>
+              <div style="padding: 28px;">
+                <p style="margin: 0 0 16px; font-size: 15px;">Dear <strong>${clientName}</strong>,</p>
+                <p style="margin: 0 0 20px; font-size: 14px; color: #475569; line-height: 1.6;">
+                  Our team is actively processing your engagement: <strong>${taskTitle}</strong> (${serviceName}).
+                  To ensure timely completion and compliance, please provide the following document(s) at your earliest convenience:
+                </p>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;">
+                  <ul style="margin: 0; padding-left: 20px;">
+                    ${docListHtml}
+                  </ul>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; color: #475569; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+                  <tr>
+                    <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Target Date</td>
+                    <td style="padding: 10px 16px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #e2e8f0; text-align: right;">${targetDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 16px; color: #64748b;">Engagement Lead / Assignee</td>
+                    <td style="padding: 10px 16px; font-weight: 600; color: #1e293b; text-align: right;">${assigneeName}</td>
+                  </tr>
+                </table>
+                <p style="margin: 0 0 16px; font-size: 13.5px; color: #475569; line-height: 1.6;">
+                  You may reply directly to this email with the requested files attached, or upload them securely to your client workspace.
+                </p>
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 24px;">
+                  <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                    Thank you for your prompt cooperation.<br>
+                    <strong>CA Practice Management Team</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      await MailService.sendMail({
+        to: clientEmail,
+        subject,
+        html,
+        text: `Dear ${clientName},\n\nAction Required: Document Request for ${taskTitle} (${serviceName}).\n\nRequested Documents:\n${docListText}\n\nTarget Date: ${targetDate}\n\nThank you,\nCA Practice Management`,
+      });
+      logger.info(`📧 [Document Request Email] Dispatched document request email for task ${task.taskId} to ${clientEmail}`);
+    } catch (mailErr: any) {
+      logger.error(`❌ [Document Request Email] Failed to dispatch document request email for task ${task?.taskId}:`, mailErr);
+    }
   }
 }
 

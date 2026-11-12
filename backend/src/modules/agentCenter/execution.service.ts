@@ -11,6 +11,7 @@ import { UserModel } from '../auth/user.model';
 import { MailService } from '../../shared/utils/mailService';
 import { WhatsAppService, isWhatsAppConfigured } from '../../shared/utils/whatsAppService';
 import { env } from '../../config/env';
+import { logger } from '../../config/logger';
 
 const DEMO_RECIPIENTS: Record<string, { name: string; address?: string; email?: string; mobile?: string; id?: string }> = {
   Client: { name: 'Sample Company', address: 'sample.client@example.test', email: 'sample.client@example.test', mobile: '+10000000000', id: 'sample-client' },
@@ -207,8 +208,9 @@ export async function executeProvider(
     simulateFailure: boolean;
   }
 ): Promise<ProviderExecutionOutput> {
-  const providerName = channel === 'Email' ? 'email' : channel === 'WhatsApp' ? 'whatsapp' : 'in-app';
-  const envName = channel === 'Email' ? 'MOCK_EMAIL_FAILURE' : channel === 'WhatsApp' ? 'MOCK_WHATSAPP_FAILURE' : '';
+  const normChannel = (channel || '').trim().toLowerCase();
+  const providerName = normChannel === 'email' ? 'email' : normChannel === 'whatsapp' ? 'whatsapp' : 'in-app';
+  const envName = normChannel === 'email' ? 'MOCK_EMAIL_FAILURE' : normChannel === 'whatsapp' ? 'MOCK_WHATSAPP_FAILURE' : '';
   const configuredFailure = envName ? process.env[envName] === 'true' : false;
   const fingerprint = createHash('sha256')
     .update(`${providerName}:${payload.recipient}:${payload.message}`)
@@ -217,24 +219,24 @@ export async function executeProvider(
   const executionId = `${providerName}-${payload.previewOnly ? 'mock' : 'real'}-${fingerprint}`;
   const missingTemplateMatches = [
     ...payload.message.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g),
-    ...(channel === 'Email' && payload.subject ? payload.subject.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g) : []),
+    ...(normChannel === 'email' && payload.subject ? payload.subject.matchAll(/\{\{([a-zA-Z0-9_.-]+)\}\}/g) : []),
   ].map((m) => m[1]);
   const missingTemplateData = missingTemplateMatches.length > 0;
   const missingTemplateMsg = missingTemplateData
     ? `Required template variable(s) missing from event record: {{${[...new Set(missingTemplateMatches)].join('}}, {{')}}}.`
     : 'Required template data is missing from the event record.';
-  const invalidContact = channel === 'Email' ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.recipient)
-    : channel === 'WhatsApp' ? !/^\+?[0-9]{7,15}$/.test(payload.recipient.replace(/[\s()-]/g, ''))
+  const invalidContact = normChannel === 'email' ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.recipient)
+    : normChannel === 'whatsapp' ? !/^\+?[0-9]{7,15}$/.test(payload.recipient.replace(/[\s()-]/g, ''))
       : !payload.recipient;
 
   if (payload.previewOnly) {
-    if (!payload.recipient || invalidContact || !payload.message || (channel === 'Email' && !payload.subject.trim()) || missingTemplateData || configuredFailure || payload.simulateFailure) {
+    if (!payload.recipient || invalidContact || !payload.message || (normChannel === 'email' && !payload.subject.trim()) || missingTemplateData || configuredFailure || payload.simulateFailure) {
       return {
         provider: providerName,
         mode: 'mock',
         status: 'failed',
         simulated: true,
-        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (channel === 'Email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? missingTemplateMsg : 'Simulated provider failure.',
+        error: !payload.recipient || invalidContact ? 'Recipient contact details are missing or invalid for this channel.' : !payload.message || (normChannel === 'email' && !payload.subject.trim()) ? 'Required message content is missing.' : missingTemplateData ? missingTemplateMsg : 'Simulated provider failure.',
         timestamp: new Date().toISOString(),
         executionId,
       };
@@ -265,7 +267,7 @@ export async function executeProvider(
     };
   }
 
-  if (!payload.message || (channel === 'Email' && !payload.subject.trim())) {
+  if (!payload.message || (normChannel === 'email' && !payload.subject.trim())) {
     return {
       provider: providerName,
       mode: 'real',
@@ -277,7 +279,7 @@ export async function executeProvider(
     };
   }
 
-  if (channel === 'Email') {
+  if (normChannel === 'email') {
     const status = await MailService.getStatus();
     if (!status.authorized) {
       return {
@@ -324,7 +326,7 @@ export async function executeProvider(
     };
   }
 
-  if (channel === 'WhatsApp') {
+  if (normChannel === 'whatsapp') {
     if (!isWhatsAppConfigured()) {
       return {
         provider: 'whatsapp',
@@ -768,6 +770,55 @@ export class AgentExecutionService {
               recipientLabel = `${recipient} (${context.testRecipientEmail})`;
             }
 
+            // Check permanent client opt-out suppression
+            if (isRealRun && !context.testRecipientEmail && recipient.toLowerCase().includes('client') && clientRecord.id && context.orgId) {
+              try {
+                const mongoose = (await import('mongoose')).default;
+                if (mongoose.connection.readyState === 1) {
+                  const { FollowUpState } = await import('./followUp.model');
+                  const channelType = config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email';
+                  const isOptedOut = await FollowUpState.exists({
+                    orgId: context.orgId,
+                    clientId: String(clientRecord.id),
+                    channel: channelType,
+                    status: 'opt_out',
+                  });
+                  if (isOptedOut) {
+                    return {
+                      provider: String(config.channel).toLowerCase(),
+                      mode: 'real' as const,
+                      status: 'skipped' as const,
+                      simulated: false,
+                      recipient: recipientLabel,
+                      renderedMessage: 'Suppressed: client has opted out of communications on this channel.',
+                      error: 'Client has opted out of reminders on this channel.',
+                    };
+                  }
+                } else if (process.env.NODE_ENV === 'production') {
+                  return {
+                    provider: String(config.channel).toLowerCase(),
+                    mode: 'real' as const,
+                    status: 'skipped' as const,
+                    simulated: false,
+                    recipient: recipientLabel,
+                    renderedMessage: 'Suppressed: database connection unavailable to verify client opt-out status.',
+                    error: 'Database connection unavailable to verify client opt-out status.',
+                  };
+                }
+              } catch (err: any) {
+                logger.error('Failed to verify client opt-out status; suppressing real dispatch to fail closed:', err);
+                return {
+                  provider: String(config.channel).toLowerCase(),
+                  mode: 'real' as const,
+                  status: 'skipped' as const,
+                  simulated: false,
+                  recipient: recipientLabel,
+                  renderedMessage: 'Suppressed: unable to safely verify client opt-out status.',
+                  error: `Opt-out check failure: ${err?.message || err}`,
+                };
+              }
+            }
+
             const recipientData = {
               name: resolved.name,
               address: recipientAddress,
@@ -845,6 +896,121 @@ export class AgentExecutionService {
       ],
       executionTrace: graphRun?.trace || [],
     };
+    const recordClientFollowUpIfEligible = async () => {
+      if (!isRealRun || isTestEmailSend || !context.orgId) return;
+      if (status !== 'success' && status !== 'partial-failed') return;
+
+      // 1. Recipient must genuinely include Client
+      const hasClientRecipient = executedRecipients.some((r) => String(r).toLowerCase().includes('client'));
+      if (!hasClientRecipient) return;
+
+      // 2. Client record must be resolved (not sample/missing)
+      const resolvedClientId = String(event.clientId || clientRecord.id || '');
+      if (!resolvedClientId || resolvedClientId === 'sample-client') return;
+
+      // 3. Client communication must have been attempted and accepted/delivered by provider
+      const clientResult = results.find(
+        (r) =>
+          r.recipient &&
+          (String(r.recipient).toLowerCase().includes('client') ||
+            r.recipient === clientRecord.email ||
+            r.recipient === clientRecord.mobile)
+      );
+      if (!clientResult || clientResult.status === 'failed' || clientResult.status === 'skipped') return;
+
+      // 4. Action/Trigger must be requesting pending documents, information, or renewals
+      let isRequesting = false;
+      if (agent.module === 'DSC' || agent.module === 'License') {
+        isRequesting = true;
+      } else {
+        const triggerLower = String(config.trigger || '').toLowerCase();
+        const actionLower = String(config.action || '').toLowerCase();
+        isRequesting =
+          Boolean(event.documentRequestId) ||
+          triggerLower.includes('document') ||
+          triggerLower.includes('request') ||
+          triggerLower.includes('pending') ||
+          actionLower.includes('document') ||
+          actionLower.includes('request') ||
+          actionLower.includes('checklist') ||
+          actionLower.includes('follow up');
+      }
+      if (!isRequesting) return;
+
+      const sourceId = String(event.id || event.taskId || (event.dsc as any)?.id || (event.license as any)?.id || '');
+      if (!sourceId) return;
+
+      try {
+        const { FollowUpService } = await import('./followUp.service');
+        const channelType = config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email';
+        const providerMessageId = (clientResult as any)?.executionId ? String((clientResult as any).executionId) : undefined;
+
+        let originalExpiryDate: string | undefined;
+        let originalAssetId: string | undefined;
+        let originalAssetName: string | undefined;
+
+        if (agent.module === 'DSC') {
+          const dscObj = (event.dsc || triggerData.dsc || {}) as any;
+          originalExpiryDate = dscObj.expiryDate || event.expiryDate;
+          originalAssetId = String(dscObj.dscId || dscObj.id || sourceId);
+          originalAssetName = dscObj.name;
+        } else if (agent.module === 'License') {
+          const licObj = (event.license || triggerData.license || {}) as any;
+          originalExpiryDate = licObj.expiryDate || event.expiryDate;
+          originalAssetId = String(licObj.licenseNo || licObj.id || sourceId);
+          originalAssetName = licObj.name;
+        }
+
+        // Handle multiple pending document items on Task module
+        if (agent.module === 'Task' && Array.isArray((event as any).pendingDocs) && (event as any).pendingDocs.length > 0) {
+          for (const doc of (event as any).pendingDocs) {
+            if (!doc.id) continue;
+            await FollowUpService.recordFollowUpRequest({
+              orgId: context.orgId!,
+              agentId: String(agent._id),
+              agentName: agent.name,
+              clientId: resolvedClientId,
+              clientName: clientRecord.name,
+              clientEmail: clientRecord.email,
+              clientMobile: clientRecord.mobile,
+              module: 'Task',
+              sourceId,
+              sourceName: String(event.taskName || ''),
+              documentRequestId: String(doc.id),
+              documentTitle: String(doc.title || ''),
+              channel: channelType,
+              providerMessageId,
+            });
+          }
+          return;
+        }
+
+        await FollowUpService.recordFollowUpRequest({
+          orgId: context.orgId!,
+          agentId: String(agent._id),
+          agentName: agent.name,
+          clientId: resolvedClientId,
+          clientName: clientRecord.name,
+          clientEmail: clientRecord.email,
+          clientMobile: clientRecord.mobile,
+          module: agent.module,
+          sourceId,
+          sourceName: String(event.taskName || (event.dsc as any)?.name || (event.license as any)?.name || ''),
+          documentRequestId: typeof event.documentRequestId === 'string' ? event.documentRequestId : undefined,
+          documentTitle: typeof event.documentTitle === 'string' ? event.documentTitle : undefined,
+          channel: channelType,
+          providerMessageId,
+          metadata: {
+            originalExpiryDate,
+            originalAssetId,
+            originalAssetName,
+          },
+        });
+      } catch (err) {
+        logger.warn('Error recording follow-up request:', err);
+      }
+    };
+
     if (existingRun) {
       existingRun.agentName = agent.name;
       existingRun.agentModule = agent.module;
@@ -856,32 +1022,7 @@ export class AgentExecutionService {
       existingRun.executionMode = executionMode;
       await existingRun.save();
 
-      if (isRealRun && (status === 'success' || status === 'partial-failed') && context.orgId) {
-        try {
-          const sourceId = String(event.id || event.taskId || (event.dsc as any)?.id || (event.license as any)?.id || '');
-          if (sourceId) {
-            const { FollowUpService } = await import('./followUp.service');
-            await FollowUpService.recordFollowUpRequest({
-              orgId: context.orgId,
-              agentId: String(agent._id),
-              agentName: agent.name,
-              clientId: String(event.clientId || clientRecord.id || ''),
-              clientName: clientRecord.name,
-              clientEmail: clientRecord.email,
-              clientMobile: clientRecord.mobile,
-              module: agent.module,
-              sourceId,
-              sourceName: String(event.taskName || (event.dsc as any)?.name || (event.license as any)?.name || ''),
-              documentRequestId: typeof event.documentRequestId === 'string' ? event.documentRequestId : undefined,
-              documentTitle: typeof event.documentTitle === 'string' ? event.documentTitle : undefined,
-              channel: (config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email'),
-              providerMessageId: results[0]?.executionId ? String(results[0].executionId) : undefined,
-            });
-          }
-        } catch {
-          // ignore error in recording follow-up
-        }
-      }
+      await recordClientFollowUpIfEligible();
 
       return existingRun;
     }
@@ -901,32 +1042,7 @@ export class AgentExecutionService {
         runKey,
       });
 
-      if (isRealRun && (status === 'success' || status === 'partial-failed') && context.orgId) {
-        try {
-          const sourceId = String(event.id || event.taskId || (event.dsc as any)?.id || (event.license as any)?.id || '');
-          if (sourceId) {
-            const { FollowUpService } = await import('./followUp.service');
-            await FollowUpService.recordFollowUpRequest({
-              orgId: context.orgId,
-              agentId: String(agent._id),
-              agentName: agent.name,
-              clientId: String(event.clientId || clientRecord.id || ''),
-              clientName: clientRecord.name,
-              clientEmail: clientRecord.email,
-              clientMobile: clientRecord.mobile,
-              module: agent.module,
-              sourceId,
-              sourceName: String(event.taskName || (event.dsc as any)?.name || (event.license as any)?.name || ''),
-              documentRequestId: typeof event.documentRequestId === 'string' ? event.documentRequestId : undefined,
-              documentTitle: typeof event.documentTitle === 'string' ? event.documentTitle : undefined,
-              channel: (config.channel === 'WhatsApp' ? 'WhatsApp' : 'Email'),
-              providerMessageId: results[0]?.executionId ? String(results[0].executionId) : undefined,
-            });
-          }
-        } catch {
-          // ignore error in recording follow-up
-        }
-      }
+      await recordClientFollowUpIfEligible();
 
       return run;
     } catch (createErr: any) {
