@@ -1,11 +1,25 @@
 # CA Practice Management - Multi-Portal Auto-Fill Assistant (Chrome & Edge Extension)
 
-A production-grade Manifest V3 browser extension for **CA Practice Management** that automates credential filling across multiple government and compliance portals:
-- **MCA** (Ministry of Corporate Affairs V2 & V3)
-- **Income Tax e-Filing** (ITD)
-- **GST Portal** (Goods and Services Tax)
-- **TRACES** (TDS CPC)
-- **Custom Portals** (Modular plug-and-play adapter architecture)
+A production-grade Manifest V3 browser extension for **CA Practice Management** that automates credential filling across 16 major Indian government and compliance portals:
+
+| Category | Portal / Authority | Official URL | Primary Purpose |
+| :--- | :--- | :--- | :--- |
+| **Corporate & ROC** | Ministry of Corporate Affairs (MCA) | `mca.gov.in` | Company/LLP registration (SPICe+), DIN/DIR-3 KYC, annual filings (AOC-4, MGT-7). |
+| **Taxation** | Goods and Services Tax (GST) | `gst.gov.in` | GSTIN registration, monthly/quarterly returns (GSTR-1, GSTR-3B), ITC reconciliation. |
+| **Taxation** | GST E-Way Bill System | `ewaybillgst.gov.in` | Generating and tracking e-way bills for inter/intra-state movement of goods. |
+| **Taxation** | Income Tax e-Filing | `incometax.gov.in` | Corporate & individual ITR filings, advance tax, AIS/26AS verification, PAN/TAN services. |
+| **Taxation** | TRACES (TDS CPC) | `tdscpc.gov.in` | TDS return processing, Form 16/16A downloads, challan corrections, Conso files. |
+| **Employee & Labour** | EPFO Employer Portal | `unifiedportal-emp.epfindia.gov.in` | Provident Fund (PF) registration, UAN generation, monthly ECR filings. |
+| **Employee & Labour** | ESIC Portal | `esic.gov.in` | Employee State Insurance registration and monthly contribution filings. |
+| **Employee & Labour** | Shram Suvidha | `shramsuvidha.gov.in` | Unified labour law compliance, Labour Identification Number (LIN), and inspections. |
+| **Registrations** | Udyam Registration (MSME) | `udyamregistration.gov.in` | Official MSME classification for subsidies, priority lending, and payment protection. |
+| **Registrations** | National Single Window System (NSWS) | `nsws.gov.in` | Single-window clearance for central and state business approvals and licenses. |
+| **Registrations** | Startup India | `startupindia.gov.in` | DPIIT startup recognition, 80-IAC tax exemptions, and seed fund applications. |
+| **Intellectual Property** | IP India | `ipindia.gov.in` | Trademark, patent, copyright, and industrial design registration and public searches. |
+| **Import / Export** | DGFT | `dgft.gov.in` | Importer-Exporter Code (IEC) issuance, annual KYC updates, export incentives (RoDTEP/MEIS). |
+| **Import / Export** | ICEGATE (Indian Customs) | `icegate.gov.in` | Customs e-filing, Bill of Entry, shipping bills, and duty payments. |
+| **Sector-Specific & Trade** | FSSAI FoSCoS | `foscos.fssai.gov.in` | Food business registration, state/central food licenses, and annual returns. |
+| **Sector-Specific & Trade** | Government e-Marketplace (GeM) | `gem.gov.in` | Vendor/seller registration for selling goods and services to government and PSUs. |
 
 ---
 

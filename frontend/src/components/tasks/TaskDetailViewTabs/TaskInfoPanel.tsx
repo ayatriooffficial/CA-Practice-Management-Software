@@ -32,6 +32,7 @@ import {
   Phone,
   User,
   Hash,
+  Puzzle,
 } from "lucide-react";
 import { TaskItem } from "@/data/taskData";
 import { Client, ClientPassword, ClientNote } from "@/data/crmData";
@@ -1762,17 +1763,81 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
                         <span className="font-bold text-[11px] text-[var(--text-main)]">
                           {pwd.portal}
                         </span>
-                      </div>
-                      {pwd.id && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeletePassword(pwd.id!)}
-                          className="text-gray-400 hover:text-red-600 cursor-pointer p-0.5"
-                          title="Delete Credential"
+                        <span
+                          className="inline-flex items-center text-[#31719B] dark:text-[#60a5fa] opacity-80"
+                          title="Auto-fill supported via CA Practice Extension"
                         >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
+                          <Puzzle className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {(pwd.userId || pwd.password) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const pLower = (pwd.portal || "").toLowerCase();
+                              let pId = "universal";
+                              if (pLower.includes("mca")) pId = "mca";
+                              else if (pLower.includes("eway") || pLower.includes("e-way")) pId = "ewaybill";
+                              else if (pLower.includes("gst")) pId = "gst";
+                              else if (pLower.includes("income") || pLower.includes("itd") || pLower.includes("itr")) pId = "incometax";
+                              else if (pLower.includes("traces") || pLower.includes("tds")) pId = "traces";
+                              else if (pLower.includes("epfo") || pLower.includes("pf")) pId = "epfo";
+                              else if (pLower.includes("esic") || pLower.includes("esi")) pId = "esic";
+                              else if (pLower.includes("shram")) pId = "shramsuvidha";
+                              else if (pLower.includes("udyam")) pId = "udyam";
+                              else if (pLower.includes("nsws")) pId = "nsws";
+                              else if (pLower.includes("startup")) pId = "startupindia";
+                              else if (pLower.includes("ipindia")) pId = "ipindia";
+                              else if (pLower.includes("dgft")) pId = "dgft";
+                              else if (pLower.includes("icegate")) pId = "icegate";
+                              else if (pLower.includes("foscos")) pId = "foscos";
+                              else if (pLower.includes("gem")) pId = "gem";
+
+                              window.postMessage(
+                                {
+                                  type: "CA_PRACTICE_AUTOFILL_PORTAL",
+                                  portalId: pId,
+                                  userId: pwd.userId || "",
+                                  password: pwd.password || "",
+                                  directorName: pwd.remarks || `${pwd.portal} Credential`,
+                                  clientName: client?.name || "",
+                                  clientPan: client?.pan || "",
+                                },
+                                "*"
+                              );
+                              if (pId === "mca") {
+                                window.postMessage(
+                                  {
+                                    type: "CA_PRACTICE_AUTOFILL_MCA",
+                                    mcaId: pwd.userId || "",
+                                    mcaPassword: pwd.password || "",
+                                    directorName: pwd.remarks || "MCA Credential",
+                                    clientName: client?.name || "",
+                                  },
+                                  "*"
+                                );
+                              }
+                              if (pwd.password) handleCopy(pwd.password, `pwd-clip-${idx}`, `${pwd.portal} Password`);
+                            }}
+                            className="h-5 px-1.5 rounded border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                            title={`Auto-Fill ${pwd.portal} via CA Practice Extension`}
+                          >
+                            <Puzzle className="w-2.5 h-2.5" />
+                            <span>Auto-Fill</span>
+                          </button>
+                        )}
+                        {pwd.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePassword(pwd.id!)}
+                            className="text-gray-400 hover:text-red-600 cursor-pointer p-0.5"
+                            title="Delete Credential"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-[11px]">

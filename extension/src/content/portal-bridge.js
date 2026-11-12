@@ -8,6 +8,7 @@ import { McaAdapter } from "./adapters/mca-adapter.js";
 import { IncomeTaxAdapter } from "./adapters/incometax-adapter.js";
 import { GstAdapter } from "./adapters/gst-adapter.js";
 import { TracesAdapter } from "./adapters/traces-adapter.js";
+import { UniversalAdapter } from "./adapters/universal-adapter.js";
 import { logger } from "../utils/logger.js";
 
 const log = logger.create("PortalBridge");
@@ -31,8 +32,11 @@ const log = logger.create("PortalBridge");
       adapter = new TracesAdapter(portal);
       break;
     case "mca":
-    default:
       adapter = new McaAdapter(portal);
+      break;
+    case "universal":
+    default:
+      adapter = new UniversalAdapter(portal);
       break;
   }
 

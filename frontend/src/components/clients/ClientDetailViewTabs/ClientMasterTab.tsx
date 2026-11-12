@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Calendar,
+  Puzzle,
 } from "lucide-react";
 import {
   Client,
@@ -100,6 +101,24 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
   const [revealedMcaPasswords, setRevealedMcaPasswords] = useState<Record<string, boolean>>({});
   const [revealedPromoterPasswords, setRevealedPromoterPasswords] = useState<Record<string, boolean>>({});
   const [revealedStatutoryPasswords, setRevealedStatutoryPasswords] = useState<Record<string, boolean>>({});
+
+  // Browser extension presence detection
+  const [hasExtension, setHasExtension] = useState<boolean>(false);
+  useEffect(() => {
+    if (typeof document !== "undefined" && document.documentElement.dataset.caPracticeExtension) {
+      setHasExtension(true);
+    }
+    const handleExtMsg = (e: MessageEvent) => {
+      if (
+        e.data?.source === "CA_PRACTICE_EXTENSION" ||
+        e.data?.type === "CA_PRACTICE_EXTENSION_READY"
+      ) {
+        setHasExtension(true);
+      }
+    };
+    window.addEventListener("message", handleExtMsg);
+    return () => window.removeEventListener("message", handleExtMsg);
+  }, []);
 
   // Licenses state
   const [showAllLicenses, setShowAllLicenses] = useState(false);
@@ -601,6 +620,45 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                             )}
                           </div>
                         </div>
+
+                        {(promoter.mcaId || promoter.mcaPassword) && (
+                          <div className="pt-2 flex items-center justify-end border-t border-gray-100 dark:border-gray-700/60">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                window.postMessage(
+                                  {
+                                    type: "CA_PRACTICE_AUTOFILL_MCA",
+                                    mcaId: promoter.mcaId || "",
+                                    mcaPassword: promoter.mcaPassword || "",
+                                    directorName: promoter.name,
+                                    clientName: client.name,
+                                  },
+                                  "*"
+                                );
+                                if (promoter.mcaPassword) copyToClipboard(promoter.mcaPassword, "MCA Password");
+
+                                const hasExt =
+                                  typeof document !== "undefined" &&
+                                  document.documentElement.dataset.caPracticeExtension;
+                                if (!hasExt) {
+                                  window.open(
+                                    "https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html",
+                                    "_blank"
+                                  );
+                                  showToast("Opening MCA login (Password copied to clipboard)");
+                                } else {
+                                  showToast(`MCA login opened with auto-fill for ${promoter.name}`);
+                                }
+                              }}
+                              className="h-6 px-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Open MCA Portal and Auto-Fill Credentials via CA Practice Extension"
+                            >
+                              <Puzzle className="w-3 h-3 text-[#31719B] dark:text-[#60a5fa]" />
+                              <span>Auto-Fill MCA</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -747,10 +805,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                   showToast(`MCA login opened with auto-fill for ${contact.name}`);
                                 }
                               }}
-                              className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                              title="Open MCA Portal and Auto-Fill Credentials via Extension"
+                              className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                              title="Open MCA Portal and Auto-Fill Credentials via CA Practice Extension"
                             >
-                              <ExternalLink className="w-3 h-3" />
+                              <Puzzle className="w-3.5 h-3.5" />
                               <span>Auto-Fill MCA</span>
                             </button>
                           )}
@@ -1179,14 +1237,29 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   <Lock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
                     <span>Portal Credentials & Passwords</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
                       {passwordsList.length}
                     </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        hasExtension
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                          : "bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] border-blue-200 dark:border-blue-800"
+                      }`}
+                      title={
+                        hasExtension
+                          ? "CA Practice Browser Extension Connected & Ready for 1-Click Auto-Fill"
+                          : "Browser Extension Auto-Fill available for 16 compliance portals"
+                      }
+                    >
+                      <Puzzle className="w-3 h-3 text-[#31719B] dark:text-[#60a5fa]" />
+                      <span>{hasExtension ? "Extension Ready" : "Extension Auto-Fill"}</span>
+                    </span>
                   </h3>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Showing top 5 credentials • Vertically scrollable container
+                    Showing top credentials • 1-click Auto-Fill via Extension
                   </p>
                 </div>
               </div>
@@ -1255,9 +1328,17 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                             <div className="flex items-center gap-2">
                               {getAvatarBadge(pwd.portal, idx)}
                               <div>
-                                <span className="font-bold text-gray-900 dark:text-white block">
-                                  {pwd.portal}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-gray-900 dark:text-white block">
+                                    {pwd.portal}
+                                  </span>
+                                  <span
+                                    className="inline-flex items-center text-[#31719B] dark:text-[#60a5fa] opacity-80 hover:opacity-100 transition-opacity"
+                                    title="Auto-fill supported via CA Practice Extension"
+                                  >
+                                    <Puzzle className="w-3 h-3" />
+                                  </span>
+                                </div>
                                 {(pwd as any).type && (
                                   <span className="text-[10px] text-gray-400 block">{(pwd as any).type}</span>
                                 )}
@@ -1314,9 +1395,22 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                 let pId = "";
                                 let pName = "";
                                 if (pLower.includes("mca")) { pId = "mca"; pName = "MCA"; }
-                                else if (pLower.includes("income") || pLower.includes("itd")) { pId = "incometax"; pName = "ITD"; }
+                                else if (pLower.includes("eway") || pLower.includes("e-way")) { pId = "ewaybill"; pName = "E-Way Bill"; }
                                 else if (pLower.includes("gst")) { pId = "gst"; pName = "GST"; }
+                                else if (pLower.includes("income") || pLower.includes("itd") || pLower.includes("itr")) { pId = "incometax"; pName = "ITD"; }
                                 else if (pLower.includes("traces") || pLower.includes("tds")) { pId = "traces"; pName = "TRACES"; }
+                                else if (pLower.includes("epfo") || pLower.includes("pf") || pLower.includes("provident")) { pId = "epfo"; pName = "EPFO"; }
+                                else if (pLower.includes("esic") || pLower.includes("esi")) { pId = "esic"; pName = "ESIC"; }
+                                else if (pLower.includes("shram") || pLower.includes("suvidha") || pLower.includes("lin")) { pId = "shramsuvidha"; pName = "Shram"; }
+                                else if (pLower.includes("udyam") || pLower.includes("msme")) { pId = "udyam"; pName = "Udyam"; }
+                                else if (pLower.includes("nsws") || pLower.includes("single window")) { pId = "nsws"; pName = "NSWS"; }
+                                else if (pLower.includes("startup")) { pId = "startupindia"; pName = "Startup"; }
+                                else if (pLower.includes("ipindia") || pLower.includes("trademark") || pLower.includes("patent")) { pId = "ipindia"; pName = "IP India"; }
+                                else if (pLower.includes("dgft") || pLower.includes("iec")) { pId = "dgft"; pName = "DGFT"; }
+                                else if (pLower.includes("icegate") || pLower.includes("customs")) { pId = "icegate"; pName = "ICEGATE"; }
+                                else if (pLower.includes("foscos") || pLower.includes("fssai") || pLower.includes("food")) { pId = "foscos"; pName = "FoSCoS"; }
+                                else if (pLower.includes("gem") || pLower.includes("marketplace")) { pId = "gem"; pName = "GeM"; }
+                                else { pId = "universal"; pName = pwd.portal || "Portal"; }
 
                                 if (!pId) return null;
 
@@ -1360,10 +1454,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                         showToast(`${pName} login opened with auto-fill`);
                                       }
                                     }}
-                                    className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                    title={`Open ${pName} Portal and Auto-Fill Credentials via Extension`}
+                                    className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                                    title={`Open ${pName} Portal and Auto-Fill Credentials via CA Practice Extension`}
                                   >
-                                    <ExternalLink className="w-3 h-3" />
+                                    <Puzzle className="w-3.5 h-3.5" />
                                     <span>Auto-Fill {pName}</span>
                                   </button>
                                 );
@@ -1374,9 +1468,22 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                   const pLower = (pwd.portal || "").toLowerCase();
                                   let pId = "";
                                   if (pLower.includes("mca")) pId = "mca";
-                                  else if (pLower.includes("income") || pLower.includes("itd")) pId = "incometax";
+                                  else if (pLower.includes("eway") || pLower.includes("e-way")) pId = "ewaybill";
                                   else if (pLower.includes("gst")) pId = "gst";
+                                  else if (pLower.includes("income") || pLower.includes("itd") || pLower.includes("itr")) pId = "incometax";
                                   else if (pLower.includes("traces") || pLower.includes("tds")) pId = "traces";
+                                  else if (pLower.includes("epfo") || pLower.includes("pf") || pLower.includes("provident")) pId = "epfo";
+                                  else if (pLower.includes("esic") || pLower.includes("esi")) pId = "esic";
+                                  else if (pLower.includes("shram") || pLower.includes("suvidha") || pLower.includes("lin")) pId = "shramsuvidha";
+                                  else if (pLower.includes("udyam") || pLower.includes("msme")) pId = "udyam";
+                                  else if (pLower.includes("nsws") || pLower.includes("single window")) pId = "nsws";
+                                  else if (pLower.includes("startup")) pId = "startupindia";
+                                  else if (pLower.includes("ipindia") || pLower.includes("trademark") || pLower.includes("patent")) pId = "ipindia";
+                                  else if (pLower.includes("dgft") || pLower.includes("iec")) pId = "dgft";
+                                  else if (pLower.includes("icegate") || pLower.includes("customs")) pId = "icegate";
+                                  else if (pLower.includes("foscos") || pLower.includes("fssai") || pLower.includes("food")) pId = "foscos";
+                                  else if (pLower.includes("gem") || pLower.includes("marketplace")) pId = "gem";
+                                  else pId = "universal";
 
                                   if (pId) {
                                     window.postMessage(

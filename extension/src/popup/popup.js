@@ -55,17 +55,24 @@ function renderConnectionStatus() {
   }
 }
 
+let selectedCategory = "All";
+
 // Render Portal Switcher Pills
 function renderPortalSelector() {
   const container = document.getElementById("portalSelector");
   container.innerHTML = "";
 
-  state.portals.forEach((p) => {
+  const visiblePortals = state.portals.filter((p) => {
+    if (selectedCategory === "All") return true;
+    return p.category === selectedCategory;
+  });
+
+  visiblePortals.forEach((p) => {
     const pill = document.createElement("button");
     pill.type = "button";
     pill.className = `portal-pill ${p.id === state.activePortalId ? "active" : ""}`;
     pill.innerText = p.shortName || p.name;
-    pill.title = p.name;
+    pill.title = `${p.name} - ${p.description || ""}`;
 
     pill.addEventListener("click", () => {
       switchPortal(p.id);
@@ -113,7 +120,7 @@ function renderCredentialsCard() {
   userIdLabel.innerText = portal.credentialKeys?.idLabel || "User ID";
   passwordLabel.innerText = portal.credentialKeys?.passwordLabel || "Password";
   openAndFillBtn.innerText = `🚀 Open ${portal.shortName} & Auto-Fill`;
-  portalInfoText.innerHTML = `<strong>${portal.name}:</strong> Click open to launch portal with auto-fill or use the floating assistant.`;
+  portalInfoText.innerHTML = `<strong>${portal.name}</strong> <span style="font-size: 10px; color: var(--text-muted);">(${portal.category || "Compliance"})</span><br>${portal.description || "Click open to launch portal with auto-fill."}`;
 
   // Client Details
   if (client) {
@@ -178,6 +185,12 @@ function setupTabs() {
 
 // Setup Event Listeners
 function setupEventListeners() {
+  const categoryFilter = document.getElementById("categoryFilter");
+  categoryFilter?.addEventListener("change", (e) => {
+    selectedCategory = e.target.value;
+    renderPortalSelector();
+  });
+
   const copyIdBtn = document.getElementById("copyIdBtn");
   const copyPassBtn = document.getElementById("copyPassBtn");
   const togglePassBtn = document.getElementById("togglePassBtn");

@@ -203,17 +203,59 @@ export class CredentialManager {
     };
   }
 
-  // 5. Generic Credential Extractor for any custom portal
+  // 5. Intelligent Portal Credential Extractor across all 16 compliance portals
   static extractGenericCredentials(client, portalKey) {
     let userId = "";
     let password = "";
+    const key = (portalKey || "").toLowerCase();
 
-    if (client.passwords) {
-      const p = client.passwords.find((item) => (item.portal || "").toLowerCase().includes(portalKey.toLowerCase()));
-      if (p) {
-        userId = p.userId || "";
-        password = p.password || "";
+    // Portal keyword aliases for searching in client.passwords
+    const aliasesMap = {
+      ewaybill: ["eway", "e-way", "ewaybill", "gst"],
+      epfo: ["epfo", "epf", "pf", "provident"],
+      esic: ["esic", "esi"],
+      shramsuvidha: ["shram", "suvidha", "lin"],
+      udyam: ["udyam", "msme"],
+      nsws: ["nsws", "single window"],
+      startupindia: ["startup", "startupindia", "dpiit"],
+      ipindia: ["ipindia", "trademark", "patent", "copyright", "ip"],
+      dgft: ["dgft", "iec", "import", "export"],
+      icegate: ["icegate", "customs"],
+      foscos: ["foscos", "fssai", "food"],
+      gem: ["gem", "marketplace"],
+    };
+
+    const aliases = aliasesMap[key] || [key];
+
+    // 1. Search in client.passwords
+    if (client.passwords && Array.isArray(client.passwords)) {
+      const match = client.passwords.find((p) => {
+        const portalName = (p.portal || "").toLowerCase();
+        return aliases.some((a) => portalName.includes(a));
+      });
+      if (match) {
+        userId = match.userId || "";
+        password = match.password || "";
       }
+    }
+
+    // 2. Search in client.customerFiles.statutory
+    if ((!userId || !password) && client.customerFiles?.statutory) {
+      const statMatch = client.customerFiles.statutory.find((s) => {
+        const typeStr = (s.type || "").toLowerCase();
+        return aliases.some((a) => typeStr.includes(a));
+      });
+      if (statMatch) {
+        if (!userId) userId = statMatch.idNo || statMatch.userId || "";
+        if (!password) password = statMatch.password || "";
+      }
+    }
+
+    // 3. Fallback to common corporate attributes
+    if (!userId) {
+      if (key === "ewaybill") userId = client.gstin || "";
+      else if (key === "udyam") userId = client.pan || "";
+      else if (key === "dgft" || key === "icegate") userId = client.pan || "";
     }
 
     return {
