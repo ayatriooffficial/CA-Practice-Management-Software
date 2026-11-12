@@ -9,7 +9,7 @@ import { taskApi } from "@/services/taskApi";
 import { TeamMember } from "@/data/teamData";
 import { teamStore } from "@/components/team/teamStore";
 import { TaskItem, FINANCIAL_YEARS, TASK_DEPARTMENTS, LinkedEmail, TaskTemplateItem, TaskChecklistItem } from "@/data/taskData";
-import { Client } from "@/data/crmData";
+import { Client, ClientServiceSetting } from "@/data/crmData";
 import { Service } from "@/data/serviceData";
 import DiscardConfirmationModal from "@/components/ui/DiscardConfirmationModal";
 import { Select, SelectOption } from "@/components/ui/Select";
@@ -36,10 +36,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   initialData,
 }) => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [catalogServices, setCatalogServices] = useState<Service[]>([]);
+  const [clientServiceSettings, setClientServiceSettings] = useState<ClientServiceSetting[]>([]);
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [isLoadingClientServices, setIsLoadingClientServices] = useState(false);
   const [isLoadingTeam, setIsLoadingTeam] = useState(false);
   const [templates, setTemplates] = useState<TaskTemplateItem[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -167,11 +170,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       .getServices({ limit: 100 })
       .then((res) => {
         if (isMounted && res.data) {
-          setServices(res.data);
-          if (res.data.length > 0 && !serviceId) {
-            setServiceId(res.data[0].id);
-            setFrequency(res.data[0].frequency || "Monthly");
-          }
+          setCatalogServices(res.data);
         }
       })
       .catch(() => { })
@@ -253,6 +252,100 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     };
   }, [isOpen]);
 
+  // Load client's active services (matching Invoice Services reference)
+  useEffect(() => {
+    if (!isOpen || !clientId) {
+      setClientServiceSettings([]);
+      setAvailableServices([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingClientServices(true);
+
+    const selectedClient = clients.find(
+      (c) =>
+        (c.id && c.id === clientId) ||
+        ((c as any)._id && (c as any)._id === clientId) ||
+        (c.fileNo && c.fileNo === clientId) ||
+        (c.name && c.name.toLowerCase() === clientId.toLowerCase())
+    );
+    const targetClientId = selectedClient?.id || (selectedClient as any)?._id || clientId;
+
+    clientApi
+      .getClientById(targetClientId)
+      .then((res) => {
+        if (!isMounted) return;
+        const fetchedClient = res.data;
+        const settings: ClientServiceSetting[] =
+          fetchedClient?.serviceSettings ||
+          (fetchedClient as any)?.services ||
+          [];
+
+        setClientServiceSettings(settings);
+
+        // Filter active services like in Invoice: isActive || compliance || recInvoice === 'Enabled' || recTask === 'Enabled'
+        const active = settings.filter(
+          (s) =>
+            s.isActive === true ||
+            s.compliance === true ||
+            s.recInvoice === "Enabled" ||
+            s.recTask === "Enabled" ||
+            (s.isActive !== false && Boolean(s.serviceName?.trim()))
+        );
+
+        // Map active client services to Service objects, enriching with catalogServices metadata
+        const mapped: Service[] = active.map((s, idx) => {
+          const matchedCatalog = catalogServices.find(
+            (cs) =>
+              (s.serviceId && cs.id === s.serviceId) ||
+              cs.name.trim().toLowerCase() === s.serviceName.trim().toLowerCase()
+          );
+
+          return {
+            id: matchedCatalog?.id || s.serviceId || s.id || `cs_${idx}_${s.serviceName}`,
+            name: s.serviceName || matchedCatalog?.name || "Service",
+            category: s.category || (s as any).department || matchedCatalog?.category || "GST",
+            frequency: s.frequency || matchedCatalog?.frequency || "Monthly",
+            subTasks: (s as any).subTasks?.length ? (s as any).subTasks : (matchedCatalog?.subTasks || []),
+            checklist: (s as any).checklist?.length ? (s as any).checklist : (matchedCatalog?.checklist || []),
+            documentRequests: (s as any).documentRequests?.length ? (s as any).documentRequests : (matchedCatalog?.documentRequests || []),
+            sop: (s as any).sop || matchedCatalog?.sop || "",
+          } as Service;
+        });
+
+        setAvailableServices(mapped);
+
+        // Auto-select or validate serviceId against active services
+        if (mapped.length > 0) {
+          setServiceId((prev) => {
+            const exists = mapped.some((s) => s.id === prev || s.name === prev);
+            if (exists && prev) return prev;
+            const first = mapped[0];
+            if (first.frequency) setFrequency(first.frequency);
+            if (first.category && !department) setDepartment(first.category);
+            return first.id;
+          });
+        } else {
+          setServiceId("");
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load client services for task modal:", err);
+        if (isMounted) {
+          setClientServiceSettings([]);
+          setAvailableServices([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingClientServices(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, clientId, clients, catalogServices]);
+
   const handleApplyTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId);
     if (!templateId) return;
@@ -289,7 +382,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const handleServiceSelect = (sId: string) => {
     setServiceId(sId);
     clearError("serviceId");
-    const selected = services.find((s) => s.id === sId || s.name === sId);
+    const selected = availableServices.find((s) => s.id === sId || s.name === sId) ||
+      catalogServices.find((s) => s.id === sId || s.name === sId);
     if (selected) {
       if (selected.frequency) {
         setFrequency(selected.frequency);
@@ -348,6 +442,12 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       errs.clientId = "Please select or create a client first.";
     }
 
+    if (!serviceId) {
+      errs.serviceId = availableServices.length === 0
+        ? "This client has no active services configured in Client Master."
+        : "Please select an active service for this client.";
+    }
+
     if (startDate && targetDueDate && new Date(startDate) > new Date(targetDueDate)) {
       errs.targetDueDate = "Target Due Date cannot be earlier than Start Date.";
     }
@@ -385,7 +485,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         (c.fileNo && c.fileNo === clientId) ||
         (c.name && c.name.toLowerCase() === clientId.toLowerCase())
     );
-    const selectedService = services.find((s) => s.id === serviceId || s.name === serviceId);
+    const selectedService = availableServices.find((s) => s.id === serviceId || s.name === serviceId) ||
+      catalogServices.find((s) => s.id === serviceId || s.name === serviceId);
     const selectedAssignee = teamMembers.find((m) => m.id === assigneeId || m.name === assigneeId);
     const selectedReviewer = teamMembers.find((m) => m.id === reviewerId || m.name === reviewerId);
 
@@ -678,27 +779,36 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
             {/* Service * */}
             <div>
-              <label
-                htmlFor="task-service"
-                className="block text-xs font-semibold text-[var(--text-muted)] p-1.5"
-              >
-                Service <span className="text-[var(--danger)]">*</span>
-              </label>
+              <div className="flex items-center justify-between p-1.5">
+                <label
+                  htmlFor="task-service"
+                  className="block text-xs font-semibold text-[var(--text-muted)]"
+                >
+                  Service <span className="text-[var(--danger)]">*</span>
+                </label>
+                {clientId && !isLoadingClientServices && availableServices.length > 0 && (
+                  <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/60">
+                    {availableServices.length} client service{availableServices.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
               <Select
                 id="task-service"
                 value={serviceId}
                 onChange={(val) => handleServiceSelect(val)}
                 options={
-                  isLoadingServices
-                    ? [{ value: "", label: "Loading services..." }]
-                    : services.length > 0
-                    ? services.map((s) => ({
+                  !clientId
+                    ? [{ value: "", label: "Please select a client first" }]
+                    : isLoadingClientServices
+                    ? [{ value: "", label: "Loading client's active services..." }]
+                    : availableServices.length > 0
+                    ? availableServices.map((s) => ({
                         value: s.id,
-                        label: s.name,
+                        label: s.frequency ? `${s.name} (${s.frequency})` : s.name,
                       }))
-                    : [{ value: "", label: "No services found in database" }]
+                    : [{ value: "", label: "No active services configured for this client" }]
                 }
-                placeholder="Select Service..."
+                placeholder={!clientId ? "Select Client First" : "Select Client Service..."}
                 searchable={true}
                 error={errors.serviceId}
               />
