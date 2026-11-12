@@ -85,7 +85,11 @@ function* handleFetchServiceStats(): Generator<any, void, any> {
 }
 
 function* handleCreateService(
-  action: PayloadAction<{ data: Partial<Service>; onSuccess?: (service: Service) => void }>
+  action: PayloadAction<{
+    data: Partial<Service>;
+    onSuccess?: (service: Service) => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     const response: ApiResponse<Service> = yield call(serviceApi.createService, action.payload.data);
@@ -99,6 +103,9 @@ function* handleCreateService(
   } catch (error: any) {
     yield put(createServiceFailure(error.message || 'Failed to create service'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to create service' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
@@ -107,6 +114,7 @@ function* handleUpdateService(
     id: string;
     data: Partial<Service>;
     onSuccess?: (service: Service) => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
   try {
@@ -125,11 +133,14 @@ function* handleUpdateService(
   } catch (error: any) {
     yield put(updateServiceFailure(error.message || 'Failed to update service'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to update service' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
 function* handleDeleteService(
-  action: PayloadAction<{ id: string; onSuccess?: () => void }>
+  action: PayloadAction<{ id: string; onSuccess?: () => void; onError?: (error: any) => void }>
 ): Generator<any, void, any> {
   try {
     yield call(serviceApi.softDeleteService, action.payload.id);
@@ -141,6 +152,9 @@ function* handleDeleteService(
   } catch (error: any) {
     yield put(deleteServiceFailure(error.message || 'Failed to delete service'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to delete service' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 

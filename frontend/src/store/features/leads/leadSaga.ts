@@ -79,7 +79,11 @@ function* handleFetchLeadStats(): Generator<any, void, any> {
 }
 
 function* handleCreateLead(
-  action: PayloadAction<{ data: Partial<Lead>; onSuccess?: (lead: Lead) => void }>
+  action: PayloadAction<{
+    data: Partial<Lead>;
+    onSuccess?: (lead: Lead) => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     const response: ApiResponse<Lead> = yield call(leadApi.createLead, action.payload.data);
@@ -93,6 +97,9 @@ function* handleCreateLead(
   } catch (error: any) {
     yield put(createLeadFailure(error.message || 'Failed to create lead'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to create lead' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
@@ -101,6 +108,7 @@ function* handleUpdateLead(
     id: string;
     data: Partial<Lead>;
     onSuccess?: (lead: Lead) => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
   try {
@@ -119,11 +127,18 @@ function* handleUpdateLead(
   } catch (error: any) {
     yield put(updateLeadFailure(error.message || 'Failed to update lead'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to update lead' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
 function* handleDeleteLead(
-  action: PayloadAction<{ id: string; onSuccess?: () => void }>
+  action: PayloadAction<{
+    id: string;
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     yield call(leadApi.softDeleteLead, action.payload.id);
@@ -135,11 +150,18 @@ function* handleDeleteLead(
   } catch (error: any) {
     yield put(deleteLeadFailure(error.message || 'Failed to delete lead'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to delete lead' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
 function* handleBulkDeleteLeads(
-  action: PayloadAction<{ ids: string[]; onSuccess?: () => void }>
+  action: PayloadAction<{
+    ids: string[];
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     yield all(action.payload.ids.map((id) => call(leadApi.softDeleteLead, id)));
@@ -151,6 +173,9 @@ function* handleBulkDeleteLeads(
   } catch (error: any) {
     yield put(bulkDeleteLeadsFailure(error.message || 'Failed to delete selected leads'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to delete selected leads' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
@@ -159,6 +184,7 @@ function* handleConvertLead(
     id: string;
     payload: ConvertLeadPayload;
     onSuccess?: (res: { lead: Lead; client: any }) => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
   try {
@@ -177,6 +203,9 @@ function* handleConvertLead(
   } catch (error: any) {
     yield put(convertLeadFailure(error.message || 'Failed to convert lead'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to convert lead' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 

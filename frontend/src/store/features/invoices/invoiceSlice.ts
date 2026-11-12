@@ -230,6 +230,7 @@ export const invoiceSlice = createSlice({
         data: Partial<InvoiceRecord>;
         allocations: TaskAllocationInput[];
         onSuccess?: (record: InvoiceRecord) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -258,6 +259,7 @@ export const invoiceSlice = createSlice({
         data: Partial<InvoiceRecord>;
         allocations: TaskAllocationInput[];
         onSuccess?: (record: InvoiceRecord) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -286,6 +288,7 @@ export const invoiceSlice = createSlice({
         original: InvoiceRecord;
         allocations: TaskAllocationInput[];
         onSuccess?: () => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -314,6 +317,7 @@ export const invoiceSlice = createSlice({
         id: string;
         updated: Partial<InvoiceRecord>;
         onSuccess?: () => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -348,6 +352,7 @@ export const invoiceSlice = createSlice({
         id: string;
         reason: string;
         onSuccess?: () => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;

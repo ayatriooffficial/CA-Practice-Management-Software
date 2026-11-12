@@ -758,6 +758,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     setSubmitError(null);
 
     if (!validate()) {
+      setIsSubmitting(false);
+      setSubmitError("Validation failed. Please review the highlighted required fields.");
       setTimeout(() => {
         const firstErrorEl = document.querySelector(".border-rose-500, .border-\\[\\#e8655a\\]");
         if (firstErrorEl) {

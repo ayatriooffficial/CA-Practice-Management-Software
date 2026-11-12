@@ -247,9 +247,10 @@ function* handleCreateCreditNote(
     original: InvoiceRecord;
     allocations: TaskAllocationInput[];
     onSuccess?: () => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
-  const { original, allocations, onSuccess } = action.payload;
+  const { original, allocations, onSuccess, onError } = action.payload;
   const state: RootState = yield select();
   const currentInvoices = state.invoices.invoices;
   const cnCount = currentInvoices.filter((inv) => inv.type === 'credit_note').length;
@@ -283,6 +284,7 @@ function* handleCreateCreditNote(
   } catch (error: any) {
     yield put(createCreditNoteFailure(error?.message || 'Failed to issue credit note'));
     yield put(showToast({ type: 'error', message: error?.message || 'Failed to issue credit note' }));
+    if (onError) onError(error);
   }
 }
 
@@ -291,9 +293,10 @@ function* handleUpdateInvoice(
     id: string;
     updated: Partial<InvoiceRecord>;
     onSuccess?: () => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
-  const { id, updated, onSuccess } = action.payload;
+  const { id, updated, onSuccess, onError } = action.payload;
   try {
     if (/^[a-f\d]{24}$/i.test(id)) {
       yield call(financialApi.updateInvoice, id, {
@@ -317,9 +320,10 @@ function* handleVoidInvoice(
     id: string;
     reason: string;
     onSuccess?: () => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
-  const { id, reason, onSuccess } = action.payload;
+  const { id, reason, onSuccess, onError } = action.payload;
   try {
     if (/^[a-f\d]{24}$/i.test(id)) {
       yield call(financialApi.voidInvoice, id, reason);
@@ -330,6 +334,7 @@ function* handleVoidInvoice(
   } catch (error: any) {
     yield put(voidInvoiceFailure(error?.message || 'Failed to cancel invoice'));
     yield put(showToast({ type: 'error', message: error?.message || 'Failed to cancel invoice' }));
+    if (onError) onError(error);
   }
 }
 

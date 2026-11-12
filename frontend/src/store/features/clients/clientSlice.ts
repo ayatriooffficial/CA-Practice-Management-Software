@@ -133,7 +133,11 @@ export const clientSlice = createSlice({
 
     createClientRequest: (
       state,
-      _action: PayloadAction<{ data: Partial<Client>; onSuccess?: (client: Client) => void }>
+      _action: PayloadAction<{
+        data: Partial<Client>;
+        onSuccess?: (client: Client) => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -154,6 +158,7 @@ export const clientSlice = createSlice({
         id: string;
         data: Partial<Client>;
         onSuccess?: (client: Client) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -182,7 +187,11 @@ export const clientSlice = createSlice({
 
     deleteClientRequest: (
       state,
-      _action: PayloadAction<{ id: string; onSuccess?: () => void }>
+      _action: PayloadAction<{
+        id: string;
+        onSuccess?: () => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;

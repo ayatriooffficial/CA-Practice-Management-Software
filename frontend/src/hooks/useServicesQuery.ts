@@ -100,6 +100,7 @@ export function useCreateService() {
           createServiceRequest({
             data: newService,
             onSuccess: (service) => resolve({ data: service }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -129,6 +130,7 @@ export function useUpdateService() {
             id,
             data,
             onSuccess: (service) => resolve({ data: service }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -157,6 +159,7 @@ export function useDeleteService() {
           deleteServiceRequest({
             id,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });

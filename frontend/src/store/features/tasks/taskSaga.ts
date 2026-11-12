@@ -76,7 +76,11 @@ function* handleFetchTaskStats(action: PayloadAction<string | undefined>): Gener
 }
 
 function* handleCreateTask(
-  action: PayloadAction<{ data: Partial<TaskItem>; onSuccess?: (task: TaskItem) => void }>
+  action: PayloadAction<{
+    data: Partial<TaskItem>;
+    onSuccess?: (task: TaskItem) => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     const response: ApiResponse<TaskItem> = yield call(taskApi.createTask, action.payload.data);
@@ -90,6 +94,9 @@ function* handleCreateTask(
   } catch (error: any) {
     yield put(createTaskFailure(error.message || 'Failed to create task'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to create task' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
@@ -98,6 +105,7 @@ function* handleUpdateTask(
     id: string;
     data: Partial<TaskItem>;
     onSuccess?: (task: TaskItem) => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
   try {
@@ -116,11 +124,18 @@ function* handleUpdateTask(
   } catch (error: any) {
     yield put(updateTaskFailure(error.message || 'Failed to update task'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to update task' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
 function* handleDeleteTask(
-  action: PayloadAction<{ id: string; onSuccess?: () => void }>
+  action: PayloadAction<{
+    id: string;
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     yield call(taskApi.deleteTask, action.payload.id);
@@ -132,11 +147,18 @@ function* handleDeleteTask(
   } catch (error: any) {
     yield put(deleteTaskFailure(error.message || 'Failed to delete task'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to delete task' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
 function* handleBulkDeleteTasks(
-  action: PayloadAction<{ ids: string[]; onSuccess?: () => void }>
+  action: PayloadAction<{
+    ids: string[];
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     yield all(action.payload.ids.map((id) => call(taskApi.deleteTask, id)));
@@ -148,6 +170,9 @@ function* handleBulkDeleteTasks(
   } catch (error: any) {
     yield put(bulkDeleteTasksFailure(error.message || 'Failed to delete selected tasks'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to delete selected tasks' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 

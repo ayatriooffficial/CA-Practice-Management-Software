@@ -92,6 +92,7 @@ export function useCreateTask() {
           createTaskRequest({
             data: newTask,
             onSuccess: (task) => resolve({ data: task }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -121,6 +122,7 @@ export function useUpdateTask() {
             id,
             data,
             onSuccess: (task) => resolve({ data: task }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -149,6 +151,7 @@ export function useDeleteTask() {
           deleteTaskRequest({
             id,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });

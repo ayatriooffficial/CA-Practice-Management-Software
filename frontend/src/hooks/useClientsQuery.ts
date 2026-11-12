@@ -93,6 +93,7 @@ export function useCreateClient() {
           createClientRequest({
             data: newClient,
             onSuccess: (client) => resolve({ data: client }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -122,6 +123,7 @@ export function useUpdateClient() {
             id,
             data,
             onSuccess: (client) => resolve({ data: client }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -150,6 +152,7 @@ export function useDeleteClient() {
           deleteClientRequest({
             id,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });

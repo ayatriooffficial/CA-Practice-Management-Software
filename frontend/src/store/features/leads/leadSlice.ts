@@ -118,7 +118,11 @@ export const leadSlice = createSlice({
 
     createLeadRequest: (
       state,
-      _action: PayloadAction<{ data: Partial<Lead>; onSuccess?: (lead: Lead) => void }>
+      _action: PayloadAction<{
+        data: Partial<Lead>;
+        onSuccess?: (lead: Lead) => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -139,6 +143,7 @@ export const leadSlice = createSlice({
         id: string;
         data: Partial<Lead>;
         onSuccess?: (lead: Lead) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -161,7 +166,11 @@ export const leadSlice = createSlice({
 
     deleteLeadRequest: (
       state,
-      _action: PayloadAction<{ id: string; onSuccess?: () => void }>
+      _action: PayloadAction<{
+        id: string;
+        onSuccess?: () => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -181,7 +190,11 @@ export const leadSlice = createSlice({
 
     bulkDeleteLeadsRequest: (
       state,
-      _action: PayloadAction<{ ids: string[]; onSuccess?: () => void }>
+      _action: PayloadAction<{
+        ids: string[];
+        onSuccess?: () => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -203,6 +216,7 @@ export const leadSlice = createSlice({
         id: string;
         payload: ConvertLeadPayload;
         onSuccess?: (res: { lead: Lead; client: any }) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;

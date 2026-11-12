@@ -143,7 +143,11 @@ export const serviceSlice = createSlice({
 
     createServiceRequest: (
       state,
-      _action: PayloadAction<{ data: Partial<Service>; onSuccess?: (service: Service) => void }>
+      _action: PayloadAction<{
+        data: Partial<Service>;
+        onSuccess?: (service: Service) => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -164,6 +168,7 @@ export const serviceSlice = createSlice({
         id: string;
         data: Partial<Service>;
         onSuccess?: (service: Service) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -186,7 +191,11 @@ export const serviceSlice = createSlice({
 
     deleteServiceRequest: (
       state,
-      _action: PayloadAction<{ id: string; onSuccess?: () => void }>
+      _action: PayloadAction<{
+        id: string;
+        onSuccess?: () => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;

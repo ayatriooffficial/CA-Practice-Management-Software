@@ -365,6 +365,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     setErrorMessage("");
 
     if (!validate()) {
+      setIsSubmitting(false);
       setTimeout(() => {
         const firstErrorEl = document.querySelector(
           ".border-rose-500, .border-\\[\\#e8655a\\], .border-red-500"
@@ -390,6 +391,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
     if (!selectedClient) {
       setErrorMessage("Please select a client from the database.");
+      setIsSubmitting(false);
       return;
     }
 

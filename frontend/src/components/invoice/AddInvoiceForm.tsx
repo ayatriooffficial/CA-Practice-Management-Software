@@ -863,8 +863,16 @@ tax:'18%',
   const handleSave = async () => {
     if (!selectedClient) {
       setSaveError('Please select a client to proceed.');
+      setIsSaving(false);
       return;
     }
+
+    if (!services || services.length === 0) {
+      setSaveError('Please add at least one service item to the invoice.');
+      setIsSaving(false);
+      return;
+    }
+
     let allocations = taskAllocations.filter((allocation) => Number(allocation.amount) > 0).map((allocation) => ({
       taskId: allocation.taskId,
       amountPaise: Math.round(Number(allocation.amount) * 100),
@@ -879,6 +887,7 @@ tax:'18%',
 
     if (allocations.length > 0 && allocations.reduce((sum, allocation) => sum + allocation.amountPaise, 0) !== Math.round(totalPayable * 100)) {
       setSaveError(`Allocated amount across tasks must equal total payable (₹${totalPayable.toFixed(2)}) or remove task allocations to save as direct invoice.`);
+      setIsSaving(false);
       return;
     }
 

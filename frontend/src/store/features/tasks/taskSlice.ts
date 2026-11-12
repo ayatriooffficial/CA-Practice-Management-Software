@@ -120,7 +120,11 @@ export const taskSlice = createSlice({
 
     createTaskRequest: (
       state,
-      _action: PayloadAction<{ data: Partial<TaskItem>; onSuccess?: (task: TaskItem) => void }>
+      _action: PayloadAction<{
+        data: Partial<TaskItem>;
+        onSuccess?: (task: TaskItem) => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -141,6 +145,7 @@ export const taskSlice = createSlice({
         id: string;
         data: Partial<TaskItem>;
         onSuccess?: (task: TaskItem) => void;
+        onError?: (error: any) => void;
       }>
     ) => {
       state.mutating = true;
@@ -169,7 +174,11 @@ export const taskSlice = createSlice({
 
     deleteTaskRequest: (
       state,
-      _action: PayloadAction<{ id: string; onSuccess?: () => void }>
+      _action: PayloadAction<{
+        id: string;
+        onSuccess?: () => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;
@@ -195,7 +204,11 @@ export const taskSlice = createSlice({
 
     bulkDeleteTasksRequest: (
       state,
-      _action: PayloadAction<{ ids: string[]; onSuccess?: () => void }>
+      _action: PayloadAction<{
+        ids: string[];
+        onSuccess?: () => void;
+        onError?: (error: any) => void;
+      }>
     ) => {
       state.mutating = true;
       state.error = null;

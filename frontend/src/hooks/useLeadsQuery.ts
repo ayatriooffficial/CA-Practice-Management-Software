@@ -95,6 +95,7 @@ export function useCreateLead() {
           createLeadRequest({
             data: newLead,
             onSuccess: (lead) => resolve({ data: lead }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -124,6 +125,7 @@ export function useUpdateLead() {
             id,
             data,
             onSuccess: (lead) => resolve({ data: lead }),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -152,6 +154,7 @@ export function useDeleteLead() {
           deleteLeadRequest({
             id,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -199,6 +202,7 @@ export function useConvertLead() {
               dispatch(fetchClientsRequest());
               resolve(res);
             },
+            onError: (err) => reject(err),
           })
         );
       });

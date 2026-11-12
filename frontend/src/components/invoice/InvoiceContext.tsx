@@ -139,12 +139,13 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addInvoice = useCallback(
     (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         dispatch(
           createInvoiceRequest({
             data: item,
             allocations,
             onSuccess: (saved) => resolve(saved),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -154,12 +155,13 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addProforma = useCallback(
     (item: Partial<InvoiceRecord>, allocations: TaskAllocationInput[]): Promise<InvoiceRecord> => {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         dispatch(
           createProformaRequest({
             data: item,
             allocations,
             onSuccess: (saved) => resolve(saved),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -169,12 +171,13 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addCreditNote = useCallback(
     (original: InvoiceRecord, allocations: TaskAllocationInput[]): Promise<void> => {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         dispatch(
           createCreditNoteRequest({
             original,
             allocations,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -184,12 +187,13 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateInvoice = useCallback(
     (id: string, updated: Partial<InvoiceRecord>): Promise<void> => {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         dispatch(
           updateInvoiceRequest({
             id,
             updated,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });
@@ -199,12 +203,13 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const voidInvoice = useCallback(
     (invoice: InvoiceRecord, reason: string): Promise<void> => {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         dispatch(
           voidInvoiceRequest({
             id: invoice.id,
             reason,
             onSuccess: () => resolve(),
+            onError: (err) => reject(err),
           })
         );
       });

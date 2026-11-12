@@ -76,7 +76,11 @@ function* handleFetchClientStats(): Generator<any, void, any> {
 }
 
 function* handleCreateClient(
-  action: PayloadAction<{ data: Partial<Client>; onSuccess?: (client: Client) => void }>
+  action: PayloadAction<{
+    data: Partial<Client>;
+    onSuccess?: (client: Client) => void;
+    onError?: (error: any) => void;
+  }>
 ): Generator<any, void, any> {
   try {
     const response: ApiResponse<Client> = yield call(clientApi.createClient, action.payload.data);
@@ -90,6 +94,9 @@ function* handleCreateClient(
   } catch (error: any) {
     yield put(createClientFailure(error.message || 'Failed to create client'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to create client' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
@@ -98,6 +105,7 @@ function* handleUpdateClient(
     id: string;
     data: Partial<Client>;
     onSuccess?: (client: Client) => void;
+    onError?: (error: any) => void;
   }>
 ): Generator<any, void, any> {
   try {
@@ -116,11 +124,14 @@ function* handleUpdateClient(
   } catch (error: any) {
     yield put(updateClientFailure(error.message || 'Failed to update client'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to update client' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
 function* handleDeleteClient(
-  action: PayloadAction<{ id: string; onSuccess?: () => void }>
+  action: PayloadAction<{ id: string; onSuccess?: () => void; onError?: (error: any) => void }>
 ): Generator<any, void, any> {
   try {
     yield call(clientApi.softDeleteClient, action.payload.id);
@@ -132,6 +143,9 @@ function* handleDeleteClient(
   } catch (error: any) {
     yield put(deleteClientFailure(error.message || 'Failed to delete client'));
     yield put(showToast({ type: 'error', message: error.message || 'Failed to delete client' }));
+    if (action.payload.onError) {
+      action.payload.onError(error);
+    }
   }
 }
 
