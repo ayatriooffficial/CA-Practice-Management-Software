@@ -190,12 +190,6 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
     }
   }, [router]);
 
-  const handleCloseDetail = useCallback(() => {
-    setSelectedService(null);
-    setViewMode("list");
-    router.push('/services');
-  }, [router]);
-
   useEffect(() => {
     if (!searchParams) return;
     const sId = searchParams.get("serviceId");
@@ -598,7 +592,8 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
   const handleCloseDetail = useCallback(() => {
     setViewMode("list");
     setSelectedService(null);
-  }, []);
+    router.push('/services');
+  }, [router]);
 
   const handleEditFromDetail = useCallback((srv: Service) => {
     setEditingService(srv);
