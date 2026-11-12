@@ -5,8 +5,8 @@ export const ENV = {
   EXTENSION_NAME: "CA Practice - Portal Auto-Fill Assistant",
 
   // Default API fallbacks if auto-detection has not yet recorded the origin
-  DEFAULT_LOCAL_API: "http://localhost:5000/api/v1",
-  DEFAULT_LOCAL_APP: "http://localhost:3000",
+  DEFAULT_LOCAL_API: "https://ca-practice-management-software.vercel.app/api/v1",
+  DEFAULT_LOCAL_APP: "https://ca-practice-management-software.vercel.app/",
 
   // Known deployment wildcard patterns for practice management web apps
   TRUSTED_APP_DOMAINS: [
