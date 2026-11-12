@@ -290,30 +290,30 @@ export const taskApi = {
       createProformaInvoice: !!payload.createProformaInvoice,
       creatorName: '',
       adminId: '',
-      subTasks: payload.subTasks ? [...payload.subTasks] : [
-        { id: '1', title: 'Step 1 - Collect Invoices', completed: false, timeSpent: '00:00:00' },
-        { id: '2', title: 'Step 2 - Verification & Reconciliation', completed: false, timeSpent: '00:00:00' },
-        { id: '3', title: 'Step 3 - Final Filing & Client Submission', completed: false, timeSpent: '00:00:00' },
-      ],
-      checklist: payload.checklist ? [...payload.checklist] : [
-        { id: 'c1', title: 'Verify Source Invoices & Bank Statements', completed: false, isMandatory: true },
-        { id: 'c2', title: 'Reconcile 2B/GSTR Data on Portal', completed: false, isMandatory: true },
-        { id: 'c3', title: 'Review Tax Computation & Get Partner Sign-off', completed: false, isMandatory: true },
-      ],
-      documentRequests: payload.documentRequests ? [...payload.documentRequests] : [
-        { id: 'd1', title: 'Sales Register & Output Tax Summary', status: 'Pending', isMandatory: true },
-        { id: 'd2', title: 'Bank Account Statement (Monthly)', status: 'Pending', isMandatory: true },
-      ],
-      comments: [],
-      complianceStatus: {
-        period: payload.period || 'Jun 2026',
-        dueDate: payload.targetDueDate || '27 Jul, 2026',
-        status: 'Pending',
-        filedDate: '—',
-        referenceNo: '—',
-        attachmentsCount: 0,
-      },
-      createdAt: new Date().toISOString(),
+        subTasks: payload.subTasks ? [...payload.subTasks] : [
+          { id: '1', title: 'Step 1 - Collect Invoices', completed: false, timeSpent: '00:00:00' },
+          { id: '2', title: 'Step 2 - Verification & Reconciliation', completed: false, timeSpent: '00:00:00' },
+          { id: '3', title: 'Step 3 - Final Filing & Client Submission', completed: false, timeSpent: '00:00:00' },
+        ],
+          checklist: payload.checklist ? [...payload.checklist] : [
+            { id: 'c1', title: 'Verify Source Invoices & Bank Statements', completed: false, isMandatory: true },
+            { id: 'c2', title: 'Reconcile 2B/GSTR Data on Portal', completed: false, isMandatory: true },
+            { id: 'c3', title: 'Review Tax Computation & Get Partner Sign-off', completed: false, isMandatory: true },
+          ],
+            documentRequests: payload.documentRequests ? [...payload.documentRequests] : [
+              { id: 'd1', title: 'Sales Register & Output Tax Summary', status: 'Pending', isMandatory: true },
+              { id: 'd2', title: 'Bank Account Statement (Monthly)', status: 'Pending', isMandatory: true },
+            ],
+            comments: [],
+            complianceStatus: {
+              period: payload.period || 'Jun 2026',
+              dueDate: payload.targetDueDate || '27 Jul, 2026',
+              status: 'Pending',
+              filedDate: '—',
+              referenceNo: '—',
+              attachmentsCount: 0,
+            },
+            createdAt: new Date().toISOString(),
     };
 
     fallbackTasks = [newTask, ...fallbackTasks];
@@ -343,259 +343,259 @@ export const taskApi = {
       // Fallback
     }
 
-    const foundTask = fallbackTasks.find((t) => t.id === id || t.taskId === id);
-    if (foundTask) {
-      const updatedTask = { ...foundTask, ...payload };
-      fallbackTasks = fallbackTasks.map((t) =>
-        t.id === id || t.taskId === id ? updatedTask : t
-      );
+      const foundTask = fallbackTasks.find((t) => t.id === id || t.taskId === id);
+      if (foundTask) {
+        const updatedTask = { ...foundTask, ...payload };
+        fallbackTasks = fallbackTasks.map((t) =>
+          t.id === id || t.taskId === id ? updatedTask : t
+        );
+        saveStoredTasks(fallbackTasks);
+        return {
+          success: true,
+          statusCode: 200,
+          message: 'Task updated successfully',
+          data: updatedTask,
+        };
+      }
+
+      return {
+        success: false,
+        statusCode: 404,
+        message: 'Task not found',
+        data: null as any,
+      };
+    },
+
+    deleteTask: async (id: string): Promise<ApiResponse<null>> => {
+      try {
+        await request<null>(`/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      } catch {
+        // Fallback
+      }
+      fallbackTasks = fallbackTasks.filter((t) => t.id !== id && t.taskId !== id);
       saveStoredTasks(fallbackTasks);
       return {
         success: true,
         statusCode: 200,
-        message: 'Task updated successfully',
-        data: updatedTask,
+        message: 'Task deleted successfully',
+        data: null,
       };
-    }
+    },
 
-    return {
-      success: false,
-      statusCode: 404,
-      message: 'Task not found',
-      data: null as any,
-    };
-  },
-
-  deleteTask: async (id: string): Promise<ApiResponse<null>> => {
-    try {
-      await request<null>(`/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    } catch {
-      // Fallback
-    }
-    fallbackTasks = fallbackTasks.filter((t) => t.id !== id && t.taskId !== id);
-    saveStoredTasks(fallbackTasks);
-    return {
-      success: true,
-      statusCode: 200,
-      message: 'Task deleted successfully',
-      data: null,
-    };
-  },
-
-  addComment: async (
-    id: string,
-    text: string,
-    author: string = 'Staff',
-    authorInitials: string = 'ST',
-    avatarColor: string = '#3D6A9E'
-  ): Promise<ApiResponse<TaskItem>> => {
-    try {
-      const res = await request<TaskItem>(`/tasks/${encodeURIComponent(id)}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ text, author, authorInitials, avatarColor }),
-      });
-      if (res.data) return res;
-    } catch {
-      // Fallback
-    }
-
-    const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
-    if (task) {
-      task.comments.push({
-        id: `c-${Date.now()}`,
-        author,
-        authorInitials,
-        avatarColor,
-        text,
-        createdAt: new Date().toISOString(),
-      });
-      return {
-        success: true,
-        statusCode: 200,
-        message: 'Comment added',
-        data: task,
-      };
-    }
-
-    return {
-      success: false,
-      statusCode: 404,
-      message: 'Task not found',
-      data: null as any,
-    };
-  },
-
-  toggleSubTask: async (id: string, subTaskId: string): Promise<ApiResponse<TaskItem>> => {
-    try {
-      const res = await request<TaskItem>(
-        `/tasks/${encodeURIComponent(id)}/subtasks/${encodeURIComponent(subTaskId)}/toggle`,
-        { method: 'PATCH' }
-      );
-      if (res.data) return res;
-    } catch {
-      // Fallback
-    }
-
-    const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
-    if (task) {
-      const sub = task.subTasks.find((s) => s.id === subTaskId);
-      if (sub) sub.completed = !sub.completed;
-      return { success: true, statusCode: 200, message: 'Subtask toggled', data: task };
-    }
-
-    return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
-  },
-
-  toggleChecklist: async (id: string, itemId: string): Promise<ApiResponse<TaskItem>> => {
-    try {
-      const res = await request<TaskItem>(
-        `/tasks/${encodeURIComponent(id)}/checklist/${encodeURIComponent(itemId)}/toggle`,
-        { method: 'PATCH' }
-      );
-      if (res.data) return res;
-    } catch {
-      // Fallback
-    }
-
-    const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
-    if (task) {
-      const item = task.checklist.find((c) => c.id === itemId);
-      if (item) item.completed = !item.completed;
-      return { success: true, statusCode: 200, message: 'Checklist toggled', data: task };
-    }
-
-    return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
-  },
-
-  toggleDocumentRequest: async (
-    id: string,
-    docId: string,
-    status?: 'Pending' | 'Received' | 'Requested'
-  ): Promise<ApiResponse<TaskItem>> => {
-    try {
-      const res = await request<TaskItem>(
-        `/tasks/${encodeURIComponent(id)}/document-requests/${encodeURIComponent(docId)}/toggle`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ status }),
+      addComment: async (
+        id: string,
+        text: string,
+        author: string = 'Staff',
+        authorInitials: string = 'ST',
+        avatarColor: string = '#3D6A9E'
+      ): Promise<ApiResponse<TaskItem>> => {
+        try {
+          const res = await request<TaskItem>(`/tasks/${encodeURIComponent(id)}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ text, author, authorInitials, avatarColor }),
+          });
+          if (res.data) return res;
+        } catch {
+          // Fallback
         }
-      );
-      if (res.data) return res;
-    } catch {
-      // Fallback
-    }
 
-    const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
-    if (task) {
-      const doc = task.documentRequests.find((d) => d.id === docId);
-      if (doc) {
-        doc.status = status || (doc.status === 'Received' ? 'Pending' : 'Received');
-        if (doc.status === 'Received') doc.receivedAt = new Date().toISOString();
-      }
-      return { success: true, statusCode: 200, message: 'Document request toggled', data: task };
-    }
+        const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
+        if (task) {
+          task.comments.push({
+            id: `c-${Date.now()}`,
+            author,
+            authorInitials,
+            avatarColor,
+            text,
+            createdAt: new Date().toISOString(),
+          });
+          return {
+            success: true,
+            statusCode: 200,
+            message: 'Comment added',
+            data: task,
+          };
+        }
 
-    return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
-  },
+        return {
+          success: false,
+          statusCode: 404,
+          message: 'Task not found',
+          data: null as any,
+        };
+      },
 
-  uploadDocumentRequestFile: async (
-    taskId: string,
-    docId: string,
-    file: File,
-    documentName?: string
-  ): Promise<ApiResponse<{ task: TaskItem; document: any }>> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (documentName) {
-      formData.append('documentName', documentName);
-    }
-    return request<{ task: TaskItem; document: any }>(
-      `/tasks/${encodeURIComponent(taskId)}/document-requests/${encodeURIComponent(docId)}/upload`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-  },
+        toggleSubTask: async (id: string, subTaskId: string): Promise<ApiResponse<TaskItem>> => {
+          try {
+            const res = await request<TaskItem>(
+              `/tasks/${encodeURIComponent(id)}/subtasks/${encodeURIComponent(subTaskId)}/toggle`,
+              { method: 'PATCH' }
+            );
+            if (res.data) return res;
+          } catch {
+            // Fallback
+          }
 
-  uploadGeneralTaskDocument: async (
-    taskId: string,
-    file: File,
-    title?: string,
-    category?: string,
-    description?: string
-  ): Promise<ApiResponse<{ task: TaskItem; document: any }>> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (title) formData.append('title', title);
-    if (category) formData.append('category', category);
-    if (description) formData.append('description', description);
-    return request<{ task: TaskItem; document: any }>(
-      `/tasks/${encodeURIComponent(taskId)}/documents`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-  },
+          const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
+          if (task) {
+            const sub = task.subTasks.find((s) => s.id === subTaskId);
+            if (sub) sub.completed = !sub.completed;
+            return { success: true, statusCode: 200, message: 'Subtask toggled', data: task };
+          }
 
-  linkEmailToTask: async (
-    taskId: string,
-    email: LinkedEmail
-  ): Promise<ApiResponse<TaskItem>> => {
-    return request<TaskItem>(`/tasks/${encodeURIComponent(taskId)}/emails`, {
-      method: 'POST',
-      body: JSON.stringify(email),
-    });
-  },
+          return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
+        },
 
-  unlinkEmailFromTask: async (
-    taskId: string,
-    messageId: string
-  ): Promise<ApiResponse<TaskItem>> => {
-    return request<TaskItem>(
-      `/tasks/${encodeURIComponent(taskId)}/emails/${encodeURIComponent(messageId)}`,
-      {
-        method: 'DELETE',
-      }
-    );
-  },
+          toggleChecklist: async (id: string, itemId: string): Promise<ApiResponse<TaskItem>> => {
+            try {
+              const res = await request<TaskItem>(
+                `/tasks/${encodeURIComponent(id)}/checklist/${encodeURIComponent(itemId)}/toggle`,
+                { method: 'PATCH' }
+              );
+              if (res.data) return res;
+            } catch {
+              // Fallback
+            }
 
-  getTaskTemplates: async (params?: { search?: string; category?: string; frequency?: string }): Promise<ApiResponse<TaskTemplateItem[]>> => {
-    try {
-      const searchParams = new URLSearchParams();
-      if (params?.search?.trim()) searchParams.set('search', params.search.trim());
-      if (params?.category && params.category !== 'All Categories' && params.category !== 'All') searchParams.set('category', params.category);
-      if (params?.frequency && params.frequency !== 'All Frequencies' && params.frequency !== 'All') searchParams.set('frequency', params.frequency);
-      const query = searchParams.toString();
-      const endpoint = query ? `/tasks/templates?${query}` : '/tasks/templates';
-      return await request<TaskTemplateItem[]>(endpoint);
-    } catch {
-      return { success: true, statusCode: 200, message: 'OK', data: [] };
-    }
-  },
+            const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
+            if (task) {
+              const item = task.checklist.find((c) => c.id === itemId);
+              if (item) item.completed = !item.completed;
+              return { success: true, statusCode: 200, message: 'Checklist toggled', data: task };
+            }
 
-  getTaskTemplateById: async (id: string): Promise<ApiResponse<TaskTemplateItem>> => {
-    return request<TaskTemplateItem>(`/tasks/templates/${encodeURIComponent(id)}`);
-  },
+            return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
+          },
 
-  createTaskTemplate: async (data: Partial<TaskTemplateItem>): Promise<ApiResponse<TaskTemplateItem>> => {
-    return request<TaskTemplateItem>('/tasks/templates', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
+            toggleDocumentRequest: async (
+              id: string,
+              docId: string,
+              status?: 'Pending' | 'Received' | 'Requested'
+            ): Promise<ApiResponse<TaskItem>> => {
+              try {
+                const res = await request<TaskItem>(
+                  `/tasks/${encodeURIComponent(id)}/document-requests/${encodeURIComponent(docId)}/toggle`,
+                  {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status }),
+                  }
+                );
+                if (res.data) return res;
+              } catch {
+                // Fallback
+              }
 
-  updateTaskTemplate: async (id: string, data: Partial<TaskTemplateItem>): Promise<ApiResponse<TaskTemplateItem>> => {
-    return request<TaskTemplateItem>(`/tasks/templates/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  },
+              const task = fallbackTasks.find((t) => t.id === id || t.taskId === id);
+              if (task) {
+                const doc = task.documentRequests.find((d) => d.id === docId);
+                if (doc) {
+                  doc.status = status || (doc.status === 'Received' ? 'Pending' : 'Received');
+                  if (doc.status === 'Received') doc.receivedAt = new Date().toISOString();
+                }
+                return { success: true, statusCode: 200, message: 'Document request toggled', data: task };
+              }
 
-  deleteTaskTemplate: async (id: string): Promise<ApiResponse<null>> => {
-    return request<null>(`/tasks/templates/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    });
-  },
+              return { success: false, statusCode: 404, message: 'Task not found', data: null as any };
+            },
+
+              uploadDocumentRequestFile: async (
+                taskId: string,
+                docId: string,
+                file: File,
+                documentName?: string
+              ): Promise<ApiResponse<{ task: TaskItem; document: any }>> => {
+                const formData = new FormData();
+                formData.append('file', file);
+                if (documentName) {
+                  formData.append('documentName', documentName);
+                }
+                return request<{ task: TaskItem; document: any }>(
+                  `/tasks/${encodeURIComponent(taskId)}/document-requests/${encodeURIComponent(docId)}/upload`,
+                  {
+                    method: 'POST',
+                    body: formData,
+                  }
+                );
+              },
+
+                uploadGeneralTaskDocument: async (
+                  taskId: string,
+                  file: File,
+                  title?: string,
+                  category?: string,
+                  description?: string
+                ): Promise<ApiResponse<{ task: TaskItem; document: any }>> => {
+                  const formData = new FormData();
+                  formData.append('file', file);
+                  if (title) formData.append('title', title);
+                  if (category) formData.append('category', category);
+                  if (description) formData.append('description', description);
+                  return request<{ task: TaskItem; document: any }>(
+                    `/tasks/${encodeURIComponent(taskId)}/documents`,
+                    {
+                      method: 'POST',
+                      body: formData,
+                    }
+                  );
+                },
+
+                  linkEmailToTask: async (
+                    taskId: string,
+                    email: LinkedEmail
+                  ): Promise<ApiResponse<TaskItem>> => {
+                    return request<TaskItem>(`/tasks/${encodeURIComponent(taskId)}/emails`, {
+                      method: 'POST',
+                      body: JSON.stringify(email),
+                    });
+                  },
+
+                    unlinkEmailFromTask: async (
+                      taskId: string,
+                      messageId: string
+                    ): Promise<ApiResponse<TaskItem>> => {
+                      return request<TaskItem>(
+                        `/tasks/${encodeURIComponent(taskId)}/emails/${encodeURIComponent(messageId)}`,
+                        {
+                          method: 'DELETE',
+                        }
+                      );
+                    },
+
+                      getTaskTemplates: async (params?: { search?: string; category?: string; frequency?: string }): Promise<ApiResponse<TaskTemplateItem[]>> => {
+                        try {
+                          const searchParams = new URLSearchParams();
+                          if (params?.search?.trim()) searchParams.set('search', params.search.trim());
+                          if (params?.category && params.category !== 'All Categories' && params.category !== 'All') searchParams.set('category', params.category);
+                          if (params?.frequency && params.frequency !== 'All Frequencies' && params.frequency !== 'All') searchParams.set('frequency', params.frequency);
+                          const query = searchParams.toString();
+                          const endpoint = query ? `/tasks/templates?${query}` : '/tasks/templates';
+                          return await request<TaskTemplateItem[]>(endpoint);
+                        } catch {
+                          return { success: true, statusCode: 200, message: 'OK', data: [] };
+                        }
+                      },
+
+                        getTaskTemplateById: async (id: string): Promise<ApiResponse<TaskTemplateItem>> => {
+                          return request<TaskTemplateItem>(`/tasks/templates/${encodeURIComponent(id)}`);
+                        },
+
+                          createTaskTemplate: async (data: Partial<TaskTemplateItem>): Promise<ApiResponse<TaskTemplateItem>> => {
+                            return request<TaskTemplateItem>('/tasks/templates', {
+                              method: 'POST',
+                              body: JSON.stringify(data),
+                            });
+                          },
+
+                            updateTaskTemplate: async (id: string, data: Partial<TaskTemplateItem>): Promise<ApiResponse<TaskTemplateItem>> => {
+                              return request<TaskTemplateItem>(`/tasks/templates/${encodeURIComponent(id)}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(data),
+                              });
+                            },
+
+                              deleteTaskTemplate: async (id: string): Promise<ApiResponse<null>> => {
+                                return request<null>(`/tasks/templates/${encodeURIComponent(id)}`, {
+                                  method: 'DELETE',
+                                });
+                              },
 };
