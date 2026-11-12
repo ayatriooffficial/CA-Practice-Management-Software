@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Play,
   Pause,
@@ -151,8 +151,14 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
     }, 2000);
   };
 
-  // 1. Fetch Client Details from DB
+  // 1. Fetch Client Details from DB (guarded against duplicate/repeated fetches)
+  const lastFetchedClientKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    const clientKey = `${task.clientId || ""}_${task.clientFileNo || ""}_${task.clientPan || ""}_${task.clientName || ""}`;
+    if (!clientKey.trim() || clientKey === "___") return;
+    if (lastFetchedClientKeyRef.current === clientKey) return;
+    lastFetchedClientKeyRef.current = clientKey;
+
     let isMounted = true;
     const fetchClient = async () => {
       setLoadingClient(true);
@@ -244,8 +250,14 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
     };
   }, [task.clientId, task.clientFileNo, task.clientPan, task.clientName]);
 
-  // 2. Fetch Service Details from DB
+  // 2. Fetch Service Details from DB (guarded against duplicate/repeated fetches)
+  const lastFetchedServiceKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    const serviceKey = `${task.serviceId || ""}_${task.serviceName || ""}`;
+    if (!serviceKey.trim() || serviceKey === "_") return;
+    if (lastFetchedServiceKeyRef.current === serviceKey) return;
+    lastFetchedServiceKeyRef.current = serviceKey;
+
     let isMounted = true;
     const fetchService = async () => {
       setLoadingService(true);
@@ -269,9 +281,7 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
         }
         if (isMounted) {
           setService(found);
-          if (!sopInput && (found?.sop || task.sop)) {
-            setSopInput(task.sop || found?.sop || "");
-          }
+          setSopInput((prev) => prev || task.sop || found?.sop || "");
         }
       } catch (err) {
         console.error("Failed to fetch service details from DB:", err);
@@ -284,7 +294,7 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [task.serviceId, task.serviceName]);
+  }, [task.serviceId, task.serviceName, task.sop]);
 
   // 3. Fetch Google Drive Files for Client / Task from DB
   const loadDriveDocuments = async (clientId?: string) => {

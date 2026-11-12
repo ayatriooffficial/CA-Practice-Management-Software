@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   Edit2,
@@ -58,23 +58,47 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     "Overview" | "SOP" | "Sub Tasks" | "Checklist" | "Document Request" | "Clients"
   >("Overview");
 
-  // On-demand service details loader: fetches full sub-tasks, checklists, document requests, and SOP
+  const targetServiceId =
+    initialService.id || (initialService as any)._id || (initialService as any).serviceId;
+
+  const fetchedServiceIdRef = useRef<string | null>(null);
+  const onServiceUpdatedRef = useRef(onServiceUpdated);
+
   useEffect(() => {
-    const sId = initialService.id || (initialService as any)._id || (initialService as any).serviceId;
-    if (!sId) return;
+    onServiceUpdatedRef.current = onServiceUpdated;
+  }, [onServiceUpdated]);
+
+  // Synchronize internal state when selecting a different service
+  useEffect(() => {
+    setService(initialService);
+  }, [targetServiceId]);
+
+  // On-demand service details loader: fetches full sub-tasks, checklists, document requests, and SOP once per service ID
+  useEffect(() => {
+    if (!targetServiceId) return;
+    if (fetchedServiceIdRef.current === targetServiceId) return;
+
+    fetchedServiceIdRef.current = targetServiceId;
     let isMounted = true;
-    serviceApi.getServiceById(sId).then((res) => {
-      if (isMounted && res && res.data) {
-        setService((prev) => ({ ...prev, ...res.data }));
-        if (onServiceUpdated) onServiceUpdated(res.data);
-      }
-    }).catch((err) => {
-      console.warn("Failed to fetch full service details on demand:", err);
-    });
+
+    serviceApi
+      .getServiceById(targetServiceId)
+      .then((res) => {
+        if (isMounted && res && res.data) {
+          setService((prev) => ({ ...prev, ...res.data }));
+          if (onServiceUpdatedRef.current) {
+            onServiceUpdatedRef.current(res.data);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch full service details on demand:", err);
+      });
+
     return () => {
       isMounted = false;
     };
-  }, [initialService.id, (initialService as any)._id, (initialService as any).serviceId, onServiceUpdated]);
+  }, [targetServiceId]);
 
   // Toggle Client Service Mutation
   const toggleClientServiceMutation = useToggleClientServiceMutation();
@@ -174,9 +198,14 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
     });
   }, [service.documentRequests]);
 
-  // Fetch real clients from database for Clients tab
+  // Fetch real clients from database for Clients tab (only once per service ID)
+  const fetchedClientsForServiceIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (activeTab === "Clients") {
+      if (fetchedClientsForServiceIdRef.current === targetServiceId && clients.length > 0) {
+        return;
+      }
+      fetchedClientsForServiceIdRef.current = targetServiceId;
       setIsClientsLoading(true);
       clientApi
         .getClients({ limit: 100 })
@@ -186,7 +215,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
         .catch(() => { })
         .finally(() => setIsClientsLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, targetServiceId, clients.length]);
 
   // Sync templates to active tasks
   const handleSyncToTasks = async () => {

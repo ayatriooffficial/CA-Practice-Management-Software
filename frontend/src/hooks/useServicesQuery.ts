@@ -25,6 +25,11 @@ export function useServices(params: ServiceQueryParams = {}) {
 
   const paramsKey = useMemo(() => JSON.stringify(params || {}), [params]);
   const lastDispatchedKeyRef = useRef<string | null>(null);
+  const paramsRef = useRef(params);
+
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   useEffect(() => {
     const isSameParams = JSON.stringify(currentParams) === paramsKey;
@@ -42,13 +47,13 @@ export function useServices(params: ServiceQueryParams = {}) {
 
     // 3. Otherwise (not loaded yet, params changed, or hard reload), fetch data
     lastDispatchedKeyRef.current = paramsKey;
-    dispatch(fetchServicesRequest(params));
-  }, [dispatch, paramsKey, isLoaded, currentParams, loading, params]);
+    dispatch(fetchServicesRequest(paramsRef.current));
+  }, [dispatch, paramsKey, isLoaded, currentParams, loading]);
 
   const refetch = useCallback(() => {
     lastDispatchedKeyRef.current = null;
-    dispatch(fetchServicesRequest(params));
-  }, [dispatch, params]);
+    dispatch(fetchServicesRequest(paramsRef.current));
+  }, [dispatch]);
 
   return {
     data: {

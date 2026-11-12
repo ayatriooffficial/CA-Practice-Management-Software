@@ -556,22 +556,28 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
     return actionsList;
   }, [canAddEdit, canDelete, handleDeleteService, handleRestoreService]);
 
+  const handleCloseDetail = useCallback(() => {
+    setViewMode("list");
+    setSelectedService(null);
+  }, []);
+
+  const handleEditFromDetail = useCallback((srv: Service) => {
+    setEditingService(srv);
+    setViewMode("create");
+  }, []);
+
+  const handleServiceUpdated = useCallback((updated: Service) => {
+    setSelectedService(updated);
+  }, []);
+
   // Dedicated detail view matching Screenshot 1-5
   if (viewMode === "detail" && selectedService) {
     return (
       <ServiceDetailView
         service={selectedService}
-        onClose={() => {
-          setViewMode("list");
-          setSelectedService(null);
-        }}
-        onEdit={(srv) => {
-          setEditingService(srv);
-          setViewMode("create");
-        }}
-        onServiceUpdated={(updated) => {
-          setSelectedService(updated);
-        }}
+        onClose={handleCloseDetail}
+        onEdit={handleEditFromDetail}
+        onServiceUpdated={handleServiceUpdated}
       />
     );
   }
