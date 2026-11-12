@@ -46,6 +46,15 @@ export const complianceItemRefreshSchema = z
   })
   .strict();
 
+export const complianceGstSyncSchema = z
+  .object({
+    clientIds: z.array(z.string()).optional(),
+    fy: z.string().optional().default('2026-27'),
+    refreshPreference: z.boolean().optional().default(false),
+  })
+  .strict();
+
 export type ComplianceGridQueryInput = z.infer<typeof complianceGridQuerySchema>;
 export type ComplianceEntryUpsertInput = z.infer<typeof complianceEntryUpsertSchema>;
 export type ComplianceItemRefreshInput = z.infer<typeof complianceItemRefreshSchema>;
+export type ComplianceGstSyncInput = z.infer<typeof complianceGstSyncSchema>;

@@ -8,6 +8,7 @@ import {
 } from './compliance.model';
 import { Client } from '../client/client.model';
 import { ClientServiceSetting } from '../client/clientServiceSetting.model';
+import { PortalSyncStateModel } from '../sync/sync.model';
 import { Service } from '../service/service.model';
 import { ServiceService } from '../service/service.service';
 import { deriveEntryStatus, getTodayDateString } from '../shared-nc/status.util';
@@ -120,6 +121,36 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     if ((s as any).serviceId) catalogMap.set(String((s as any).serviceId), s);
   }
 
+  // Pre-load GST ComplianceItems when viewing GST category so synced GSTR1/GSTR3B/CMP08
+  // items render directly instead of relying on ServiceService slug matching.
+  const gstItemsByClient = new Map<string, any[]>();
+  if (resolvedCatId === 'cat-gst') {
+    const gstItems = await ComplianceItemModel.find({
+      clientId: { $in: clientIds },
+      categoryId: 'cat-gst',
+      isDeleted: false,
+    }).lean();
+
+    const formOrder: Record<string, number> = {
+      GSTR1: 1,
+      GSTR3B: 2,
+      CMP08: 3,
+      GSTR5: 4,
+      GSTR9: 5,
+    };
+    gstItems.sort((a, b) => {
+      const oa = formOrder[(a.formCode || '').toUpperCase()] ?? 99;
+      const ob = formOrder[(b.formCode || '').toUpperCase()] ?? 99;
+      return oa - ob || (a.formCode || '').localeCompare(b.formCode || '');
+    });
+
+    for (const it of gstItems) {
+      const cid = String(it.clientId);
+      if (!gstItemsByClient.has(cid)) gstItemsByClient.set(cid, []);
+      gstItemsByClient.get(cid)!.push(it);
+    }
+  }
+
   // Map active recurring compliance services per client
   interface ClientActiveService {
     serviceName: string;
@@ -128,6 +159,7 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     formCode: string;
     isCustom?: boolean;
     serviceId?: string;
+    directItem?: any;
   }
 
   const activeServicesByClient = new Map<string, ClientActiveService[]>();
@@ -137,6 +169,38 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     const cid = String(client._id);
     const seenServiceNames = new Set<string>();
     const clientActiveList: ClientActiveService[] = [];
+
+    // For GST category: explicitly render concrete GSTR1, GSTR3B, CMP08, GSTR5, GSTR9 ComplianceItem records
+    if (resolvedCatId === 'cat-gst') {
+      const syncedGstItems = (gstItemsByClient.get(cid) || []).filter((it) => {
+        const code = (it.formCode || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        return ['GSTR1', 'GSTR3B', 'CMP08', 'GSTR5', 'GSTR9'].includes(code) || !it.isCustom;
+      });
+
+      if (syncedGstItems.length > 0) {
+        for (const it of syncedGstItems) {
+          const itemFreq = it.frequency as Frequency;
+          if (frequency && frequency !== 'all' && itemFreq !== frequency) {
+            continue;
+          }
+          clientActiveList.push({
+            serviceName: it.label || it.formCode,
+            category: 'cat-gst',
+            frequency: itemFreq,
+            formCode: it.formCode,
+            isCustom: Boolean(it.isCustom),
+            serviceId: String(it._id),
+            directItem: it,
+          });
+          activeFrequencies.add(itemFreq);
+        }
+
+        if (clientActiveList.length > 0) {
+          activeServicesByClient.set(cid, clientActiveList);
+        }
+        continue;
+      }
+    }
 
     // Check client.serviceSettings - Only services explicitly enabled with compliance are included
     const settings = settingsByClient.get(cid) || ((client as any).serviceSettings || []) as any[];
@@ -225,10 +289,48 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
   }).lean();
 
   const entryMap = new Map<string, Map<string, IComplianceEntryDocument>>();
+  const itemToClientMap = new Map<string, string>();
+  for (const it of existingItems) {
+    itemToClientMap.set(String(it._id), String(it.clientId));
+  }
+
+  const clientLastSyncMap = new Map<string, Date>();
   for (const e of entriesRaw) {
     const iid = String(e.itemId);
     if (!entryMap.has(iid)) entryMap.set(iid, new Map());
     entryMap.get(iid)!.set(e.periodKey, e as unknown as IComplianceEntryDocument);
+
+    if (e.source === 'portal' && e.syncedAt) {
+      const cid = itemToClientMap.get(iid);
+      if (cid) {
+        const dt = new Date(e.syncedAt);
+        const prev = clientLastSyncMap.get(cid);
+        if (!prev || dt.getTime() > prev.getTime()) {
+          clientLastSyncMap.set(cid, dt);
+        }
+      }
+    }
+  }
+
+  const activePortal = catDoc?.portal || (resolvedCatId === 'cat-gst' ? 'GST' : undefined);
+  if (activePortal && matchedClientObjectIds.length > 0) {
+    const syncStates = await PortalSyncStateModel.find({
+      clientId: { $in: matchedClientObjectIds },
+      portal: activePortal,
+      isSeed: false,
+      isDeleted: false,
+    }).lean();
+
+    for (const ss of syncStates) {
+      if (ss.lastSyncAt) {
+        const cid = String(ss.clientId);
+        const dt = new Date(ss.lastSyncAt);
+        const prev = clientLastSyncMap.get(cid);
+        if (!prev || dt.getTime() > prev.getTime()) {
+          clientLastSyncMap.set(cid, dt);
+        }
+      }
+    }
   }
 
   const clientMap = new Map(clients.map((c) => [String(c._id), c]));
@@ -239,6 +341,7 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     const client = clientMap.get(cid);
     if (!client) continue;
     clientSet.add(cid);
+    const clientLastSyncAt = clientLastSyncMap.get(cid)?.toISOString() ?? null;
 
     const clientAny = client as any;
     let clientIdentifier = '';
@@ -262,8 +365,11 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
     }
     const clientState = clientAny.address?.state || clientAny.state || 'Karnataka';
 
+    const clientRows: any[] = [];
+
     for (const svc of serviceList) {
       const existingItem =
+        svc.directItem ||
         itemMap.get(`${cid}__${svc.formCode.toLowerCase()}`) ||
         itemMap.get(`${cid}__${svc.serviceName.toLowerCase()}`);
 
@@ -284,6 +390,7 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
             entryId: String(entry._id),
             status,
             filedOn: entry.filedOn ?? null,
+            ackNumber: (entry as any).ackNumber ?? null,
             documents: entry.documents ?? [],
             dueDate: entry.dueDate,
           };
@@ -292,9 +399,10 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
         }
       }
 
-      rows.push({
+      const rowObj = {
         clientId: cid,
         clientName: client.name,
+        lastSyncAt: clientLastSyncAt,
         form: svc.serviceName, // Map form property to Service Name
         item: {
           id: itemId,
@@ -309,17 +417,67 @@ export async function getComplianceGrid(q: ComplianceGridQueryInput) {
           isCustom: svc.isCustom,
         },
         cells,
+      };
+
+      // CRITICAL FILTERING RULE: For synced GST items, discard rows with zero actionable cells in this FY
+      if (resolvedCatId === 'cat-gst' && svc.directItem) {
+        const hasActionableCell = Object.values(cells).some((c) => c !== null && c !== undefined);
+        if (!hasActionableCell) {
+          continue;
+        }
+      }
+
+      clientRows.push(rowObj);
+    }
+
+    // If all synced GST rows were discarded (e.g. client synced in another FY, none in this FY),
+    // keep the primary row with blank cells so the client remains visible and selectable for sync.
+    if (resolvedCatId === 'cat-gst' && clientRows.length === 0 && serviceList.length > 0) {
+      const primarySvc = serviceList[0];
+      const emptyCells: Record<string, unknown> = {};
+      for (const col of columns) emptyCells[col.key] = null;
+      clientRows.push({
+        clientId: cid,
+        clientName: client.name,
+        lastSyncAt: clientLastSyncAt,
+        form: primarySvc.serviceName,
+        item: {
+          id: primarySvc.directItem ? String(primarySvc.directItem._id) : `c-item-${cid}-${primarySvc.formCode}`,
+          clientId: cid,
+          categoryId: primarySvc.category,
+          identifier: clientIdentifier,
+          state: clientState,
+          formCode: primarySvc.formCode,
+          label: primarySvc.serviceName,
+          kind: 'return' as any,
+          frequency: primarySvc.frequency,
+          isCustom: primarySvc.isCustom,
+        },
+        cells: emptyCells,
       });
     }
+
+    rows.push(...clientRows);
   }
+
+  // Filter columns to only frequencies actually present in surviving rows
+  const survivingFrequencies = new Set((rows as any[]).map((r) => r.item?.frequency).filter(Boolean));
+  const finalColumns =
+    survivingFrequencies.size > 0 && (!frequency || frequency === 'all')
+      ? columns.filter((col) => survivingFrequencies.has(col.frequency))
+      : columns;
 
   return {
     clients: [...clientSet].map((cid) => {
       const c = clientMap.get(cid)!;
-      return { id: cid, name: c.name };
+      return {
+        id: cid,
+        name: c.name,
+        lastSyncAt: clientLastSyncMap.get(cid)?.toISOString() ?? null,
+      };
     }),
     rows,
-    columns,
+    columns: finalColumns,
     entries: entriesRaw.map((e) => {
       const { _id, ...rest } = e;
       return { ...rest, id: String(_id) };

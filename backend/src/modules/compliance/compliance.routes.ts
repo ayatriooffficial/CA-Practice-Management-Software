@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { ComplianceController } from './compliance.controller';
 import { validateRequest } from '../../middlewares/validateRequest';
 import { mutationRateLimiter } from '../../middlewares/rateLimiter';
+import { authenticate } from '../../middlewares/authenticate';
 import {
   complianceGridQuerySchema,
   complianceEntryUpsertSchema,
   complianceItemRefreshSchema,
+  complianceGstSyncSchema,
 } from './compliance.validation';
 
 const router = Router();
@@ -36,6 +38,15 @@ router.post(
   mutationRateLimiter,
   validateRequest({ body: complianceItemRefreshSchema }),
   ComplianceController.refreshItems
+);
+
+/** POST /compliance/sync/gst */
+router.post(
+  '/sync/gst',
+  authenticate,
+  mutationRateLimiter,
+  validateRequest({ body: complianceGstSyncSchema }),
+  ComplianceController.syncGst
 );
 
 export const complianceRoutes = router;

@@ -9,10 +9,12 @@ import {
   getComplianceCalendar,
   getComplianceSummary,
 } from './compliance.service';
+import { GstinSyncService } from './gstinSync.service';
 import {
   ComplianceGridQueryInput,
   ComplianceEntryUpsertInput,
   ComplianceItemRefreshInput,
+  ComplianceGstSyncInput,
 } from './compliance.validation';
 
 export class ComplianceController {
@@ -49,5 +51,16 @@ export class ComplianceController {
 
   static getSummary = asyncHandler(async (_req: Request, res: Response) => {
     return ApiResponse.success(res, await getComplianceSummary(), 'Compliance summary fetched');
+  });
+
+  /** POST /compliance/sync/gst */
+  static syncGst = asyncHandler(async (req: Request, res: Response) => {
+    const input = req.body as ComplianceGstSyncInput;
+    const result = await GstinSyncService.syncClientsGst(
+      input.clientIds,
+      input.fy,
+      input.refreshPreference
+    );
+    return ApiResponse.success(res, result, 'GST return filing data synchronized successfully');
   });
 }

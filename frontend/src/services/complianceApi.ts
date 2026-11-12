@@ -7,6 +7,8 @@ import type {
   ComplianceCellStatus,
   SyncEntitlement,
   ComplianceItem,
+  GstSyncRequest,
+  GstSyncResponse,
 } from '@/types/compliance';
 import type { CalendarEvent } from '@/types/notices';
 import { syncApi } from './syncApi';
@@ -57,6 +59,7 @@ export const complianceApi = {
           return {
             clientId: String(value.clientId || ''),
             clientName: String(value.clientName ?? ''),
+            lastSyncAt: (value.lastSyncAt as string | null | undefined) ?? null,
             item,
             cells: Object.fromEntries(Object.entries(rawCells).map(([key, cell]) => {
               if (!cell) return [key, null];
@@ -69,6 +72,7 @@ export const complianceApi = {
                   periodKey: key,
                   dueDate: String(cell.dueDate ?? ''),
                   filedOn: cell.filedOn as string | null | undefined,
+                  ackNumber: cell.ackNumber as string | null | undefined,
                   documents: Array.isArray(cell.documents) ? cell.documents : [],
                   source: 'portal',
                 },
@@ -84,6 +88,9 @@ export const complianceApi = {
 
   refreshItems: (payload: { categoryId?: string; clientId?: string } = {}): Promise<ApiResponse<{ retired: number }>> =>
     request<{ retired: number }>('/compliance/items/refresh', { method: 'POST', body: JSON.stringify(payload) }),
+
+  syncGst: (payload: GstSyncRequest = {}): Promise<ApiResponse<GstSyncResponse>> =>
+    request<GstSyncResponse>('/compliance/sync/gst', { method: 'POST', body: JSON.stringify(payload) }),
 
   getEntitlement: (): Promise<ApiResponse<SyncEntitlement & { credits: number }>> => syncApi.getEntitlement(),
 

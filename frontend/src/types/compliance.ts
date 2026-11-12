@@ -30,10 +30,24 @@ export interface ComplianceEntry {
   periodKey: string;
   dueDate: string;
   filedOn?: string | null;
+  ackNumber?: string | null;
   statusOverride?: 'filed' | 'missed' | 'pending' | null;
   documents: FileRef[];
   source: 'portal' | 'manual';
   syncedAt?: string;
+}
+
+export interface GstSyncRequest {
+  clientIds?: string[];
+  fy?: string;
+  refreshPreference?: boolean;
+}
+
+export interface GstSyncResponse {
+  syncedClients: number;
+  updatedEntries: number;
+  failedClients: number;
+  errors: Array<{ clientId: string; gstin?: string; error: string }>;
 }
 
 export interface SyncEntitlement {
@@ -47,6 +61,7 @@ export type ComplianceCellStatus = 'FILED' | 'MISSED' | 'PENDING' | 'BLANK';
 export interface ComplianceGridRow {
   clientId: string;
   clientName: string;
+  lastSyncAt?: string | null;
   item: ComplianceItem;
   cells: Record<string, {
     status: ComplianceCellStatus;
@@ -68,7 +83,7 @@ export interface GetComplianceGridParams {
 }
 
 export interface ComplianceGridResponse {
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; lastSyncAt?: string | null }[];
   rows: ComplianceGridRow[];
   columns: ComplianceGridColumn[];
   entries: ComplianceEntry[];

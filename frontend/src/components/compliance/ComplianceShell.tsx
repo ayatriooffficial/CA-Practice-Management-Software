@@ -15,7 +15,11 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchComplianceRequest } from "@/store/features/compliance/complianceSlice";
+import {
+  fetchComplianceRequest,
+  syncGstRequest,
+} from "@/store/features/compliance/complianceSlice";
+import { showToast } from "@/store/features/ui/uiSlice";
 import {
   useSyncEntitlementData,
 } from "@/hooks/useCompliance";
@@ -89,14 +93,19 @@ function parseFrequency(param: string | null, _categoryId?: string): FrequencyKe
   return "all";
 }
 
+function getCurrentFyStartYear(): number {
+  const now = new Date();
+  return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
 function parseFyStartYear(param: string | null): number {
-  if (!param) return 2025;
+  if (!param) return getCurrentFyStartYear();
   const match = param.match(/(\d{4})/);
   if (match) {
     const yr = parseInt(match[1], 10);
     if (!isNaN(yr)) return yr;
   }
-  return 2025;
+  return getCurrentFyStartYear();
 }
 
 function getSearchPlaceholder(categoryName?: string): string {
@@ -117,7 +126,7 @@ export const ComplianceShell: React.FC = () => {
   const searchParams = useSearchParams();
 
   const dispatch = useAppDispatch();
-  const { rows, columns, loading, isLoaded } = useAppSelector(
+  const { rows, columns, loading, isLoaded, isSyncingGst } = useAppSelector(
     (state) => state.compliance
   );
 
@@ -142,7 +151,29 @@ export const ComplianceShell: React.FC = () => {
 
   const [localSearch, setLocalSearch] = useState<string | null>(null);
   const [isSyncDrawerOpen, setIsSyncDrawerOpen] = useState(false);
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+  const [refreshQrmp, setRefreshQrmp] = useState<boolean>(false);
+  const selectedClientIds = useMemo(() => Array.from(selectedClients), [selectedClients]);
   const searchInput = localSearch !== null ? localSearch : searchParam || "";
+
+  const handleSyncGst = useCallback(() => {
+    if (selectedClientIds.length === 0) {
+      dispatch(
+        showToast({
+          type: "info",
+          message: "Please tick at least one client to sync GST details.",
+        })
+      );
+      return;
+    }
+    dispatch(
+      syncGstRequest({
+        clientIds: selectedClientIds,
+        fy: activeFy,
+        refreshPreference: refreshQrmp,
+      })
+    );
+  }, [dispatch, selectedClientIds, activeFy, refreshQrmp]);
 
   // Memoize fetch parameters based ONLY on primitive filter values
   const fetchParams = useMemo(() => ({
@@ -402,6 +433,40 @@ export const ComplianceShell: React.FC = () => {
                 </Button>
               </div>
 
+              {/* Refresh QRMP Status Checkbox */}
+              <label
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium cursor-pointer select-none whitespace-nowrap shrink-0"
+                style={{
+                  backgroundColor: "var(--bg-subtle)",
+                  borderColor: "var(--border-main)",
+                  color: "var(--text-main)",
+                }}
+                title="Check to force re-fetching Monthly vs Quarterly (QRMP) filing preference from GST portal"
+              >
+                <input
+                  type="checkbox"
+                  checked={refreshQrmp}
+                  onChange={(e) => setRefreshQrmp(e.target.checked)}
+                  className="rounded cursor-pointer"
+                />
+                <span>Refresh QRMP Status</span>
+              </label>
+
+              {/* Sync GST Portal Button (Live gstinapi.in) */}
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncingGst ? "animate-spin" : ""}`} />}
+                disabled={isSyncingGst}
+                onClick={handleSyncGst}
+              >
+                {isSyncingGst
+                  ? "Syncing GST..."
+                  : selectedClientIds.length > 0
+                  ? `Sync GST Portal (${selectedClientIds.length})`
+                  : "Sync GST Portal"}
+              </Button>
+
               {/* Sync Status Button */}
               <Button
                 variant="outline"
@@ -437,6 +502,8 @@ export const ComplianceShell: React.FC = () => {
               rows={rows}
               columns={columns}
               loading={loading}
+              selectedClients={selectedClients}
+              onSelectedClientsChange={setSelectedClients}
             />
           </div>
         </>
@@ -446,7 +513,7 @@ export const ComplianceShell: React.FC = () => {
       <SyncDrawer
         isOpen={isSyncDrawerOpen}
         onClose={() => setIsSyncDrawerOpen(false)}
-        selectedClientIds={[]}
+        selectedClientIds={selectedClientIds}
       />
     </div>
   );
