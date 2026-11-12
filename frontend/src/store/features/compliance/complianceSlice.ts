@@ -6,6 +6,8 @@ import type {
   ComplianceEntry,
   ComplianceCellStatus,
   GetComplianceGridParams,
+  GstSyncRequest,
+  GstSyncResponse,
 } from '@/types/compliance';
 import { pageStateCache } from '@/services/pageStateCache';
 
@@ -14,8 +16,10 @@ export interface ComplianceState {
   rows: ComplianceGridRow[];
   columns: ComplianceGridColumn[];
   entries: ComplianceEntry[];
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; lastSyncAt?: string | null }[];
   loading: boolean;
+  isSyncingGst: boolean;
+  gstSyncResult: GstSyncResponse | null;
   error: string | null;
   currentParams: GetComplianceGridParams;
   isLoaded: boolean;
@@ -30,6 +34,8 @@ const getInitialComplianceState = (): ComplianceState => {
     entries: cached?.entries || [],
     clients: cached?.clients || [],
     loading: false,
+    isSyncingGst: false,
+    gstSyncResult: null,
     error: null,
     currentParams: {},
     isLoaded: Boolean(cached?.rows?.length),
@@ -59,7 +65,7 @@ export const complianceSlice = createSlice({
         rows: ComplianceGridRow[];
         columns: ComplianceGridColumn[];
         entries?: ComplianceEntry[];
-        clients?: { id: string; name: string }[];
+        clients?: { id: string; name: string; lastSyncAt?: string | null }[];
       }>
     ) => {
       state.loading = false;
@@ -110,6 +116,18 @@ export const complianceSlice = createSlice({
     clearComplianceError: (state) => {
       state.error = null;
     },
+    syncGstRequest: (state, _action: PayloadAction<GstSyncRequest | undefined>) => {
+      state.isSyncingGst = true;
+      state.error = null;
+    },
+    syncGstSuccess: (state, action: PayloadAction<GstSyncResponse>) => {
+      state.isSyncingGst = false;
+      state.gstSyncResult = action.payload;
+    },
+    syncGstFailure: (state, action: PayloadAction<string>) => {
+      state.isSyncingGst = false;
+      state.error = action.payload;
+    },
   },
 });
 
@@ -120,6 +138,9 @@ export const {
   setCategories,
   updateComplianceCell,
   clearComplianceError,
+  syncGstRequest,
+  syncGstSuccess,
+  syncGstFailure,
 } = complianceSlice.actions;
 
 export default complianceSlice.reducer;

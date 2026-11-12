@@ -181,6 +181,7 @@ export interface IComplianceEntry {
   periodKey: string; // e.g. "2025-04", "Q1", "H1", "Annual"
   dueDate: string; // ISO date string YYYY-MM-DD
   filedOn?: string | null;
+  ackNumber?: string | null;
   statusOverride?: ComplianceStatus | null; // for manual category cycling
   documents: IFileRef[];
   source: 'portal' | 'manual';
@@ -217,6 +218,12 @@ const complianceEntrySchema = new Schema<IComplianceEntryDocument>(
     },
     filedOn: {
       type: String,
+      default: null,
+      index: true,
+    },
+    ackNumber: {
+      type: String,
+      trim: true,
       default: null,
       index: true,
     },

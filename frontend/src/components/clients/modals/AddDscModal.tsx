@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { X, Loader2, KeyRound, Calendar, Building2, MapPin, Usb, Download } from "lucide-react";
+import Image from "next/image";
+import { X, Loader2, KeyRound, Calendar, Building2, MapPin, Usb, Download, Info } from "lucide-react";
+import usbIcon from "@/assets/USB_icon.svg";
 import { clientApi } from "@/services/clientApi";
 import { Client } from "@/data/crmData";
 import { ConnectorStatusBadge } from "@/components/ui/ConnectorStatusBadge";
@@ -345,40 +347,76 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
               <ConnectorStatusBadge />
             </div>
 
-            <div className="p-2.5 rounded-lg bg-white/90 dark:bg-slate-900/70 border border-red-200/80 dark:border-red-900/50 text-[11px] space-y-1.5">
-              <div className="flex items-center justify-between gap-2 flex-wrap border-b border-red-100 dark:border-red-950/60 pb-2">
-                <span className="font-bold text-red-800 dark:text-red-300">
-                  Quick Setup Steps:
-                </span>
+            <div className="p-3 rounded-lg bg-white/90 dark:bg-slate-900/70 border border-red-200/80 dark:border-red-900/50 text-[11px] space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap border-b border-red-100 dark:border-red-950/60 pb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <Image
+                    src={usbIcon}
+                    alt="Physical USB token required"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 rounded-md shadow-xs shrink-0"
+                  />
+                  <div>
+                    <span className="font-bold text-red-800 dark:text-red-300 block leading-tight">
+                      Quick Setup Steps
+                    </span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                      Physical USB token required
+                    </span>
+                  </div>
+                </div>
                 <a
                   href="/downloads/DSC-Connector-Windows.zip"
                   download="DSC-Connector-Windows.zip"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-red-600 hover:bg-red-700 text-white border border-red-600 shadow-2xs transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 hover:bg-red-700 text-white border border-red-600 shadow-2xs transition-all cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download Connector (.zip)</span>
+                  <span>Download Utility</span>
                 </a>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-red-700 dark:text-red-300">
-                <div className="flex items-start gap-1.5">
+              <ul className="space-y-2 pt-0.5 text-gray-700 dark:text-gray-300 leading-relaxed">
+                <li className="flex items-start gap-2">
                   <span className="w-4 h-4 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                     1
                   </span>
-                  <span className="font-medium text-red-700 dark:text-red-300">Download and extract ZIP</span>
-                </div>
-                <div className="flex items-start gap-1.5">
+                  <span>
+                    <strong className="text-gray-900 dark:text-white">Step 1:</strong> Click &apos;Download Utility&apos;. The file will save to your computer&apos;s default Downloads folder (usually{" "}
+                    <code className="px-1 py-0.5 rounded bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-mono text-[10px]">
+                      C:\Downloads
+                    </code>{" "}
+                    or{" "}
+                    <code className="px-1 py-0.5 rounded bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-mono text-[10px]">
+                      C:\Users\YourName\Downloads
+                    </code>
+                    ).
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
                   <span className="w-4 h-4 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                     2
                   </span>
-                  <span className="font-medium text-red-700 dark:text-red-300">Run DSC-Connector.exe</span>
-                </div>
-                <div className="flex items-start gap-1.5">
+                  <span>
+                    <strong className="text-gray-900 dark:text-white">Step 2:</strong> Open your Downloads folder, right-click the downloaded{" "}
+                    <code className="px-1 py-0.5 rounded bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-mono text-[10px]">
+                      .zip
+                    </code>{" "}
+                    file, and select &apos;Extract All&apos;.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
                   <span className="w-4 h-4 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                     3
                   </span>
-                  <span className="font-medium text-red-700 dark:text-red-300">Insert USB & click button</span>
-                </div>
-              </div>
+                  <span>
+                    <strong className="text-gray-900 dark:text-white">Step 3:</strong> Open the newly extracted folder and double-click the{" "}
+                    <code className="px-1 py-0.5 rounded bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-mono text-[10px]">
+                      .exe
+                    </code>{" "}
+                    application file to run it.
+                  </span>
+                </li>
+              </ul>
             </div>
 
             <div>
@@ -551,6 +589,18 @@ export const AddDscModal: React.FC<AddDscModalProps> = ({
               placeholder="e.g. Pin is written on token, token renewal due..."
               className="w-full p-2.5 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-md text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B] resize-none"
             />
+          </div>
+
+          {/* Prerequisite Note */}
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200">
+            <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="italic leading-relaxed">
+              Note: For the DSC details to be successfully extracted and synced with the platform, you must keep the USB token plugged in and run this{" "}
+              <code className="not-italic px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 font-mono text-[11px]">
+                .exe
+              </code>{" "}
+              utility at least once on this specific device.
+            </p>
           </div>
 
           </div>

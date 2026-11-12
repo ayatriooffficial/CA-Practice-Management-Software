@@ -32,6 +32,8 @@ export interface ComplianceGridProps {
   rows?: ComplianceGridRow[];
   columns?: ComplianceGridColumn[];
   loading?: boolean;
+  selectedClients?: Set<string>;
+  onSelectedClientsChange?: (selected: Set<string>) => void;
 }
 
 interface ClientGroup {
@@ -40,7 +42,34 @@ interface ClientGroup {
   clientName: string;
   identifier?: string;
   state?: string;
+  lastSyncAt?: string | null;
   rows: ComplianceGridRow[];
+}
+
+function formatComplianceLastSync(dateStr?: string | null): string {
+  if (!dateStr) return "Never synced";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "Never synced";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const day = d.getDate();
+  const mon = months[d.getMonth()];
+  const yr = d.getFullYear();
+  let hours = d.getHours();
+  const mins = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `Last synced: ${day} ${mon} ${yr}, ${String(hours).padStart(2, "0")}:${mins} ${ampm}`;
+}
+
+function formatFiledDate(dateStr?: string | null): string | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const day = String(d.getDate()).padStart(2, "0");
+  const mon = months[d.getMonth()];
+  const yr = d.getFullYear();
+  return `${day} ${mon} ${yr}`;
 }
 
 function parseStartYear(fyStr?: string): number {
@@ -56,8 +85,13 @@ function normalizeFyParam(fyStr?: string): string {
 }
 
 function formatFormLabel(item: ComplianceGridRow["item"]): string {
-  const code = (item.formCode || "").toUpperCase();
+  const code = (item.formCode || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
   const label = item.label || "";
+  if (code === "GSTR1") return "GSTR-1";
+  if (code === "GSTR3B") return "GSTR-3B";
+  if (code === "CMP08") return "CMP-08";
+  if (code === "GSTR5") return "GSTR-5";
+  if (code === "GSTR9") return "GSTR-9";
   if (label.toLowerCase().includes("return") || label.includes("(")) return label;
   if (code === "ITR1" || label === "ITR-1") return "ITR-1 Return";
   if (code === "ITR2" || label === "ITR-2") return "ITR-2 Return";
@@ -76,6 +110,8 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
   rows: propRows,
   columns: propColumns,
   loading: propLoading,
+  selectedClients: propSelectedClients,
+  onSelectedClientsChange,
 }) => {
   const dispatch = useAppDispatch();
   const reduxCompliance = useAppSelector((state) => state.compliance);
@@ -88,9 +124,18 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
 
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState<Error | null>(null);
-  const [selectedClients, setSelectedClients] = useState<Set<string>>(
+  const [internalSelectedClients, setInternalSelectedClients] = useState<Set<string>>(
     new Set()
   );
+  const selectedClients = propSelectedClients ?? internalSelectedClients;
+  const updateSelectedClients = (updater: (prev: Set<string>) => Set<string>) => {
+    const next = updater(selectedClients);
+    if (onSelectedClientsChange) {
+      onSelectedClientsChange(next);
+    } else {
+      setInternalSelectedClients(next);
+    }
+  };
   const router = useRouter();
   const [stagingComplianceKey, setStagingComplianceKey] = useState<string | null>(null);
 
@@ -329,10 +374,13 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
           clientName: name,
           identifier: idVal,
           state: st,
+          lastSyncAt: r.lastSyncAt ?? null,
           rows: [],
         };
         groupMap.set(groupKey, group);
         groups.push(group);
+      } else if (r.lastSyncAt && (!group.lastSyncAt || new Date(r.lastSyncAt) > new Date(group.lastSyncAt))) {
+        group.lastSyncAt = r.lastSyncAt;
       }
       group.rows.push(r);
     }
@@ -348,14 +396,14 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
 
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedClients(new Set());
+      updateSelectedClients(() => new Set());
     } else {
-      setSelectedClients(new Set(clientGroups.map((g) => g.clientId)));
+      updateSelectedClients(() => new Set(clientGroups.map((g) => g.clientId)));
     }
   };
 
   const handleToggleSelectClient = (cId: string) => {
-    setSelectedClients((prev) => {
+    updateSelectedClients((prev) => {
       const next = new Set(prev);
       if (next.has(cId)) {
         next.delete(cId);
@@ -667,6 +715,19 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                               {group.state}
                             </span>
                           )}
+                          <span
+                            className={`text-[10px] mt-0.5 truncate max-w-[180px] ${
+                              group.lastSyncAt ? "font-medium" : "italic"
+                            }`}
+                            style={{
+                              color: group.lastSyncAt
+                                ? "var(--text-muted)"
+                                : "var(--text-placeholder)",
+                            }}
+                            title={formatComplianceLastSync(group.lastSyncAt)}
+                          >
+                            {formatComplianceLastSync(group.lastSyncAt)}
+                          </span>
                         </div>
                       </div>
                     </td>
@@ -717,6 +778,29 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                       badgeBorder = "var(--banner-border)";
                     }
 
+                    let cellTooltip: string | undefined;
+                    if (status === "FILED") {
+                      const parts: string[] = [];
+                      if (cellData?.entry?.ackNumber) {
+                        parts.push(`ARN: ${cellData.entry.ackNumber}`);
+                      }
+                      const formattedFiledOn = formatFiledDate(cellData?.entry?.filedOn);
+                      if (formattedFiledOn) {
+                        parts.push(`Filed On: ${formattedFiledOn}`);
+                      }
+                      if (parts.length > 0) {
+                        cellTooltip = parts.join("\n");
+                      }
+                    } else if (
+                      (status === "MISSED" || status === "PENDING") &&
+                      cellData?.entry?.dueDate
+                    ) {
+                      const formattedDue = formatFiledDate(cellData.entry.dueDate);
+                      if (formattedDue) {
+                        cellTooltip = `Due Date: ${formattedDue}`;
+                      }
+                    }
+
                     return (
                       <td
                         key={col.key}
@@ -728,6 +812,7 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                             cellData?.entry
                           )
                         }
+                        title={cellTooltip}
                         className={`px-3 py-2 text-center border-b border-r last:border-r-0 align-middle ${
                           !isAuto ? "cursor-pointer hover:opacity-80" : ""
                         }`}
@@ -740,7 +825,10 @@ export const ComplianceGrid: React.FC<ComplianceGridProps> = ({
                         {status === "BLANK" ? (
                           <span style={{ color: "var(--text-placeholder)" }}>-</span>
                         ) : (
-                          <div className="inline-flex items-center justify-center gap-1.5">
+                          <div
+                            className="inline-flex items-center justify-center gap-1.5"
+                            title={cellTooltip}
+                          >
                             <span
                               className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase border tracking-wider"
                               style={{

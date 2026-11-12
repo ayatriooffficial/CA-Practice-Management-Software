@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" width="150" height="150">
+  <rect width="150" height="150" fill="#0078D7" />
+  <g transform="rotate(-45 75 75)">
+    <!-- Detached USB Cap -->
+    <path
+      d="M 54 51 L 54 34 A 21 21 0 0 1 96 34 L 96 51 Z"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="4.5"
+      stroke-linejoin="round"
+    />
+    <!-- USB Connector Housing -->
+    <rect
+      x="61"
+      y="60"
+      width="28"
+      height="25"
+      rx="1.5"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+    <!-- Connector Pin Tracks -->
+    <rect x="68" y="65.5" width="4" height="4.5" rx="1" fill="#FFFFFF" />
+    <rect x="68" y="73" width="4" height="8" rx="1" fill="#FFFFFF" />
+    <rect x="78" y="65.5" width="4" height="8" rx="1" fill="#FFFFFF" />
+    <rect x="78" y="76.5" width="4" height="4.5" rx="1" fill="#FFFFFF" />
+    <!-- Solid USB Body -->
+    <path
+      d="M 53 85 L 97 85 L 97 115 A 22 22 0 0 1 53 115 Z"
+      fill="#FFFFFF"
+    />
+  </g>
+</svg>
+
