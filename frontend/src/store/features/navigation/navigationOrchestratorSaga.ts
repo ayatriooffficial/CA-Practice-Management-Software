@@ -51,6 +51,9 @@ const GROUP_MUTATION_ACTIONS = [
 
 function* handleClientMutation(): Generator<any, void, any> {
   yield put(invalidateSection({ section: 'client' }));
+  yield put(invalidateSection({ section: 'task' }));
+  yield put(invalidateSection({ section: 'invoice' }));
+  yield put(invalidateSection({ section: 'services' }));
   yield put(invalidateSection({ section: 'home' }));
 }
 

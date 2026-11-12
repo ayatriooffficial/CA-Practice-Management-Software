@@ -28,6 +28,9 @@ import {
 } from './clientSlice';
 import { showToast } from '../ui/uiSlice';
 import { pageStateCache } from '@/services/pageStateCache';
+import { removeWorkDoneClient } from '../workdone/workdoneSlice';
+import { removeTasksForClient } from '../tasks/taskSlice';
+import { removeInvoicesAndReceiptsForClient } from '../invoices/invoiceSlice';
 
 function* handleFetchClients(action: PayloadAction<ClientQueryParams | undefined>): Generator<any, void, any> {
   try {
@@ -147,6 +150,13 @@ function* handleDeleteClient(
   try {
     yield call(clientApi.softDeleteClient, action.payload.id);
     yield put(deleteClientSuccess(action.payload.id));
+    yield put(removeWorkDoneClient(action.payload.id));
+    yield put(removeTasksForClient({ clientId: action.payload.id }));
+    yield put(removeInvoicesAndReceiptsForClient({ clientId: action.payload.id }));
+    pageStateCache.delete('clients_list_data');
+    pageStateCache.delete('tasks_list_data');
+    pageStateCache.delete('invoices_list_data');
+    pageStateCache.delete('workdone_list_data');
     yield put(showToast({ type: 'success', message: 'Client deleted successfully' }));
     if (action.payload.onSuccess) {
       action.payload.onSuccess();
@@ -166,6 +176,15 @@ function* handleBulkDeleteClients(
   try {
     yield all(action.payload.ids.map((id) => call(clientApi.softDeleteClient, id)));
     yield put(bulkDeleteClientsSuccess(action.payload.ids));
+    for (const id of action.payload.ids) {
+      yield put(removeWorkDoneClient(id));
+      yield put(removeTasksForClient({ clientId: id }));
+      yield put(removeInvoicesAndReceiptsForClient({ clientId: id }));
+    }
+    pageStateCache.delete('clients_list_data');
+    pageStateCache.delete('tasks_list_data');
+    pageStateCache.delete('invoices_list_data');
+    pageStateCache.delete('workdone_list_data');
     yield put(showToast({ type: 'success', message: `${action.payload.ids.length} clients deleted` }));
     if (action.payload.onSuccess) {
       action.payload.onSuccess();

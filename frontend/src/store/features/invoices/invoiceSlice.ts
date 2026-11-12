@@ -548,6 +548,45 @@ export const invoiceSlice = createSlice({
         );
       }
     },
+    removeInvoicesAndReceiptsForClient: (
+      state,
+      action: PayloadAction<{ clientId: string; clientName?: string; clientPan?: string }>
+    ) => {
+      const { clientId, clientName, clientPan } = action.payload;
+      const targetId = String(clientId || '');
+      const targetName = (clientName || '').trim().toLowerCase();
+      const targetPan = (clientPan || '').trim().toUpperCase();
+
+      const matchClient = (item: any) => {
+        if (!item) return false;
+        if (targetId && (item.clientId === targetId || item.clientId?._id === targetId || item.clientId?.id === targetId)) {
+          return true;
+        }
+        if (targetPan && item.clientPan && item.clientPan.trim().toUpperCase() === targetPan) {
+          return true;
+        }
+        if (targetName) {
+          if (item.clientBusinessName && item.clientBusinessName.trim().toLowerCase() === targetName) return true;
+          if (item.clientLegalName && item.clientLegalName.trim().toLowerCase() === targetName) return true;
+          if (item.businessName && item.businessName.trim().toLowerCase() === targetName) return true;
+          if (item.legalName && item.legalName.trim().toLowerCase() === targetName) return true;
+        }
+        return false;
+      };
+
+      state.invoices = state.invoices.filter((inv) => !matchClient(inv));
+      state.proformas = state.proformas.filter((pro) => !matchClient(pro));
+      state.reimbursements = state.reimbursements.filter((reimb) => !matchClient(reimb));
+      state.receipts = state.receipts.filter((rec) => !matchClient(rec));
+
+      state.summaryStats = calculateStats(
+        state.activeTab,
+        state.invoices,
+        state.proformas,
+        state.reimbursements,
+        state.receipts
+      );
+    },
   },
 });
 
@@ -585,6 +624,7 @@ export const {
   setSearchQuery,
   setStatusFilter,
   setActiveReport,
+  removeInvoicesAndReceiptsForClient,
 } = invoiceSlice.actions;
 
 export default invoiceSlice.reducer;

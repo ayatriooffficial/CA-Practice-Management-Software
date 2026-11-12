@@ -90,6 +90,7 @@
             clientName: msg.clientName || "",
             directorName: msg.directorName || "",
             clientPan: msg.clientPan || msg.pan || "",
+            targetUrl: msg.targetUrl || msg.url || "",
           },
         },
         (response) => {

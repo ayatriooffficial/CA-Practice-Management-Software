@@ -1449,6 +1449,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                           directorName: pwd.remarks || `${pName} Credential`,
                                           clientName: client.name,
                                           clientPan: client.pan || "",
+                                          targetUrl: launchUrl,
                                         },
                                         "*"
                                       );
@@ -1460,6 +1461,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                             mcaPassword: pwd.password || "",
                                             directorName: pwd.remarks || "MCA Credential",
                                             clientName: client.name,
+                                            targetUrl: launchUrl,
                                           },
                                           "*"
                                         );
@@ -1517,6 +1519,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                         directorName: pwd.remarks || `${pwd.portal} Credential`,
                                         clientName: client.name,
                                         clientPan: client.pan || "",
+                                        targetUrl: launchUrl,
                                       },
                                       "*"
                                     );
@@ -1530,6 +1533,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                         mcaPassword: pwd.password || "",
                                         directorName: pwd.remarks || "MCA Credential",
                                         clientName: client.name,
+                                        targetUrl: launchUrl,
                                       },
                                       "*"
                                     );

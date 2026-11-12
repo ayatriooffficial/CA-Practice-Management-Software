@@ -232,6 +232,44 @@ export const taskSlice = createSlice({
     clearTaskError: (state) => {
       state.error = null;
     },
+    removeTasksForClient: (
+      state,
+      action: PayloadAction<{ clientId: string; clientName?: string; clientPan?: string }>
+    ) => {
+      const { clientId, clientName, clientPan } = action.payload;
+      const targetId = String(clientId || '');
+      const targetName = (clientName || '').trim().toLowerCase();
+      const targetPan = (clientPan || '').trim().toUpperCase();
+
+      state.items = state.items.filter((task) => {
+        if (targetId && (task.clientId === targetId || (task as any)._id === targetId)) {
+          return false;
+        }
+        if (targetPan && task.clientPan && task.clientPan.trim().toUpperCase() === targetPan) {
+          return false;
+        }
+        if (targetName && task.clientName && task.clientName.trim().toLowerCase() === targetName) {
+          return false;
+        }
+        if (targetName && task.legalName && task.legalName.trim().toLowerCase() === targetName) {
+          return false;
+        }
+        return true;
+      });
+
+      if (
+        state.selectedTask &&
+        ((targetId && state.selectedTask.clientId === targetId) ||
+          (targetName && state.selectedTask.clientName?.trim().toLowerCase() === targetName))
+      ) {
+        state.selectedTask = null;
+      }
+      state.pagination.totalDocs = state.items.length;
+      state.pagination.totalPages = Math.max(
+        1,
+        Math.ceil(state.items.length / (state.pagination.limit || 10))
+      );
+    },
   },
 });
 
@@ -259,6 +297,7 @@ export const {
   bulkDeleteTasksFailure,
   setSelectedTask,
   clearTaskError,
+  removeTasksForClient,
 } = taskSlice.actions;
 
 export default taskSlice.reducer;

@@ -123,10 +123,16 @@ export class MessageHandler {
             [STORAGE_KEYS.ACTIVE_PORTAL_ID]: portal.id,
             [STORAGE_KEYS.PENDING_CREDENTIALS]: pendingCreds,
             [STORAGE_KEYS.LAST_USED_CREDENTIALS]: pendingCreds,
+            pendingMcaCredentials: {
+              ...pendingCreds,
+            },
           });
 
           // Open portal in new tab
-          const targetUrl = portal.loginUrl;
+          const targetUrl =
+            payload.targetUrl && typeof payload.targetUrl === "string" && payload.targetUrl.startsWith("http")
+              ? payload.targetUrl
+              : portal.loginUrl;
           chrome.tabs.create({ url: targetUrl }, (newTab) => {
             sendResponse({ success: true, tabId: newTab?.id, portal: portal.name });
           });

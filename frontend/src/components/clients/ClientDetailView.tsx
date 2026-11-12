@@ -46,7 +46,13 @@ import { ClientComplianceTab } from "@/components/compliance/ClientComplianceTab
 import { usePermission } from "@/components/team/usePermission";
 import { useToggleClientServiceMutation } from "@/hooks/useServicesQuery";
 import { useAppDispatch } from "@/store/hooks";
-import { mergeClientSectionData, fetchClientByIdSuccess, setSelectedClient, fetchClientsRequest } from "@/store/features/clients/clientSlice";
+import { mergeClientSectionData, fetchClientByIdSuccess, setSelectedClient, fetchClientsRequest, deleteClientSuccess } from "@/store/features/clients/clientSlice";
+import { removeWorkDoneClient, fetchWorkDoneRequest } from "@/store/features/workdone/workdoneSlice";
+import { removeTasksForClient, fetchTasksRequest } from "@/store/features/tasks/taskSlice";
+import { removeInvoicesAndReceiptsForClient, fetchInvoicesRequest } from "@/store/features/invoices/invoiceSlice";
+import { fetchServicesRequest } from "@/store/features/services/serviceSlice";
+import { invalidateSection } from "@/store/features/navigation/navigationOrchestratorSlice";
+import { appSyncService } from "@/services/appSyncService";
 import { pageStateCache } from "@/services/pageStateCache";
 import Button from "../ui/Button";
 
@@ -807,9 +813,44 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       const res = await clientApi.deleteContact(client.id, contactId);
       if ((res.data as any)?.clientDeleted || isLast) {
         showToast(`Last director removed. Client "${client.name}" has been removed.`);
-        dispatch(fetchClientsRequest());
+
+        const cId = client.id;
+        const cName = client.name;
+        const cPan = client.pan;
+
+        // 1. Instantly update clients state
+        dispatch(deleteClientSuccess(cId));
         dispatch(setSelectedClient(null));
+        dispatch(fetchClientsRequest());
+
+        // 2. Instantly purge workdone for this client
+        dispatch(removeWorkDoneClient(cId));
+        dispatch(fetchWorkDoneRequest());
+
+        // 3. Instantly purge tasks for this client
+        dispatch(removeTasksForClient({ clientId: cId, clientName: cName, clientPan: cPan }));
+        dispatch(fetchTasksRequest());
+
+        // 4. Instantly purge invoices & receipts for this client
+        dispatch(removeInvoicesAndReceiptsForClient({ clientId: cId, clientName: cName, clientPan: cPan }));
+        dispatch(fetchInvoicesRequest());
+
+        // 5. Instantly refresh services client list
+        dispatch(fetchServicesRequest());
+
+        // 6. Purge caches
         pageStateCache.delete('clients_list_data');
+        pageStateCache.delete('tasks_list_data');
+        pageStateCache.delete('invoices_list_data');
+        pageStateCache.delete('workdone_list_data');
+        appSyncService.deleteClient(cId);
+
+        // 7. Invalidate navigation sections
+        dispatch(invalidateSection({ section: 'client' }));
+        dispatch(invalidateSection({ section: 'task' }));
+        dispatch(invalidateSection({ section: 'invoice' }));
+        dispatch(invalidateSection({ section: 'home' }));
+
         router.push('/client');
         onClose();
         return;

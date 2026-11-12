@@ -119,13 +119,81 @@ export function isGstReturnServiceEnabled(
 
 
 export const getPortalDefaultUrl = (portal?: string, explicitUrl?: string): string => {
-  if (explicitUrl && explicitUrl.trim()) return explicitUrl.trim();
+  const url = (explicitUrl || "").trim();
   const p = (portal || "").toLowerCase();
-  if (p.includes("gst")) return "https://www.gst.gov.in";
-  if (p.includes("income tax") || p.includes("e-filing") || p.includes("itd") || p.includes("incometax")) return "https://www.incometax.gov.in";
-  if (p.includes("traces")) return "https://www.tdscpc.gov.in";
-  if (p.includes("mca") || p.includes("v3")) return "https://www.mca.gov.in";
-  if (p.includes("epfo") || p.includes("pf")) return "https://unifiedportal-mem.epfindia.gov.in";
-  if (p.includes("esic")) return "https://www.esic.in";
-  return "https://www.google.com";
+
+  // If explicit URL already has specific login path, respect it unless it's a generic root/home
+  if (url) {
+    const isRootOrHome =
+      url === "https://www.incometax.gov.in" ||
+      url === "https://incometax.gov.in" ||
+      url === "http://www.incometax.gov.in" ||
+      url === "https://www.gst.gov.in" ||
+      url === "https://gst.gov.in" ||
+      url === "https://services.gst.gov.in" ||
+      url === "https://www.mca.gov.in" ||
+      url === "https://mca.gov.in" ||
+      url === "https://contents.tdscpc.gov.in" ||
+      url === "https://www.tdscpc.gov.in" ||
+      url === "https://ewaybillgst.gov.in" ||
+      url === "https://www.esic.in" ||
+      url === "https://www.dgft.gov.in" ||
+      url === "https://unifiedportal-mem.epfindia.gov.in";
+
+    if (!isRootOrHome && url.startsWith("http")) {
+      return url;
+    }
+  }
+
+  // Exact direct login endpoints
+  if (p.includes("income") || p.includes("tax") || p.includes("itd") || p.includes("itr") || p.includes("e-filing")) {
+    return "https://eportal.incometax.gov.in/iec/foservices/#/login";
+  }
+  if (p.includes("eway") || p.includes("e-way")) {
+    return "https://ewaybillgst.gov.in/login.aspx";
+  }
+  if (p.includes("gst")) {
+    return "https://services.gst.gov.in/services/login";
+  }
+  if (p.includes("traces") || p.includes("tds")) {
+    return "https://www.tdscpc.gov.in/app/login.xhtml";
+  }
+  if (p.includes("mca") || p.includes("roc") || p.includes("v3")) {
+    return "https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html";
+  }
+  if (p.includes("epfo") || p.includes("pf") || p.includes("provident")) {
+    return "https://unifiedportal-emp.epfindia.gov.in/epfo/";
+  }
+  if (p.includes("esic") || p.includes("esi")) {
+    return "https://www.esic.in/EmployerPortal/ESICInsurancePortal/Portal_LoginNew.aspx";
+  }
+  if (p.includes("shram") || p.includes("suvidha") || p.includes("lin")) {
+    return "https://shramsuvidha.gov.in/login";
+  }
+  if (p.includes("udyam") || p.includes("msme")) {
+    return "https://udyamregistration.gov.in/Government-India/Ministry-MSME-registration.htm";
+  }
+  if (p.includes("nsws") || p.includes("single window")) {
+    return "https://www.nsws.gov.in/login";
+  }
+  if (p.includes("startup")) {
+    return "https://www.startupindia.gov.in/content/sih/en/login.html";
+  }
+  if (p.includes("ipindia") || p.includes("trademark") || p.includes("patent")) {
+    return "https://ipindiaonline.gov.in/eregister/eregister.aspx";
+  }
+  if (p.includes("dgft") || p.includes("iec")) {
+    return "https://www.dgft.gov.in/CP/?opt=login";
+  }
+  if (p.includes("icegate") || p.includes("customs")) {
+    return "https://www.icegate.gov.in/";
+  }
+  if (p.includes("foscos") || p.includes("fssai") || p.includes("food")) {
+    return "https://foscos.fssai.gov.in/";
+  }
+  if (p.includes("gem") || p.includes("marketplace")) {
+    return "https://gem.gov.in/login";
+  }
+
+  return url || "https://www.google.com";
 };

@@ -99,6 +99,17 @@ export const workdoneSlice = createSlice({
         clearWorkDoneError: (state) => {
             state.error = null;
         },
+        removeWorkDoneClient: (state, action: PayloadAction<string>) => {
+            const targetId = String(action.payload || '');
+            state.items = state.items.filter(
+                (item) => item.clientId !== targetId && (item as any).id !== targetId && (item as any)._id !== targetId
+            );
+            if (state.selectedClient && (state.selectedClient.clientId === targetId || (state.selectedClient as any).id === targetId)) {
+                state.selectedClient = null;
+            }
+            state.pagination.totalDocs = Math.max(0, state.pagination.totalDocs - 1);
+            state.pagination.totalPages = Math.max(1, Math.ceil(state.items.length / (state.pagination.limit || 10)));
+        },
     },
 });
 
@@ -108,6 +119,7 @@ export const {
     fetchWorkDoneSuccess,
     fetchWorkDoneFailure,
     clearWorkDoneError,
+    removeWorkDoneClient,
 } = workdoneSlice.actions;
 
 export default workdoneSlice.reducer;
