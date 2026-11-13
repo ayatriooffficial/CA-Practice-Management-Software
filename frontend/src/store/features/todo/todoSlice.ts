@@ -330,6 +330,7 @@ export const todoSlice = createSlice({
       state.pagination.page = 1;
     },
     resetTodoFilters: (state) => {
+      state.filters.activeSection = 'my-todo';
       state.filters.selectedTag = null;
       state.filters.searchQuery = '';
       state.filters.selectedClientId = 'All';

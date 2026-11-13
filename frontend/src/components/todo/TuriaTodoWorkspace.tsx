@@ -428,11 +428,15 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
 
   // Active view configuration
   const currentViewConfig =
-    TASK_VIEW_OPTIONS.find((opt) => opt.id === filters.activeSection) ||
-    TASK_VIEW_OPTIONS[0];
+    TASK_VIEW_OPTIONS.find(
+      (opt) =>
+        opt.id === filters.activeSection ||
+        (opt.id === "my-todo" && (filters.activeSection as string) === "all")
+    ) || TASK_VIEW_OPTIONS[0];
 
   const currentViewCount =
-    filters.activeSection === "my-todo"
+    filters.activeSection === "my-todo" ||
+    (filters.activeSection as string) === "all"
       ? sidebarCounts.myTodo
       : filters.activeSection === "important"
       ? sidebarCounts.important
@@ -534,10 +538,12 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         {/* Unified Header Toolbar: View Dropdown + Tags (Left) & Search + Filters + Actions (Right) */}
         <div className="p-2 sm:px-3 sm:py-2 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap 2xl:flex-nowrap items-center justify-between gap-2.5 bg-white dark:bg-[#1e293b] relative z-30">
           {/* Left Section: View Dropdown + Tag Navigation */}
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-x-auto no-scrollbar py-0.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 py-0.5">
             {/* Task-View Dropdown (All / Important / Finished / Recurring Master / Deleted) */}
             <div className="relative shrink-0 z-50" ref={viewDropdownRef}>
               <button
+                id="todo-view-dropdown-button"
+                data-testid="todo-view-dropdown-button"
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -595,6 +601,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                     return (
                       <button
                         key={opt.id}
+                        data-testid={`todo-view-option-${opt.id}`}
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -657,6 +664,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                     return (
                       <button
                         key={opt.id}
+                        data-testid={`todo-view-option-${opt.id}`}
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();

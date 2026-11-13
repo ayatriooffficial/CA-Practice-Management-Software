@@ -142,7 +142,12 @@ export const selectFilteredTodoTasks = createSelector(
           (t.status || '').toLowerCase() === 'deleted'
       );
     } else {
-      list = list.filter((t) => (t.status || '').toLowerCase() !== 'completed');
+      list = list.filter(
+        (t) =>
+          (t.status || '').toLowerCase() !== 'completed' &&
+          (t.status || '').toLowerCase() !== 'cancelled' &&
+          (t.status || '').toLowerCase() !== 'deleted'
+      );
 
       if (filters.activeSection === 'important') {
         list = list.filter((t) => {
@@ -156,7 +161,7 @@ export const selectFilteredTodoTasks = createSelector(
               t.taskName?.toLowerCase().includes('recurring')
           )
         );
-      } else if (filters.activeSection === 'my-todo') {
+      } else if (filters.activeSection === 'my-todo' || (filters.activeSection as string) === 'all') {
         if (!isAdmin) {
           list = list.filter(
             (t) =>
