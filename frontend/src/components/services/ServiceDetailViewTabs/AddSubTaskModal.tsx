@@ -34,10 +34,10 @@ export const AddSubTaskModal: React.FC<AddSubTaskModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in"
     >
-      <div className="relative w-full max-w-lg bg-[var(--bg-surface)] text-[var(--text-main)] shadow-2xl overflow-hidden rounded-xl border border-[var(--border-main)]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-main)]">
+      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-[var(--bg-surface)] text-[var(--text-main)] shadow-2xl overflow-hidden rounded-xl border border-[var(--border-main)] my-auto">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-[var(--border-main)]">
           <h3 className="text-base font-bold text-[var(--text-main)]">Sub Task</h3>
           <button
             type="button"
@@ -48,61 +48,63 @@ export const AddSubTaskModal: React.FC<AddSubTaskModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-6 gap-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                Sub Task Name <span className="text-[var(--danger)]">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Sub Task Name"
-                value={subTaskName}
-                onChange={(e) => setSubTaskName(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-              />
+        <form onSubmit={onSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                  Sub Task Name <span className="text-[var(--danger)]">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Sub Task Name"
+                  value={subTaskName}
+                  onChange={(e) => setSubTaskName(e.target.value)}
+                  className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                  Budget Time(00:00 Hrs)
+                </label>
+                <input
+                  type="text"
+                  placeholder="00:00 Hrs"
+                  value={subTaskBudgetTime}
+                  onChange={(e) => setSubTaskBudgetTime(e.target.value)}
+                  className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                Budget Time(00:00 Hrs)
+                Description
               </label>
-              <input
-                type="text"
-                placeholder="00:00 Hrs"
-                value={subTaskBudgetTime}
-                onChange={(e) => setSubTaskBudgetTime(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+              <textarea
+                rows={4}
+                placeholder="Description"
+                value={subTaskDescription}
+                onChange={(e) => setSubTaskDescription(e.target.value)}
+                className="w-full p-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               />
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={() => showToast("Attachment selector opened")}
+                className="px-3 py-1.5 rounded-lg border border-[var(--primary)]/30 bg-[var(--brand-soft)] text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/15 transition-colors flex items-center gap-x-1.5 cursor-pointer"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
+                <span>+ Add Attachments</span>
+              </button>
             </div>
           </div>
 
-          <div className="mt-4">
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-              Description
-            </label>
-            <textarea
-              rows={4}
-              placeholder="Description"
-              value={subTaskDescription}
-              onChange={(e) => setSubTaskDescription(e.target.value)}
-              className="w-full p-3 text-xs bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-            />
-          </div>
-
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => showToast("Attachment selector opened")}
-              className="px-3 py-1.5 rounded-lg border border-[var(--primary)]/30 bg-[var(--brand-soft)] text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/15 transition-colors flex items-center gap-x-1.5 cursor-pointer"
-            >
-              <Paperclip className="w-3.5 h-3.5" />
-              <span>+ Add Attachments</span>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-end gap-x-2 pt-4 mt-4 border-t border-[var(--border-subtle)]">
+          <div className="shrink-0 flex items-center justify-end gap-x-2 px-6 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
             <button
               type="button"
               onClick={onClose}

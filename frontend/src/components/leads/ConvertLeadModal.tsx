@@ -58,10 +58,10 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="w-full max-w-lg max-h-[92vh] flex flex-col bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden my-auto">
         {/* Header */}
-        <div className="px-6 py-4.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <div className="shrink-0 px-6 py-4.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600">
               <Building2 className="w-5 h-5" />
@@ -86,8 +86,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4.5">
-          {/* Promoter Info Card */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4.5">
+            {/* Promoter Info Card */}
           <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-[#0f172a] border border-gray-200/60 dark:border-gray-700/60 space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
             <div className="flex justify-between items-center pb-1 border-b border-gray-200 dark:border-gray-700">
               <span className="text-gray-500 font-medium">Designated Promoter / Director:</span>
@@ -234,37 +235,38 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
               })}
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="pt-3 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Registering...</span>
-                </>
-              ) : (
-                <>
-                  <span>Register Company</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Action Buttons */}
+        <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-3.5 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1e293b]">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Registering...</span>
+              </>
+            ) : (
+              <>
+                <span>Register Company</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
-  );
+  </div>
+);
 };

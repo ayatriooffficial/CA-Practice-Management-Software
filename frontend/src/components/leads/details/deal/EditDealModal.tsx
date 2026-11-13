@@ -29,8 +29,8 @@ export const EditDealModal: React.FC<EditDealModalProps> = ({ lead, onClose }) =
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
-      <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-sm shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150">
-        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
+      <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-sm max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150 my-auto">
+        <div className="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
           <h2 className="text-base font-bold text-gray-900 dark:text-white">Edit Deal Value</h2>
           <button
             type="button"
@@ -41,22 +41,24 @@ export const EditDealModal: React.FC<EditDealModalProps> = ({ lead, onClose }) =
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Estimated Deal Value (₹ INR)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="500"
-              value={dealValue}
-              onChange={(e) => setDealValue(Number(e.target.value))}
-              className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white font-bold text-sm focus:outline-none focus:border-[#31719B]"
-            />
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+            <div>
+              <label className="block font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Estimated Deal Value (₹ INR)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="500"
+                value={dealValue}
+                onChange={(e) => setDealValue(Number(e.target.value))}
+                className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white font-bold text-sm focus:outline-none focus:border-[#31719B]"
+              />
+            </div>
           </div>
 
-          <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+          <div className="shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-white dark:bg-[#1e293b]">
             <button
               type="button"
               onClick={onClose}

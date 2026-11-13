@@ -181,10 +181,10 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
   if (!mounted) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9990] w-screen h-screen bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[9990] w-screen h-screen bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150 my-auto">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
+        <div className="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
           <h2 className="text-base font-bold text-gray-900 dark:text-white">
             {taskToEdit ? "Edit Follow-up Task" : "Add Follow-up Task"}
           </h2>
@@ -198,8 +198,9 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          {/* Title */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+            {/* Title */}
           <div>
             <label className="block font-semibold text-gray-700 dark:text-gray-300 mb-1">
               Task Title <span className="text-rose-500">*</span>
@@ -382,28 +383,29 @@ export const AddLeadTaskModal: React.FC<AddLeadTaskModalProps> = ({
               className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B] resize-none"
             />
           </div>
+        </div>
 
-          {/* Footer Buttons */}
-          <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-white font-semibold shadow-sm transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
-            >
-              <Check className="w-4 h-4" />
-              <span>{isSubmitting ? "Saving..." : taskToEdit ? "Update Task" : "Save Task"}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Footer Buttons */}
+        <div className="shrink-0 px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3 bg-white dark:bg-[#1e293b]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-white font-semibold shadow-sm transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+            style={{ backgroundColor: "var(--premium-blue-dark)" }}
+          >
+            <Check className="w-4 h-4" />
+            <span>{isSubmitting ? "Saving..." : taskToEdit ? "Update Task" : "Save Task"}</span>
+          </button>
+        </div>
+      </form>
+    </div>
     </div>
   );
 

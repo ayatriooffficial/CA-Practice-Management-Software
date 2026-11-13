@@ -381,10 +381,10 @@ const calculatedService = calculateServiceWithGST(amountForService);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 w-full max-w-4xl overflow-hidden my-auto animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-150">
         {/* MODAL TOP HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex-1 mr-4">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
               Recording Payment
@@ -497,12 +497,13 @@ const calculatedService = calculateServiceWithGST(amountForService);
 
         {/* MODAL BODY */}
         {modalTab === "history" ? (
-          <div className="p-12 text-center text-xs text-gray-400">
+          <div className="flex-1 overflow-y-auto p-12 text-center text-xs text-gray-400">
             No previous payment history found for this invoice.
           </div>
         ) : (
-          <form onSubmit={handleSave}>
-            <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-800">
+          <form onSubmit={handleSave} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-800">
               {/* LEFT COLUMN: Donut Chart & Breakdown Summary (cols 4) */}
               <div className="md:col-span-4 p-6 flex flex-col items-center  space-y-6 bg-gray-50/40 dark:bg-gray-800/20">
                 {/* Donut Chart with Red Ring (Matching Image 2 & 3) */}
@@ -926,9 +927,10 @@ const calculatedService = calculateServiceWithGST(amountForService);
                 </div>
               </div>
             </div>
+          </div>
 
             {/* MODAL FOOTER BUTTONS */}
-            <div className="flex items-center justify-end gap-2.5 px-6 py-4 bg-gray-50/80 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-800">
+            <div className="shrink-0 flex items-center justify-end gap-2.5 px-6 py-4 bg-gray-50/80 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-800">
               <button
                 type="button"
                 onClick={onClose}

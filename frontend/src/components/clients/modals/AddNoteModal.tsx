@@ -60,11 +60,11 @@ export const AddNoteModal: React.FC<AddNoteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg rounded-xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-[#111827] dark:text-[#f8fafc] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-lg rounded-xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] text-[#111827] dark:text-[#f8fafc] overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150 my-auto">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155]"
+          className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155]"
           style={{ backgroundColor: "var(--orange-havy-light)" }}
         >
           <div className="flex items-center gap-2.5">
@@ -93,42 +93,44 @@ export const AddNoteModal: React.FC<AddNoteModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {errorMessage && (
-            <div className="p-3 text-xs rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
-              {errorMessage}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {errorMessage && (
+              <div className="p-3 text-xs rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                {errorMessage}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Note Title / Topic
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Audit Query Meeting, GST Assessment Notice 2026"
+                className="w-full h-9 px-3 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-md text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B]"
+              />
             </div>
-          )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Note Title / Topic
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Audit Query Meeting, GST Assessment Notice 2026"
-              className="w-full h-9 px-3 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-md text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Note Details <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              rows={4}
-              required
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter note or observation..."
-              className="w-full p-2.5 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-md text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B] resize-none"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Note Details <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                required
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Enter note or observation..."
+                className="w-full p-2.5 text-xs bg-white dark:bg-[#0f172a] border border-[#dde2e8] dark:border-[#334155] rounded-md text-gray-900 dark:text-white focus:outline-none focus:border-[#31719B] resize-none"
+              />
+            </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#dde2e8] dark:border-[#334155]">
+          <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-3.5 border-t border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
             <button
               type="button"
               onClick={onClose}

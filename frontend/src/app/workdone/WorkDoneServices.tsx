@@ -454,7 +454,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
       {/* Receipt Modal */}
       {selectedPeriod && modalTotals && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               setSelectedPeriod(null);
@@ -465,12 +465,12 @@ export default function WorkDoneServices({ client, onBack }: Props) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="receipt-title"
-            className="w-full max-w-4xl overflow-hidden rounded-sm shadow-2xl"
+            className="w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden rounded-sm shadow-2xl my-auto animate-in zoom-in-95"
             style={{ background: "var(--bg-surface)" }}
           >
             {/* Modal Header */}
             <div
-              className="flex items-start justify-between border-b p-5"
+              className="shrink-0 flex items-start justify-between border-b p-5"
               style={{ borderColor: "var(--border-main)" }}
             >
               <div>
@@ -574,7 +574,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
             </div>
 
             {/* Receipt Table */}
-            <div className="max-h-[45vh] overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-4 min-h-0">
               <table className="w-full min-w-[650px] text-left">
                 <thead
                   className="sticky top-0"
@@ -641,7 +641,7 @@ export default function WorkDoneServices({ client, onBack }: Props) {
             </div>
 
             <div
-              className="flex items-center justify-between border-t p-4"
+              className="shrink-0 flex items-center justify-between border-t p-4"
               style={{ borderColor: "var(--border-main)" }}
             >
               <span className="text-xs" style={{ color: "var(--text-subtle)" }}>

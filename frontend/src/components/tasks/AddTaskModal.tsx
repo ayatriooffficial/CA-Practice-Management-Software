@@ -635,11 +635,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-task-title"
-      className="fixed inset-0 z-[9990] w-screen h-screen flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9990] w-screen h-screen flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150"
     >
-      <div className="relative w-full max-w-5xl bg-[var(--bg-surface)] text-[var(--text-main)] rounded-lg shadow-2xl border border-[var(--border-main)] overflow-hidden my-6">
+      <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-[var(--bg-surface)] text-[var(--text-main)] rounded-lg shadow-2xl border border-[var(--border-main)] overflow-hidden my-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-[var(--border-main)] bg-[var(--bg-muted)]">
+        <div className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-[var(--border-main)] bg-[var(--bg-muted)]">
           <h2
             id="add-task-title"
             className="text-base font-semibold text-[var(--text-main)]"
@@ -656,37 +656,39 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </button>
         </div>
 
-        {/* Linked Email Banner */}
-        {initialData?.linkedEmail && (
-          <div className="mx-6 mt-4 p-3 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-xs rounded-md border border-blue-200 dark:border-blue-900 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <Mail className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-              <div className="truncate">
-                <span className="font-semibold">Converting Email to Task: </span>
-                <span className="font-medium text-[var(--text-main)]">{initialData.linkedEmail.subject || "(No Subject)"}</span>
-                <span className="text-xs text-[var(--text-muted)] ml-2">— From {initialData.linkedEmail.sender}</span>
-              </div>
-            </div>
-            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
-              Auto-Linking Email
-            </span>
-          </div>
-        )}
-
-        {/* Error Banner */}
-        {errorMessage && (
-          <div
-            id="task-form-error-banner"
-            className="mx-6 mt-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-3.5 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200 flex items-center gap-2.5"
-          >
-            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-            <span className="text-xs font-medium text-rose-800 dark:text-rose-200">{errorMessage}</span>
-          </div>
-        )}
-
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 gap-y-3">
-          {/* Template Selector Banner */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Scrollable inputs area */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {/* Linked Email Banner */}
+            {initialData?.linkedEmail && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-xs rounded-md border border-blue-200 dark:border-blue-900 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Mail className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                  <div className="truncate">
+                    <span className="font-semibold">Converting Email to Task: </span>
+                    <span className="font-medium text-[var(--text-main)]">{initialData.linkedEmail.subject || "(No Subject)"}</span>
+                    <span className="text-xs text-[var(--text-muted)] ml-2">— From {initialData.linkedEmail.sender}</span>
+                  </div>
+                </div>
+                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
+                  Auto-Linking Email
+                </span>
+              </div>
+            )}
+
+            {/* Error Banner */}
+            {errorMessage && (
+              <div
+                id="task-form-error-banner"
+                className="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/95 dark:bg-rose-950/50 p-3.5 text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in duration-200 flex items-center gap-2.5"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                <span className="text-xs font-medium text-rose-800 dark:text-rose-200">{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Template Selector Banner */}
           <div className="mb-4 p-3 bg-[var(--bg-muted)]/50 border border-[#dde2e8] dark:border-[#334155] rounded-none flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-none bg-[#31719B]/10 text-[#31719B] flex items-center justify-center shrink-0">
@@ -1181,35 +1183,36 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               <span className="ml-2">Create Proforma Invoice for this Task</span>
             </label>
           </div>
+        </div>
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-x-3 pt-3.5 border-t border-[var(--border-main)]">
-            <button
-              type="button"
-              onClick={handleCloseAttempt}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md hover:bg-[var(--bg-subtle)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-x-1.5"
-              style={{ backgroundColor: "var(--primary)" }}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                <span>Submit</span>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Footer Actions */}
+        <div className="shrink-0 flex items-center justify-end gap-x-3 px-6 py-3.5 border-t border-[var(--border-main)] bg-[var(--bg-surface)]">
+          <button
+            type="button"
+            onClick={handleCloseAttempt}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-md hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-5 py-2 text-xs font-semibold text-white rounded-md shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-x-1.5 cursor-pointer"
+            style={{ backgroundColor: "var(--primary)" }}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <span>Submit</span>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
 
       <DiscardConfirmationModal
         isOpen={showDiscardModal}

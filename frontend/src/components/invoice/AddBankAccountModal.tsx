@@ -58,17 +58,17 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg rounded-none bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg rounded-none bg-white dark:bg-[#1e293b] border border-[#e5e7eb] dark:border-[#334155] shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] my-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb] dark:border-[#334155]">
+        <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb] dark:border-[#334155]">
           <div className="flex items-center gap-2">
             <Building className="w-5 h-5 text-[#3D6A9E]" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -85,12 +85,13 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-          {error && (
-            <div className="p-2.5 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-300">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {error && (
+              <div className="p-2.5 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-300">
+                {error}
+              </div>
+            )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
             {/* Payment Method */}
@@ -237,25 +238,26 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({
               />
             </div>
           </div>
+        </div>
 
-          {/* Footer Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e5e7eb] dark:border-[#334155]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#0f172a] cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-1.5 rounded bg-[#3D6A9E] hover:bg-[#685dd8] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
-            >
-              Submit
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Footer Buttons */}
+        <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-[#e5e7eb] dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3.5 py-1.5 rounded border border-[#dde2e8] dark:border-[#475569] text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#0f172a] cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-1.5 rounded bg-[#3D6A9E] hover:bg-[#685dd8] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+          >
+            Submit
+          </button>
+        </div>
+      </form>
     </div>
-  );
+  </div>
+);
 };

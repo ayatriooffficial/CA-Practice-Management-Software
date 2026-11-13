@@ -54,8 +54,8 @@ export const EditLeadScoreModal: React.FC<EditLeadScoreModalProps> = ({ lead, on
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
-      <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150">
-        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
+      <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-150 my-auto">
+        <div className="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/40">
           <div>
             <h2 className="text-base font-bold text-gray-900 dark:text-white">Edit Lead Score</h2>
             <p className="text-xs text-gray-400">Calculated: {computedScore} / 100</p>
@@ -69,68 +69,70 @@ export const EditLeadScoreModal: React.FC<EditLeadScoreModalProps> = ({ lead, on
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-          <div>
-            <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              <span>Business Size</span>
-              <span>{businessSize}</span>
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+            <div>
+              <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                <span>Business Size</span>
+                <span>{businessSize}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={businessSize}
+                onChange={(e) => setBusinessSize(Number(e.target.value))}
+                className="w-full accent-[#31719B] cursor-pointer"
+              />
             </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={businessSize}
-              onChange={(e) => setBusinessSize(Number(e.target.value))}
-              className="w-full accent-[#31719B] cursor-pointer"
-            />
+
+            <div>
+              <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                <span>Response Time</span>
+                <span>{responseTime}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={responseTime}
+                onChange={(e) => setResponseTime(Number(e.target.value))}
+                className="w-full accent-[#31719B] cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                <span>Engagement</span>
+                <span>{engagement}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={engagement}
+                onChange={(e) => setEngagement(Number(e.target.value))}
+                className="w-full accent-[#31719B] cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                <span>Source Quality</span>
+                <span>{sourceQuality}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={sourceQuality}
+                onChange={(e) => setSourceQuality(Number(e.target.value))}
+                className="w-full accent-[#31719B] cursor-pointer"
+              />
+            </div>
           </div>
 
-          <div>
-            <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              <span>Response Time</span>
-              <span>{responseTime}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={responseTime}
-              onChange={(e) => setResponseTime(Number(e.target.value))}
-              className="w-full accent-[#31719B] cursor-pointer"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              <span>Engagement</span>
-              <span>{engagement}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={engagement}
-              onChange={(e) => setEngagement(Number(e.target.value))}
-              className="w-full accent-[#31719B] cursor-pointer"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              <span>Source Quality</span>
-              <span>{sourceQuality}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={sourceQuality}
-              onChange={(e) => setSourceQuality(Number(e.target.value))}
-              className="w-full accent-[#31719B] cursor-pointer"
-            />
-          </div>
-
-          <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+          <div className="shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-white dark:bg-[#1e293b]">
             <button
               type="button"
               onClick={onClose}

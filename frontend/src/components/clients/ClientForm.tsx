@@ -2237,10 +2237,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
       {/* GSTIN Autofill Dialog */}
       {showGstinModal && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border border-[#dde2e8] dark:border-[#334155] bg-white dark:bg-[#1e293b] overflow-hidden my-auto">
             <div
-              className="px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between"
+              className="shrink-0 px-6 py-4 border-b border-[#dde2e8] dark:border-[#334155] flex items-center justify-between"
               style={{ backgroundColor: "var(--orange-havy-light)" }}
             >
               <h3 className="text-base font-bold text-[#000000] dark:text-white">
@@ -2256,7 +2256,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
                 <label htmlFor="cf-gstin-modal-input" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">
                   GSTIN
@@ -2317,7 +2317,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             </div>
 
             <div
-              className="px-6 py-4 border-t border-[#dde2e8] dark:border-[#334155] flex items-center justify-end gap-3"
+              className="shrink-0 px-6 py-4 border-t border-[#dde2e8] dark:border-[#334155] flex items-center justify-end gap-3"
               style={{ backgroundColor: "var(--orange-havy-light)" }}
             >
               <Button
