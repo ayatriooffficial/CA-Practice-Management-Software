@@ -58,7 +58,6 @@ import { clientApi } from "@/services/clientApi";
 import { teamStore } from "@/components/team/teamStore";
 import { EmployeeRecord } from "@/components/team/types";
 import { TuriaNavSection } from "./TuriaTodoSidebar";
-import { TuriaRightRail } from "./TuriaRightRail";
 import { TuriaEmptyState } from "./TuriaEmptyState";
 import { TuriaDateTaskView } from "./TuriaDateTaskView";
 import { TuriaAddTodoModal } from "./TuriaAddTodoModal";
@@ -530,12 +529,12 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
         </button>
       </div>
 
-      {/* 2. Main Layout Row: Single Task-List Container + Right Rail */}
-      <div className="flex items-start gap-3">
-        {/* The ONE Single Main Task-List Container */}
-        <div className="flex-1 min-w-0 bg-white dark:bg-[#1e293b] shadow-card flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
-          {/* Row 1: Top Category & Tag Navigation Row */}
-          <div className="px-4 py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex items-center gap-2.5 sm:gap-3 shrink-0 bg-white dark:bg-[#1e293b] relative z-30">
+      {/* 2. Main Task-List Container (Full Width, Right Rail Removed) */}
+      <div className="w-full bg-white dark:bg-[#1e293b] shadow-card flex flex-col border border-[#dde2e8] dark:border-[#334155] rounded-md">
+        {/* Unified Header Toolbar: View Dropdown + Tags (Left) & Search + Filters + Actions (Right) */}
+        <div className="p-2 sm:px-3 sm:py-2 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap 2xl:flex-nowrap items-center justify-between gap-2.5 bg-white dark:bg-[#1e293b] relative z-30">
+          {/* Left Section: View Dropdown + Tag Navigation */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-x-auto no-scrollbar py-0.5">
             {/* Task-View Dropdown (All / Important / Finished / Recurring Master / Deleted) */}
             <div className="relative shrink-0 z-50" ref={viewDropdownRef}>
               <button
@@ -544,7 +543,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   e.stopPropagation();
                   setIsViewDropdownOpen((prev) => !prev);
                 }}
-                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 ${
+                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 h-10 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs select-none bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200 shrink-0 ${
                   isViewDropdownOpen
                     ? "border-[#31719B] ring-1 ring-[#31719B]"
                     : "border-[#dde2e8] dark:border-[#475569] hover:border-gray-400"
@@ -563,7 +562,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   }`}
                 />
                 <span>{currentViewConfig.label}</span>
-                <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                   {currentViewCount}
                 </span>
                 <ChevronDown
@@ -702,7 +701,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
             <div className="h-5 w-[1px] bg-[#dde2e8] dark:bg-[#334155] shrink-0" />
 
             {/* Horizontal Tag Pills */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar snap-x py-0.5">
+            <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar snap-x py-0.5">
               {/* All Tags Pill */}
               <button
                 type="button"
@@ -710,7 +709,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                   dispatch(setSelectedTag(null));
                   setIsCalendarView(false);
                 }}
-                className={`inline-flex items-center px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
+                className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
                   filters.selectedTag === null
                     ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
                     : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
@@ -732,7 +731,7 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
                       dispatch(setSelectedTag(isSelected ? null : tag));
                       setIsCalendarView(false);
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap border shrink-0 snap-start ${
                       isSelected
                         ? "font-semibold shadow-xs bg-[#31719B] border-[#31719B] text-white"
                         : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400 font-medium"
@@ -765,264 +764,259 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Row 2: First Toolbar Row (Full width: Left = Search, Clients, Assignees, Sort, ⋮ | Right = Filter by due date, Calendar) */}
-          <div className="p-3 sm:px-4 sm:py-2.5 border-b border-[#dde2e8] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1e293b] relative z-20">
-            {/* Left Controls */}
-            <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
-              {/* Search Box */}
-              <div className="relative w-full sm:w-56 md:w-64">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                <input
-                  id="todo-search-input"
-                  name="todoSearch"
-                  aria-label="Search to-dos"
-                  type="text"
-                  value={filters.searchQuery}
-                  onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-                  placeholder="Search to-dos..."
-                  className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs text-[#000000] dark:text-white outline-none focus:border-[#31719B] transition-colors"
-                />
-                {filters.searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => dispatch(setSearchQuery(""))}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Client Filter Dropdown */}
-              <div className="w-full sm:w-44 shrink-0">
-                <Select
-                  aria-label="Filter by client"
-                  value={filters.selectedClientId}
-                  onChange={(val) => dispatch(setSelectedClientId(val))}
-                  placeholder="All Clients"
-                  searchable
-                  options={[
-                    { value: "All", label: "All Clients" },
-                    ...clients.map((c) => ({
-                      value: c.name || c.legalName || c.id,
-                      label: c.name || c.legalName || "Unnamed Client",
-                    })),
-                  ]}
-                />
-              </div>
-
-              {/* Assignee Filter Dropdown */}
-              <div className="w-full sm:w-40 shrink-0">
-                <Select
-                  aria-label="Filter by assignee"
-                  value={filters.selectedAssigneeId}
-                  onChange={(val) => dispatch(setSelectedAssigneeId(val))}
-                  placeholder="All Assignees"
-                  disabled={!isAdmin}
-                  options={
-                    isAdmin
-                      ? [
-                          { value: "All", label: "All Assignees" },
-                          {
-                            value: currentUser?.name || "Ayatrio Admin",
-                            label: `${currentUser?.name || "Ayatrio Admin"} (Me)`,
-                          },
-                          ...employees
-                            .filter((emp) => emp.name !== currentUser?.name)
-                            .map((emp) => ({ value: emp.name, label: emp.name })),
-                        ]
-                      : [
-                          {
-                            value: currentUser?.name || "Me",
-                            label: currentUser?.name || "My Assigned Tasks",
-                          },
-                        ]
-                  }
-                />
-              </div>
-
-              {/* Sort Dropdown */}
-              <div className="w-full sm:w-40 shrink-0">
-                <Select
-                  aria-label="Sort to-dos"
-                  value={filters.sortBy}
-                  onChange={(val) => dispatch(setSortBy(val as any))}
-                  separator={false}
-                  options={[
-                    { value: "created-desc", label: "Created On ↓" },
-                    { value: "created-asc", label: "Created On ↑" },
-                    { value: "due-asc", label: "Due Date (Earliest)" },
-                    { value: "priority-desc", label: "Priority (Highest)" },
-                  ]}
-                />
-              </div>
-
-              {/* Action Menu ⋮ with quick access to Recurring, Deleted, Refresh */}
-              <div className="relative shrink-0" ref={moreMenuRef}>
+          {/* Right Section: Search, Dropdowns, Actions, Date Filter, Calendar */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+            {/* Search Box */}
+            <div className="relative w-full sm:w-44 md:w-48 lg:w-52 shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                id="todo-search-input"
+                name="todoSearch"
+                aria-label="Search to-dos"
+                type="text"
+                value={filters.searchQuery}
+                onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+                placeholder="Search to-dos..."
+                className="h-10 w-full rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] pl-9 pr-8 text-xs text-[#000000] dark:text-white outline-none focus:border-[#31719B] transition-colors"
+              />
+              {filters.searchQuery && (
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsMoreMenuOpen((prev) => !prev);
-                  }}
-                  className="h-10 w-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center cursor-pointer transition-colors"
-                  title="More options"
-                  aria-label="More options"
+                  onClick={() => dispatch(setSearchQuery(""))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white cursor-pointer"
                 >
-                  <MoreVertical className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
-
-                {isMoreMenuOpen && (
-                  <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-56 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dispatch(setActiveSection("recurring"));
-                        dispatch(setTodoPage(1));
-                        setIsMoreMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
-                    >
-                      <Repeat className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Recurring Master ({sidebarCounts.recurring})</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dispatch(setActiveSection("deleted"));
-                        dispatch(setTodoPage(1));
-                        setIsMoreMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Deleted Tasks ({sidebarCounts.deleted})</span>
-                    </button>
-                    <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        loadTasks(true);
-                        setIsMoreMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Refresh Tasks</span>
-                    </button>
-                    {(filters.selectedTag ||
-                      filters.selectedClientId !== "All" ||
-                      filters.selectedAssigneeId !== "All" ||
-                      filters.searchQuery ||
-                      filters.dueDateFilter) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          dispatch(resetTodoFilters());
-                          setIsMoreMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md cursor-pointer text-left font-medium"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Reset All Filters</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* Right Controls: Filter by due date, Calendar */}
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-              {/* Filter by due date button / popover */}
-              <div className="relative" ref={datePickerRef}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowDatePicker((prev) => !prev);
-                  }}
-                  className={`h-10 px-3.5 text-xs font-semibold rounded-md border flex items-center gap-2 transition-all cursor-pointer ${
-                    filters.dueDateFilter
-                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 font-semibold"
-                      : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                  <span>
-                    {filters.dueDateFilter
-                      ? `Due: ${formatFriendlyDate(filters.dueDateFilter)}`
-                      : "Filter by due date"}
-                  </span>
-                  {filters.dueDateFilter && (
-                    <X
-                      className="w-3 h-3 text-indigo-500 hover:text-indigo-700 ml-0.5"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        dispatch(setDueDateFilter(null));
-                      }}
-                    />
-                  )}
-                </button>
+            {/* Client Filter Dropdown */}
+            <div className="w-32 lg:w-36 shrink-0">
+              <Select
+                aria-label="Filter by client"
+                value={filters.selectedClientId}
+                onChange={(val) => dispatch(setSelectedClientId(val))}
+                placeholder="All Clients"
+                searchable
+                options={[
+                  { value: "All", label: "All Clients" },
+                  ...clients.map((c) => ({
+                    value: c.name || c.legalName || c.id,
+                    label: c.name || c.legalName || "Unnamed Client",
+                  })),
+                ]}
+              />
+            </div>
 
-                {/* Date Filter Dropdown Popover */}
-                {showDatePicker && (
-                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[#1e293b] rounded-md shadow-xl border border-[#dde2e8] dark:border-[#334155] p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Quick Date Select
-                    </div>
-                    <div className="space-y-1 mb-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          dispatch(setDueDateFilter(getTodayKolkataYMD()));
-                          setShowDatePicker(false);
-                        }}
-                        className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        Today ({formatFriendlyDate(getTodayKolkataYMD())})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          dispatch(setDueDateFilter(getTomorrowKolkataYMD()));
-                          setShowDatePicker(false);
-                        }}
-                        className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        Tomorrow ({formatFriendlyDate(getTomorrowKolkataYMD())})
-                      </button>
-                    </div>
-                    <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
-                      <label className="block text-[11px] text-gray-500 mb-1">
-                        Or pick custom date:
-                      </label>
-                      <input
-                        type="date"
-                        value={filters.dueDateFilter || ""}
-                        onChange={(e) => {
-                          dispatch(setDueDateFilter(e.target.value || null));
-                          setShowDatePicker(false);
-                        }}
-                        className="w-full px-2.5 py-1 text-xs rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* Assignee Filter Dropdown */}
+            <div className="w-32 lg:w-36 shrink-0">
+              <Select
+                aria-label="Filter by assignee"
+                value={filters.selectedAssigneeId}
+                onChange={(val) => dispatch(setSelectedAssigneeId(val))}
+                placeholder="All Assignees"
+                disabled={!isAdmin}
+                options={
+                  isAdmin
+                    ? [
+                        { value: "All", label: "All Assignees" },
+                        {
+                          value: currentUser?.name || "Ayatrio Admin",
+                          label: `${currentUser?.name || "Ayatrio Admin"} (Me)`,
+                        },
+                        ...employees
+                          .filter((emp) => emp.name !== currentUser?.name)
+                          .map((emp) => ({ value: emp.name, label: emp.name })),
+                      ]
+                    : [
+                        {
+                          value: currentUser?.name || "Me",
+                          label: currentUser?.name || "My Assigned Tasks",
+                        },
+                      ]
+                }
+              />
+            </div>
 
-              {/* Calendar button */}
+            {/* Sort Dropdown */}
+            <div className="w-32 lg:w-36 shrink-0">
+              <Select
+                aria-label="Sort to-dos"
+                value={filters.sortBy}
+                onChange={(val) => dispatch(setSortBy(val as any))}
+                separator={false}
+                options={[
+                  { value: "created-desc", label: "Created On ↓" },
+                  { value: "created-asc", label: "Created On ↑" },
+                  { value: "due-asc", label: "Due Date (Earliest)" },
+                  { value: "priority-desc", label: "Priority (Highest)" },
+                ]}
+              />
+            </div>
+
+            {/* Action Menu ⋮ with quick access to Recurring, Deleted, Refresh */}
+            <div className="relative shrink-0" ref={moreMenuRef}>
               <button
                 type="button"
-                onClick={() => setIsCalendarView(true)}
-                className="h-10 px-3.5 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-gray-400 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                title="Open Full-Page Notices-Style Calendar"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMoreMenuOpen((prev) => !prev);
+                }}
+                className="h-10 w-10 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center cursor-pointer transition-colors"
+                title="More options"
+                aria-label="More options"
               >
-                <Calendar className="w-3.5 h-3.5 text-[#31719B]" />
-                <span>Calendar</span>
+                <MoreVertical className="w-4 h-4" />
               </button>
+
+              {isMoreMenuOpen && (
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-56 rounded-md border border-[#dde2e8] dark:border-[#334155] p-1.5 z-50 shadow-xl bg-white dark:bg-[#1e293b] animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch(setActiveSection("recurring"));
+                      dispatch(setTodoPage(1));
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
+                  >
+                    <Repeat className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Recurring Master ({sidebarCounts.recurring})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch(setActiveSection("deleted"));
+                      dispatch(setTodoPage(1));
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Deleted Tasks ({sidebarCounts.deleted})</span>
+                  </button>
+                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loadTasks(true);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer text-left font-medium"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh Tasks</span>
+                  </button>
+                  {(filters.selectedTag ||
+                    filters.selectedClientId !== "All" ||
+                    filters.selectedAssigneeId !== "All" ||
+                    filters.searchQuery ||
+                    filters.dueDateFilter) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatch(resetTodoFilters());
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md cursor-pointer text-left font-medium"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Reset All Filters</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Filter by due date button / popover */}
+            <div className="relative shrink-0" ref={datePickerRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDatePicker((prev) => !prev);
+                }}
+                className={`h-10 px-3 text-xs font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer ${
+                  filters.dueDateFilter
+                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 font-semibold"
+                    : "border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-700 dark:text-gray-300 hover:border-gray-400"
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                <span>
+                  {filters.dueDateFilter
+                    ? `Due: ${formatFriendlyDate(filters.dueDateFilter)}`
+                    : "Filter by due date"}
+                </span>
+                {filters.dueDateFilter && (
+                  <X
+                    className="w-3 h-3 text-indigo-500 hover:text-indigo-700 ml-0.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dispatch(setDueDateFilter(null));
+                    }}
+                  />
+                )}
+              </button>
+
+              {/* Date Filter Dropdown Popover */}
+              {showDatePicker && (
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[#1e293b] rounded-md shadow-xl border border-[#dde2e8] dark:border-[#334155] p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Quick Date Select
+                  </div>
+                  <div className="space-y-1 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatch(setDueDateFilter(getTodayKolkataYMD()));
+                        setShowDatePicker(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      Today ({formatFriendlyDate(getTodayKolkataYMD())})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatch(setDueDateFilter(getTomorrowKolkataYMD()));
+                        setShowDatePicker(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      Tomorrow ({formatFriendlyDate(getTomorrowKolkataYMD())})
+                    </button>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+                    <label className="block text-[11px] text-gray-500 mb-1">
+                      Or pick custom date:
+                    </label>
+                    <input
+                      type="date"
+                      value={filters.dueDateFilter || ""}
+                      onChange={(e) => {
+                        dispatch(setDueDateFilter(e.target.value || null));
+                        setShowDatePicker(false);
+                      }}
+                      className="w-full px-2.5 py-1 text-xs rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-gray-800 dark:text-gray-200"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Calendar button */}
+            <button
+              type="button"
+              onClick={() => setIsCalendarView(true)}
+              className="h-10 px-3 rounded-md border border-[#dde2e8] dark:border-[#475569] bg-white dark:bg-[#0f172a] text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-gray-400 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs shrink-0"
+              title="Open Full-Page Notices-Style Calendar"
+            >
+              <Calendar className="w-3.5 h-3.5 text-[#31719B]" />
+              <span>Calendar</span>
+            </button>
           </div>
+        </div>
 
           {/* Row 3: Second Toolbar Row (Agenda Tabs immediately beneath first toolbar row, spanning full width) */}
           <div className="px-4 py-2 border-b border-[#dde2e8] dark:border-[#334155] bg-gray-50/60 dark:bg-slate-900/40 flex flex-wrap items-center justify-between gap-2 shrink-0 relative z-10">
@@ -1202,13 +1196,6 @@ export const TuriaTodoWorkspace: React.FC<TuriaTodoWorkspaceProps> = ({
             )}
           </div>
         </div>
-
-        {/* Right Utility Rail */}
-        <TuriaRightRail
-          onToggleCalendar={() => setIsCalendarView(true)}
-          isCalendarActive={false}
-        />
-      </div>
 
       {/* Add / Assign To-Do Modal */}
       <TuriaAddTodoModal
