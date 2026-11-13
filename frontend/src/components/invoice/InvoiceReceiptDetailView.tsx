@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  ArrowLeft,
   Mail,
   MessageSquare,
   Download,
@@ -451,15 +450,6 @@ export const InvoiceReceiptDetailView: React.FC<InvoiceReceiptDetailViewProps> =
       <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-surface)] p-2.5  border-b border-[var(--border-main)]">
         {/* Left: Breadcrumb + Template Switcher */}
         <div className="flex items-center gap-2 text-xs">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-1 text-[var(--text-muted)] hover:text-[var(--text-main)] font-medium cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>List</span>
-          </button>
-          <span className="text-[var(--border-main)]">/</span>
           <span className="text-[var(--text-subtle)]">
             {isReceiptView ? "Receipt" : isProforma ? "Proforma" : "Invoice"}
           </span>

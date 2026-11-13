@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
   Plus,
+  Crown,
   Pencil,
   Trash2,
   ChevronDown,
@@ -45,6 +46,7 @@ import { getPortalDefaultUrl } from "./utils";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { clientApi } from "@/services/clientApi";
 import Button from "@/components/ui/Button";
+import { groupApi } from "@/services/groupApi";
 
 export interface ClientMasterTabProps {
   allServices?: ClientServiceSetting[];
@@ -130,6 +132,36 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
   // Passwords internal revealed state fallback
   const [localRevealedPasswords, setLocalRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [pocGroupName, setPocGroupName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const cId = client.id || (client as any)._id?.toString();
+    if (!cId) return;
+
+    groupApi
+      .listGroups({ limit: 100 })
+      .then((res) => {
+        if (!isMounted || !res?.data) return;
+        const matched = res.data.find((g) => {
+          const pocId =
+            typeof g.pocClientId === "string"
+              ? g.pocClientId
+              : (g.pocClientId as any)?.id ||
+                (g.pocClientId as any)?._id?.toString() ||
+                (g.poc?.clientId);
+          return pocId && String(pocId) === String(cId);
+        });
+        if (matched) {
+          setPocGroupName(matched.name);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [client.id, (client as any)._id]);
   const activeRevealed = setRevealedPasswords ? revealedPasswords : localRevealedPasswords;
   const togglePasswordReveal = (id: string) => {
     if (setRevealedPasswords) {
@@ -687,6 +719,12 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]">
                       {contactsList.length}
                     </span>
+                    {pocGroupName && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                        <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
+                        <span>Group POC ({pocGroupName})</span>
+                      </span>
+                    )}
                   </h3>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
                     {contactsList.length > 0
@@ -723,22 +761,71 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
             </div>
 
             {contactsList.length === 0 ? (
-              <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30  border border-dashed border-gray-300 dark:border-gray-700">
-                <User className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
-                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                  No directors or contacts registered yet.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingContact(null);
-                    setIsAddContactModalOpen(true);
-                  }}
-                  className="mt-2 text-xs font-semibold text-[#31719B] hover:underline cursor-pointer"
-                >
-                  + Add First Director
-                </button>
-              </div>
+              pocGroupName ? (
+                <div className="space-y-3">
+                  <div className="border rounded-md p-4 transition-all shadow-2xs border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20">
+                    <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-xs bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 ring-1 ring-amber-300 dark:ring-amber-700">
+                          {(client.name || "CL").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white capitalize">
+                              {client.name}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]">
+                              Primary Contact
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                              <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
+                              <span>Group POC ({pocGroupName})</span>
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500 font-medium">
+                            {client.type || "Designated POC"} • Client Entity
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
+                      <div>
+                        <span className="text-gray-400 block text-[10px] font-semibold uppercase">Mobile</span>
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">{client.mobile || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px] font-semibold uppercase">Email</span>
+                        <span className="text-gray-700 dark:text-gray-300 font-medium truncate block">{client.email || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px] font-semibold uppercase">PAN</span>
+                        <span className="text-gray-700 dark:text-gray-300 font-mono font-medium">{client.pan || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px] font-semibold uppercase">Group</span>
+                        <span className="text-amber-700 dark:text-amber-400 font-medium">{pocGroupName}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center bg-white/70 dark:bg-gray-800/30 border border-dashed border-gray-300 dark:border-gray-700">
+                  <User className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-1.5" />
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                    No directors or contacts registered yet.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingContact(null);
+                      setIsAddContactModalOpen(true);
+                    }}
+                    className="mt-2 text-xs font-semibold text-[#31719B] hover:underline cursor-pointer"
+                  >
+                    Add First Director
+                  </button>
+                </div>
+              )
             ) : (
               <div className="space-y-3">
                 {paginatedContacts.map((contact, idx) => {
@@ -777,6 +864,12 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                               >
                                 {isPrimary ? "Primary Director" : "Director"}
                               </span>
+                              {isPrimary && pocGroupName && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                  <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
+                                  <span>Group POC ({pocGroupName})</span>
+                                </span>
+                              )}
                             </div>
                             <span className="text-xs text-gray-500 font-medium">
                               {contact.designation || "Director"}

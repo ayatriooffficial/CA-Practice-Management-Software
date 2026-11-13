@@ -586,7 +586,33 @@ export const GroupListView: React.FC = () => {
                             {
                               label: "Generate Invoice",
                               icon: FileText,
-                              onClick: () => void navigateWithTransition(`/invoice?groupId=${grp.id}`, router),
+                              onClick: () => {
+                                const pocClientIdStr = typeof grp.pocClientId === "string"
+                                  ? grp.pocClientId
+                                  : (grp.pocClientId as any)?.id || (grp.pocClientId as any)?._id?.toString() || (grp.stats as any)?.pocClientId;
+
+                                const pocClient = (grp.entities || []).find(
+                                  (e: any) => e.id === pocClientIdStr
+                                ) || grp.entities?.[0];
+
+                                const draftData = {
+                                  clientId: pocClient?.id || '',
+                                  clientBusinessName: pocClient?.name || grp.name,
+                                  clientLegalName: (pocClient as any)?.legalName || pocClient?.name || grp.name,
+                                  clientGroup: grp.name,
+                                  clientPan: pocClient?.pan || '',
+                                  clientAddress: (pocClient as any)?.address || '',
+                                  services: [],
+                                  totalPayable: 0,
+                                  subTotal: 0,
+                                };
+
+                                if (typeof window !== 'undefined') {
+                                  sessionStorage.setItem('turia_draft_invoice_from_group', JSON.stringify(draftData));
+                                }
+
+                                void navigateWithTransition(`/invoice?tab=invoice&groupId=${grp.id}`, router);
+                              },
                             },
                             ...(canDelete("clients")
                               ? [

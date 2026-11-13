@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lead } from "@/data/crmData";
 import { useLeadById, useUpdateLead, useDeleteLead, useLeadTasks } from "@/hooks/useLeadsQuery";
 import { LeadDetailsHeader } from "./LeadDetailsHeader";
@@ -93,8 +94,22 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
     return 0;
   }, [activeLead.daysInStage, activeLead.createdAt]);
 
-  // Active Tab state
-  const [activeTab, setActiveTab] = useState<LeadDetailTabType>("tasks");
+  // Active Tab state synced with URL
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = (searchParams?.get("tab") as LeadDetailTabType) || "tasks";
+  const [activeTab, setActiveTab] = useState<LeadDetailTabType>(tabParam);
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam, activeTab]);
+
+  const handleTabChange = (newTab: LeadDetailTabType) => {
+    setActiveTab(newTab);
+    router.push(`/leads?leadId=${leadId}&tab=${newTab}`);
+  };
 
   // Modal states
   const [isAddQuotationOpen, setIsAddQuotationOpen] = useState(false);
@@ -268,7 +283,7 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
           <div className="flex items-center space-x-6 border-b border-[#e2e8f0] dark:border-[#334155] text-xs font-bold">
             <button
               type="button"
-              onClick={() => setActiveTab("notes")}
+              onClick={() => handleTabChange("notes")}
               className={`pb-3 relative transition-colors cursor-pointer ${activeTab === "notes"
                 ? "text-[#31719B] dark:text-[#60a5fa]"
                 : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -285,7 +300,7 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab("quotation")}
+              onClick={() => handleTabChange("quotation")}
               className={`pb-3 relative transition-colors cursor-pointer ${activeTab === "quotation"
                 ? "text-[#31719B] dark:text-[#60a5fa]"
                 : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -302,7 +317,7 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab("proposal")}
+              onClick={() => handleTabChange("proposal")}
               className={`pb-3 relative transition-colors cursor-pointer ${activeTab === "proposal"
                 ? "text-[#31719B] dark:text-[#60a5fa]"
                 : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -319,7 +334,7 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab("tasks")}
+              onClick={() => handleTabChange("tasks")}
               className={`pb-3 relative transition-colors cursor-pointer ${activeTab === "tasks"
                 ? "text-[#31719B] dark:text-[#60a5fa]"
                 : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"

@@ -151,7 +151,7 @@ export const InvoiceToolbar: React.FC<InvoiceToolbarProps> = ({
     }
   };
 
-  const actionButtonText = activeTab === 'receipts' ? '+ Record Payment' : '+ Add';
+  const actionButtonText = activeTab === 'receipts' ? 'Record Payment' : 'Add';
 
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 py-1 select-none transition-colors">

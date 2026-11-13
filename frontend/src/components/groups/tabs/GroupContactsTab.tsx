@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Search, Loader2, User, ExternalLink } from "lucide-react";
-import { groupApi, GroupContactRecord } from "@/services/groupApi";
+import { Search, Loader2, User, ExternalLink, Crown } from "lucide-react";
+import { groupApi, GroupContactRecord, GroupRecord } from "@/services/groupApi";
 import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 
 interface GroupContactsTabProps {
   groupId: string;
+  group?: GroupRecord | null;
 }
 
 const getInitials = (name?: string) => {
@@ -18,10 +19,17 @@ const getInitials = (name?: string) => {
   return name.slice(0, 2).toUpperCase();
 };
 
-export const GroupContactsTab: React.FC<GroupContactsTabProps> = ({ groupId }) => {
+export const GroupContactsTab: React.FC<GroupContactsTabProps> = ({ groupId, group }) => {
   const [contacts, setContacts] = useState<GroupContactRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  const pocClientIdStr = useMemo(() => {
+    if (!group) return null;
+    return typeof group.pocClientId === "string"
+      ? group.pocClientId
+      : (group.pocClientId as any)?.id || (group.pocClientId as any)?._id?.toString() || (group.poc?.clientId);
+  }, [group]);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -131,21 +139,42 @@ export const GroupContactsTab: React.FC<GroupContactsTabProps> = ({ groupId }) =
                 >
                   {/* Contact Name (Avatar + Name) */}
                   <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-[10px] font-bold flex items-center justify-center shrink-0">
-                        {getInitials(contact.name)}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-semibold text-gray-800 dark:text-slate-200 block truncate max-w-[140px]">
-                          {contact.name}
-                        </span>
-                        {contact.isPrimary && (
-                          <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                            Primary
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    {(() => {
+                      const isPoc = Boolean(
+                        contact.isGroupPoc ||
+                        (pocClientIdStr && String(contact.clientId) === String(pocClientIdStr) && (contact.isPrimary || contacts.filter(c => String(c.clientId) === String(pocClientIdStr))[0]?.id === contact.id))
+                      );
+
+                      return (
+                        <div className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
+                            isPoc
+                              ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 ring-1 ring-amber-300 dark:ring-amber-700"
+                              : "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300"
+                          }`}>
+                            {getInitials(contact.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-gray-800 dark:text-slate-200 block truncate max-w-[140px]">
+                                {contact.name}
+                              </span>
+                              {isPoc && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shrink-0">
+                                  <Crown size={9} className="fill-amber-500" />
+                                  <span>POC</span>
+                                </span>
+                              )}
+                            </div>
+                            {contact.isPrimary && !isPoc && (
+                              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Client (Link) */}

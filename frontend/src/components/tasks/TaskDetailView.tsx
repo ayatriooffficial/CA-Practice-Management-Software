@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   Clock,
   Play,
   Pause,
@@ -37,7 +36,7 @@ import {
 
 interface TaskDetailViewProps {
   taskId: string;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
@@ -45,13 +44,28 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
   onBack,
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const subTabParam = searchParams?.get("subTab") || "Task Summary";
   const { currentUser } = useAuth();
   const isEmployee = (currentUser?.role || "").toLowerCase() === "employee";
 
   const [task, setTask] = useState<TaskItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeSubTab, setActiveSubTab] = useState<string>("Task Summary");
+  const [activeSubTab, setActiveSubTab] = useState<string>(subTabParam);
   const [activeRightTab, setActiveRightTab] = useState<string>("Info");
+
+  useEffect(() => {
+    if (subTabParam && subTabParam !== activeSubTab) {
+      setActiveSubTab(subTabParam);
+    }
+  }, [subTabParam, activeSubTab]);
+
+  const handleSubTabChange = (tab: string) => {
+    setActiveSubTab(tab);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+    params.set("subTab", tab);
+    router.push(`/task?${params.toString()}`);
+  };
 
   // Inline Checklist Add State
   const [isAddChecklistInline, setIsAddChecklistInline] = useState<boolean>(false);
@@ -396,13 +410,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
       {/* Top Header Bar matching Image 2 */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--border-main)] bg-[var(--bg-muted)]">
         <div className="flex items-center space-x-4">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center space-x-1.5 text-xs font-semibold hover:underline transition-colors"
-            style={{ color: "var(--primary)" }}
-          >
-            <ArrowLeft className="w-4 h-4" />
+          <div className="flex items-center space-x-1.5 text-xs font-semibold text-[var(--text-main)]">
             <span>
               {task.clientName && !/^[0-9a-fA-F]{24}$/.test(task.clientName)
                 ? task.clientName
@@ -410,7 +418,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
                     ? task.legalName
                     : (task.clientFileNo ? `Client #${task.clientFileNo}` : "Client Details"))}
             </span>
-          </button>
+          </div>
           <span className="text-[var(--border-main)]">|</span>
           <div className="flex items-center space-x-2">
             <span
@@ -446,7 +454,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
           <TaskNavigationMenu
             task={task}
             activeSubTab={activeSubTab}
-            setActiveSubTab={setActiveSubTab}
+            setActiveSubTab={handleSubTabChange}
             checklistCompleted={checklistCompleted}
             docsReceived={docsReceived}
           />

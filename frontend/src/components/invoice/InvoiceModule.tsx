@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { InvoiceProvider, useInvoice } from './InvoiceContext';
 import { InvoiceTabsHeader } from './InvoiceTabsHeader';
 import { InvoiceToolbar } from './InvoiceToolbar';
@@ -15,17 +16,50 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermission } from '../team/usePermission';
 import { AccessDenied } from '../team/AccessDenied';
 import { pageStateCache } from '@/services/pageStateCache';
+import { groupApi } from '@/services/groupApi';
 
 const InvoiceContent: React.FC = () => {
   const { activeTab, setActiveTab, invoiceLoadError } = useInvoice();
   const { currentUser } = useAuth();
   const { canView } = usePermission();
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const groupIdParam = searchParams?.get('groupId');
+
   const [viewMode, setViewMode] = useState<
     'list' | 'add-invoice' | 'add-proforma' | 'add-reimbursement' | 'view-receipt'
-  >('list');
+  >(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (
+        sessionStorage.getItem('turia_draft_invoice_from_task') ||
+        sessionStorage.getItem('turia_draft_invoice_from_group') ||
+        urlParams.get('groupId')
+      ) {
+        return 'add-invoice';
+      }
+    }
+    return 'list';
+  });
   const [formMode, setFormMode] = useState<'create' | 'edit' | 'view'>('create');
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const fromTask = sessionStorage.getItem('turia_draft_invoice_from_task');
+      if (fromTask) {
+        try {
+          return JSON.parse(fromTask);
+        } catch {}
+      }
+      const fromGroup = sessionStorage.getItem('turia_draft_invoice_from_group');
+      if (fromGroup) {
+        try {
+          return JSON.parse(fromGroup);
+        } catch {}
+      }
+    }
+    return null;
+  });
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
 
   // Auto-detect incoming invoice draft from Task -> Invoice flow
@@ -45,6 +79,71 @@ const InvoiceContent: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!groupIdParam) return;
+    setActiveTab('invoice');
+    let isMounted = true;
+    groupApi
+      .getGroupById(groupIdParam)
+      .then((res) => {
+        if (!isMounted || !res?.data) return;
+        const grp = res.data;
+        const pocClientIdStr =
+          typeof grp.pocClientId === 'string'
+            ? grp.pocClientId
+            : (grp.pocClientId as any)?.id ||
+              (grp.pocClientId as any)?._id?.toString() ||
+              grp.poc?.clientId;
+
+        const pocClient =
+          (grp.entities || []).find(
+            (e: any) =>
+              e.id === pocClientIdStr ||
+              (grp.poc?.clientId && e.id === grp.poc.clientId)
+          ) || grp.entities?.[0];
+
+        setSelectedRecord({
+          clientId: pocClient?.id || '',
+          clientBusinessName: pocClient?.name || grp.name,
+          clientLegalName:
+            (pocClient as any)?.legalName || pocClient?.name || grp.name,
+          clientGroup: grp.name,
+          clientPan: pocClient?.pan || '',
+          clientAddress: (pocClient as any)?.address || '',
+          services: [],
+          totalPayable: 0,
+          subTotal: 0,
+        });
+        setFormMode('create');
+        setViewMode('add-invoice');
+      })
+      .catch((err) => {
+        console.warn('Could not prefill invoice from groupId:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [groupIdParam, setActiveTab]);
+
+  const viewParam = searchParams?.get('view') as any;
+
+  useEffect(() => {
+    if (!viewParam && viewMode !== 'list') {
+      if (typeof window !== 'undefined') {
+        if (
+          sessionStorage.getItem('turia_draft_invoice_from_task') ||
+          sessionStorage.getItem('turia_draft_invoice_from_group') ||
+          groupIdParam
+        ) {
+          return;
+        }
+      }
+      setViewMode('list');
+      setSelectedRecord(null);
+    }
+  }, [viewParam, viewMode, groupIdParam]);
+
   // Permission guard: view according to admin assigned role permissions
   if (!canView('invoice')) {
     return <AccessDenied moduleName="Invoice Portal" actionName="view" />;
@@ -53,51 +152,84 @@ const InvoiceContent: React.FC = () => {
   const handleAddNew = () => {
     setSelectedRecord(null);
     setFormMode('create');
+    let targetMode: any = 'list';
     if (activeTab === 'invoice') {
-      setViewMode('add-invoice');
+      targetMode = 'add-invoice';
     } else if (activeTab === 'proforma') {
-      setViewMode('add-proforma');
+      targetMode = 'add-proforma';
     } else if (activeTab === 'reimbursement') {
-      setViewMode('add-reimbursement');
+      targetMode = 'add-reimbursement';
     } else if (activeTab === 'receipts') {
       setIsRecordPaymentOpen(true);
+      return;
     }
+    setViewMode(targetMode);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', targetMode);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleView = (item: any) => {
     setSelectedRecord(item);
     setFormMode('view');
-    if (activeTab === 'invoice' || activeTab === 'proforma' || activeTab === 'receipts') {
-      setViewMode('view-receipt');
-    } else if (activeTab === 'reimbursement') {
-      setViewMode('add-reimbursement');
-    }
+    const targetMode = (activeTab === 'invoice' || activeTab === 'proforma' || activeTab === 'receipts')
+      ? 'view-receipt'
+      : 'add-reimbursement';
+    setViewMode(targetMode);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', targetMode);
+    if (item?.id || item?._id) params.set('id', item.id || item._id);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleViewDetail = (item: any) => {
     setSelectedRecord(item);
     setFormMode('view');
     setViewMode('view-receipt');
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', 'view-receipt');
+    if (item?.id || item?._id) params.set('id', item.id || item._id);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleEdit = (item: any) => {
     setSelectedRecord(item);
     setFormMode('edit');
+    let targetMode: any = 'list';
     if (activeTab === 'invoice') {
-      setViewMode('add-invoice');
+      targetMode = 'add-invoice';
     } else if (activeTab === 'proforma') {
-      setViewMode('add-proforma');
+      targetMode = 'add-proforma';
     } else if (activeTab === 'reimbursement') {
-      setViewMode('add-reimbursement');
+      targetMode = 'add-reimbursement';
     } else if (activeTab === 'receipts') {
       setIsRecordPaymentOpen(true);
+      return;
     }
+    setViewMode(targetMode);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', targetMode);
+    if (item?.id || item?._id) params.set('id', item.id || item._id);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleBack = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('turia_draft_invoice_from_group');
+      sessionStorage.removeItem('turia_draft_invoice_from_task');
+    }
+    if (groupIdParam) {
+      router.push(`/groups/${groupIdParam}?tab=invoice`);
+      return;
+    }
     setViewMode('list');
     setSelectedRecord(null);
     setFormMode('create');
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.delete('view');
+    params.delete('id');
+    params.set('tab', activeTab);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   // If in Add / Edit / View Mode, render the corresponding full-page form

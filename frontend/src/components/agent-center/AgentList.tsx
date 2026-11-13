@@ -124,9 +124,24 @@ export default function AgentList() {
     setSelectedModule(category);
     setSearch('');
     if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', `/agents?module=${category}`);
+      window.history.pushState(null, '', `/agents?module=${category}`);
     }
   };
+
+  useEffect(() => {
+    const handlePop = () => {
+      if (typeof window === 'undefined') return;
+      const sp = new URLSearchParams(window.location.search);
+      const mod = sp.get('module') as AgentModule | null;
+      if (mod === 'DSC' || mod === 'License' || mod === 'Task') {
+        setSelectedModule(mod);
+      } else {
+        setSelectedModule('Task');
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
 
   async function handleToggleStatus(agent: Agent) {
     setBusyId(agent.id);

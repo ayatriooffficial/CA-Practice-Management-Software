@@ -94,8 +94,9 @@ export const InvoiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Synchronize activeTab from URL searchParams
   useEffect(() => {
-    if (tabParam && tabParam !== invoiceState.activeTab) {
-      dispatch(sliceSetActiveTab(tabParam));
+    const effectiveTab: InvoiceTab = tabParam || 'invoice';
+    if (effectiveTab !== invoiceState.activeTab) {
+      dispatch(sliceSetActiveTab(effectiveTab));
     }
   }, [tabParam, invoiceState.activeTab, dispatch]);
 

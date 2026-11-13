@@ -10,7 +10,6 @@ import {
   Repeat,
   MoreHorizontal,
   ArrowRight,
-  ArrowLeft,
   Eye,
   Edit3,
   Trash2,
@@ -291,17 +290,6 @@ export default function TaskTemplatesPage() {
           </button>
         </div>
       )}
-
-      {/* Back Link to Tasks */}
-      <div className="mb-4">
-        <Link
-          href="/task"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-subtle)] hover:text-[var(--text-main)] transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Tasks</span>
-        </Link>
-      </div>
 
       {/* 1. Header Section matching Screenshots */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border-main)]">

@@ -28,6 +28,7 @@ import { ToastNotification } from "@/components/ui/ToastNotification";
 import { usePermission } from "@/components/team/usePermission";
 import { Button } from "@/components/ui/Button";
 import { TableActionDropdown } from "@/components/ui/TableActionDropdown";
+import { navigateWithTransition } from "@/hooks/useSectionNavigation";
 
 interface GroupDetailViewProps {
   groupId: string;
@@ -153,6 +154,35 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
     );
   }
 
+  const handleGenerateInvoice = () => {
+    if (!group) return;
+    const pocClientIdStr = typeof group.pocClientId === "string"
+      ? group.pocClientId
+      : (group.pocClientId as any)?.id || (group.pocClientId as any)?._id?.toString() || (group.poc?.clientId);
+
+    const pocClient = (group.entities || []).find(
+      (e: any) => e.id === pocClientIdStr || (group.poc?.clientId && e.id === group.poc.clientId)
+    ) || group.entities?.[0];
+
+    const draftData = {
+      clientId: pocClient?.id || '',
+      clientBusinessName: pocClient?.name || group.name,
+      clientLegalName: (pocClient as any)?.legalName || pocClient?.name || group.name,
+      clientGroup: group.name,
+      clientPan: pocClient?.pan || '',
+      clientAddress: (pocClient as any)?.address || '',
+      services: [],
+      totalPayable: 0,
+      subTotal: 0,
+    };
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('turia_draft_invoice_from_group', JSON.stringify(draftData));
+    }
+
+    void navigateWithTransition(`/invoice?tab=invoice&groupId=${group.id}`, router);
+  };
+
   const entitiesCount = group.entities?.length || group.stats?.entitiesCount || 0;
   const pocName = group.poc?.name || group.stats?.pocName || "POC not set";
 
@@ -169,16 +199,8 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
 
       {/* Cockpit Header (Image 2) */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-[#dde2e8] dark:border-[#334155]">
-        {/* Left: Back button + Avatar + Group Name + Subtitle */}
+        {/* Left: Avatar + Group Name + Subtitle */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/groups"
-            className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Back to Groups"
-          >
-            <ArrowLeft size={18} />
-          </Link>
-
           <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
             {getInitials(group.name)}
           </div>
@@ -208,14 +230,16 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
           )}
 
           {/* Generate Invoice primary button */}
-          <Link
-            href={`/invoice?groupId=${group.id}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white rounded-lg shadow-2xs transition-all hover:opacity-95 cursor-pointer"
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleGenerateInvoice}
+            icon={<FileText size={13} />}
             style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+            className="text-white hover:opacity-95 shadow-2xs cursor-pointer"
           >
-            <FileText size={13} />
-            <span>Generate Invoice</span>
-          </Link>
+            Generate Invoice
+          </Button>
 
           {/* Three-dot Action Menu (Delete Group) */}
           {canDelete("clients") && (
@@ -319,11 +343,11 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId }) => 
         )}
 
         {activeTab === "contacts" && loadedTabs.has("contacts") && (
-          <GroupContactsTab groupId={group.id} />
+          <GroupContactsTab groupId={group.id} group={group} />
         )}
 
         {activeTab === "invoice" && loadedTabs.has("invoice") && (
-          <GroupInvoicesTab group={group} />
+          <GroupInvoicesTab group={group} onGenerateInvoice={handleGenerateInvoice} />
         )}
 
         {activeTab === "tasks" && loadedTabs.has("tasks") && (

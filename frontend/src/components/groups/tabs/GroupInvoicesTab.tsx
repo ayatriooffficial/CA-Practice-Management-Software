@@ -11,17 +11,21 @@ import { fetchInvoicesRequest } from "@/store/features/invoices";
 import { InvoiceRecord, InvoiceTab } from "@/components/invoice/types";
 import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
 
 interface GroupInvoicesTabProps {
   group: GroupRecord;
+  onGenerateInvoice?: () => void;
 }
 
-export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => {
+export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group, onGenerateInvoice }) => {
   const dispatch = useAppDispatch();
   const rawInvoices = useAppSelector((state) => state.invoices.invoices) || [];
   const rawProformas = useAppSelector((state) => state.invoices.proformas) || [];
   const rawReimbursements = useAppSelector((state) => state.invoices.reimbursements) || [];
-  const isLoading = useAppSelector((state) => state.invoices.loading);
+  const isStoreLoading = useAppSelector((state) => state.invoices.loading);
+  const isLoaded = useAppSelector((state) => state.invoices.isLoaded);
+  const isLoading = isStoreLoading && !isLoaded && rawInvoices.length === 0;
 
   const [activeSubTab, setActiveSubTab] = useState<"invoice" | "proforma" | "reimbursement">("invoice");
   const [search, setSearch] = useState("");
@@ -163,16 +167,31 @@ export const GroupInvoicesTab: React.FC<GroupInvoicesTabProps> = ({ group }) => 
           </button>
         </div>
 
-        {/* Search */}
-        <div className="min-w-[200px] sm:min-w-[260px]">
-          <Input
-            inputSize="sm"
-            placeholder="Search by invoice no. or client..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onClear={() => setSearch("")}
-            leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
-          />
+        {/* Search & Actions */}
+        <div className="flex items-center gap-2">
+          <div className="min-w-[180px] sm:min-w-[240px]">
+            <Input
+              inputSize="sm"
+              placeholder="Search by invoice no. or client..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch("")}
+              leftIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
+            />
+          </div>
+
+          {onGenerateInvoice && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onGenerateInvoice}
+              icon={<Plus size={13} />}
+              style={{ backgroundColor: "var(--premium-blue-dark, #31719B)" }}
+              className="text-white hover:opacity-95 shadow-2xs shrink-0 cursor-pointer"
+            >
+              Generate Invoice
+            </Button>
+          )}
         </div>
       </div>
 

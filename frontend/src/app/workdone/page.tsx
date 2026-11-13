@@ -2,6 +2,7 @@
 
 import React, { useEffect, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useRouter, useSearchParams } from "next/navigation";
 import WorkDoneClient from "../../components/workdone/WorkDoneClient";
 import WorkDoneServices from "./WorkDoneServices";
 import type { WorkDoneClient as Client } from "./types";
@@ -56,15 +57,47 @@ export default function WorkDonePage() {
     setPage(1);
   };
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
+    const id = client.clientId || (client as any).id || (client as any)._id;
+    if (id) {
+      router.push(`/workdone?clientId=${id}`);
+    }
   };
 
   const handleBack = () => {
     setSelectedClient(null);
+    router.push('/workdone');
   };
 
   const safeClients = Array.isArray(clients) ? clients : [];
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const cId = searchParams.get("clientId");
+    if (cId) {
+      const currentId = selectedClient?.clientId || (selectedClient as any)?.id || (selectedClient as any)?._id;
+      if (!selectedClient || currentId !== cId) {
+        const found = safeClients.find((c: any) => (c.clientId || c.id || c._id) === cId);
+        if (found) {
+          setSelectedClient(found);
+        } else {
+          import("@/services/workdoneApi").then(({ getWorkDone }) => {
+            getWorkDone({ clientId: cId }).then((res: any) => {
+              if (res && res.data && res.data.length > 0) {
+                setSelectedClient(res.data[0]);
+              }
+            }).catch(() => {});
+          });
+        }
+      }
+    } else {
+      setSelectedClient(null);
+    }
+  }, [searchParams, safeClients, selectedClient]);
 
   return (
     <main
