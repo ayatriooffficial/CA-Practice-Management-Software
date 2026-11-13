@@ -126,6 +126,24 @@ const InvoiceContent: React.FC = () => {
     };
   }, [groupIdParam, setActiveTab]);
 
+  const viewParam = searchParams?.get('view') as any;
+
+  useEffect(() => {
+    if (!viewParam && viewMode !== 'list') {
+      if (typeof window !== 'undefined') {
+        if (
+          sessionStorage.getItem('turia_draft_invoice_from_task') ||
+          sessionStorage.getItem('turia_draft_invoice_from_group') ||
+          groupIdParam
+        ) {
+          return;
+        }
+      }
+      setViewMode('list');
+      setSelectedRecord(null);
+    }
+  }, [viewParam, viewMode, groupIdParam]);
+
   // Permission guard: view according to admin assigned role permissions
   if (!canView('invoice')) {
     return <AccessDenied moduleName="Invoice Portal" actionName="view" />;
@@ -134,45 +152,65 @@ const InvoiceContent: React.FC = () => {
   const handleAddNew = () => {
     setSelectedRecord(null);
     setFormMode('create');
+    let targetMode: any = 'list';
     if (activeTab === 'invoice') {
-      setViewMode('add-invoice');
+      targetMode = 'add-invoice';
     } else if (activeTab === 'proforma') {
-      setViewMode('add-proforma');
+      targetMode = 'add-proforma';
     } else if (activeTab === 'reimbursement') {
-      setViewMode('add-reimbursement');
+      targetMode = 'add-reimbursement';
     } else if (activeTab === 'receipts') {
       setIsRecordPaymentOpen(true);
+      return;
     }
+    setViewMode(targetMode);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', targetMode);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleView = (item: any) => {
     setSelectedRecord(item);
     setFormMode('view');
-    if (activeTab === 'invoice' || activeTab === 'proforma' || activeTab === 'receipts') {
-      setViewMode('view-receipt');
-    } else if (activeTab === 'reimbursement') {
-      setViewMode('add-reimbursement');
-    }
+    const targetMode = (activeTab === 'invoice' || activeTab === 'proforma' || activeTab === 'receipts')
+      ? 'view-receipt'
+      : 'add-reimbursement';
+    setViewMode(targetMode);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', targetMode);
+    if (item?.id || item?._id) params.set('id', item.id || item._id);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleViewDetail = (item: any) => {
     setSelectedRecord(item);
     setFormMode('view');
     setViewMode('view-receipt');
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', 'view-receipt');
+    if (item?.id || item?._id) params.set('id', item.id || item._id);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleEdit = (item: any) => {
     setSelectedRecord(item);
     setFormMode('edit');
+    let targetMode: any = 'list';
     if (activeTab === 'invoice') {
-      setViewMode('add-invoice');
+      targetMode = 'add-invoice';
     } else if (activeTab === 'proforma') {
-      setViewMode('add-proforma');
+      targetMode = 'add-proforma';
     } else if (activeTab === 'reimbursement') {
-      setViewMode('add-reimbursement');
+      targetMode = 'add-reimbursement';
     } else if (activeTab === 'receipts') {
       setIsRecordPaymentOpen(true);
+      return;
     }
+    setViewMode(targetMode);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('view', targetMode);
+    if (item?.id || item?._id) params.set('id', item.id || item._id);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   const handleBack = () => {
@@ -187,6 +225,11 @@ const InvoiceContent: React.FC = () => {
     setViewMode('list');
     setSelectedRecord(null);
     setFormMode('create');
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.delete('view');
+    params.delete('id');
+    params.set('tab', activeTab);
+    router.push(`/invoice?${params.toString()}`);
   };
 
   // If in Add / Edit / View Mode, render the corresponding full-page form

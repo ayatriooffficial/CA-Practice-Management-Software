@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
 
 interface Props {
   client: Client;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 const frequencyColors: Record<string, React.CSSProperties> = {
@@ -158,16 +158,6 @@ export default function WorkDoneServices({ client, onBack }: Props) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="-ml-2 mb-2 rounded-sm text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/10"
-          >
-            ← Back to Clients
-          </Button>
-
           <h2 className="text-xl font-bold">{client.businessName}</h2>
 
           <p className="mt-1 text-xs" style={{ color: "var(--text-subtle)" }}>

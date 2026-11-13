@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Loader2, Plus, Check, AlertCircle } from "lucide-react";
+import { ChevronRight, Loader2, Plus, Check, AlertCircle } from "lucide-react";
 import {
   Service,
   SERVICE_CATEGORIES,
@@ -255,17 +255,6 @@ const isDirty = useMemo(() => {
       {/* 1. Breadcrumb Bar (Matching Client second page) */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-1 pt-4">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-base md:text-lg">
-          <button
-            type="button"
-            onClick={handleCancelAttempt}
-            aria-label="Back to Services"
-            className="p-1 rounded-md text-[#31719B] hover:bg-[#31719B]/10 transition-colors cursor-pointer"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="text-gray-400">
-            <ChevronRight className="w-4 h-4" />
-          </span>
           <button
             type="button"
             onClick={handleCancelAttempt}

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowLeft, Clock3, ExternalLink, Mail, Pencil, Play, Power, RefreshCw, Send, Trash2 } from 'lucide-react';
+import { Clock3, ExternalLink, Mail, Pencil, Play, Power, RefreshCw, Send, Trash2 } from 'lucide-react';
 import { useAgent, useAgentHistory, useDeleteAgent, useDisableAgent, useIntegrationsStatus, usePublishAgent, useTestRunAgent } from '@/hooks/useAgentCenterQuery';
 import { AgentConfigDraft, WorkflowGraph } from '@/types/agentCenter';
 import * as gmail from '@/lib/integrations/gmail';
@@ -225,7 +225,6 @@ export default function AgentDetail({ id }: { id: string }) {
 
   return (
     <div className="w-full px-3 sm:px-6 py-4 sm:py-6 md:px-8">
-      <Link href="/agents" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--primary)' }}><ArrowLeft className="h-4 w-4" /> Back to Agent Center</Link>
       <AgentPageTitle eyebrow={`${agent.module} agent`} title={agent.name} description={agent.description || 'No description provided.'} action={action} />
       <div className="mb-5 flex flex-wrap items-center gap-3"><StatusPill status={agent.status} /><span className="text-xs" style={{ color: 'var(--text-muted)' }}>Updated {formatAgentDate(agent.updatedAt)}</span></div>
       {notice && <div className="mb-5"><NoticeBanner type={notice.type}>{notice.text}</NoticeBanner></div>}

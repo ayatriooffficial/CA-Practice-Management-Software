@@ -20,7 +20,6 @@ import {
   FileSpreadsheet,
   FileImage,
   Folder,
-  ArrowLeft,
   UploadCloud,
   Download,
   Eye,
@@ -949,22 +948,8 @@ export const DocumentsModule: React.FC = () => {
       {/* VIEW 2: SELECTED PERSON DETAILS & CONSOLIDATED TRACKING */}
       {selectedPersonId && (
         <div className="space-y-4">
-          {/* Back button & Breadcrumb bar */}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleBackToDirectory}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-main)",
-                color: "var(--text-main)",
-              }}
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to People Directory</span>
-            </button>
-
+          {/* Refresh action bar */}
+          <div className="flex items-center justify-end">
             <button
               type="button"
               onClick={() => handleSelectPerson(selectedPersonId)}

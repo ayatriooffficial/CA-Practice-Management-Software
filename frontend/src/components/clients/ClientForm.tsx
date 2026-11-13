@@ -6,7 +6,6 @@ import { RootState, AppDispatch } from "@/store";
 import { fetchServicesRequest, fetchMoreServicesRequest } from "@/store/features/services/serviceSlice";
 import Link from "next/link";
 import {
-  ChevronLeft,
   ChevronRight,
   Plus,
   Pencil,
@@ -1066,17 +1065,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       {/* 1. Breadcrumb & Top Autofill Button Bar */}
       <div className="flex flex-wrap justify-between gap-4 px-1">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-base md:text-lg">
-          <button
-            type="button"
-            onClick={handleCancelAttempt}
-            aria-label="Back to Clients"
-            className="p-1 rounded-md text-[#31719B] hover:bg-[#31719B]/10 transition-colors cursor-pointer"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="text-gray-400">
-            <ChevronRight className="w-4 h-4" />
-          </span>
           <button
             type="button"
             onClick={handleCancelAttempt}

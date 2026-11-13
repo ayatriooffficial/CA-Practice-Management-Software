@@ -44,13 +44,14 @@ export default function TaskPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = (searchParams?.get("tab") as any) || "Task Summary";
+  const taskIdParam = searchParams?.get("taskId");
 
   const [activeMainTab, setActiveMainTab] = useState<
     "Task Summary" | "Task List" | "Sub Tasks" | "Recurring Schedule" | "Analytics"
   >(tabParam);
 
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
-  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState<string | null>(null);
+  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState<string | null>(taskIdParam);
   const [selectedAssigneeFilter, setSelectedAssigneeFilter] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,12 +60,38 @@ export default function TaskPage() {
     }
   }, [tabParam, activeMainTab]);
 
+  useEffect(() => {
+    const currentTaskId = searchParams?.get("taskId") || null;
+    setSelectedDetailTaskId(currentTaskId);
+  }, [searchParams]);
+
   const handleTabChange = (tabId: string) => {
     setActiveMainTab(tabId as any);
     if (tabId === "Task List") {
       setSelectedAssigneeFilter(null);
     }
-    router.push(`/task?tab=${encodeURIComponent(tabId)}`);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+    params.set("tab", tabId);
+    params.delete("taskId");
+    params.delete("subTab");
+    router.push(`/task?${params.toString()}`);
+  };
+
+  const handleOpenTaskDetail = (tId: string) => {
+    setSelectedDetailTaskId(tId);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+    params.set("tab", activeMainTab);
+    params.set("taskId", tId);
+    router.push(`/task?${params.toString()}`);
+  };
+
+  const handleCloseTaskDetail = () => {
+    setSelectedDetailTaskId(null);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+    params.delete("taskId");
+    params.delete("subTab");
+    params.set("tab", activeMainTab);
+    router.push(`/task?${params.toString()}`);
   };
 
   const MAIN_TABS = [
@@ -90,7 +117,7 @@ export default function TaskPage() {
       {selectedDetailTaskId ? (
         <TaskDetailView
           taskId={selectedDetailTaskId}
-          onBack={() => setSelectedDetailTaskId(null)}
+          onBack={handleCloseTaskDetail}
         />
       ) : (
         <>
@@ -164,7 +191,7 @@ export default function TaskPage() {
           {activeMainTab === "Task List" && (
             <TaskListView
               onOpenAddTask={() => setIsAddTaskOpen(true)}
-              onOpenTaskDetail={(tId) => setSelectedDetailTaskId(tId)}
+              onOpenTaskDetail={handleOpenTaskDetail}
               selectedAssigneeFilter={selectedAssigneeFilter}
             />
           )}
