@@ -640,18 +640,16 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({
 
           {/* Add New Service Button */}
           {canAddEdit("services") && (
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setEditingService(null);
                 setViewMode("create");
               }}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-md text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              style={{ backgroundColor: "var(--premium-blue-dark)" }}
             >
               <Plus className="w-4 h-4" />
               <span>Add Service</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>

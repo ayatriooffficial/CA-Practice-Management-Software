@@ -44,6 +44,7 @@ import { getAvatarBadge } from "./utils";
 import { getPortalDefaultUrl } from "./utils";
 import { driveApi, DocumentCategory } from "@/services/driveApi";
 import { clientApi } from "@/services/clientApi";
+import Button from "@/components/ui/Button";
 
 export interface ClientMasterTabProps {
   allServices?: ClientServiceSetting[];
@@ -431,8 +432,8 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
 
               <span
                 className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${client.active !== false
-                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300"
                   }`}
               >
                 {client.active !== false ? "● Active & In Good Standing" : "● Inactive"}
@@ -708,18 +709,16 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Extension</span>
                 </a>
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     setEditingContact(null);
                     setIsAddContactModalOpen(true);
                   }}
-                  style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                  className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Director</span>
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -751,16 +750,16 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                     <div
                       key={String(contact.id || "c") + "-" + String(idx)}
                       className={`border rounded-md p-4 transition-all shadow-2xs ${isPrimary
-                          ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20"
-                          : "border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
+                        ? "border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20"
+                        : "border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#1e293b] hover:border-gray-300 dark:hover:border-gray-700"
                         }`}
                     >
                       <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-xs ${isPrimary
-                                ? "bg-blue-100 dark:bg-blue-900/50 text-[#31719B] dark:text-[#60a5fa]"
-                                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                              ? "bg-blue-100 dark:bg-blue-900/50 text-[#31719B] dark:text-[#60a5fa]"
+                              : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                               }`}
                           >
                             {(contact.name || "D").slice(0, 2).toUpperCase()}
@@ -772,8 +771,8 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                               </span>
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${isPrimary
-                                    ? "bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]"
-                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                  ? "bg-blue-100 dark:bg-blue-900/60 text-[#31719B] dark:text-[#60a5fa]"
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                                   }`}
                               >
                                 {isPrimary ? "Primary Director" : "Director"}
@@ -1253,11 +1252,10 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                       {passwordsList.length}
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                        hasExtension
-                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                          : "bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] border-blue-200 dark:border-blue-800"
-                      }`}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${hasExtension
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                        : "bg-blue-50 dark:bg-blue-950/40 text-[#31719B] dark:text-[#60a5fa] border-blue-200 dark:border-blue-800"
+                        }`}
                       title={
                         hasExtension
                           ? "CA Practice Browser Extension Connected & Ready for 1-Click Auto-Fill"
@@ -1286,15 +1284,13 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                 </a>
 
                 {setIsAddPasswordOpen && (
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setIsAddPasswordOpen(true)}
-                    style={{ backgroundColor: "var(--premium-blue-dark)" }}
-                    className="h-8 px-3.5 rounded-md text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Password</span>
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -1478,7 +1474,7 @@ export const ClientMasterTab: React.FC<ClientMasterTabProps> = ({
                                         showToast(`${pName} login opened with auto-fill`);
                                       }
                                     }}
-                                    className="h-7 px-2.5 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                                    className="h-7 px-2.5 rounded-sm border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#31719B] dark:text-[#60a5fa] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                                     title={`Open ${pName} Portal and Auto-Fill Credentials via CA Practice Extension`}
                                   >
                                     <Puzzle className="w-3.5 h-3.5" />
