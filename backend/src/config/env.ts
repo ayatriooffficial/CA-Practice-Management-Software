@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 // Resolve the backend env file from this module so startup does not depend on cwd.
 const envPath = path.resolve(__dirname, '../../.env');
-dotenv.config({ path: envPath });
+dotenv.config({ path: envPath, override: true });
 
 /**
  * Strict boolean parser for environment variables.

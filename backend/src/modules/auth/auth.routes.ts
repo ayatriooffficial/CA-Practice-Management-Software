@@ -23,6 +23,7 @@ router.post('/verify-otp', validateRequest({ body: verifyOtpSchema }), AuthContr
 router.post('/device-login', validateRequest({ body: deviceLoginSchema }), AuthController.deviceLogin);
 router.post('/device-status', validateRequest({ body: deviceStatusSchema }), AuthController.checkDeviceStatus);
 router.post('/login', validateRequest({ body: loginSchema }), AuthController.login);
+router.post('/reset-password', AuthController.resetPassword);
 router.post('/refresh', AuthController.refresh);
 router.post('/logout', optionalAuthenticate, AuthController.logout);
 

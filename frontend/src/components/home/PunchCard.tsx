@@ -165,11 +165,11 @@ export const PunchCard: React.FC<PunchCardProps> = ({ userName, onPunchChange })
   const isSessionOpen = liveStatus?.hasPunchedIn && !liveStatus?.hasPunchedOut;
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] p-4 sm:p-5 flex flex-col justify-between shadow-xs transition-all overflow-hidden">
+    <div className="w-full h-full bg-white dark:bg-[#1e293b] rounded-xl card-elevate border border-[#dde2e8] dark:border-[#334155] p-4 sm:p-5 flex flex-col justify-between shadow-xs transition-all overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#dde2e8] dark:border-[#334155]">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="live-pulse-dot" />
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">
             Daily Attendance & Punch
           </h3>

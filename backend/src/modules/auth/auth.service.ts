@@ -1484,4 +1484,49 @@ export class AuthService {
       email: user.email,
     };
   }
+
+  /**
+   * Reset user password using verified OTP code
+   */
+  public static async resetPassword(
+    email: string,
+    code: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    if (!email || !code || !newPassword) {
+      throw AppError.badRequest('Email, OTP code, and new password are required');
+    }
+
+    if (newPassword.length < 6) {
+      throw AppError.badRequest('New password must be at least 6 characters long');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const codeHash = JwtService.hashToken(code);
+
+    const record = await OtpVerificationModel.findOne({
+      target: cleanEmail,
+      codeHash,
+    });
+
+    if (!record) {
+      throw AppError.badRequest('Invalid or expired OTP code');
+    }
+
+    const user = await UserModel.findOne({ email: cleanEmail });
+    if (!user) {
+      throw AppError.notFound('Account not found with this email');
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    await OtpVerificationModel.deleteOne({ _id: record._id });
+
+    return {
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.',
+    };
+  }
 }

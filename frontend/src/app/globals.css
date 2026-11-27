@@ -347,3 +347,104 @@ th:hover .column-header-trigger,
     z-index: 10;
   }
 }
+
+/* ==========================================================================
+   THEWEBVALE TACTILE SPRING & MICRO-INTERACTION ANIMATIONS
+   ========================================================================== */
+
+@keyframes pulseGlowRing {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(49, 113, 155, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(49, 113, 155, 0);
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Kinetic Spring Icons */
+.kinetic-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.group:hover .kinetic-icon,
+button:hover .kinetic-icon,
+a:hover .kinetic-icon,
+.kinetic-icon:hover {
+  transform: translateY(-2px) scale(1.14);
+}
+
+.kinetic-icon:active,
+button:active .kinetic-icon,
+a:active .kinetic-icon {
+  transform: translateY(1px) scale(0.92);
+}
+
+/* Tactile Spring Buttons */
+.tactile-btn {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+}
+
+.tactile-btn:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px -2px rgba(49, 113, 155, 0.2);
+}
+
+.tactile-btn:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: none;
+}
+
+/* Tactile Card Elevation */
+.card-elevate {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.card-elevate:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  border-color: var(--primary-border);
+}
+
+[data-theme="dark"] .card-elevate:hover {
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.35);
+  border-color: rgba(61, 136, 191, 0.4);
+}
+
+/* Pulsing Status Dot */
+.live-pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: #22c55e;
+}
+
+.live-pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background-color: #22c55e;
+  opacity: 0.6;
+  animation: pulseGlowRing 2s infinite ease-out;
+}
+
+/* Translucent Glass Surfaces */
+.glass-surface {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="dark"] .glass-surface {
+  background: rgba(15, 23, 42, 0.85);
+}

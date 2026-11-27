@@ -9,6 +9,7 @@ import { getPresetPermissions } from "../team/permissionsConfig";
 import { pageStateCache } from "@/services/pageStateCache";
 import { getStore } from "@/store";
 import { resetAllSessionState } from "@/store/features/navigation/navigationOrchestratorSlice";
+import { loginSuccess, logoutSuccess, restoreSession } from "@/store/features/auth/authSlice";
 
 export function computeInitials(name?: string | null): string {
   if (!name || !name.trim()) return "U";
@@ -116,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pageStateCache.clear();
       try {
         getStore().dispatch(resetAllSessionState());
+        getStore().dispatch(logoutSuccess());
       } catch {}
       if (typeof window !== "undefined") {
         try {
@@ -170,6 +172,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         setCurrentUser(updatedUser);
+        try {
+          getStore().dispatch(restoreSession({ user: updatedUser }));
+        } catch {}
         if (typeof window !== "undefined") {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
           if (resolvedOrgId) {
@@ -196,6 +201,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       initials: computeInitials(user.name),
     };
     setCurrentUser(enrichedUser);
+    try {
+      getStore().dispatch(loginSuccess({ user: enrichedUser }));
+    } catch {}
     try {
       const today = new Date().toISOString().slice(0, 10);
       localStorage.removeItem("turia_user_logged_out");
@@ -273,6 +281,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           parsed.initials = computeInitials(parsed.name);
           setCurrentUser(parsed);
+          try {
+            getStore().dispatch(restoreSession({ user: parsed }));
+          } catch {}
           setIsLoading(false);
           localStorage.setItem("x-org-id", parsed.orgId);
 
