@@ -156,7 +156,7 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
   return (
     <>
       <div
-        className="w-full h-full bg-white dark:bg-[#1e293b] rounded-none border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col justify-between shadow-xs"
+        className="w-full h-full bg-white dark:bg-[#1e293b] rounded-xl border border-[#dde2e8] dark:border-[#334155] transition-all flex flex-col justify-between shadow-xs card-elevate"
         style={{
           padding: '20px 24px',
         }}
@@ -177,10 +177,10 @@ export const NoticeBoardCard: React.FC<NoticeBoardCardProps> = ({ isAdmin }) => 
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="w-7 h-7 rounded-full border border-[#3D6A9E]/30 dark:border-[#3D6A9E]/50 bg-white dark:bg-[#162032] flex items-center justify-center text-[#3D6A9E] dark:text-[#93c5fd] hover:bg-[#EAF0F6] dark:hover:bg-[#1E3A5F]/40 transition-colors cursor-pointer shadow-2xs"
+              className="w-7 h-7 rounded-full border border-[#3D6A9E]/30 dark:border-[#3D6A9E]/50 bg-white dark:bg-[#162032] flex items-center justify-center text-[#3D6A9E] dark:text-[#93c5fd] hover:bg-[#EAF0F6] dark:hover:bg-[#1E3A5F]/40 transition-colors cursor-pointer shadow-2xs tactile-btn group"
               title="Add Notice"
             >
-              <Plus size={14} />
+              <Plus size={14} className="kinetic-icon" />
             </button>
           )}
         </div>

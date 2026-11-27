@@ -236,7 +236,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                 )}
 
                 <Icon
-                  className={`w-4 h-4 mb-0.5 transition-transform group-hover:scale-110 ${isActive
+                  className={`w-4 h-4 mb-0.5 kinetic-icon ${isActive
                     ? ""
                     : "text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white"
                     }`}
@@ -433,7 +433,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     }}
                   >
                     <Icon
-                      className={`w-4.5 h-4.5 shrink-0 ${isActive
+                      className={`w-4.5 h-4.5 shrink-0 kinetic-icon ${isActive
                         ? ""
                         : "text-gray-600 dark:text-gray-300"
                         }`}

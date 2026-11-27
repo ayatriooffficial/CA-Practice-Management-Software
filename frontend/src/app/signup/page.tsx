@@ -5,8 +5,8 @@ import { AuthAnimationPanel } from "@/components/auth/AuthAnimationPanel";
 import { SignupForm } from "@/components/auth/SignupForm";
 
 export const metadata: Metadata = {
-  title: "Request Employment | CA Practice",
-  description: "Submit an employment request to join the CA Practice workspace.",
+  title: "Join or Register Firm | CA Practice",
+  description: "Join your firm workspace or register a new CA Practice workspace.",
 };
 
 export default function SignupPage() {

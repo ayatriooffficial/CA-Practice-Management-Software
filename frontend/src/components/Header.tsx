@@ -164,13 +164,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             {currentUser?.role && (
               <span
                 suppressHydrationWarning
-                className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${(currentUser.role || "").toLowerCase() === "pending" || (currentUser.status || "").toLowerCase() === "pending"
+                className={`inline-flex items-center text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${(currentUser.role || "").toLowerCase() === "pending" || (currentUser.status || "").toLowerCase() === "pending"
                   ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
                   : (currentUser.role || "").toLowerCase() === "employee"
                     ? "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300"
                     : "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300"
                   }`}
               >
+                <span className="live-pulse-dot mr-1 shrink-0" />
                 {(currentUser.role || "").toLowerCase() === "pending" || (currentUser.status || "").toLowerCase() === "pending"
                   ? "PENDING"
                   : currentUser.role}
@@ -227,7 +228,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 )}
 
                 <Icon
-                  className={`w-3.5 h-3.5 shrink-0 transition-colors ${isActive
+                  className={`w-3.5 h-3.5 shrink-0 kinetic-icon ${isActive
                     ? ""
                     : "text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white"
                     }`}
@@ -256,7 +257,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             id="global-search-btn"
             type="button"
             onClick={() => setIsSearchOpen(true)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-normal transition-all hover:border-gray-400 cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-normal transition-all hover:border-gray-400 cursor-pointer tactile-btn group"
             style={{
               backgroundColor: "var(--bg-subtle)",
               border: "1px solid var(--border-main)",
@@ -265,7 +266,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             title="Search (Ctrl + K)"
             aria-label="Open search dialog (Ctrl + K)"
           >
-            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0 kinetic-icon" />
             <span className="text-[12px] text-gray-500">Search</span>
             <kbd
               className="text-[10px] font-medium px-1 rounded ml-0.5 hidden xs:inline"
@@ -283,15 +284,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-1.5 rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer shrink-0"
+            className="p-1.5 rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer shrink-0 tactile-btn group"
             style={{ color: "var(--text-muted)" }}
             title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
             aria-label="Toggle theme"
           >
             {theme === "light" ? (
-              <Moon className="w-4 h-4" />
+              <Moon className="w-4 h-4 kinetic-icon" />
             ) : (
-              <Sun className="w-4 h-4 text-amber-400" />
+              <Sun className="w-4 h-4 text-amber-400 kinetic-icon" />
             )}
           </button>
 

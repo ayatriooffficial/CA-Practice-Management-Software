@@ -69,7 +69,16 @@ export class TaskService {
     const userRole = (typeof userCtx === 'object' ? userCtx?.role : '')?.toLowerCase()?.trim() || '';
     const isEmployeeRole = userRole === 'employee' || userRole === 'associate' || userRole === 'staff';
 
-    // Single organization practice: all tasks are accessible across the practice
+    // Multi-tenant organization isolation filter
+    const orgId = typeof userCtx === 'object' ? userCtx?.orgId : undefined;
+    if (orgId) {
+      const orgFilter = mongoose.Types.ObjectId.isValid(orgId)
+        ? [{ orgId }, { orgId: new mongoose.Types.ObjectId(orgId) }]
+        : [{ orgId }];
+      andClauses.push({
+        $or: [...orgFilter, { orgId: { $exists: false } }, { orgId: null }],
+      });
+    }
 
     // For employees, strictly restrict to tasks assigned to or reviewed by them
     if (isEmployeeRole) {

@@ -18,7 +18,7 @@ import { pdfSignerRoutes } from './modules/pdfSigner/pdfSigner.routes';
 import { documentRoutes } from './modules/document/document.routes';
 import { gstStaffRoutes, gstPublicRoutes } from './modules/gstForm/gstForm.routes';
 import { GstFormController } from './modules/gstForm/gstForm.controller';
-import { optionalAuthenticate } from './middlewares/authenticate';
+import { authenticate, optionalAuthenticate } from './middlewares/authenticate';
 import { ApiResponse } from './shared/utils/apiResponse';
 import { workdoneRoutes } from './modules/workdone/workdone.routes';
 import { todoRoutes } from './modules/todo/todo.routes';
@@ -50,26 +50,26 @@ router.use('/attendance', attendanceRoutes);
 router.use('/home/attendance', attendanceRoutes);
 router.use('/home', optionalAuthenticate, homeDashboardRoutes);
 
-// Feature Modules (with optional authentication to support both authenticated and development/guest modes)
-router.use('/clients', optionalAuthenticate, clientRoutes);
-router.use('/leads', optionalAuthenticate, leadRoutes);
-router.use('/services', optionalAuthenticate, serviceRoutes);
-router.use('/drive', optionalAuthenticate, driveRoutes);
-router.use('/tasks', optionalAuthenticate, taskRoutes);
-router.use('/agent-center', optionalAuthenticate, agentCenterRoutes);
-router.use('/counters', optionalAuthenticate, counterRoutes);
-router.use('/notices', optionalAuthenticate, noticeRoutes);
-router.use('/sync', optionalAuthenticate, syncRoutes);
-router.use('/compliance', optionalAuthenticate, complianceRoutes);
+// Feature Modules (authenticated for production data protection & multi-tenant isolation)
+router.use('/clients', authenticate, clientRoutes);
+router.use('/leads', authenticate, leadRoutes);
+router.use('/services', authenticate, serviceRoutes);
+router.use('/drive', authenticate, driveRoutes);
+router.use('/tasks', authenticate, taskRoutes);
+router.use('/agent-center', authenticate, agentCenterRoutes);
+router.use('/counters', authenticate, counterRoutes);
+router.use('/notices', authenticate, noticeRoutes);
+router.use('/sync', authenticate, syncRoutes);
+router.use('/compliance', authenticate, complianceRoutes);
 router.use('/financials', financialRoutes);
-router.use('/quotations', optionalAuthenticate, quotationRoutes);
-router.use('/integrations', optionalAuthenticate, integrationRoutes);
-router.use('/pdf-signer', optionalAuthenticate, pdfSignerRoutes);
-router.use('/documents', optionalAuthenticate, documentRoutes);
-router.use('/workdone', optionalAuthenticate,workdoneRoutes );
-router.use('/todos', todoRoutes);
-router.use('/groups', optionalAuthenticate, groupRoutes);
-router.use('/communications', communicationRoutes);
+router.use('/quotations', authenticate, quotationRoutes);
+router.use('/integrations', authenticate, integrationRoutes);
+router.use('/pdf-signer', authenticate, pdfSignerRoutes);
+router.use('/documents', authenticate, documentRoutes);
+router.use('/workdone', authenticate, workdoneRoutes);
+router.use('/todos', authenticate, todoRoutes);
+router.use('/groups', authenticate, groupRoutes);
+router.use('/communications', authenticate, communicationRoutes);
 
 
 // GST Data Collection Module (Staff + Public Form)

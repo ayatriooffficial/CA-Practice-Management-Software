@@ -1,28 +1,51 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   AlertCircle,
   Lock,
   User,
   Mail,
+  Building2,
+  Phone,
+  ArrowRight,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { authService } from "./authService";
+import { useAuth } from "./AuthContext";
 import { navigationProgress } from "@/services/navigationProgress";
+
+type SignupMode = "employment" | "organization";
 
 export const SignupForm: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
+
+  // Mode selection: "employment" (request to join) or "organization" (create new firm)
+  const initialMode = searchParams?.get("mode") === "register" || searchParams?.get("mode") === "org" ? "organization" : "employment";
+  const [mode, setMode] = useState<SignupMode>(initialMode);
 
   // Form inputs
+  const [firmName, setFirmName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Pre-fill email from query param if available
+  useEffect(() => {
+    const qEmail = searchParams?.get("email");
+    if (qEmail) {
+      setEmail(qEmail);
+    }
+  }, [searchParams]);
 
   // Form state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,10 +62,17 @@ export const SignupForm: React.FC = () => {
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   const isFormComplete =
-    name.trim().length > 0 &&
-    isValidEmailFormat &&
-    isValidPassword &&
-    passwordsMatch;
+    mode === "organization"
+      ? firmName.trim().length >= 2 &&
+        name.trim().length > 0 &&
+        isValidEmailFormat &&
+        mobile.trim().length >= 10 &&
+        isValidPassword &&
+        passwordsMatch
+      : name.trim().length > 0 &&
+        isValidEmailFormat &&
+        isValidPassword &&
+        passwordsMatch;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,22 +95,41 @@ export const SignupForm: React.FC = () => {
     navigationProgress.setLoading("signup_submit", true);
 
     try {
-      const res = await authService.requestEmployment({
-        name: name.trim(),
-        email: cleanEmail,
-        password: password.trim(),
-      });
-
-      if (res.success) {
-        setConfirmationData({
+      if (mode === "organization") {
+        const res = await authService.registerOrganization({
+          firmName: firmName.trim(),
           name: name.trim(),
           email: cleanEmail,
+          mobile: mobile.trim(),
+          password: password.trim(),
         });
+
+        if (res.success && res.user) {
+          login(res.user);
+          navigationProgress.setLoading("signup_submit", false);
+          router.push("/");
+          return;
+        } else {
+          setSubmitError(res.message || "Failed to register organization.");
+        }
       } else {
-        setSubmitError(res.message);
+        const res = await authService.requestEmployment({
+          name: name.trim(),
+          email: cleanEmail,
+          password: password.trim(),
+        });
+
+        if (res.success) {
+          setConfirmationData({
+            name: name.trim(),
+            email: cleanEmail,
+          });
+        } else {
+          setSubmitError(res.message);
+        }
       }
     } catch (err: any) {
-      setSubmitError(err?.message || "Failed to submit employment request. Please try again.");
+      setSubmitError(err?.message || "Failed to submit request. Please try again.");
     } finally {
       setIsSubmitting(false);
       navigationProgress.setLoading("signup_submit", false);
@@ -137,12 +186,65 @@ export const SignupForm: React.FC = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[20px]">
-      {/* 1. Name Field */}
+    <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[18px]">
+      {/* Mode Switcher Tabs */}
+      <div className="grid grid-cols-2 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-xl text-xs font-medium border border-gray-200/80 dark:border-gray-700/80">
+        <button
+          type="button"
+          onClick={() => {
+            setMode("employment");
+            setSubmitError(null);
+          }}
+          className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            mode === "employment"
+              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-semibold shadow-xs"
+              : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+          }`}
+        >
+          <Briefcase className="w-3.5 h-3.5" />
+          <span>Join Practice</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode("organization");
+            setSubmitError(null);
+          }}
+          className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            mode === "organization"
+              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-semibold shadow-xs"
+              : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Register Firm</span>
+        </button>
+      </div>
+
+      {/* Firm Name Field (for Organization Registration) */}
+      {mode === "organization" && (
+        <Input
+          id="signup-firm-name"
+          type="text"
+          label="CA Firm / Organization Name"
+          value={firmName}
+          onChange={(e) => {
+            setFirmName(e.target.value);
+            setSubmitError(null);
+          }}
+          placeholder="e.g. Jain & Associates Chartered Accountants"
+          leftIcon={<Building2 className="w-4 h-4" />}
+          className="h-[44px] text-[14px] rounded-lg"
+          required
+        />
+      )}
+
+      {/* Name Field */}
       <Input
         id="signup-name"
         type="text"
-        label="Full Name"
+        label={mode === "organization" ? "Principal / Partner Name" : "Full Name"}
         value={name}
         onChange={(e) => {
           setName(e.target.value);
@@ -154,7 +256,7 @@ export const SignupForm: React.FC = () => {
         required
       />
 
-      {/* 2. Email Field */}
+      {/* Email Field */}
       <Input
         id="signup-email"
         type="email"
@@ -170,7 +272,25 @@ export const SignupForm: React.FC = () => {
         required
       />
 
-      {/* 3. Password Field */}
+      {/* Mobile Field (for Organization Registration) */}
+      {mode === "organization" && (
+        <Input
+          id="signup-mobile"
+          type="tel"
+          label="Mobile Number (10 digits)"
+          value={mobile}
+          onChange={(e) => {
+            setMobile(e.target.value);
+            setSubmitError(null);
+          }}
+          placeholder="e.g. 9876543210"
+          leftIcon={<Phone className="w-4 h-4" />}
+          className="h-[44px] text-[14px] rounded-lg"
+          required
+        />
+      )}
+
+      {/* Password Field */}
       <Input
         id="signup-password"
         type="password"
@@ -186,7 +306,7 @@ export const SignupForm: React.FC = () => {
         required
       />
 
-      {/* 4. Confirm Password Field */}
+      {/* Confirm Password Field */}
       <Input
         id="signup-confirm-password"
         type="password"
@@ -216,9 +336,10 @@ export const SignupForm: React.FC = () => {
         type="submit"
         disabled={!isFormComplete || isSubmitting}
         loading={isSubmitting}
+        rightIcon={<ArrowRight className="w-4 h-4 ml-0.5" />}
         className="w-full h-[46px] rounded-lg text-[14.5px] font-medium text-white shadow-xs bg-[#3D6A9E] hover:bg-[#3D6A9E] justify-center text-center"
       >
-        Request Employment
+        {mode === "organization" ? "Register Practice Workspace" : "Request Employment"}
       </Button>
 
       {/* Switch to Login Link */}

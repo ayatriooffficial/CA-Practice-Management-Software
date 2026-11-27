@@ -126,17 +126,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     next();
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
-      const decoded = JwtService.decodeToken(token);
-      if (decoded && decoded.userId) {
-        if (process.env.NODE_ENV !== 'production' || decoded.role === 'admin') {
-          req.user = decoded;
-          if (decoded.userId) req.headers['x-user-id'] = decoded.userId;
-          if (decoded.orgId) req.headers['x-org-id'] = decoded.orgId;
-          if (decoded.role) req.headers['x-user-role'] = decoded.role;
-          return next();
-        }
-      }
-
       ApiResponse.error(
         res,
         'Token has expired. Please refresh your session.',
@@ -222,8 +211,8 @@ export const optionalAuthenticate = async (req: Request, res: Response, next: Ne
     }
   }
 
-  // Only fall back to dev mock user if no auth header was sent at all
-  if (!req.user && (req.headers['x-user-id'] || req.query.userId || process.env.NODE_ENV !== 'production')) {
+  // Only fall back to dev mock user if explicitly requested with x-mock-test-auth header in dev/test
+  if (!req.user && req.headers['x-mock-test-auth'] === 'true' && process.env.NODE_ENV !== 'production') {
     const rawUserId = String(req.headers['x-user-id'] || req.query.userId || DEV_FALLBACK_USER_ID);
     const validUserId = mongoose.Types.ObjectId.isValid(rawUserId) ? rawUserId : DEV_FALLBACK_USER_ID;
     const rawOrgId = String(req.headers['x-org-id'] || req.query.orgId || DEV_FALLBACK_ORG_ID);

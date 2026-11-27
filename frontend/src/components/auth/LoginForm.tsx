@@ -152,10 +152,16 @@ export const LoginForm: React.FC = () => {
         pageStateCache.delete("home_attendance_employee_records");
         pageStateCache.delete("/");
 
-        // 3. User remains on login page while progress bar runs & all Home screen data is preloaded in parallel
-        try {
-          await preloadHomeDashboardData();
-        } catch {}
+        // 3. Preload Home screen data for active members; pending users skip straight to approval card
+        const isPendingUser =
+          (res.user.role || "").toLowerCase() === "pending" ||
+          (res.user.status || "").toLowerCase() === "pending";
+
+        if (!isPendingUser) {
+          try {
+            await preloadHomeDashboardData();
+          } catch {}
+        }
 
         // 4. Release auth loader and commit navigation to Home; progress bar completes on Home as it reveals
         navigationProgress.setLoading("auth_submit", false);
@@ -279,6 +285,44 @@ export const LoginForm: React.FC = () => {
                 </Button>
               </div>
             </form>
+
+            {/* Quick Demo Access Bar */}
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-2">
+              <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                Quick Demo Access
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin({ email: "info.openstreem@gmail.com", password: "Admin@123" })}
+                  className="flex items-center justify-between p-2.5 rounded-lg border border-purple-200 dark:border-purple-900/60 bg-purple-50/70 dark:bg-purple-950/30 hover:bg-purple-100/80 transition-all text-left cursor-pointer tactile-btn group"
+                >
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
+                      Admin
+                    </div>
+                    <div className="text-[10.5px] text-gray-500 truncate mt-0.5">Full CA Portal</div>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 kinetic-icon shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin({ email: "aniketsingh886909@gmail.com", password: "123456" })}
+                  className="flex items-center justify-between p-2.5 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100/80 transition-all text-left cursor-pointer tactile-btn group"
+                >
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      Employee
+                    </div>
+                    <div className="text-[10.5px] text-gray-500 truncate mt-0.5">Staff Tasks</div>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 kinetic-icon shrink-0" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

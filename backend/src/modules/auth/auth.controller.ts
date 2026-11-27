@@ -31,12 +31,33 @@ export class AuthController {
     ApiResponse.success(res, creds, 'Demo credentials retrieved');
   }
 
-  public static async register(_req: Request, res: Response): Promise<void> {
-    ApiResponse.error(
-      res,
-      'Organization registration is disabled. Please submit an employment request.',
-      HTTP_STATUS.FORBIDDEN
-    );
+  public static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await AuthService.registerOrganization({
+        firmName: req.body.firmName || req.body.organizationName || 'Ayatrio Practice',
+        name: req.body.name,
+        email: req.body.email,
+        mobile: req.body.mobile || '9999999999',
+        password: req.body.password,
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+      });
+
+      setRefreshCookie(res, result.tokens.refreshToken);
+
+      ApiResponse.created(
+        res,
+        {
+          user: result.user,
+          accessToken: result.tokens.accessToken,
+          refreshToken: result.tokens.refreshToken,
+          expiresIn: result.tokens.expiresIn || 86400,
+        },
+        'Organization registered successfully'
+      );
+    } catch (error) {
+      next(error);
+    }
   }
 
   public static async lookup(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -370,6 +391,16 @@ export class AuthController {
       const userId = String(req.user?.userId || '');
       const statusData = await AuthService.getEmploymentStatus(userId);
       ApiResponse.success(res, statusData, 'Employment status retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp, newPassword } = req.body;
+      const result = await AuthService.resetPassword(email, otp, newPassword);
+      ApiResponse.success(res, result, result.message);
     } catch (error) {
       next(error);
     }

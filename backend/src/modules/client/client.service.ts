@@ -541,7 +541,18 @@ export class ClientService {
     const searchableFields = ['name', 'fileNo', 'mobile', 'email', 'pan', 'addressDetails.city', 'tags'];
     const parsedQuery = QueryBuilder.parse<IClientDocument>(queryOptions, searchableFields);
 
-    // Single organization practice: all clients are accessible across the practice
+    // Multi-tenant organization isolation filter
+    const userOrgId = typeof _userCtx === 'object' ? _userCtx?.orgId : null;
+    if (userOrgId) {
+      const orgFilter = mongoose.Types.ObjectId.isValid(userOrgId)
+        ? [{ orgId: userOrgId }, { orgId: new mongoose.Types.ObjectId(userOrgId) }]
+        : [{ orgId: userOrgId }];
+      parsedQuery.filter = {
+        ...parsedQuery.filter,
+        $or: [...orgFilter, { orgId: { $exists: false } }, { orgId: null }],
+      };
+    }
+
     // Lightweight table projection: only fetch fields required for table view.
     // Heavy sub-documents (serviceSettings, customerFiles, passwords, licenses, dscs, documentsInOut, notes)
     // are excluded to keep payload size tiny and table rendering instant.
